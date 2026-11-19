@@ -125,7 +125,7 @@ bool chrome_button_rects(DosGuiWindow *win, ChromeButtonRect *min,
     int bwid  = chrome_caption_btn_w();
     int bh    = win11 ? tbh : CHROME_BUTTON_SIZE;
     int gap   = win11 ? 0 : CHROME_BUTTON_GAP;
-    if (win->w < 3 * bwid + 4) return false;
+    if (win->w < 3 * bwid + WUBU_SPACE_XS) return false;
 
     int right = win->x + win->w - bw - (win11 ? 0 : 2);
     int top   = win->y + bw + (tbh - bh) / 2;
@@ -140,17 +140,17 @@ bool chrome_button_rects(DosGuiWindow *win, ChromeButtonRect *min,
 }
 
 /* Returns which button (if any) contains point (mx, my), absolute screen
- * coordinates: 1=min 2=max 3=close, 0=none. */
+ * coordinates: ChromeButton values, CHROME_BTN_NONE when outside. */
 int chrome_hit_test_button(DosGuiWindow *win, int mx, int my) {
     ChromeButtonRect bmin, bmax, bclose;
-    if (!chrome_button_rects(win, &bmin, &bmax, &bclose)) return 0;
+    if (!chrome_button_rects(win, &bmin, &bmax, &bclose)) return CHROME_BTN_NONE;
     if (mx >= bclose.x && mx < bclose.x + bclose.w &&
-        my >= bclose.y && my < bclose.y + bclose.h) return 3;
+        my >= bclose.y && my < bclose.y + bclose.h) return CHROME_BTN_CLOSE;
     if (mx >= bmax.x && mx < bmax.x + bmax.w &&
-        my >= bmax.y && my < bmax.y + bmax.h) return 2;
+        my >= bmax.y && my < bmax.y + bmax.h) return CHROME_BTN_MAXIMIZE;
     if (mx >= bmin.x && mx < bmin.x + bmin.w &&
-        my >= bmin.y && my < bmin.y + bmin.h) return 1;
-    return 0;
+        my >= bmin.y && my < bmin.y + bmin.h) return CHROME_BTN_MINIMIZE;
+    return CHROME_BTN_NONE;
 }
 
 /* -- Main chrome drawing entry point -------------------------------- */
@@ -164,7 +164,7 @@ int chrome_hit_test_button(DosGuiWindow *win, int mx, int my) {
  * 14px square -- the exact kind of drift a shared metric is meant to kill.
  */
 static void chrome_glyph_close(int x, int y, int w, int h, uint32_t fg) {
-    int p = w / 5;
+    int p = w / 5; /* glyph-art padding */
     if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
     for (int i = 0; i < w - 2 * p && i < h - 2 * p; i++) {
         vbe_set_pixel(x + p + i,         y + p + i,             fg);
@@ -175,7 +175,7 @@ static void chrome_glyph_close(int x, int y, int w, int h, uint32_t fg) {
 }
 
 static void chrome_glyph_max(int x, int y, int w, int h, uint32_t fg) {
-    int p = w / 5;
+    int p = w / 5; /* glyph-art padding */
     if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
     for (int i = 0; i < w - 2 * p; i++) {
         vbe_set_pixel(x + p + i, y + p, fg);
@@ -188,7 +188,7 @@ static void chrome_glyph_max(int x, int y, int w, int h, uint32_t fg) {
 }
 
 static void chrome_glyph_min(int x, int y, int w, int h, uint32_t fg) {
-    int p = w / 5;
+    int p = w / 5; /* glyph-art padding */
     if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
     int mid = y + h / 2;
     for (int i = 0; i < w - 2 * p; i++)
@@ -207,18 +207,21 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
 
     int tbh = chrome_title_bar_height();
     int bw = chrome_border_width();
-    int rad = th->rounded_buttons ? (wubu_theme_current() == THEME_DARK ? 8 : 4) : 0;
+    int rad = th->rounded_buttons
+        ? (wubu_theme_current() == THEME_DARK ? WUBU_METRIC_RADIUS_WINDOW
+                                              : WUBU_METRIC_RADIUS_CONTROL)
+        : 0;
 
     bool active = (g_dwm.focused_id == win->id);
     bool maximized = win->flags & DOSGUI_WIN_MAXIMIZED;
 
     /* -- Window frame background -- */
     if (th->Luna_start_button && tc()->win_shadow != 0 && !maximized) {
-        int off = 4;
+        int off = WUBU_CHROME_SHADOW_OFF;
         vbe_blend_rect(win->x + off + 1, win->y + off + 1, win->w, win->h,
-                       tc()->win_shadow, 40);
+                       tc()->win_shadow, WUBU_CHROME_SHADOW_ALPHA_SOFT);
         vbe_blend_rect(win->x + off, win->y + off, win->w, win->h,
-                       tc()->win_shadow, 90);
+                       tc()->win_shadow, WUBU_CHROME_SHADOW_ALPHA_HARD);
     }
 
     /* Window body */
@@ -312,12 +315,12 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
                            my >= bmin.y && my < bmin.y + bmin.h);
             uint32_t bar = tc()->win_face;
             chrome_fill(bclose.x, bclose.y, bclose.w, bclose.h,
-                        hclose ? 0xE81123 : bar);
+                        hclose ? tc()->caption_close_hover : bar);
             chrome_fill(bmax.x, bmax.y, bmax.w, bmax.h,
                         hmax ? tc()->btn_face : bar);
             chrome_fill(bmin.x, bmin.y, bmin.w, bmin.h,
                         hmin ? tc()->btn_face : bar);
-            uint32_t fg = hclose ? 0xFFFFFF : tc()->win_title_text;
+            uint32_t fg = tc()->win_title_text;
             chrome_glyph_close(bclose.x, bclose.y, bclose.w, bclose.h, fg);
             chrome_glyph_max(bmax.x, bmax.y, bmax.w, bmax.h, fg);
             chrome_glyph_min(bmin.x, bmin.y, bmin.w, bmin.h, fg);
@@ -327,23 +330,23 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
             chrome_fill(bclose.x, bclose.y, bclose.w, bclose.h, tc()->btn_face);
             chrome_draw_3d_raised(bclose.x, bclose.y, bclose.w, bclose.h, 2);
             for (int i = 3; i < 11; i++) {
-                vbe_set_pixel(bclose.x + i,     bclose.y + i,     0x000000);
-                vbe_set_pixel(bclose.x + i + 1, bclose.y + i,     0x000000);
-                vbe_set_pixel(bclose.x + i,     bclose.y + 14 - i, 0x000000);
-                vbe_set_pixel(bclose.x + i + 1, bclose.y + 14 - i, 0x000000);
+                vbe_set_pixel(bclose.x + i,     bclose.y + i,     0x000000); /* glyph-art */
+                vbe_set_pixel(bclose.x + i + 1, bclose.y + i,     0x000000); /* glyph-art */
+                vbe_set_pixel(bclose.x + i,     bclose.y + 14 - i, 0x000000); /* glyph-art */
+                vbe_set_pixel(bclose.x + i + 1, bclose.y + 14 - i, 0x000000); /* glyph-art */
             }
             chrome_fill(bmax.x, bmax.y, bmax.w, bmax.h, tc()->btn_face);
             chrome_draw_3d_raised(bmax.x, bmax.y, bmax.w, bmax.h, 2);
             for (int i = 3; i < 11; i++) {
-                vbe_set_pixel(bmax.x + i,     bmax.y + 3,     0x000000);
-                vbe_set_pixel(bmax.x + i,     bmax.y + 10,    0x000000);
-                vbe_set_pixel(bmax.x + 3,     bmax.y + i,     0x000000);
-                vbe_set_pixel(bmax.x + 10,    bmax.y + i,     0x000000);
+                vbe_set_pixel(bmax.x + i,     bmax.y + 3,     0x000000); /* glyph-art */
+                vbe_set_pixel(bmax.x + i,     bmax.y + 10,    0x000000); /* glyph-art */
+                vbe_set_pixel(bmax.x + 3,     bmax.y + i,     0x000000); /* glyph-art */
+                vbe_set_pixel(bmax.x + 10,    bmax.y + i,     0x000000); /* glyph-art */
             }
             chrome_fill(bmin.x, bmin.y, bmin.w, bmin.h, tc()->btn_face);
             chrome_draw_3d_raised(bmin.x, bmin.y, bmin.w, bmin.h, 2);
             for (int i = 3; i < 11; i++)
-                vbe_set_pixel(bmin.x + i, bmin.y + 10, 0x000000);
+                vbe_set_pixel(bmin.x + i, bmin.y + 10, 0x000000); /* glyph-art */
         }
     }
 
@@ -363,16 +366,16 @@ void chrome_handle_button_click(DosGuiWindow *win, int button) {
     if (!win) return;
 
     switch (button) {
-        case 3:  /* CHROME_BTN_CLOSE */
+        case CHROME_BTN_CLOSE:
             wm_destroy(win);
             break;
-        case 2:  /* CHROME_BTN_MAXIMIZE */
+        case CHROME_BTN_MAXIMIZE:
             if (win->flags & DOSGUI_WIN_MAXIMIZED)
                 wm_restore(win);
             else
                 wm_maximize(win);
             break;
-        case 1:  /* CHROME_BTN_MINIMIZE */
+        case CHROME_BTN_MINIMIZE:
             wm_minimize(win);
             break;
         default:
@@ -388,7 +391,7 @@ void chrome_handle_button_click(DosGuiWindow *win, int button) {
  * SteamOS-informed Breeze default) draws a 4px-radius face and the hover
  * color, instead of the square SNES bevel -- so "buttons look wrong" is a
  * theme decision, not a hardcoded one. */
-#define CHROME_BTN_RADIUS 4   /* Breeze: ~4-6px rounded corners */
+#define CHROME_BTN_RADIUS WUBU_METRIC_RADIUS_CONTROL
 void chrome_draw_button(int x, int y, int w, int h,
                                const char *label, bool pressed) {
     const WubuThemeColors *c = tc();
@@ -401,8 +404,11 @@ void chrome_draw_button(int x, int y, int w, int h,
         vbe_3d_raised_colors(x, y, w, h, c->border_light, face,
                              c->border_dark, c->border_darkest);
     }
-    vbe_draw_text(x + (w - (int)strlen(label)*8)/2, y + (h-8)/2, label,
-                  c->btn_text, 1);
+    /* Measure with the real text API: strlen*8 assumed an 8px cell while
+     * the font advances 6px (and honours the global text scale) — labels
+     * sat off-centre. */
+    vbe_draw_text(x + (w - vbe_text_width(label, 1)) / 2,
+                  y + (h - WUBU_FONT_CAP_H) / 2, label, c->btn_text, 1);
 }
 
 /* -- Text edit field chrome ----------------------------------------- */
@@ -430,10 +436,10 @@ void chrome_draw_statusbar(int x, int y, int w, int h,
     const WubuThemeColors *c = tc();
     vbe_fill_rect(x, y, w, h, c->win_face);
     vbe_rect(x, y, w, h, c->border_dark);
-    if (left_text) vbe_draw_text(x + 4, y + (h-8)/2, left_text, c->btn_text, 1);
+    if (left_text) vbe_draw_text(x + WUBU_SPACE_XS, y + (h - WUBU_FONT_CAP_H) / 2, left_text, c->btn_text, 1);
     if (right_text) {
         int rw = vbe_text_width(right_text, 1);
-        vbe_draw_text(x + w - rw - 4, y + (h-8)/2, right_text, c->btn_text, 1);
+        vbe_draw_text(x + w - rw - WUBU_SPACE_XS, y + (h - WUBU_FONT_CAP_H) / 2, right_text, c->btn_text, 1);
     }
 }
 
@@ -441,7 +447,7 @@ void chrome_draw_statusbar(int x, int y, int w, int h,
 
 void chrome_draw_progress(int x, int y, int w, int h, int percent) {
     const WubuThemeColors *c = tc();
-    int pw = (w * percent) / 100;
+    int pw = (w * percent) / 100; /* percent-math */
     if (pw > w) pw = w;
     vbe_3d_sunken_colors(x, y, w, h,
                          c->border_light, c->border_face,
@@ -462,14 +468,16 @@ void chrome_draw_tabs(int x, int y, int w, int h,
             vbe_3d_sunken_colors(tx, y, tab_w, h,
                                  c->border_light, c->border_face,
                                  c->border_dark, c->border_darkest);
-            vbe_draw_text(tx + (tab_w - (int)strlen(labels[i])*8)/2, y + (h-8)/2,
+            vbe_draw_text(tx + (tab_w - vbe_text_width(labels[i], 1)) / 2,
+                          y + (h - WUBU_FONT_CAP_H) / 2,
                           labels[i], c->select_text, 1);
         } else {
             vbe_fill_rect(tx, y, tab_w, h, c->btn_face);
             vbe_3d_raised_colors(tx, y, tab_w, h,
                                  c->border_light, c->btn_face,
                                  c->border_dark, c->border_darkest);
-            vbe_draw_text(tx + (tab_w - (int)strlen(labels[i])*8)/2, y + (h-8)/2,
+            vbe_draw_text(tx + (tab_w - vbe_text_width(labels[i], 1)) / 2,
+                          y + (h - WUBU_FONT_CAP_H) / 2,
                           labels[i], c->btn_text, 1);
         }
     }

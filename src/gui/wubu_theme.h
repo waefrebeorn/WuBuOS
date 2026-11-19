@@ -72,6 +72,9 @@ typedef struct {
      * its dark-red row; the Luna family uses black + soft red text. */
     uint32_t startmenu_shutdown_bg;
     uint32_t startmenu_shutdown_fg;
+    /* Caption Close hover (Win11 red). Reference: impossible-os tokens
+     * caption_close_hover #C42B1C. */
+    uint32_t caption_close_hover;
 
     /* Selection / highlights */
     uint32_t select_bg;

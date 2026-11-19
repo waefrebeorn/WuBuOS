@@ -84,6 +84,11 @@
 #define WUBU_TITLE_BTN_H   32   /* flush with the caption bar */
 #define WUBU_TITLE_PAD     WUBU_SPACE_SM   /* icon and title inset */
 
+/* Window chrome: the era drop-shadow (XP/Luna) and caption behaviour. */
+#define WUBU_CHROME_SHADOW_OFF      4   /* shadow offset down-right */
+#define WUBU_CHROME_SHADOW_ALPHA_SOFT 40 /* outer pass */
+#define WUBU_CHROME_SHADOW_ALPHA_HARD 90 /* inner pass */
+
 #define WUBU_TASKBAR_H     WUBU_METRIC_TASKBAR_H   /* taskbar: canonical */
 
 /* Modern (Win11-class) taskbar. Indicator measurements from the reference

@@ -87,11 +87,13 @@ dots instead of guessing 6px).
 
 Geometry / colour hits per governed surface — work top-down:
 
-- `src/gui/shell/win11_widgets.c` — 17 / 0. NEXT.
-- `src/gui/shell/window_chrome.c` — 16 / 10. Colour hits are classic-era
-  literals; route through the theme table like startmenu's shutdown row.
-- `src/gui/shell/wm_ctxmenu.c` — 16 / 1.
+- `src/gui/shell/wm_ctxmenu.c` — 16 / 1. NEXT.
 - `src/gui/shell/wm_systray.c` — 16 / 3.
+- `src/gui/shell/win11_widgets.c` — 17 / 0.
+- `src/gui/shell/window_chrome.c` — 0 / 0. DONE (batch 3: caption_close_hover
+  theme semantic, reference #C42B1C; ChromeButton enum aligned to the live
+  hit-test convention and used by both sides; labels centre via
+  vbe_text_width — strlen*8 assumed an 8px cell, the font advances 6px).
 - `src/gui/shell/startmenu.c` — 0 / 0. DONE (batch 1).
 - `src/gui/shell/wm_taskbar.c` — 0 / 0. DONE (batch 2, with GUI slerm 0.5:
   flat Fluent tiles, running-indicator pills gated by test_taskbar_indicator,
@@ -105,6 +107,14 @@ batch when picked up; do not boil the ocean in one pass.
 
 ## Status
 
+- 2026-11-19 batch 3: window_chrome.c geometry 16->0, colour 10->0. New theme
+  semantic caption_close_hover (all 6 themes, reference #C42B1C). Unused
+  ChromeButton enum contradicted the live hit-test numbering — aligned and
+  used by chrome_hit_test_button + chrome_handle_button_click. Text centring
+  via vbe_text_width (was strlen*8, off-centre). Audit markers gained
+  percent-math / btn-id classes. Ratchet: geometry 65->49, colour 14->4.
+  Gates: test_wm 55/55, test_gui_metrics, test_standards clean, hosted,
+  test_docs 581/0.
 - 2026-11-19: R11 colour rule added to std_audit + ratchet; startmenu.c fully
   migrated (geometry 87->0, colour 18->0); theme table gained semantic
   `startmenu_shutdown_bg/fg` for all 6 themes; tokens gained the menu/start

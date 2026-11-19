@@ -370,12 +370,15 @@ typedef struct {
     int x, y, w, h;
 } ChromeContentRect;
 
-/* Button hit-test result */
+/* Button hit-test result. Numbering IS the chrome_hit_test_button /
+ * chrome_handle_button_click convention (min=1, max=2, close=3); the old
+ * order (close=1, min=3) contradicted the live pair and was unused — a trap
+ * for the first caller that trusted it. */
 typedef enum {
     CHROME_BTN_NONE = 0,
-    CHROME_BTN_CLOSE,
-    CHROME_BTN_MAXIMIZE,
     CHROME_BTN_MINIMIZE,
+    CHROME_BTN_MAXIMIZE,
+    CHROME_BTN_CLOSE,
 } ChromeButton;
 
 /* Draw complete window chrome (frame, title bar, buttons).
