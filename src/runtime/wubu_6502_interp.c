@@ -39,7 +39,45 @@ typedef struct {
     uint16_t pc;
     uint8_t mem[CPU6502_MEM];  /* data memory */
     int halted;
+    uint32_t fret;             /* soft-float return bits (hostcall fn=11) */
+    int fret_valid;
+    uint16_t call_stack[32];   /* hostcall fn=27/28 call depth */
+    int call_sp;
 } cpu6502_t;
+
+/* ---- hostcall soft-float service ------------------------------------
+ * The driver emits opcode 0x02 {fn,dst,sa,sb} escapes (see wubu_isa_6502.c
+ * emit_fhostcall). Prefer the compiler repo's bit-exact softfloat when it
+ * is on the include path (WuBuNOS builds); fall back to host IEEE float
+ * for self-contained WuBuOS builds. */
+#if defined(__has_include)
+#  if __has_include("wubu_softfloat.h")
+#    include "wubu_softfloat.h"
+#    define HC6502_SF 1
+#  endif
+#endif
+#ifndef HC6502_SF
+#include <string.h>
+static inline uint32_t hc6502_f2b(float f){ uint32_t b; memcpy(&b,&f,4); return b; }
+static inline float hc6502_b2f(uint32_t b){ float f; memcpy(&f,&b,4); return f; }
+static inline uint32_t wubu_sf_f32_add(uint32_t a, uint32_t b){ return hc6502_f2b(hc6502_b2f(a)+hc6502_b2f(b)); }
+static inline uint32_t wubu_sf_f32_sub(uint32_t a, uint32_t b){ return hc6502_f2b(hc6502_b2f(a)-hc6502_b2f(b)); }
+static inline uint32_t wubu_sf_f32_mul(uint32_t a, uint32_t b){ return hc6502_f2b(hc6502_b2f(a)*hc6502_b2f(b)); }
+static inline uint32_t wubu_sf_f32_div(uint32_t a, uint32_t b){ return hc6502_f2b(hc6502_b2f(a)/hc6502_b2f(b)); }
+static inline int wubu_sf_f32_cmp(uint32_t a, uint32_t b){ float x=hc6502_b2f(a),y=hc6502_b2f(b); return (x<y)?-1:(x>y)?1:0; }
+static inline uint32_t wubu_sf_i64_to_f32(int64_t i){ return hc6502_f2b((float)i); }
+static inline int64_t wubu_sf_f32_to_i64(uint32_t f){ return (int64_t)hc6502_b2f(f); }
+#endif
+
+/* mem64 cell mapping: the driver-space ALLOC base is a byte address
+ * (>=32); cell index = its low byte. Cells live in RAM above the ZP/stack
+ * pages: mem64[cell] <-> address 0x0200 + cell*8. LOAD and STORE share
+ * this map, mirroring the z80 interpreter's cell*8 convention. */
+#define HC6502_MEMBASE 0x0200u
+static inline uint16_t hc6502_cell_addr(uint8_t cell)
+{
+    return (uint16_t)(HC6502_MEMBASE + (uint16_t)cell * 8u);
+}
 
 #define FLAG_N (cpu.p & P_N)
 #define FLAG_Z (cpu.p & P_Z)
@@ -292,6 +330,74 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
 
         case 0xEA: /* NOP */            break;
 
+        /* WUBU_HOSTCALL (0x02): {fn, dst, sa, sb} — ZP slot addresses.
+         * Mirrors the z80 interpreter's fn table (wubu_z80_interp.c). */
+        case 0x02: {
+            uint8_t fn  = code[cpu.pc++];
+            uint8_t dst = code[cpu.pc++];
+            uint8_t sa  = code[cpu.pc++];
+            uint8_t sb  = code[cpu.pc++];
+            uint32_t fa = (uint32_t)read8(&cpu, sa)
+                        | ((uint32_t)read8(&cpu, (uint8_t)(sa+1)) << 8)
+                        | ((uint32_t)read8(&cpu, (uint8_t)(sa+2)) << 16)
+                        | ((uint32_t)read8(&cpu, (uint8_t)(sa+3)) << 24);
+            uint32_t fb = (uint32_t)read8(&cpu, sb)
+                        | ((uint32_t)read8(&cpu, (uint8_t)(sb+1)) << 8)
+                        | ((uint32_t)read8(&cpu, (uint8_t)(sb+2)) << 16)
+                        | ((uint32_t)read8(&cpu, (uint8_t)(sb+3)) << 24);
+            uint32_t r = 0;
+            int wide = 1;   /* 4-byte write-back for float results */
+            switch (fn) {
+            case 0:  r = wubu_sf_f32_add(fa, fb); break;
+            case 1:  r = wubu_sf_f32_sub(fa, fb); break;
+            case 2:  r = wubu_sf_f32_mul(fa, fb); break;
+            case 3:  r = wubu_sf_f32_div(fa, fb); break;
+            case 10: r = fa ^ 0x80000000u; break;
+            case 6:  r = (wubu_sf_f32_cmp(fa,fb)==0)?0xFFFFFFFFu:0; break;
+            case 7:  r = (wubu_sf_f32_cmp(fa,fb)!=0)?0xFFFFFFFFu:0; break;
+            case 8:  r = (wubu_sf_f32_cmp(fa,fb) <0)?0xFFFFFFFFu:0; break;
+            case 9:  r = (wubu_sf_f32_cmp(fa,fb)<=0)?0xFFFFFFFFu:0; break;
+            case 4:  r = wubu_sf_i64_to_f32((int64_t)(int32_t)fa); break;
+            case 5:  r = (uint32_t)wubu_sf_f32_to_i64(fa); break;
+            case 11: r = fa; cpu.fret = fa; cpu.fret_valid = 1; break;
+            /* MEM_LOAD: low byte of mem64[cell]; cell index = low byte
+             * of the addr vr's 1-byte ZP slot. */
+            case 25: r = read8(&cpu, hc6502_cell_addr(read8(&cpu, sa))); wide = 0; break;
+            /* MEM_STORE: sa = value slot, sb = cell-index slot. */
+            case 26: write8(&cpu, hc6502_cell_addr(read8(&cpu, sb)), read8(&cpu, sa)); r = 0; wide = 0; break;
+            /* CALL: abs16 target follows the 5-byte prologue. */
+            case 27:
+                if (cpu.call_sp < 32) {
+                    uint16_t target = (uint16_t)(code[cpu.pc] | (code[cpu.pc+1] << 8));
+                    cpu.pc += 2;
+                    cpu.call_stack[cpu.call_sp++] = cpu.pc;
+                    cpu.pc = target;
+                }
+                r = 0; wide = 0;
+                break;
+            /* FUNC_RET: return byte -> vr0's slot (zp_slot(0) = 1);
+             * pop the call stack, or halt with A = v at top level. */
+            case 28: {
+                uint8_t v = read8(&cpu, sa);
+                write8(&cpu, 1, v);
+                if (cpu.call_sp > 0) cpu.pc = cpu.call_stack[--cpu.call_sp];
+                else { cpu.a = v; cpu.halted = 1; }
+                r = 0; wide = 0;
+                break;
+            }
+            default: break;
+            }
+            if (dst != 0) {
+                write8(&cpu, dst, (uint8_t)(r & 0xFF));
+                if (wide) {
+                    write8(&cpu, (uint8_t)(dst+1), (uint8_t)((r >> 8) & 0xFF));
+                    write8(&cpu, (uint8_t)(dst+2), (uint8_t)((r >> 16) & 0xFF));
+                    write8(&cpu, (uint8_t)(dst+3), (uint8_t)((r >> 24) & 0xFF));
+                }
+            }
+            break;
+        }
+
         default:
             cpu.halted = 1;
             break;
@@ -299,5 +405,6 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
     }
     /* sign-extend the 8-bit accumulator so the battery's negative
      * expectations (-1 for ~0, etc.) agree with the other drivers */
+    if (cpu.fret_valid) return (int64_t)(int32_t)cpu.fret;
     return (int64_t)(int8_t)cpu.a;
 }

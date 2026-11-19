@@ -21,7 +21,71 @@ typedef struct {
     uint64_t pc;
     uint8_t n, z, v, c; /* condition codes */
     uint8_t mem[RV_MEM];
+    uint32_t fret;      /* soft-float return bits (hostcall fn=11) */
+    int fret_valid;
+    uint64_t call_stack[32];  /* hostcall fn=27/28 call depth */
+    int call_sp;
 } rv_cpu_t;
+
+/* ---- hostcall soft-float service (CUSTOM-0 opcode 0x0B) --------------
+ * The driver emits {0x0B, fn, dst_off, sa_off, sb_off} with fp-relative
+ * slot offsets (see wubu_isa_riscv.c emit_fhostcall). Prefer the compiler
+ * repo's bit-exact softfloat when on the include path; host IEEE float
+ * otherwise. Same fn table as the z80/6502 interpreters. */
+#if defined(__has_include)
+#  if __has_include("wubu_softfloat.h")
+#    include "wubu_softfloat.h"
+#    define HCRV_SF 1
+#  endif
+#endif
+#ifndef HCRV_SF
+static inline uint32_t hcrv_f2b(float f){ uint32_t b; memcpy(&b,&f,4); return b; }
+static inline float hcrv_b2f(uint32_t b){ float f; memcpy(&f,&b,4); return f; }
+static inline uint32_t wubu_sf_f32_add(uint32_t a, uint32_t b){ return hcrv_f2b(hcrv_b2f(a)+hcrv_b2f(b)); }
+static inline uint32_t wubu_sf_f32_sub(uint32_t a, uint32_t b){ return hcrv_f2b(hcrv_b2f(a)-hcrv_b2f(b)); }
+static inline uint32_t wubu_sf_f32_mul(uint32_t a, uint32_t b){ return hcrv_f2b(hcrv_b2f(a)*hcrv_b2f(b)); }
+static inline uint32_t wubu_sf_f32_div(uint32_t a, uint32_t b){ return hcrv_f2b(hcrv_b2f(a)/hcrv_b2f(b)); }
+static inline int wubu_sf_f32_cmp(uint32_t a, uint32_t b){ float x=hcrv_b2f(a),y=hcrv_b2f(b); return (x<y)?-1:(x>y)?1:0; }
+static inline uint32_t wubu_sf_i64_to_f32(int64_t i){ return hcrv_f2b((float)i); }
+static inline int64_t wubu_sf_f32_to_i64(uint32_t f){ return (int64_t)hcrv_b2f(f); }
+#endif
+
+/* fp-relative 4-byte LE slot read/write */
+static inline uint32_t hcrv_rd32(rv_cpu_t *cpu, int64_t fp, uint32_t off)
+{
+    uint64_t a = (uint64_t)(fp + (int64_t)(int32_t)off);
+    if (a + 4 > RV_MEM) return 0;
+    return (uint32_t)cpu->mem[a] | ((uint32_t)cpu->mem[a+1] << 8)
+         | ((uint32_t)cpu->mem[a+2] << 16) | ((uint32_t)cpu->mem[a+3] << 24);
+}
+static inline void hcrv_wr32(rv_cpu_t *cpu, int64_t fp, uint32_t off, uint32_t v)
+{
+    uint64_t a = (uint64_t)(fp + (int64_t)(int32_t)off);
+    if (a + 4 > RV_MEM) return;
+    cpu->mem[a]   = (uint8_t)(v & 0xFF);
+    cpu->mem[a+1] = (uint8_t)((v >> 8) & 0xFF);
+    cpu->mem[a+2] = (uint8_t)((v >> 16) & 0xFF);
+    cpu->mem[a+3] = (uint8_t)((v >> 24) & 0xFF);
+}
+/* int results zero-extend into the full 8-byte slot so a later LD never
+ * picks up stale upper bytes from a previous occupant */
+static inline void hcrv_wr64z(rv_cpu_t *cpu, int64_t fp, uint32_t off, uint32_t v)
+{
+    hcrv_wr32(cpu, fp, off, v);
+    hcrv_wr32(cpu, fp, off + 4, 0);
+}
+/* mem64 cells: flat guest memory, cell*8 (z80 convention); the frame
+ * lives at the top of memory so low cells never collide with slots. */
+static inline uint8_t hcrv_cell_rd(rv_cpu_t *cpu, uint32_t cell)
+{
+    uint64_t a = (uint64_t)(cell & 0xFF) * 8u;
+    return (a < RV_MEM) ? cpu->mem[a] : 0;
+}
+static inline void hcrv_cell_wr(rv_cpu_t *cpu, uint32_t cell, uint8_t v)
+{
+    uint64_t a = (uint64_t)(cell & 0xFF) * 8u;
+    if (a < RV_MEM) cpu->mem[a] = v;
+}
 
 static uint32_t fetch32(rv_cpu_t *cpu, const uint8_t *code, size_t size)
 {
@@ -66,6 +130,9 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
 
     while (cpu.pc + 4 <= size) {
         uint32_t inst = fetch32(&cpu, code, size);
+        cpu.x[0] = 0;   /* RISC-V invariant: x0 is hardwired zero. JAL/JALR
+                         * with rd=x0 and any ALU dst=x0 must not corrupt it
+                         * (a polluted x0 silently offsets every `addi rd,x0,imm`). */
         uint8_t opcode = inst & 0x7F;
         uint8_t rd = (inst >> 7) & 0x1F;
         uint8_t funct3 = (inst >> 12) & 0x7;
@@ -261,8 +328,64 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
             continue;
         }
 
+        if (opcode == 0x0B) { /* CUSTOM-0: WUBU_HOSTCALL */
+            uint32_t fn      = fetch32(&cpu, code, size);
+            uint32_t dst_off = fetch32(&cpu, code, size);
+            uint32_t sa_off  = fetch32(&cpu, code, size);
+            uint32_t sb_off  = fetch32(&cpu, code, size);
+            int64_t fp = cpu.x[8];
+            uint32_t fa = hcrv_rd32(&cpu, fp, sa_off);
+            uint32_t fb = hcrv_rd32(&cpu, fp, sb_off);
+            uint32_t r = 0;
+            int wide = 1;
+            switch (fn) {
+            case 0:  r = wubu_sf_f32_add(fa, fb); break;
+            case 1:  r = wubu_sf_f32_sub(fa, fb); break;
+            case 2:  r = wubu_sf_f32_mul(fa, fb); break;
+            case 3:  r = wubu_sf_f32_div(fa, fb); break;
+            case 10: r = fa ^ 0x80000000u; break;
+            case 6:  r = (wubu_sf_f32_cmp(fa,fb)==0)?0xFFFFFFFFu:0; break;
+            case 7:  r = (wubu_sf_f32_cmp(fa,fb)!=0)?0xFFFFFFFFu:0; break;
+            case 8:  r = (wubu_sf_f32_cmp(fa,fb) <0)?0xFFFFFFFFu:0; break;
+            case 9:  r = (wubu_sf_f32_cmp(fa,fb)<=0)?0xFFFFFFFFu:0; break;
+            case 4:  r = wubu_sf_i64_to_f32((int64_t)(int32_t)fa); break;
+            case 5:  r = (uint32_t)wubu_sf_f32_to_i64(fa); wide = 0; break; /* int dst: 8-byte slot */
+            case 11: r = fa; cpu.fret = fa; cpu.fret_valid = 1; break;
+            /* MEM_LOAD: cell index = 4-byte LE addr slot; low byte out */
+            case 25: r = hcrv_cell_rd(&cpu, fa); wide = 0; break;
+            /* MEM_STORE: sa = value slot, sb = cell-index slot */
+            case 26: hcrv_cell_wr(&cpu, fb, (uint8_t)(fa & 0xFF)); r = 0; wide = 0; break;
+            /* CALL: abs32 target word follows the 5-word prologue */
+            case 27: {
+                uint32_t target = fetch32(&cpu, code, size);
+                if (cpu.call_sp < 32) {
+                    cpu.call_stack[cpu.call_sp++] = cpu.pc;
+                    cpu.pc = target;
+                }
+                r = 0; wide = 0;
+                break;
+            }
+            /* FUNC_RET: return byte -> vr0 slot (fp+8); pop or halt */
+            case 28: {
+                uint8_t v = (uint8_t)(fa & 0xFF);
+                hcrv_wr64z(&cpu, fp, 8, v);
+                if (cpu.call_sp > 0) cpu.pc = cpu.call_stack[--cpu.call_sp];
+                else { cpu.x[10] = (int64_t)(int8_t)v; return cpu.x[10]; }
+                r = 0; wide = 0;
+                break;
+            }
+            default: break;
+            }
+            if (dst_off != 0) {
+                if (wide) hcrv_wr32(&cpu, fp, dst_off, r);
+                else hcrv_wr64z(&cpu, fp, dst_off, r);
+            }
+            continue;
+        }
+
         /* unrecognized: halt */
         break;
     }
+    if (cpu.fret_valid) return (int64_t)(int32_t)cpu.fret;
     return cpu.x[10];  /* a0 = return value */
 }
