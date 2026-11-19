@@ -270,6 +270,13 @@ static volatile struct {
  * (0xffffffff90000000): that window is shared with the demand-zero demo
  * and the 9P app loader, and the two display paths must never alias. */
 #define WUBU_GOP_FB_VA 0xffffffff94000000ull
+/* L20: the Bochs LFB gets its OWN VA inside the kernel syscall-validation
+ * window. It used to map at 0x90000000 — the N9 app / demand-zero demo
+ * region — and pre-vmm-init, so its first PT page was recycled by the
+ * bitmap reset and silently refilled with RAM by the demand registration
+ * (first framebuffer row wrote to RAM, invisible). Now: distinct VA,
+ * mapped AFTER wubu_vmm_init, like the GOP path. */
+#define WUBU_BOCHS_LFB_VA 0xffffffff98000000ull
 
 /* Render selftest: write a known pattern through the PUBLIC render API,
  * then read it back through the raw mapped surface (independent of the
@@ -519,6 +526,8 @@ void kernel_main(void *boot_info) {
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'8', %%al\n outb %%al, %%dx" ::: "dx","al");
     int fb_width = 1920, fb_height = 1080;
     int gop_fb_pending = 0;   /* L4: GOP fallback attaches after vmm init */
+    int bochs_lfb_pending = 0; /* L20: Bochs LFB attaches after vmm init */
+    uint64_t bochs_lfb_phys = 0;
     struct limine_framebuffer *fb = NULL;
     if (g_limine_ok && limine_framebuffer_request.response) {
         fb = limine_framebuffer_request.response;
@@ -569,31 +578,16 @@ void kernel_main(void *boot_info) {
                 lfb = (uint64_t)(bar0 & ~0xFFFull);   /* mask bar type bits */
             klog_printf("WuBuOS: bochs VBE mode %dx%d@32 LFB phys=%x\n",
                         fb_width, fb_height, (unsigned)(lfb & 0xFFFFFFFFull));
-            /* Increment 2: map the 8 MB LFB (phys 0xE0000000, above the
-             * kernel's <1 GB identity) into a free higher-half VA, then point
-             * ALL rendering at it -- the panel now owns the pixels directly
-             * (vbe_set_render_target makes fb==back==LFB). Device MMIO, so
-             * map with P|RW only (no NX; the framebuffer is never executed). */
-            extern int  wubu_vmm_map_page(uint64_t, uint64_t, uint32_t);
-            extern void vbe_set_render_target(uint32_t *, int, int);
-            const uint64_t lfb_va = 0xffffffff90000000ull;
-            const uint64_t bytes = (uint64_t)fb_width * fb_height * 4;
-            const uint32_t pages = (uint32_t)((bytes + 0xFFF) >> 12);
-            uint32_t nmapped = 0;
-            for (uint32_t i = 0; i < pages; i++)
-                if (wubu_vmm_map_page(lfb_va + i * 4096,
-                                      lfb + i * 4096, 3) == 0)
-                    nmapped++;
-            if (nmapped == pages) {
-                vbe_set_render_target((uint32_t *)(uintptr_t)lfb_va,
-                                      fb_width, fb_height);
-                klog_printf("WuBuOS: bare-metal display LIVE (%dx%d@32, "
-                            "%u LFB pages mapped)\n", fb_width, fb_height,
-                            nmapped);
-            } else {
-                klog_printf("WuBuOS: LFB mapped %u/%u pages (staying RAM fb)\n",
-                            nmapped, pages);
-            }
+            /* L20: defer the mapping until AFTER wubu_vmm_init() — same
+             * rule as the GOP path (the mapper's PT pages come from the
+             * vmm pool, whose bitmap wubu_vmm_init RESETS; a pre-init
+             * mapping loses its first PT page). The old code mapped here
+             * at 0x90000000 and survived only because the demand-zero
+             * demo registration refilled the clobbered PTE with RAM —
+             * the first framebuffer row was secretly RAM. */
+            bochs_lfb_pending = 1;
+            bochs_lfb_phys = lfb;
+            klog_printf("WuBuOS: bochs LFB present -- attaching after vmm init\n");
         } else if (g_limine_ok && limine_framebuffer_request.response) {
             /* L4: no Bochs LFB (real UEFI hardware) or forced off -- the
              * firmware already gave us a GOP framebuffer. Defer the attach
@@ -665,6 +659,30 @@ void kernel_main(void *boot_info) {
      * allocations are owned and never recycled under the surface. */
     if (gop_fb_pending)
         gop_fb_attach(limine_framebuffer_request.response);
+    /* L20: NOW map + attach the Bochs LFB at its own VA (post-init PT
+     * allocations are bitmap-tracked and survive; the 0x90000000 region
+     * stays demand-zero RAM for N9 apps / the console demo). */
+    if (bochs_lfb_pending) {
+        extern int  wubu_vmm_map_page(uint64_t, uint64_t, uint32_t);
+        extern void vbe_set_render_target(uint32_t *, int, int);
+        const uint64_t bytes = (uint64_t)fb_width * fb_height * 4;
+        const uint32_t pages = (uint32_t)((bytes + 0xFFF) >> 12);
+        uint32_t nmapped = 0;
+        for (uint32_t i = 0; i < pages; i++)
+            if (wubu_vmm_map_page(WUBU_BOCHS_LFB_VA + (uint64_t)i * 4096,
+                                  bochs_lfb_phys + (uint64_t)i * 4096, 3) == 0)
+                nmapped++;
+        if (nmapped == pages) {
+            vbe_set_render_target((uint32_t *)(uintptr_t)WUBU_BOCHS_LFB_VA,
+                                  fb_width, fb_height);
+            klog_printf("WuBuOS: bare-metal display LIVE (%dx%d@32, "
+                        "%u LFB pages mapped)\n", fb_width, fb_height,
+                        nmapped);
+        } else {
+            klog_printf("WuBuOS: LFB mapped %u/%u pages (staying RAM fb)\n",
+                        nmapped, pages);
+        }
+    }
     /* interrupt-driven serial RX (gap E2): UART IRQ -> wubu_sync FIFO */
     extern void wubu_serial_init(void);
     wubu_serial_init();
