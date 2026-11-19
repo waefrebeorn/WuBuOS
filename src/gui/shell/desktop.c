@@ -27,6 +27,11 @@
 #include "../../runtime/wubu_ns_kernels.h"
 #include "../../apps/apps.h"
 #include "../era_apps.h"
+
+/* L9: /n/guests publisher is optional at the GUI boundary -- weak no-op so
+ * every desktop link line works; the product's RT_OBJS carries the real
+ * wubu_ns_guests.o which overrides this at link time. */
+__attribute__((weak)) int wubu_ns_guests_sync(void) { return -1; }
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
 #include "../wm.h"
@@ -141,6 +146,11 @@ int desktop_init(void) {
         }
         extern int wubu_ns_bridge_create(const char *);
         if (wubu_ns_bridge_create(nsroot) == 0) {
+            /* L9 /n/guests: containers as first-class namespace citizens.
+             * Weak no-op below so GUI link lines without the guests module
+             * still link; the product (RT_OBJS) carries the real one. */
+            extern int wubu_ns_guests_sync(void);
+            wubu_ns_guests_sync();
             /* the autostart dir the session manager scans (XDG system dir) */
             char *const autodirs[2] = {
                 (char*)"/etc/xdg/autostart", (char*)"$HOME"};

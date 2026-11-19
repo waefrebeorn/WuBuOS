@@ -36,6 +36,19 @@
 
 /* -- Helpers ------------------------------------------------ */
 
+/* /n/guests control-plane seams (L9). Weak no-ops here so every link line
+ * that carries styxfs_callbacks.o works without the guests module; the real
+ * wubu_ns_guests.o overrides them at link time. probe lets a walk reach a
+ * not-yet-running guest's launch file; write dispatches launch-by-write to
+ * the SAME validated exec path the in-process API uses. */
+__attribute__((weak)) int wubu_ns_guests_probe(const char *path, uint8_t *qid_type) {
+    (void)path; (void)qid_type; return 0;
+}
+__attribute__((weak)) int wubu_ns_guests_write(const char *path, const uint8_t *data,
+                                               uint32_t count, uint32_t *nwritten) {
+    (void)path; (void)data; (void)count; (void)nwritten; return 0;
+}
+
 styxfs_server_t *styxfs_get_server(styx_server_t *base) {
     /* base is the first member of styxfs_server_t */
     return (styxfs_server_t *)base;
@@ -87,8 +100,12 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
         build_path(next, sizeof(next), cur, wname[i]);
 
         /* A path is reachable if it is (a) the root, (b) a mount point,
-         * (c) under a mount, or (d) an existing host file/dir under one. */
+         * (c) under a mount, (d) an existing host file/dir under one, or
+         * (e) a synthetic /n/guests control path (launch/state of a guest
+         * that is not running yet -- L9). */
         int reachable = 0;
+        int probed = 0;
+        uint8_t probe_type = STX_QTFILE;
         if (strcmp(next, "/") == 0) reachable = 1;
         if (!reachable && path_is_mounted(srv, next)) reachable = 1;
         if (!reachable) {
@@ -96,6 +113,10 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
             styxfs_path_to_host(srv, next, host, sizeof(host));
             struct stat st;
             if (stat(host, &st) == 0) reachable = 1;
+        }
+        if (!reachable) {
+            probed = wubu_ns_guests_probe(next, &probe_type);
+            if (probed) reachable = 1;
         }
         if (!reachable) break;  /* walk stops at the first missing component */
 
@@ -114,7 +135,8 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
             struct stat st2;
             if (stat(h2, &st2) == 0 && S_ISDIR(st2.st_mode)) host_is_dir = 1;
         }
-        qids[nqid].type    = (exact_mount || host_is_dir) ? STX_QTDIR : STX_QTFILE;
+        qids[nqid].type    = probed ? probe_type
+                             : ((exact_mount || host_is_dir) ? STX_QTDIR : STX_QTFILE);
         qids[nqid].version = 1;
         qids[nqid].path    = (uint64_t)(++srv->next_qid_path);
         nqid++;
@@ -293,6 +315,14 @@ int styxfs_write_cb(styx_server_t *base, uint32_t fid,
 
     styx_fid_t *f = styx_fid_lookup(base, fid);
     if (!f) return -1;
+
+    /* L9: /n/guests/<name>/launch is a control write -- dispatch it to the
+     * guests module (validated exec path) BEFORE any disk write. 1 = handled
+     * ok, -1 = handled and refused (Rerror), 0 = not a guests control file. */
+    uint32_t gnw = 0;
+    int grc = wubu_ns_guests_write(fid_path(f), data, count, &gnw);
+    if (grc == 1) { *nwritten = gnw; return 0; }
+    if (grc < 0) return -1;
 
     char host[STYXFS_MAX_PATH];
     styxfs_path_to_host(srv, fid_path(f), host, sizeof(host));

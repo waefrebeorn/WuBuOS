@@ -83,6 +83,7 @@ typedef struct {
     /* Styx socket */
     int      styx_fd;       /* Per-container Styx namespace fd */
     char     styx_path[256];/* Unix socket path */
+    int      styx_pid;      /* Parent-side 9P server process (0 = none) */
     
     /* Command */
     char    *argv[WUBU_CT_MAX_ARGS];
@@ -183,6 +184,18 @@ WubuCt *wubu_ct_bwrap_native(const char *name);
 
 /* Bubblewrap start function (replaces wubu_ct_start for hosted mode) */
 int wubu_ct_start_bwrap(WubuCt *ct);
+
+/* -- Running-Container Registry ------------------------------------ */
+
+/*
+ * The single owner of live container state. wubu_ct_start() registers a
+ * container here; it is retired (unregistered + 9P server stopped) when the
+ * container exits (wubu_ct_wait / wubu_ct_state) or is destroyed. /n/guests
+ * renders from these accessors -- no second mirror of container state.
+ */
+int     wubu_ct_registry_count(void);
+WubuCt *wubu_ct_registry_get(int idx);      /* NULL if out of range */
+WubuCt *wubu_ct_registry_find(const char *name);
 
 /* -- Diagnostics -------------------------------------------------- */
 
