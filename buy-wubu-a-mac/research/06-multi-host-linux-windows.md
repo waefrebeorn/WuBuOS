@@ -81,6 +81,16 @@ tarballs + per-host build notes) once the matrix is green. Users
 never need a payment plan or a support ticket: clone, make, run —
 or download the ISO and boot it.
 
+## Closed gap: WuBuKernel is public (2026-11-19)
+
+The WuBuKernel submodule repo was PRIVATE — a fresh public clone of
+wubuos could not fetch it, so test_kernel_bridge was unbuildable from
+source alone. That contradicted source-as-distro. Scanned (12 files,
+pure C11 kernel code, zero secrets — no security reason for privacy),
+made public by owner directive, anonymous clone verified at d92b0f2
+(the exact pinned commit). boot-verify now fetches it and runs the
+bridge gate on every kernel push.
+
 ## Honest limits
 
 - WSL2/WSLg leg: real on user machines, not CI-verifiable (no nested
