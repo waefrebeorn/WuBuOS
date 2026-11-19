@@ -10,18 +10,10 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "wubu_math.h"  /* constants: one owner (WUBU_M_*) */
 
 /* -- Constants ---------------------------------------------------- */
 
-#define WUBU_PI        3.14159265358979323846
-#define WUBU_PI_2      1.57079632679489661923
-#define WUBU_PI_4      0.78539816339744830962
-#define WUBU_2_PI      0.63661977236758134308
-#define WUBU_E         2.71828182845904523536
-#define WUBU_LOG2_E    1.44269504088896340736
-#define WUBU_LN2       0.69314718055994530942
-#define WUBU_SQRT2     1.41421356237309504880
-#define WUBU_SQRT1_2   0.70710678118654752440
 
 /* IEEE 754 special values */
 #define WUBU_NAN       __builtin_nan("")
@@ -162,7 +154,7 @@ double wubu_log(double x) {
 
     /* Range reduction to [sqrt(2)/2, sqrt(2)) ≈ [0.707, 1.414) for better convergence */
     /* If x_norm >= sqrt(2), divide by 2 and increment exponent */
-    if (x_norm >= WUBU_SQRT2) {
+    if (x_norm >= WUBU_M_SQRT2) {
         x_norm *= 0.5;
         e++;
     }
@@ -552,13 +544,13 @@ int main(void) {
     TEST("pow", wubu_pow, pow, 2.0, 0.5);
     
     TEST("sin", wubu_sin, sin, 0.0);
-    TEST("sin", wubu_sin, sin, WUBU_PI_2);
-    TEST("sin", wubu_sin, sin, WUBU_PI);
+    TEST("sin", wubu_sin, sin, WUBU_M_PI_2);
+    TEST("sin", wubu_sin, sin, WUBU_M_PI);
     TEST("sin", wubu_sin, sin, 1.0);
     
     TEST("cos", wubu_cos, cos, 0.0);
-    TEST("cos", wubu_cos, cos, WUBU_PI_2);
-    TEST("cos", wubu_cos, cos, WUBU_PI);
+    TEST("cos", wubu_cos, cos, WUBU_M_PI_2);
+    TEST("cos", wubu_cos, cos, WUBU_M_PI);
     TEST("cos", wubu_cos, cos, 1.0);
     
     TEST("atan2", wubu_atan2, atan2, 1.0, 1.0);

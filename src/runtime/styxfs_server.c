@@ -26,7 +26,7 @@
 /* -- StyxFS Server State ------------------------------------------ */
 
 #define STYXFS_MAX_PATH 4096
-#define STYXFS_MAX_OPEN_FILES 256
+#define STYXFS_HOST_MAX_OPEN_FILES 256
 
 typedef struct {
     int fd;
@@ -36,7 +36,7 @@ typedef struct {
 
 typedef struct {
     char root[STYXFS_MAX_PATH];
-    styxfs_host_file_t open_files[STYXFS_MAX_OPEN_FILES];
+    styxfs_host_file_t open_files[STYXFS_HOST_MAX_OPEN_FILES];
     uint64_t next_qid_path;
 } styxfs_host_server_t;
 
@@ -76,7 +76,7 @@ static int styxfs_stat_to_dir(const struct stat *st, const char *name,
 
 /* Find free open file slot */
 static int styxfs_alloc_file(styxfs_host_server_t *fs) {
-    for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
+    for (int i = 0; i < STYXFS_HOST_MAX_OPEN_FILES; i++) {
         if (!fs->open_files[i].in_use) {
             fs->open_files[i].in_use = 1;
             return i;
@@ -87,14 +87,14 @@ static int styxfs_alloc_file(styxfs_host_server_t *fs) {
 
 /* Get open file by index */
 static styxfs_host_file_t *styxfs_get_file(styxfs_host_server_t *fs, int idx) {
-    if (idx < 0 || idx >= STYXFS_MAX_OPEN_FILES) return NULL;
+    if (idx < 0 || idx >= STYXFS_HOST_MAX_OPEN_FILES) return NULL;
     if (!fs->open_files[idx].in_use) return NULL;
     return &fs->open_files[idx];
 }
 
 /* Free open file slot */
 static void styxfs_free_file(styxfs_host_server_t *fs, int idx) {
-    if (idx < 0 || idx >= STYXFS_MAX_OPEN_FILES) return;
+    if (idx < 0 || idx >= STYXFS_HOST_MAX_OPEN_FILES) return;
     if (fs->open_files[idx].in_use && fs->open_files[idx].fd >= 0) {
         close(fs->open_files[idx].fd);
     }
@@ -442,7 +442,7 @@ styx_server_t *styxfs_server_create(const char *root_path) {
     }
     
     /* Initialize open files */
-    for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
+    for (int i = 0; i < STYXFS_HOST_MAX_OPEN_FILES; i++) {
         fs->open_files[i].fd = -1;
         fs->open_files[i].in_use = 0;
     }
@@ -473,7 +473,7 @@ void styxfs_server_destroy(styx_server_t *srv) {
     styxfs_host_server_t *fs = (styxfs_host_server_t *)srv->user_data;
     if (fs) {
         /* Close all open files */
-        for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
+        for (int i = 0; i < STYXFS_HOST_MAX_OPEN_FILES; i++) {
             if (fs->open_files[i].in_use && fs->open_files[i].fd >= 0) {
                 close(fs->open_files[i].fd);
             }

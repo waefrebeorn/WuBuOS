@@ -24,11 +24,7 @@
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#define M_PI_2 1.57079632679489661923
-#define M_PI_4 0.78539816339744830962
-#endif
+#include "wubu_math.h"  /* math constants: one owner */
 
 /* ---- Folded sin/cos pair (no libm dependency) ----
  * Uses a 2nd-order polynomial on [0, pi/4] + sqrt(1-y*y) identity.
@@ -37,15 +33,15 @@
 static void wubu_fold_sincos(double x, double *sinr, double *cosr)
 {
     /* Range-reduce to [0, 2pi) */
-    double two_pi = 2.0 * M_PI;
+    double two_pi = 2.0 * WUBU_M_PI;
     x -= two_pi * (double)(int)(x / two_pi);
     if (x < 0) x += two_pi;
 
     /* Octant-fold to [0, pi/4] */
     double sgn_sin = 1.0;
     double sgn_cos = 1.0;
-    if (x > M_PI) { x = two_pi - x; sgn_sin = -1.0; }
-    if (x > M_PI_2) { x = M_PI - x; sgn_cos = -1.0; }
+    if (x > WUBU_M_PI) { x = two_pi - x; sgn_sin = -1.0; }
+    if (x > M_PI_2) { x = WUBU_M_PI - x; sgn_cos = -1.0; }
     double flip = (x > M_PI_4) ? 1.0 : 0.0;
     double xf = x;
     if (flip) xf = M_PI_2 - x;  /* fold into [0, pi/4] */
@@ -136,7 +132,7 @@ void wubu_filter_biquad(double f, double fs, double q, double db,
                         double *a1, double *a2)
 {
     if (!type || !b0 || !b1 || !b2 || !a1 || !a2) return;
-    double w0 = 2.0 * M_PI * f / fs;
+    double w0 = 2.0 * WUBU_M_PI * f / fs;
     double sinw, cosw;
     wubu_fold_sincos(w0, &sinw, &cosw);
     double alpha = sinw / (2.0 * q);

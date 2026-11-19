@@ -16,7 +16,7 @@ Fixed (values compared comment-free); these are the honest numbers:
 
 | repo | files | dup CONFLICTS | dup mirrors | paths | env | alloc | sleep |
 |---|---|---|---|---|---|---|---|
-| wubuos (body) | 2276 | 40 | 154 | 3240 | 95 | 180 | 23 |
+| wubuos (body) | 2276 | 30 | 154 | 3240 | 95 | 180 | 23 |
 | wubunos (compiler) | 254 | 4 | 81 | 71 | 58 | 54 | 8 |
 | wubuwizard (brain) | 1608 | 56 | 38 | 485 | 218 | 193 | 1 |
 | wubucompositor | 9 | 1 | 0 | 2 | 3 | 2 | 0 |
@@ -82,6 +82,31 @@ bear/filter/std — next batch), STYXFS_MAX_OPEN_FILES 128 vs 256 (real,
 read before fixing), feature-test macros (_GNU_SOURCE etc. — per-TU
 ladders, benign), test-local caps (bear tests — benign unless a shared
 harness emerges), FALSE/TRUE (layer-local UEFI vs parity, accepted).
+
+## Body batch 3 (2026-11-19): math owner + STYXFS — conflicts 40 -> 30
+
+- **Math constants**: wubu_math.c kept a private literal table while
+  wubu_math.h owned WUBU_M_* (+ conditional aliases). The .c now includes
+  the header and uses WUBU_M_* directly; only implementation-local
+  NAN/INF/hex-float constants remain in the .c. bear/wubu_math.h's WUBU_PI
+  aliases libm's M_PI (it already includes <math.h>). wubu_filter.c's
+  private M_PI fallback replaced by the kernel math owner.
+- **STYXFS_MAX_OPEN_FILES**: styxfs.h's 128 sizes the PROTOCOL struct;
+  styxfs_server.c re-defined the same name to 256 for its HOST-side table
+  (different type, different concern, no shared TU). Renamed the server's
+  to STYXFS_HOST_MAX_OPEN_FILES — both named, no overload.
+- Gates: test_math PASS, test_styxfs 18/18, make bear built, hosted green,
+  test_standards clean, test_docs 581/0.
+
+The remaining 30 body conflicts are ACCEPTED triage classes, not bugs:
+feature-test macro ladders (_GNU_SOURCE/_POSIX_C_SOURCE etc., per-TU by
+design), guarded M_PI fallbacks in wubu_std.h/bear (POST-system-header
+pattern), file-local test caps and paths (MAX_ENVS/MAX_STEPS/H/W/NSROOT/
+ROOT/OUT_DIR — never co-included), FALSE/TRUE (UEFI spec vs kernel
+parity, layer-local), BEAR_HAVE_CUDA/CUDNN (#ifdef ladders), MAX_FILES
+(firmware fsproto vs fwcfg — different subsystems, generic name).
+Renaming these for grep-ability is optional hygiene, not correctness.
+The body's REAL duplicate-owner conflicts are closed.
 
 ## Sibling leg 1: wubunos (compiler) — pushed a3cf7c5 (wubu-integration)
 

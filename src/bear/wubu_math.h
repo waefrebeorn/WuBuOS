@@ -26,7 +26,7 @@ extern "C" {
 
 /* --- Constants --- */
 #define WUBU_EPS  1e-7f
-#define WUBU_PI   3.14159265358979323846
+#define WUBU_PI   M_PI  /* <math.h> is the owner on hosted bear */
 
 /* --- Utilities --- */
 static inline float wubu_clip(float x, float lo, float hi) {
