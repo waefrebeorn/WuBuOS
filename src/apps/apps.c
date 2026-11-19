@@ -355,7 +355,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "Paint",        "WuBu Canvas",   DESK_ICON_PAINT,       0x000080FF, launch_canvas },
     { "Calculator",   "Calculator",    DESK_ICON_CALCULATOR,  0x00FF8000, launch_calculator },
     { "Terminal",     "Terminal",      DESK_ICON_TERMINAL,    0x00000000, launch_terminal },
-    { "File Manager", "File Manager",  DESK_ICON_EXPLORTER,   0x000080FF, launch_file_manager },
+    { "File Manager", "File Manager",  DESK_ICON_EXPLORER,   0x000080FF, launch_file_manager },
     { "Settings",     "Control Panel", DESK_ICON_SETTINGS,    0x00808080, launch_settings },
     { "Editor",       "Editor",        DESK_ICON_COUNT + 0,   0x008080FF, launch_editor },
     { "WuBu Canvas",  "WuBu Canvas",   DESK_ICON_COUNT + 1,   0x000080FF, launch_canvas },

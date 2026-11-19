@@ -27,9 +27,10 @@ typedef struct DosGuiWindow DosGuiWindow;
 #define DESK_ICON_PAINT         3
 #define DESK_ICON_CALCULATOR    4
 #define DESK_ICON_TERMINAL      5
-#define DESK_ICON_EXPLORTER     6
+#define DESK_ICON_EXPLORER      6
 #define DESK_ICON_SETTINGS      7
-#define DESK_ICON_COUNT         8   /* first dynamically-allocated icon id */
+#define DESK_ICON_DOOM          8
+#define DESK_ICON_COUNT         9   /* first dynamically-allocated icon id */
 
 /* App definition: one entry per desktop app. The launch fn creates the window
  * AND wires its on_draw/on_mouse/on_key callbacks (see apps.c). */

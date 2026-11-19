@@ -11,11 +11,11 @@
  * position-independent 16/64-bit asm built by hand.
  */
 #include "wubu_smp.h"
+#include "interrupt_apic.h"   /* LAPIC register offsets: one owner */
 
-#define LAPIC_BASE      0xFEE00000ull
-#define LAPIC_ICR_LOW   0x300u
-#define LAPIC_ICR_HIGH  0x310u
-#define LAPIC_ID        0x020u
+/* LAPIC_BASE / ICR offsets used to be re-defined here; the APIC header is
+ * the owner (hardcoding census 2026-11-19). */
+#define LAPIC_BASE      LAPIC_BASE_DEFAULT
 
 /* the AP trampoline (16-bit, copied to 0x8000) + its size */
 extern const uint8_t wubu_smp_tramp_start[];

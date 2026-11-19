@@ -14,15 +14,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-/* -- Mach-O Magic Numbers ----------------------------------------- */
-#define MH_MAGIC             0xFEEDFACEu  /* 32-bit Mach-O */
-#define MH_CIGAM             0xCEFAEDFEu  /* 32-bit byte-swapped */
-#define MH_MAGIC_64          0xFEEDFACFu  /* 64-bit Mach-O */
-#define MH_CIGAM_64          0xCFFAEDFEu  /* 64-bit byte-swapped */
-#define FAT_MAGIC            0xCAFEBABEu  /* Universal binary */
-#define FAT_CIGAM            0xBEBAFECAu  /* Universal byte-swapped */
-#define FAT_MAGIC_64         0xCAFEBABFu  /* 64-bit universal */
-#define FAT_CIGAM_64         0xBFBAFECAu  /* 64-bit universal byte-swapped */
+/* -- Mach-O Magic Numbers: one owner, include/wubu_macho_fmt.h ------ */
+#include "../../../include/wubu_macho_fmt.h"
 
 /* -- CPU Types ---------------------------------------------------- */
 #define CPU_ARCH_MASK         0xFF000000

@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -614,6 +614,13 @@ test_wm_shadow:
 		src/gui/wubu_theme.c src/runtime/wubu_palette.c \
 		src/kernel/vbe.c -o $(GUI)/shell/wm_shadow_test -lm
 	$(GUI)/shell/wm_shadow_test
+
+# In-kernel Mach-O loader (format constants: include/wubu_macho_fmt.h)
+test_kernel_macho:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude \
+		src/kernel/wubu_macho.c src/kernel/wubu_macho_test.c \
+		-o $(KERNEL)/wubu_macho_test
+	$(KERNEL)/wubu_macho_test
 
 # macOS layer tests
 test_vsl_macho:

@@ -10,6 +10,23 @@ workflow (`docs/compendium/04-roadmap/gui-slerm-impossible-os.md`): every surfac
 slermed from the reference is ALSO de-hardcoded as it lands, so the two efforts
 compound instead of fighting.
 
+## Org-wide scope (owner directive 2026-11-19, later same day)
+
+The effort covers the WHOLE ~WuBu~ family, not just the GUI surfaces:
+`docs/CONSTANTS.md` is the front door (where every kind of constant lives,
+per layer of the organism), and `tools/hardcode_census.py` measures the
+org-wide frontier (duplicate defines, path literals, env knobs, literal
+allocations, literal sleeps) in any checkout via `--root`. The per-repo
+frontier and triage classes live in
+`docs/compendium/04-roadmap/hardcoding-census.md`.
+
+Protocol for sibling repos (wubunos, wubuwizard, wubucompositor, wubulens,
+W-Code, WuBuKernel): run the census with `--root <checkout>`, work CONFLICTS
+first, edit ONLY in that repo's own checkout, gate with THAT repo's tests,
+commit/push per its branch protocol, record the numbers in the census doc.
+Never edit a submodule's content from the body; never carry a body gate
+claim across a repo boundary.
+
 ## The principle
 
 A constant hardcoded in a surface is a second owner of a decision that already

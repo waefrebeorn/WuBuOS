@@ -16,13 +16,12 @@
  * C11, kernel-clean, opaque, self-contained.
  */
 #include "wubu_macho.h"
+#include "../../include/wubu_macho_fmt.h"
 #include <string.h>
 
-/* Mach-O constants */
-#define MH_MAGIC_64      0xFEEDFC02
-#define MH_CIGAM_64      0xCFFAEDFE
-#define FAT_MAGIC        0xCAFEBABE
-#define FAT_CIGAM        0xBEBAFECA
+/* Mach-O magic constants: one owner, include/wubu_macho_fmt.h. The local
+ * copies that used to live here carried a wrong MH_MAGIC_64 (0xFEEDFC02),
+ * rejecting every valid 64-bit Mach-O — caught by the hardcoding census. */
 
 /* the magic tells us endianness */
 static int is_fat(uint32_t m) { return m == FAT_MAGIC || m == FAT_CIGAM; }

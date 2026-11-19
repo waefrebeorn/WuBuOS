@@ -14,19 +14,10 @@
 #define WUBU_DOSGUI_DESKTOP_H
 
 #include <stdint.h>
-
-/* -- Desktop Icon Types ----------------------------------------- */
-
-#define DESK_ICON_MY_COMPUTER   0
-#define DESK_ICON_TEMPLE_REPL  1
-#define DESK_ICON_NOTEPAD       2
-#define DESK_ICON_PAINT         3
-#define DESK_ICON_CALCULATOR    4
-#define DESK_ICON_TERMINAL      5
-#define DESK_ICON_EXPLORER      6
-#define DESK_ICON_SETTINGS      7
-#define DESK_ICON_DOOM          8
-#define DESK_ICON_COUNT         9
+#include "../../apps/apps.h"   /* DESK_ICON_* ids: ONE owner (apps registry).
+                                * This header used to re-define the whole enum
+                                * with COUNT 9 while apps.h said 8 — dynamic
+                                * icons then collided with DESK_ICON_DOOM. */
 
 /* -- Lifecycle ---------------------------------------------------- */
 

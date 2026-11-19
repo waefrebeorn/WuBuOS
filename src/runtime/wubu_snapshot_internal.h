@@ -24,28 +24,10 @@
 #include <ftw.h>
 #include <dirent.h>
 #include <linux/limits.h>
-/* FTW_MOUNT, FTW_DEPTH, FTW_PHYS require WUBU_HOSTED on some systems */
-#ifndef FTW_MOUNT
-#define FTW_MOUNT 0x0100
-#endif
-#ifndef FTW_DEPTH
-#define FTW_DEPTH 0x0001
-#endif
-#ifndef FTW_PHYS
-#define FTW_PHYS 0x0002
-#endif
-#ifndef FTW_NS
-#define FTW_NS 0x0004
-#endif
-#ifndef FTW_SL
-#define FTW_SL 0x0010
-#endif
-#ifndef FTW_SLN
-#define FTW_SLN 0x0010
-#endif
-#ifndef FTW_DP
-#define FTW_DP 0x0004
-#endif
+/* FTW_* flags: NOT defined here. wubu_ftw.h is a POST-system-header fill-in
+ * (include <ftw.h> first, then wubu_ftw.h); pre-defining fallback values in
+ * this internal header shadowed the real ones with a different numbering —
+ * a latent flag mismatch caught by the hardcoding census 2026-11-19. */
 
 /* -- Time/ID helpers ----------------------------------------------- */
 
