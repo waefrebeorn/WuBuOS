@@ -29,14 +29,27 @@ def main():
     # CI runners under TCG are ~8x slower than a dev box: the window is
     # configurable (WUBU_BOOT_WINDOW seconds; CI sets 300, local default 45).
     window = int(os.environ.get("WUBU_BOOT_WINDOW", "45"))
+    rc = None
     try:
-        subprocess.run(cmd, timeout=window,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        r = subprocess.run(cmd, timeout=window,
+                           stdout=subprocess.DEVNULL,
+                           stderr=open("ci_qemu_err.txt", "wb"))
+        rc = r.returncode
     except subprocess.TimeoutExpired:
         pass  # expected: the boot window ends, we read the trace
     except FileNotFoundError:
         print("FAIL: qemu-system-x86_64 not on PATH")
         return 2
+    if rc is not None:
+        # QEMU exited BEFORE the window: with -no-reboot that means the
+        # guest triple-faulted (or QEMU itself errored). Surface both.
+        print("qemu exited early, returncode=%s" % rc)
+        try:
+            err = open("ci_qemu_err.txt", "rb").read()[-500:]
+            if err:
+                print("qemu stderr tail: %s" % err.decode(errors="replace"))
+        except OSError:
+            pass
     data = open(serial, "rb").read() if os.path.exists(serial) else b""
     n = len(data)
     print("serial bytes: %d" % n)

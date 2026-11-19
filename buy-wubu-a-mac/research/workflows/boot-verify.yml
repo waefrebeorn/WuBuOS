@@ -45,7 +45,16 @@ jobs:
       - name: Declaration-hygiene ratchet (gcc14-class, must stay clean)
         run: make kernel-strict -j$(nproc)
       - name: Boot it here first (Linux, -kernel path)
-        run: WUBU_BOOT_WINDOW=300 python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
+        run: |
+          qemu-system-x86_64 --version | head -1
+          WUBU_BOOT_WINDOW=300 python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: boot-diagnostics
+          path: |
+            ci_serial.bin
+            ci_qemu_err.txt
       - uses: actions/upload-artifact@v4
         with:
           name: wubuos-iso
