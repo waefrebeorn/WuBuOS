@@ -1,0 +1,34 @@
+# L14: WEMU user-mode build (reconciled 2026-11-19).
+#
+# src/wemu is a submodule pinned at leg/user-mode-vsl (75537bf): the
+# user-mode leg (ELF loader, SysV stack, FS/GS TLS bases, SSE2/AVX2
+# growth, the vpandn es=16 fix) is UPSTREAM in the wemu repo — the
+# former patch overlay is gone. This fragment builds WEMU out-of-tree
+# (copy into build/wemu-user) so the submodule checkout stays pristine
+# and the wubuos build never writes into it.
+
+WEMU_SUB   := src/wemu
+WEMU_BUILD := build/wemu-user
+WEMU_LIB   := $(WEMU_BUILD)/libwemu-user.a
+WEMU_INC   := -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src
+WEMU_CFLAGS := -std=c11 -O2 -g -Wall -Wextra -Werror
+WEMU_SRC_NAMES := wemu_cpu wemu_mem wemu_decode wemu_exec wemu_sse \
+                  wemu_string wemu_machine wemu_elf
+WEMU_OBJS := $(patsubst %,$(WEMU_BUILD)/src/%.o,$(WEMU_SRC_NAMES))
+
+# Copy rule: refresh when the submodule pointer or any source changes.
+$(WEMU_BUILD)/.copied: $(WEMU_SUB)/.git $(wildcard $(WEMU_SUB)/src/*.c) $(wildcard $(WEMU_SUB)/src/*.h) $(wildcard $(WEMU_SUB)/include/*.h)
+	rm -rf $(WEMU_BUILD)
+	mkdir -p $(WEMU_BUILD)
+	cp -r $(WEMU_SUB)/src $(WEMU_SUB)/include $(WEMU_SUB)/tests \
+	      $(WEMU_SUB)/Makefile $(WEMU_BUILD)/
+	touch $@
+
+# Objects depend on the stamp (the .c files only exist after the copy
+# step, so they cannot be pattern prerequisites). No -MMD here: the
+# stamp already forces a full rebuild when sources change.
+$(WEMU_BUILD)/src/%.o: $(WEMU_BUILD)/.copied
+	$(CC) $(WEMU_CFLAGS) $(WEMU_INC) -c $(WEMU_BUILD)/src/$*.c -o $@
+
+$(WEMU_LIB): $(WEMU_OBJS)
+	$(AR) rcs $@ $^

@@ -30,8 +30,39 @@ int64_t vsl_sys_brk(uint64_t new_brk, uint64_t b, uint64_t c,
 int64_t vsl_sys_mprotect(uint64_t addr, uint64_t len, uint64_t prot,
                           uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    int result = mprotect((void *)addr, (size_t)len, (int)prot);
-    return result < 0 ? -errno : (int64_t)result;
+    /* Virtual user-arena semantics (L14): the addresses here are GUEST
+     * addresses (VSL_USER_BASE..), not host pointers — host mprotect on
+     * them would fail with ENOMEM (glibc RELRO hit exactly that). Apply
+     * kernel validation, update tracked mmap protections, and record
+     * the override for ranges the bump allocator does not track (ELF
+     * image, brk heap). Enforcement comes with the WEMU paging leg. */
+    if (!g_vsl.active) return -1;
+    if (addr & 0xfff) return -22;                    /* EINVAL: unaligned */
+    if (len == 0) return 0;
+    uint64_t end = addr + ((len + 0xfff) & ~0xfffull);
+    /* Accept the low ELF-image region (statics load at 0x400000, below
+     * the bump arena) as well as the arena itself: glibc mprotects the
+     * ELF's GNU_RELRO segment right after startup. */
+    if (addr < 0x1000 || end > VSL_USER_BASE + VSL_USER_SIZE)
+        return -12;                                  /* ENOMEM */
+    for (uint32_t i = 0; i < g_vsl.n_mmaps; i++) {
+        VSL_MMAP *mm = &g_vsl.mmaps[i];
+        if (mm->addr < end && mm->addr + mm->size > addr)
+            mm->prot = (int)prot;
+    }
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    if (p) {
+        uint32_t i = 0;
+        for (; i < p->n_mprot; i++)
+            if (p->mprot[i].addr == addr && p->mprot[i].len == len) break;
+        if (i == p->n_mprot && p->n_mprot < 16) p->n_mprot++;
+        if (i < 16) {
+            p->mprot[i].addr = addr;
+            p->mprot[i].len = len;
+            p->mprot[i].prot = (int)prot;
+        }
+    }
+    return 0;
 }
 
 int64_t vsl_sys_msync(uint64_t addr, uint64_t len, uint64_t flags,

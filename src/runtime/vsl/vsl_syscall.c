@@ -173,6 +173,12 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_SETRLIMIT]    = vsl_sys_setrlimit,
     [VSL_SYS_PRLIMIT64]    = vsl_sys_prlimit64,
     [VSL_SYS_ALARM]        = vsl_sys_alarm,
+
+    /* L14 (WEMU user-mode bridge): glibc static startup needs these */
+    [VSL_SYS_GETTID]           = vsl_sys_gettid,
+    [VSL_SYS_SET_TID_ADDRESS]  = vsl_sys_set_tid_address,
+    [VSL_SYS_SET_ROBUST_LIST]  = vsl_sys_set_robust_list,
+    [VSL_SYS_GET_ROBUST_LIST]  = vsl_sys_get_robust_list,
 };
 
 #define VSL_SYSCALL_TABLE_SIZE (sizeof(vsl_syscall_table) / sizeof(vsl_syscall_table[0]))

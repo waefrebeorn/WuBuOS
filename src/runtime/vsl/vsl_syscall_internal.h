@@ -117,6 +117,14 @@ int64_t vsl_sys_alarm(uint64_t seconds, uint64_t b, uint64_t c,
                        uint64_t d, uint64_t e, uint64_t f);
 int64_t vsl_sys_sched_yield(uint64_t a, uint64_t b, uint64_t c,
                              uint64_t d, uint64_t e, uint64_t f);
+int64_t vsl_sys_gettid(uint64_t a, uint64_t b, uint64_t c,
+                       uint64_t d, uint64_t e, uint64_t f);
+int64_t vsl_sys_set_tid_address(uint64_t tidptr, uint64_t b, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f);
+int64_t vsl_sys_set_robust_list(uint64_t head, uint64_t len, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f);
+int64_t vsl_sys_get_robust_list(uint64_t pid, uint64_t head_ptr, uint64_t len_ptr,
+                                uint64_t d, uint64_t e, uint64_t f);
 
 /* -- File I/O (vsl_syscall_fileio.c) ----------------------------- */
 int64_t vsl_sys_read(uint64_t fd, uint64_t buf, uint64_t count,
