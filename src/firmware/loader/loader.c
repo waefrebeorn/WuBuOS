@@ -370,9 +370,26 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
         return EFI_LOAD_ERROR;
     }
 
-    /* 4. Measure the kernel: SHA-256 of the ELF as loaded. */
+    /* 4. Measure the kernel: SHA-256 of the ELF as loaded. Chunked with
+     * progress markers — on slow TCG hosts this is the longest silent
+     * stretch of the chain; the markers discriminate slow-vs-hung and
+     * show the rate (devil's-advocate CI diagnosis 2026-11-19). */
     uint8_t kdigest[32];
-    sha256(kbuf, elf_size, kdigest);
+    out(u"[wubufw-loader] measuring kernel ("); outdec(elf_size);
+    out(u" bytes)\r\n");
+    {
+        sha256_ctx sc;
+        sha256_init(&sc);
+        const uint64_t CHUNK = 256 * 1024;
+        for (uint64_t off = 0; off < elf_size; off += CHUNK) {
+            uint64_t n = elf_size - off;
+            if (n > CHUNK) n = CHUNK;
+            sha256_update(&sc, (const uint8_t *)kbuf + off, n);
+            out(u"[wubufw-loader] sha256: "); outdec(off + n);
+            out(u"/"); outdec(elf_size); out(u"\r\n");
+        }
+        sha256_final(&sc, kdigest);
+    }
     out(u"[wubufw-loader] kernel sha256="); outhex8(kdigest, 32); out(u"\r\n");
 
     /* 5. Stash the loader handoff for the kernel (low physical RAM,
