@@ -9,6 +9,7 @@
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <sys/resource.h>
 
 /* ====================================================================
  * PROCESS MANAGEMENT SYSCALLS
@@ -387,6 +388,16 @@ int64_t vsl_sys_getrandom(uint64_t buf, uint64_t buflen, uint64_t flags,
     (void)d; (void)e; (void)f;
     ssize_t result = getrandom((void *)buf, (size_t)buflen, (unsigned int)flags);
     return result < 0 ? -errno : (int64_t)result;
+}
+
+int64_t vsl_sys_getrusage(uint64_t who, uint64_t usage, uint64_t c,
+                          uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    struct rusage ru;
+    int rc = getrusage((int)who, &ru);
+    if (rc < 0) return -errno;
+    if (usage) memcpy((void *)usage, &ru, sizeof ru);
+    return 0;
 }
 
 int64_t vsl_sys_getrlimit(uint64_t resource, uint64_t rlim, uint64_t c,

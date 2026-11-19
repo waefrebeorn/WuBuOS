@@ -171,6 +171,7 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_UNAME]        = vsl_sys_uname,
     [VSL_SYS_SYSINFO]      = vsl_sys_sysinfo,
     [VSL_SYS_GETRANDOM]    = vsl_sys_getrandom,
+    [VSL_SYS_GETRUSAGE]    = vsl_sys_getrusage,
     [VSL_SYS_GETRLIMIT]    = vsl_sys_getrlimit,
     [VSL_SYS_SETRLIMIT]    = vsl_sys_setrlimit,
     [VSL_SYS_PRLIMIT64]    = vsl_sys_prlimit64,

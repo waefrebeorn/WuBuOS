@@ -107,6 +107,8 @@ int64_t vsl_sys_sysinfo(uint64_t info, uint64_t b, uint64_t c,
                          uint64_t d, uint64_t e, uint64_t f);
 int64_t vsl_sys_getrandom(uint64_t buf, uint64_t buflen, uint64_t flags,
                            uint64_t d, uint64_t e, uint64_t f);
+int64_t vsl_sys_getrusage(uint64_t who, uint64_t usage, uint64_t c,
+                          uint64_t d, uint64_t e, uint64_t f);
 int64_t vsl_sys_getrlimit(uint64_t resource, uint64_t rlim, uint64_t c,
                            uint64_t d, uint64_t e, uint64_t f);
 int64_t vsl_sys_setrlimit(uint64_t resource, uint64_t rlim, uint64_t c,

@@ -353,13 +353,52 @@ static int64_t bridge_syscall_inner(WemuCpu *cpu, uint64_t nr,
         if (args[1] && gwrite(cpu, args[1], rem, sizeof rem) != 0) return -14;
         return rv;
     }
-    case 97: case 98: { /* getrlimit / setrlimit: 16-byte rlimit */
+    case 97: case 160: { /* getrlimit / setrlimit: 16-byte rlimit.
+        * x86-64: 97=getrlimit, 160=setrlimit (the old code treated 98
+        * as setrlimit — 98 is getrusage, an i386 relic). */
         uint8_t rl[16];
-        if (nr == 98 && gread(cpu, args[1], rl, sizeof rl) != 0) return -14;
+        if (nr == 160 && gread(cpu, args[1], rl, sizeof rl) != 0) return -14;
         regs[1] = (uint64_t)(uintptr_t)rl;
         rv = vsl_syscall_dispatch(nr, regs);
         if (nr == 97 && rv == 0 && args[1] &&
             gwrite(cpu, args[1], rl, sizeof rl) != 0) return -14;
+        return rv;
+    }
+    case 98: { /* getrusage(who, usage): 144-byte struct out */
+        uint8_t ru[144];
+        regs[1] = (uint64_t)(uintptr_t)ru;
+        rv = vsl_syscall_dispatch(nr, regs);
+        if (rv == 0 && args[1] && gwrite(cpu, args[1], ru, sizeof ru) != 0)
+            return -14;
+        return rv;
+    }
+    case 17: case 18: { /* pread64 / pwrite64: bounce like read/write */
+        if (args[2] > BOUNCE_MAX) return -22;
+        char *buf = malloc((size_t)args[2] ? (size_t)args[2] : 1);
+        if (!buf) return -12;
+        if (nr == 18 && gread(cpu, args[1], buf, (size_t)args[2]) != 0) {
+            free(buf); return -14;
+        }
+        regs[1] = (uint64_t)(uintptr_t)buf;
+        rv = vsl_syscall_dispatch(nr, regs);
+        if (nr == 17 && rv > 0 && gwrite(cpu, args[1], buf, (size_t)rv) != 0)
+            rv = -14;
+        free(buf);
+        return rv;
+    }
+    case 22: case 293: { /* pipe / pipe2: int[2] out */
+        int fds[2];
+        regs[0] = (uint64_t)(uintptr_t)fds;
+        rv = vsl_syscall_dispatch(nr, regs);
+        if (rv == 0 && gwrite(cpu, args[0], fds, sizeof fds) != 0) return -14;
+        return rv;
+    }
+    case 100: { /* times(tbuf): 4x clock_t out */
+        uint8_t tms[32];
+        regs[0] = (uint64_t)(uintptr_t)tms;
+        rv = vsl_syscall_dispatch(nr, regs);
+        if (rv != -1 && args[0] && gwrite(cpu, args[0], tms, sizeof tms) != 0)
+            return -14;
         return rv;
     }
     case 302: { /* prlimit64(pid, res, new, old) */
@@ -458,6 +497,9 @@ static int64_t bridge_syscall_inner(WemuCpu *cpu, uint64_t nr,
     case 87: case 263: /* unlink / unlinkat */
     case 90: case 270: /* chmod / fchmodat */
     case 92: case 260: /* chown / fchownat */
+    case 76:           /* truncate */
+    case 84:           /* rmdir */
+    case 94:           /* lchown */
     {
         uint64_t pidx = (nr == 269 || nr == 258 || nr == 263 ||
                          nr == 270 || nr == 260) ? 1 : 0;
@@ -465,8 +507,9 @@ static int64_t bridge_syscall_inner(WemuCpu *cpu, uint64_t nr,
         regs[pidx] = (uint64_t)(uintptr_t)path;
         return vsl_syscall_dispatch(nr, regs);
     }
-    case 82: case 264: case 316: { /* rename / renameat / renameat2 */
-        uint64_t a = nr == 82 ? 0 : 1, b = nr == 82 ? 1 : 3;
+    case 82: case 264: case 316: case 86: { /* rename family + link */
+        uint64_t a = (nr == 82 || nr == 86) ? 0 : 1,
+                 b = (nr == 82 || nr == 86) ? 1 : 3;
         if (gstr(cpu, args[a], path, sizeof path) != 0) return -14;
         if (gstr(cpu, args[b], path2, sizeof path2) != 0) return -14;
         regs[a] = (uint64_t)(uintptr_t)path;
@@ -506,12 +549,32 @@ static int64_t bridge_syscall_inner(WemuCpu *cpu, uint64_t nr,
         }
         return vsl_syscall_dispatch(nr, regs);
     }
-    default:
-        /* no pointer args (identity, exit handled above, brk/mmap/munmap
-         * guest-arena addresses, futex-free single-thread paths...) */
+    default: {
+        /* FAIL CLOSED (security audit 2026-11-19): the old default
+         * passed EVERY unlisted syscall straight to the host handler
+         * with GUEST pointers intact — any pointer-taking syscall not
+         * explicitly marshalled above would read/write guest addresses
+         * as host pointers (silent corruption where they happen to be
+         * mapped). Only scalar-arg syscalls (and the two that STORE a
+         * guest pointer without dereferencing it) pass through now;
+         * everything else is honest -ENOSYS until marshalled + gated. */
+        static const uint16_t scalar_ok[] = {
+            3, 8, 9, 10, 11, 12, 24, 28, 32, 33, 39, 41, 48, 50,
+            62, 72, 74, 75, 77, 80, 81, 91, 93, 95, 102, 104, 105,
+            106, 107, 108, 110, 111, 113, 114, 117, 119, 122, 123,
+            124, 146, 147, 149, 150, 151, 152, 162, 186, 200, 213,
+            218, 219, 234, 253, 272, 273, 276, 277, 283, 284, 285,
+            290, 291, 292, 294, 306, 308, 312, 323, 324, 325, 330,
+            331, 436, 438, 446, 447, 448, 450,
+        };
+        int ok = 0;
+        for (size_t i = 0; i < sizeof scalar_ok / sizeof scalar_ok[0]; i++)
+            if (scalar_ok[i] == nr) { ok = 1; break; }
+        if (!ok) { record_missing(ctx, nr); return -38; }
         rv = vsl_syscall_dispatch(nr, regs);
         if (rv == -38) record_missing(ctx, nr);
         return rv;
+    }
     }
 }
 
