@@ -263,10 +263,10 @@ int  wubu_usb_enumerate(char paths[][256], char names[][64], int max);
 int  wubu_usb_open(const char *path);
 
 /* Enumerate MIDI devices */
-int  wubu_midi_enumerate(char names[][64], int max);
+int  wubu_proton2_midi_enumerate(char names[][64], int max);
 
 /* Open a MIDI device */
-int  wubu_midi_open(const char *path);
+int  wubu_proton2_midi_open(const char *path);
 
 /* ==================================================================
  *  API: Container Integration
@@ -282,14 +282,17 @@ WubuRamdisk *wubu_proton_ramdisk(WubuProtonManager *mgr);
 int  wubu_proton_mount(WubuProtonManager *mgr,
                         const char *host_path, const char *guest_path);
 
-/* Run a command inside the Proton container */
-int  wubu_proton_exec(WubuProtonManager *mgr, const char *cmd);
+/* Run a command inside the Proton container.
+ * Named wubu_proton2_exec (not wubu_proton_exec): the runtime PE loader in
+ * wubu_proton.c owns wubu_proton_exec(wubu_proton_t*, ...). One owner per
+ * concern -- the manager-based shell exec lives here under its own name. */
+int  wubu_proton2_exec(WubuProtonManager *mgr, const char *cmd);
 
 /* ==================================================================
  *  API: Diagnostics
  * ================================================================== */
 
-void wubu_proton_dump(const WubuProtonManager *mgr);
+void wubu_proton2_dump(const WubuProtonManager *mgr);
 int  wubu_proton_verify_installation(const WubuProtonManager *mgr);
 
 #endif /* WUBU_PROTON2_H */

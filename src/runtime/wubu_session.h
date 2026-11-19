@@ -18,7 +18,10 @@ enum {
 #define WUBU_SESSION_DESKTOP_CMD  "wubu-desktop"
 
 /* SS1: init — start in the given session (desktop by default). */
-void wubu_session_init(int session);
+/* Named wubu_rt_session_init: the GUI desktop session manager
+ * (src/gui/wubu_session.c) owns wubu_session_init(void). One owner per
+ * concern -- the VSL desktop/game session switch lives here. */
+void wubu_rt_session_init(int session);
 
 /* SS2: the current session. */
 int wubu_session_current(void);

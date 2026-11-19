@@ -212,6 +212,7 @@ int wubu_proton_create_prefix(const char *id, const char *game_name, ProtonVersi
 }
 
 const ProtonPrefix *wubu_proton_get_prefix(const char *id) {
+    if (!id) return NULL;   /* NULL id is a caller error, not a strcmp UB */
     for (int i = 0; i < g_proton.prefix_count; i++) {
         if (strcmp(g_proton.prefixes[i].id, id) == 0) {
             return &g_proton.prefixes[i];

@@ -35,6 +35,16 @@ $(KERNEL)/libc.o: $(KERNEL)/libc.c
 $(RT)/%.o: $(RT)/%.c
 	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude
 
+# The archd/holyd daemon objects carry shared service code (archd_log,
+# wubu_archd_init, holyd lifecycle) AND a standalone main(). Product and
+# test links supply their own main, so these two objects are built with
+# WUBU_HOSTED_PRODUCT to compile the daemon main() out. Standalone daemon
+# builds compile the .c directly without the flag.
+$(RT)/wubu_archd_daemon.o: $(RT)/wubu_archd_daemon.c
+	$(CC) $(CFLAGS) -DWUBU_HOSTED_PRODUCT -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude
+$(RT)/wubu_holyd_lifecycle.o: $(RT)/wubu_holyd_lifecycle.c
+	$(CC) $(CFLAGS) -DWUBU_HOSTED_PRODUCT -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude
+
 # Spell objects.  A spell is self-contained, so it needs no -I beyond its
 # own directory: quoted includes search the source's directory first.
 $(SPELLS)/%.o: $(SPELLS)/%.c

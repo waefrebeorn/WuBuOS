@@ -241,7 +241,7 @@ void wubu_holyd_shutdown(WubuHoly *d) {
 
 /* -- Main Entry Point --------------------------------------------- */
 
-#ifndef WUBD_TEST_MAIN
+#if !defined(WUBD_TEST_MAIN) && !defined(WUBU_HOSTED_PRODUCT)
 int main(int argc, char *argv[]) {
     WubuHolyConfig config = {0};
     strncpy(config.sessions_path, WUBU_HOLYD_SESSIONS_PATH, WUBU_HOLYD_MAX_PATH - 1);
@@ -330,4 +330,4 @@ int main(int argc, char *argv[]) {
     wubu_holyd_shutdown(&daemon);
     return 0;
 }
-#endif /* WUBD_TEST_MAIN */
+#endif /* !WUBD_TEST_MAIN && !WUBU_HOSTED_PRODUCT */

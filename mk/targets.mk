@@ -122,7 +122,7 @@ HOSTED_EXTRA = $(COMP)/holyd_semantic.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/jit/
                $(GUI)/cp_sound.c $(GUI)/wubu_a11y.c $(GUI)/wubu_sound.c \
                $(RT)/edr/edr_poller.c $(RT)/wubu_gdpr_age.c $(RT)/wubu_wine_env.c $(RT)/wubu_compat_db.c \
                $(RT)/wubu_agent.c $(RT)/wubu_ns_worldspace.c $(RT)/wubu_gamemode.c \
-               $(RT)/wubu_steaminput.c $(KERNEL)/wubu_evdev.c \
+               $(KERNEL)/wubu_evdev.c \
                $(AUDIO)/wubu_audio_backend.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c $(AUDIO_OBJS) \
                $(AUDIO)/wubu_glott.c $(AUDIO)/glott/wubuglott_glottis.c \
                $(AUDIO)/glott/wubuglott_network.c $(AUDIO)/glott/wubuglott_decimator.c \
@@ -141,7 +141,11 @@ HOSTED_INC  = -I$(HOSTED) -I$(LUAWWW) -Isrc/gui/vws/externals/wet \
 # hosted binary at all.  Incremental builds only worked because stale .o files
 # from an earlier configuration were still on disk.
 HOSTED_LINK_ONLY = $(COMP)/wubu_tgemm_avx512.o $(APPS)/edr_dash.o \
-                   $(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd_lifecycle.o
+                   $(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd_lifecycle.o \
+                   $(AUDIO_OBJS) \
+                   $(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o \
+                   $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o \
+                   $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o
 hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) $(HOSTED_LINK_ONLY)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) -c $(HOSTED)/hosted.c -o /tmp/hosted_main.o -Iinclude
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/xdg-shell-private.code -o /tmp/xdg-shell-private.o -Iinclude
@@ -149,17 +153,14 @@ hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(GUI
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/primary-selection-private.code -o /tmp/primary-selection-private.o -Iinclude
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS)  -Iinclude \
 	/tmp/hosted_main.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) src/kernel/vbe.c $(KERNEL)/wubu_kvfs.c $(KERNEL)/wubu_thermal_read.c $(GUI)/wubu_runline.c $(KERNEL)/wubu_world.c $(KERNEL)/input.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_ct_isolate_cgroup.c $(BRIDGE)/bridge.c $(RT)/wubu_ns_kv.c \
-	/tmp/xdg-shell-private.o /tmp/viewporter-private.o /tmp/primary-selection-private.o $(HOSTED)/primary-selection-private.c \
+	/tmp/xdg-shell-private.o /tmp/viewporter-private.o /tmp/primary-selection-private.o \
 	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
-	$(RT)/wubu_onboarding.c $(GUI)/shell/wubu_shell_greeter.o \
+	$(RT)/wubu_onboarding.c \
 	$(HOSTED)/hosted_agent_channel.c \
-	$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
-	$(GUI)/wubu_ui_hosted.o \
-	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \
+	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd_lifecycle.o \
 	$(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
 	$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
-	$(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.c $(APPS)/notepad.o \
-	-o $(HOSTED_BIN) -no-pie -Wl,--allow-multiple-definition -fopenmp -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lvulkan -lgbm -ldrm -lpulse-simple -lpulse -lasound
+	-o $(HOSTED_BIN) -no-pie -fopenmp -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lvulkan -lgbm -ldrm -lpulse-simple -lpulse -lasound
 	@echo "✅ Hosted binary built: ./src/hosted/wubu"
 
 bear: $(BEAR_OBJS)

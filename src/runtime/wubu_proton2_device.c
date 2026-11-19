@@ -102,7 +102,7 @@ int wubu_usb_open(const char *path) {
     return open(path, O_RDWR);
 }
 
-int wubu_midi_enumerate(char names[][64], int max) {
+int wubu_proton2_midi_enumerate(char names[][64], int max) {
     int count = 0;
 
     /* Check /dev/snd/seq */
@@ -140,7 +140,7 @@ int wubu_midi_enumerate(char names[][64], int max) {
     return count;
 }
 
-int wubu_midi_open(const char *path) {
+int wubu_proton2_midi_open(const char *path) {
     return open(path, O_RDWR | O_NONBLOCK);
 }
 

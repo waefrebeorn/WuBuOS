@@ -18,7 +18,7 @@ int main(void)
 {
     printf("=== wubu_session_test (the SteamOS session manager) ===\n");
 
-    wubu_session_init(WUBU_SESSION_DESKTOP);
+    wubu_rt_session_init(WUBU_SESSION_DESKTOP);
 
     /* 1. defaults */
     wubu_session_view_t v;

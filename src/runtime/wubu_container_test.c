@@ -355,6 +355,15 @@ int main(void) {
           "MZ with NULL name still -> DOS_EXE");
         T(wubu_exec_dos_classify(com, sizeof(com), NULL) == WUBU_PAYLOAD_DATA,
           "raw COM with NULL name -> DATA (cannot infer)");
+        /* wubu_exec's DOS branch returns an int64 STATUS, not a leaked
+         * WubuDosProc pointer: a real .COM runs to completion in the 8086
+         * shim and reports 0; a truncated MZ image fails honestly (-1). */
+        uint8_t exit_com[] = { 0xB8, 0x00, 0x4C, 0xCD, 0x21 }; /* mov ax,4C00h; int 21h */
+        int64_t dr = wubu_exec(exit_com, sizeof(exit_com), "exit0.com");
+        T(dr == 0, "wubu_exec(.COM) returns status 0 (8086 shim ran to exit)");
+        uint8_t trunc_mz[] = { 'M', 'Z', 0x00, 0x00 };
+        int64_t dr2 = wubu_exec(trunc_mz, sizeof(trunc_mz), "trunc.exe");
+        T(dr2 == -1, "wubu_exec(truncated MZ) fails honestly (-1, no pointer leak)");
         /* wubu_detect_payload_type must NOT return DOS for an ELF (no magic clash) */
         uint8_t elf[] = { 0x7F, 'E','L','F', 0x02, 0x01 };
         T(wubu_detect_payload_type(elf, sizeof(elf)) == WUBU_PAYLOAD_LINUX_ELF,

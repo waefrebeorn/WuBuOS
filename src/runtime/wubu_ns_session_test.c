@@ -33,7 +33,7 @@ int main(void)
     system("rm -rf " NSROOT);
     *(const char **)&g_ns_root = NSROOT;
 
-    wubu_session_init(WUBU_SESSION_DESKTOP);
+    wubu_rt_session_init(WUBU_SESSION_DESKTOP);
     if (wubu_ns_publish_session() != 0) FAIL("publish");
 
     /* 1. the files exist */
