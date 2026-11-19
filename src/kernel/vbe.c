@@ -96,6 +96,7 @@ int vbe_init(int width, int height) {
     g_vbe.height = height;
     g_vbe.bpp    = 32;
     g_vbe.fb_size = (size_t)width * height * 4;
+    g_vbe.pitch  = (size_t)width * 4;   /* packed RAM rows */
     VBE_LOG("[DEBUG] vbe_init: fb_size=%zu\n", g_vbe.fb_size);
 
     g_vbe.fb   = (uint32_t *)VBE_ALLOC(g_vbe.fb_size);
@@ -152,7 +153,16 @@ void vbe_swap(void) {
      * backend mapped fb and back to the same host surface there is nothing
      * to copy -- and a self-memcpy of a 3MB buffer every frame is pure waste. */
     if (v->fb == v->back) return;
-    memcpy(v->fb, v->back, v->fb_size);
+    if (v->pitch == (size_t)v->width * 4) {
+        memcpy(v->fb, v->back, v->fb_size);
+    } else {
+        /* Padded rows (GOP surface): copy scan line by scan line so the
+         * padding bytes are never treated as pixels. */
+        for (int y = 0; y < v->height; y++)
+            memcpy((uint8_t *)v->fb + (size_t)y * v->pitch,
+                   (uint8_t *)v->back + (size_t)y * v->pitch,
+                   (size_t)v->width * 4);
+    }
 }
 
 /* --- Modular display backend -------------------------------- */
@@ -172,6 +182,7 @@ int vbe_set_backend(vbe_backend_type_t type,
     v->height = h;
     v->bpp    = 32;
     v->fb_size = (size_t)w * h * 4;
+    v->pitch  = (size_t)w * 4;
     v->backend = ops;
     if (ops) ops->type = type;
     VBE_LOG("[vbe] backend attached: type=%d %dx%d fb=%p\n", type, w, h, host_fb);
@@ -190,14 +201,31 @@ int vbe_set_backend(vbe_backend_type_t type,
  * frees -- the buffers belong to the SHM pool. */
 void vbe_set_render_target(uint32_t *fb, int w, int h)
 {
+    vbe_set_render_target_pitched(fb, w, h, (uint64_t)w * 4);
+}
+
+/* Pitched variant: the surface's real row stride (GOP PixelsPerScanLine*4)
+ * may exceed w*4. Every primitive below strides rows by g_vbe.pitch, so a
+ * padded firmware framebuffer renders correctly instead of shearing. */
+void vbe_set_render_target_pitched(uint32_t *fb, int w, int h,
+                                   uint64_t pitch_bytes)
+{
     VBEState *v = vbe_state();
-    if (!fb) return;
+    if (!fb || w <= 0 || h <= 0) return;
+    if (pitch_bytes < (uint64_t)w * 4) return;   /* rows would overlap */
     v->fb   = fb;
     v->back = fb;   /* render directly into the host surface */
     v->width  = w;
     v->height = h;
     v->bpp    = 32;
     v->fb_size = (size_t)w * h * 4;
+    v->pitch  = (size_t)pitch_bytes;
+}
+
+/* Row base for pixel (x,y): stride by the REAL pitch, never width*4. */
+static inline uint32_t *vbe_row(int y)
+{
+    return (uint32_t *)((uint8_t *)g_vbe.back + (size_t)y * g_vbe.pitch);
 }
 
 int vbe_probe_native_mode(int *out_w, int *out_h) {
@@ -242,12 +270,12 @@ void vbe_set_pixel(int x, int y, uint32_t color) {
             y < g_vbe.clip_y || y >= g_vbe.clip_y + g_vbe.clip_h)
             return;
     }
-    g_vbe.back[y * g_vbe.width + x] = color;
+    vbe_row(y)[x] = color;
 }
 
 uint32_t vbe_get_pixel(int x, int y) {
     if (x >= 0 && x < g_vbe.width && y >= 0 && y < g_vbe.height)
-        return g_vbe.back[y * g_vbe.width + x];
+        return vbe_row(y)[x];
     return 0;
 }
 
@@ -316,8 +344,11 @@ void vbe_3d_sunken(int x, int y, int w, int h) {
 }
 
 void vbe_clear(uint32_t color) {
-    for (int i = 0; i < g_vbe.width * g_vbe.height; i++)
-        g_vbe.back[i] = color;
+    for (int y = 0; y < g_vbe.height; y++) {
+        uint32_t *row = vbe_row(y);
+        for (int x = 0; x < g_vbe.width; x++)
+            row[x] = color;
+    }
 }
 
 /* ================================================================
@@ -508,9 +539,10 @@ void vbe_shade_rect(int x, int y, int w, int h) {
     for (int row = 0; row < h; row++) {
         for (int col = 0; col < w; col++) {
             int px = x + col, py = y + row;
-            if (px >= 0 && px < g_vbe.width && py >= 0 && py < g_vbe.height)
-                g_vbe.back[py * g_vbe.width + px] =
-                    (g_vbe.back[py * g_vbe.width + px] >> 1) & 0x7F7F7F;
+            if (px >= 0 && px < g_vbe.width && py >= 0 && py < g_vbe.height) {
+                uint32_t *rp = vbe_row(py);
+                rp[px] = (rp[px] >> 1) & 0x7F7F7F;
+            }
         }
     }
 }
@@ -541,8 +573,8 @@ void vbe_blend_rect(int x, int y, int w, int h, uint32_t color, int alpha) {
         for (int dx = 0; dx < w; dx++) {
             int px = x + dx;
             if (px < 0 || px >= g_vbe.width) continue;
-            uint32_t dst = g_vbe.back[py * g_vbe.width + px];
-            g_vbe.back[py * g_vbe.width + px] = lerp_color(dst, color, alpha, 255);
+            uint32_t *row = vbe_row(py);
+            row[px] = lerp_color(row[px], color, alpha, 255);
         }
     }
 }

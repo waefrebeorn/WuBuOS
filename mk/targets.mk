@@ -6,7 +6,7 @@
 # tools, gui (dep: kernel + rt), bridge, apps (dep: all), worldsim, metal,
 # audio, shell, bear, and the hosted Wayland objects.
 
-.PHONY: all clean test kernel jit compiler runtime tools gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs shell bear hosted_objs hosted worldspace install uninstall window metal audio
+.PHONY: all clean test kernel jit compiler runtime tools gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs shell bear hosted_objs hosted worldspace install uninstall window metal audio gop-fb-gate
 
 all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear hosted_objs hosted
 	@echo "✅ WuBuOS built"
@@ -295,6 +295,12 @@ kernel-strict:
 # disk (tools/virtio_persist_gate.py; pattern: tools/ci_boot_assert.py).
 virtio-persist-gate: kernel
 	python3 tools/virtio_persist_gate.py $(KERNEL)/kernel.elf
+
+# L4 GOP/Limine framebuffer fallback gate: forced-GOP boot through the
+# WuBuFW measured chain (GOP handoff -> map -> pixel read-back selftest),
+# kernel-strict 0 errors, and the default boot proven unchanged.
+gop-fb-gate:
+	python3 tools/ci_gop_fb_assert.py
 
 iso: $(KERNEL)/kernel.elf
 	rm -rf $(CACHE)/iso-stage && mkdir -p $(CACHE)/iso-stage/boot/grub

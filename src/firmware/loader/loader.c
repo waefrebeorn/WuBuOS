@@ -108,6 +108,113 @@ typedef struct {
 /* ---- 64 -> 32 protected-mode handoff (teardown.S) ------------------- */
 extern void wubufw_handoff(uint64_t kernel_entry_phys);
 
+/* ---- GOP -> Limine framebuffer handoff (L4) --------------------------
+ * Limine publishes the firmware GOP framebuffer to the kernel via the
+ * framebuffer request's .response pointer. WuBuFW boots the kernel through
+ * THIS loader instead of Limine, so the loader must do the same job: read
+ * the live GOP mode (boot services still up) and publish a Limine-layout
+ * descriptor in the reserved low-memory stash window (0x90000..0x99000,
+ * marked used by the kernel vmm). After the kernel image is copied to its
+ * LMAs, patch every framebuffer request in the image to point at it --
+ * exactly the scan Limine itself performs. The kernel then owns a real
+ * GOP framebuffer even on machines with no Bochs DISPI at all. */
+#define WUBU_GOP_FB_ADDR 0x96000ULL   /* free slot: handoff 0x91000,
+                                       * attest 0x92000, memmap 0x98000 */
+
+/* Mirrors the kernel's struct limine_framebuffer (metal_main.c) byte for
+ * byte. Keep in sync. */
+typedef struct {
+    uint64_t address;
+    uint64_t width;
+    uint64_t height;
+    uint64_t pitch;
+    uint16_t bpp;
+    uint8_t  memory_model;
+    uint8_t  red_mask_size, red_mask_shift;
+    uint8_t  green_mask_size, green_mask_shift;
+    uint8_t  blue_mask_size, blue_mask_shift;
+    uint8_t  reserved;
+} limine_fb_desc_t;
+
+static int g_gop_fb_ready;
+
+static void capture_gop_fb(void)
+{
+    static const EFI_GUID gop_guid =
+        { 0x9042A9DE, 0x23DC, 0x4A38, { 0x96, 0xFB, 0x7A, 0xDE, 0xD0, 0x80, 0x51, 0x6A } };
+    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop = NULL;
+    if (BS->LocateProtocol((EFI_GUID *)&gop_guid, NULL, (VOID **)&gop)
+            != EFI_SUCCESS || !gop || !gop->Mode || !gop->Mode->Info) {
+        out(u"[wubufw-loader] GOP absent (no framebuffer handoff)\r\n");
+        return;
+    }
+    EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *m = gop->Mode;
+    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *mi = m->Info;
+    if (!m->FrameBufferBase || !mi->HorizontalResolution ||
+        !mi->VerticalResolution || !mi->PixelsPerScanLine) {
+        out(u"[wubufw-loader] GOP mode degenerate (no framebuffer handoff)\r\n");
+        return;
+    }
+    limine_fb_desc_t *d = (limine_fb_desc_t *)(uintptr_t)WUBU_GOP_FB_ADDR;
+    l_memset(d, 0, sizeof(*d));
+    d->address      = m->FrameBufferBase;
+    d->width        = mi->HorizontalResolution;
+    d->height       = mi->VerticalResolution;
+    d->pitch        = (uint64_t)mi->PixelsPerScanLine * 4;
+    d->bpp          = 32;
+    d->memory_model = 0;   /* RGB */
+    if (mi->PixelFormat == PixelBlueGreenRedReserved8BitPerColor) {
+        d->red_mask_size = 8;   d->red_mask_shift = 16;
+        d->green_mask_size = 8; d->green_mask_shift = 8;
+        d->blue_mask_size = 8;  d->blue_mask_shift = 0;
+    } else if (mi->PixelFormat == PixelRedGreenBlueReserved8BitPerColor) {
+        d->red_mask_size = 8;   d->red_mask_shift = 0;
+        d->green_mask_size = 8; d->green_mask_shift = 8;
+        d->blue_mask_size = 8;  d->blue_mask_shift = 16;
+    } else {
+        /* BitMask / BltOnly: no honest linear XRGB surface to publish. */
+        out(u"[wubufw-loader] GOP pixel format unsupported (no handoff)\r\n");
+        return;
+    }
+    g_gop_fb_ready = 1;
+    out(u"[wubufw-loader] GOP fb handoff: ");
+    outdec(d->width); out(u"x"); outdec(d->height);
+    out(u" pitch="); outdec(d->pitch);
+    out(u" phys="); outhex(d->address); out(u"\r\n");
+}
+
+/* Scan the LOADED kernel image (post-copy, post-EBS) for the Limine
+ * framebuffer request ID and point each request's .response at the GOP
+ * descriptor. Two request layouts exist in this kernel:
+ *   - crt0.S compact:  {id0, id1, response}          -> response at +16
+ *   - metal_main.c:    {id[4], revision, response}   -> response at +40
+ * Discriminator: the quad at +24 is the NEXT request's id0 in the compact
+ * layout (nonzero) and id[3]==0 in the full layout. */
+static void patch_limine_fb_requests(const Elf64_Phdr *ph, UINTN nph)
+{
+    if (!g_gop_fb_ready) return;
+    const uint64_t id0 = 0xc7b1dd30df4c8b88ULL;
+    const uint64_t id1 = 0x6e1b0a4b5b8d7c0aULL;
+    UINTN n = 0;
+    for (UINTN i = 0; i < nph; i++) {
+        if (ph[i].p_type != PT_LOAD) continue;
+        uint8_t *base = (uint8_t *)(uintptr_t)ph[i].p_paddr;
+        UINTN len = ph[i].p_filesz;
+        /* 4-byte stride: crt0.S packs its request block without .align 8,
+         * so the ID can sit at a 4-aligned offset (measured: .text+0xdc). */
+        for (UINTN off = 0; off + 48 <= len; off += 4) {
+            const uint64_t *q = (const uint64_t *)(base + off);
+            if (q[0] != id0 || q[1] != id1) continue;
+            UINTN roff = (q[3] == 0) ? 40 : 16;
+            if (off + roff + 8 > len) continue;
+            *(volatile uint64_t *)(base + off + roff) = WUBU_GOP_FB_ADDR;
+            n++;
+        }
+    }
+    out(u"[wubufw-loader] limine fb response patched (");
+    outdec(n); out(u" requests -> 0x96000)\r\n");
+}
+
 /* ---- attestation config table lookup -------------------------------- */
 static fw_agi_attest_t *find_attest(void)
 {
@@ -176,6 +283,10 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     BS = st->BootServices;
 
     out(u"\r\n[wubufw-loader] WuBuOS chainloader v1\r\n");
+
+    /* 0. Publish the firmware GOP framebuffer for the kernel (L4). Must
+     *    run while boot services are still up -- GOP dies at ExitBootServices. */
+    capture_gop_fb();
 
     /* 1. Locate the firmware's attestation snapshot. */
     fw_agi_attest_t *att = find_attest();
@@ -347,6 +458,10 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     }
     out(u"[wubufw-loader] copied "); outdec(n_pload);
     out(u" PT_LOAD (.bss zeroed by kernel crt0, post-EBS)\r\n");
+
+    /* The kernel image is now at its LMAs: point its Limine framebuffer
+     * requests at the GOP descriptor captured before ExitBootServices. */
+    patch_limine_fb_requests(ph, eh->e_phnum);
 
     wubufw_handoff(entry_phys);   /* never returns */
 
