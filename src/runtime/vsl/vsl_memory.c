@@ -17,16 +17,20 @@ extern VSL_STATE g_vsl;
 
 uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
                   int fd, uint64_t offset) {
-    if (!g_vsl.active) return 0;
-    if (g_vsl.n_mmaps >= VSL_MAX_MMAPS) return 0;
+    /* Failure returns -ENOMEM, NOT 0: the syscall contract is -errno;
+     * 0 looks like a successful mapping at NULL to glibc (it checks
+     * MAP_FAILED == -1). Found by the libc-return-semantics sibling
+     * scan after the getcwd pointer-vs-length bug. */
+    if (!g_vsl.active) return (uint64_t)-12;
+    if (g_vsl.n_mmaps >= VSL_MAX_MMAPS) return (uint64_t)-12;
 
     VSL_PROC *proc = vsl_get_process(g_vsl.current_pid);
-    if (!proc) return 0;
+    if (!proc) return (uint64_t)-12;
 
     /* Simple allocation: bump pointer from mmap_base */
     uint64_t alloc_addr = addr ? addr : proc->mmap_base;
     if (alloc_addr < VSL_USER_BASE) alloc_addr = VSL_USER_BASE;
-    if ((uint64_t)alloc_addr + (uint64_t)size > (uint64_t)VSL_USER_BASE + (uint64_t)VSL_USER_SIZE) return 0;
+    if ((uint64_t)alloc_addr + (uint64_t)size > (uint64_t)VSL_USER_BASE + (uint64_t)VSL_USER_SIZE) return (uint64_t)-12;
 
     VSL_MMAP *mm = &g_vsl.mmaps[g_vsl.n_mmaps++];
     mm->addr = alloc_addr;
