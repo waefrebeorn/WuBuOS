@@ -26,8 +26,11 @@ def main():
     cmd = ["qemu-system-x86_64", flag, image,
            "-serial", "file:" + serial,
            "-display", "none", "-m", "128", "-no-reboot"]
+    # CI runners under TCG are ~8x slower than a dev box: the window is
+    # configurable (WUBU_BOOT_WINDOW seconds; CI sets 300, local default 45).
+    window = int(os.environ.get("WUBU_BOOT_WINDOW", "45"))
     try:
-        subprocess.run(cmd, timeout=45,
+        subprocess.run(cmd, timeout=window,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         pass  # expected: the boot window ends, we read the trace
