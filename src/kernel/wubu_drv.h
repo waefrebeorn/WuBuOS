@@ -26,6 +26,10 @@ typedef struct {
 } wubu_drv_id_t;
 
 /* a driver: an ID table + a probe */
+struct wubu_drv_dev;  /* forward decl: without it, the probe prototype
+                       * below declares a PROTOTYPE-SCOPE struct tag —
+                       * a different type from the file-scope struct
+                       * defined later (gcc14 errors at the call site). */
 typedef struct wubu_drv {
     const char       *name;
     const wubu_drv_id_t *id_table;
