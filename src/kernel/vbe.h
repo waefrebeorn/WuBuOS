@@ -25,7 +25,11 @@ typedef struct {
     int       width;
     int       height;
     int       bpp;       /* Bits per pixel (always 32) */
-    size_t    fb_size;   /* Total bytes: width * height * 4 */
+    size_t    fb_size;   /* Pixel bytes: width * height * 4 (no row padding) */
+    size_t    pitch;     /* Bytes per row (>= width*4). Firmware GOP surfaces
+                          * may pad scan lines (PixelsPerScanLine > width);
+                          * every row access must stride by THIS, not fb_size
+                          * / height. Packed RAM buffers: pitch == width*4. */
     /* Scissor / clip rectangle (0,0,0,0 = disabled). */
     int       clip_x, clip_y, clip_w, clip_h;
     int       clip_enabled;
@@ -46,6 +50,12 @@ void vbe_shutdown(void);
 /* Access the allocated framebuffer (XRGB8888) and its dimensions. */
 uint32_t *vbe_framebuffer(void);
 void vbe_set_render_target(uint32_t *fb, int w, int h);
+/* Same contract as vbe_set_render_target, but for surfaces whose rows are
+ * padded (GOP/Limine framebuffers): pitch_bytes is the real byte distance
+ * between scan lines and must be >= w*4. Returns without touching state if
+ * the geometry is invalid. The plain wrapper assumes packed rows (w*4). */
+void vbe_set_render_target_pitched(uint32_t *fb, int w, int h,
+                                   uint64_t pitch_bytes);
 int       vbe_width(void);
 int       vbe_height(void);
 /* Bochs VBE (DISPI, ports 0x1CE/0x1CF) -- direct LFB mode-set, no BIOS call.

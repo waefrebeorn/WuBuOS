@@ -70,7 +70,7 @@ time.sleep(1.5)
 for c in b'exit\n':
     p.stdin.write(bytes([c])); p.stdin.flush()
     time.sleep(0.05)
-time.sleep(20)
+time.sleep(${WUBU_AGI_BOOT_WINDOW:-20})
 p.terminate()
 sys.stdout.buffer.write(p.stdout.read())
 " 2>&1 | tee build/agi-boot.log
@@ -87,7 +87,20 @@ grep -q "firmware attestation consumed"           build/agi-boot.log || { echo "
 grep -q "AGI kernel booted"                       build/agi-boot.log || { echo "MISSING: AGI kernel booted"; PASS=0; }
 grep -q "AGI: firmware attestation VALID"         build/agi-boot.log || { echo "MISSING: AGI attestation VALID"; PASS=0; }
 grep -q "Bonzi Buddy loop active"                 build/agi-boot.log || { echo "MISSING: Bonzi Buddy loop active"; PASS=0; }
-grep -q "bonzi: heartbeat"                        build/agi-boot.log || { echo "MISSING: bonzi heartbeat (loop alive)"; PASS=0; }
+# Loop-liveness oracle. Default: bonzi's render-loop heartbeat (fine when
+# rendering lands in RAM). WUBU_AGI_LIVENESS=promoted: for boots that render
+# to HONEST device MMIO (e.g. the L4 forced-GOP gate) -- under TCG every
+# pixel write is an uncached device exit, so bonzi's 5 Hz full-frame redraw
+# takes seconds per frame and its heartbeat cadence is not a reliable
+# liveness signal. The supervisor's continuous PROMOTED spans prove the
+# same thing (live scheduler + PIT + promote loop), and "Bonzi Buddy loop
+# active" above already proves one full MMIO frame rendered (it is printed
+# AFTER the first bn_draw).
+if [ "${WUBU_AGI_LIVENESS:-heartbeat}" = "promoted" ]; then
+    grep -q "PROMOTED span"                       build/agi-boot.log || { echo "MISSING: supervisor promotions (loop alive)"; PASS=0; }
+else
+    grep -q "bonzi: heartbeat"                    build/agi-boot.log || { echo "MISSING: bonzi heartbeat (loop alive)"; PASS=0; }
+fi
 if grep -q "PANIC\|TRIPLE\|TRIPLE FAULT" build/agi-boot.log; then echo "ERROR MARKERS PRESENT"; PASS=0; fi
 
 if [ "$PASS" -eq 1 ]; then

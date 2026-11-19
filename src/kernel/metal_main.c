@@ -197,6 +197,139 @@ static volatile struct {
     .revision = 0
 };
 
+/* =================================================================
+ * L4: GOP/Limine framebuffer fallback (real-hardware UEFI display)
+ *
+ * When the Bochs DISPI interface is absent -- every real UEFI machine
+ * whose GPU has no native driver yet -- the firmware (Limine, or the
+ * WuBuFW chainloader publishing GOP) still hands us a live linear
+ * framebuffer in limine_framebuffer_request.response. Map it with the
+ * SAME page mapper the Bochs LFB path uses (wubu_vmm_map_page, one
+ * owner) and point the renderer at it (vbe_set_render_target_pitched,
+ * honoring the response's real pitch). 32bpp XRGB8888 only: anything
+ * else is refused with a loud serial message, never faked.
+ *
+ * WUBU_FORCE_GOP_FB (build flag) forces this path even when Bochs IS
+ * present, so the fallback is testable under QEMU stdvga.
+ * ================================================================= */
+
+/* Higher-half VA for the GOP surface. Deliberately NOT the Bochs LFB VA
+ * (0xffffffff90000000): that window is shared with the demand-zero demo
+ * and the 9P app loader, and the two display paths must never alias. */
+#define WUBU_GOP_FB_VA 0xffffffff94000000ull
+
+/* Render selftest: write a known pattern through the PUBLIC render API,
+ * then read it back through the raw mapped surface (independent of the
+ * renderer's own accessors). Real pixels or it didn't happen. */
+static void gop_fb_selftest(uint32_t *surf, int w, int h, uint64_t pitch)
+{
+    vbe_set_pixel(0, 0, 0x00FF0000u);
+    vbe_set_pixel(w - 1, 0, 0x0000FF00u);
+    vbe_set_pixel(0, h - 1, 0x000000FFu);
+    vbe_set_pixel(w - 1, h - 1, 0x00FFFFFFu);
+    vbe_set_pixel(1, 1, 0x00ABCDEFu);      /* row 1: proves the stride */
+    if (w >= 8 && h >= 8)
+        vbe_fill_rect(4, 2, 3, 3, 0x00123456u);
+
+    volatile uint32_t *raw = (volatile uint32_t *)surf;
+    const uint64_t stride = pitch / 4;
+    struct { int x, y; uint32_t c; } px[8];
+    unsigned n = 0;
+    px[n].x = 0;     px[n].y = 0;     px[n].c = 0x00FF0000u; n++;
+    px[n].x = w - 1; px[n].y = 0;     px[n].c = 0x0000FF00u; n++;
+    px[n].x = 0;     px[n].y = h - 1; px[n].c = 0x000000FFu; n++;
+    px[n].x = w - 1; px[n].y = h - 1; px[n].c = 0x00FFFFFFu; n++;
+    px[n].x = 1;     px[n].y = 1;     px[n].c = 0x00ABCDEFu; n++;
+    if (w >= 8 && h >= 8) {
+        px[n].x = 4; px[n].y = 2; px[n].c = 0x00123456u; n++;
+        px[n].x = 6; px[n].y = 4; px[n].c = 0x00123456u; n++;
+        px[n].x = 5; px[n].y = 3; px[n].c = 0x00123456u; n++;
+    }
+    unsigned ok = 0;
+    for (unsigned i = 0; i < n; i++) {
+        uint32_t got = raw[(uint64_t)px[i].y * stride + (uint64_t)px[i].x];
+        if (got == px[i].c) ok++;
+        else klog_printf("WuBuOS: GOP selftest mismatch (%d,%d): "
+                         "wrote=%x read=%x\n", px[i].x, px[i].y,
+                         px[i].c, got);
+    }
+    /* Cross-check the renderer's own read path agrees with the surface. */
+    if (vbe_get_pixel(1, 1) != 0x00ABCDEFu) {
+        klog_printf("WuBuOS: GOP selftest: vbe_get_pixel disagrees\n");
+    } else {
+        ok++; n++;
+    }
+    if (ok == n)
+        klog_printf("WuBuOS: GOP fb selftest PASS (%u pixels verified "
+                    "via mapped fb)\n", ok);
+    else
+        klog_printf("WuBuOS: GOP fb selftest FAIL (%u/%u pixels)\n", ok, n);
+}
+
+static void gop_fb_attach(struct limine_framebuffer *gfb)
+{
+    klog_printf("WuBuOS: GOP fb response: phys=%x %ux%u pitch=%u bpp=%u "
+                "model=%u\n", gfb->address, (unsigned)gfb->width,
+                (unsigned)gfb->height, (unsigned)gfb->pitch,
+                (unsigned)gfb->bpp, (unsigned)gfb->memory_model);
+    if (!gfb->address || !gfb->width || !gfb->height || !gfb->pitch ||
+        gfb->width > 0xFFFFu || gfb->height > 0xFFFFu) {
+        klog_printf("WuBuOS: GOP fb refused: degenerate geometry "
+                    "(black screen, no panel)\n");
+        return;
+    }
+    if (gfb->bpp != 32) {
+        klog_printf("WuBuOS: GOP fb refused: bpp=%u (only 32bpp supported) "
+                    "-- no display, not faking it\n", (unsigned)gfb->bpp);
+        return;
+    }
+    if (gfb->memory_model != 0 ||
+        gfb->red_mask_size != 8   || gfb->red_mask_shift != 16 ||
+        gfb->green_mask_size != 8 || gfb->green_mask_shift != 8 ||
+        gfb->blue_mask_size != 8  || gfb->blue_mask_shift != 0) {
+        klog_printf("WuBuOS: GOP fb refused: pixel layout is not XRGB8888 "
+                    "(model=%u r=%u<<%u g=%u<<%u b=%u<<%u) -- no display\n",
+                    (unsigned)gfb->memory_model,
+                    (unsigned)gfb->red_mask_size, (unsigned)gfb->red_mask_shift,
+                    (unsigned)gfb->green_mask_size, (unsigned)gfb->green_mask_shift,
+                    (unsigned)gfb->blue_mask_size, (unsigned)gfb->blue_mask_shift);
+        return;
+    }
+    const uint64_t rowbytes = gfb->width * 4;
+    if (gfb->pitch < rowbytes) {
+        klog_printf("WuBuOS: GOP fb refused: pitch=%u < width*4=%u "
+                    "(black screen, no panel)\n",
+                    (unsigned)gfb->pitch, (unsigned)rowbytes);
+        return;
+    }
+    /* Map the WHOLE padded surface (pitch*height), page by page, with the
+     * same mapper + P|RW flags as the Bochs LFB path. The firmware fb base
+     * is normally page-aligned; handle a sub-page offset honestly anyway. */
+    extern int wubu_vmm_map_page(uint64_t, uint64_t, uint32_t);
+    const uint64_t off   = gfb->address & 0xFFFull;
+    const uint64_t phys  = gfb->address & ~0xFFFull;
+    const uint64_t bytes = off + gfb->pitch * gfb->height;
+    const uint32_t pages = (uint32_t)((bytes + 0xFFF) >> 12);
+    uint32_t nmapped = 0;
+    for (uint32_t i = 0; i < pages; i++)
+        if (wubu_vmm_map_page(WUBU_GOP_FB_VA + (uint64_t)i * 4096,
+                              phys + (uint64_t)i * 4096, 3) == 0)
+            nmapped++;
+    if (nmapped != pages) {
+        klog_printf("WuBuOS: GOP fb mapped %u/%u pages (staying RAM fb)\n",
+                    nmapped, pages);
+        return;
+    }
+    uint32_t *surf = (uint32_t *)(uintptr_t)(WUBU_GOP_FB_VA + off);
+    vbe_set_render_target_pitched(surf, (int)gfb->width, (int)gfb->height,
+                                  gfb->pitch);
+    klog_printf("WuBuOS: display LIVE via GOP (%dx%d@32, fb phys=%x "
+                "pitch=%u, %u pages mapped)\n",
+                (int)gfb->width, (int)gfb->height, gfb->address,
+                (unsigned)gfb->pitch, nmapped);
+    gop_fb_selftest(surf, (int)gfb->width, (int)gfb->height, gfb->pitch);
+}
+
 /* ==================================================================
  * Shell task entry (defined in wubu_shell.c)
  * ================================================================= */
@@ -332,6 +465,7 @@ void kernel_main(void *boot_info) {
     /* 4. Initialize VBE/DRM-KMS framebuffer */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'8', %%al\n outb %%al, %%dx" ::: "dx","al");
     int fb_width = 1920, fb_height = 1080;
+    int gop_fb_pending = 0;   /* L4: GOP fallback attaches after vmm init */
     struct limine_framebuffer *fb = NULL;
     if (g_limine_ok && limine_framebuffer_request.response) {
         fb = limine_framebuffer_request.response;
@@ -352,8 +486,17 @@ void kernel_main(void *boot_info) {
     {
         extern uint64_t vbe_bochs_enable(int, int, int);
         extern uint16_t vbe_bochs_id(void);
+        uint64_t lfb = 0;
+#ifdef WUBU_FORCE_GOP_FB
+        /* Test build: force the GOP fallback even though QEMU stdvga HAS
+         * Bochs DISPI. Do not touch the DISPI registers at all -- the
+         * firmware's GOP mode must stay latched for the fallback. */
+        klog_printf("WuBuOS: WUBU_FORCE_GOP_FB set -- Bochs DISPI forced "
+                    "off (GOP fallback)\n");
+#else
         klog_printf("WuBuOS: dispi ID raw=%x\n", (unsigned)vbe_bochs_id());
-        uint64_t lfb = vbe_bochs_enable(fb_width, fb_height, 32);
+        lfb = vbe_bochs_enable(fb_width, fb_height, 32);
+#endif
         if (lfb) {
             /* Read back the latched mode + the VGA PCI BAR0 (the real LFB). */
             extern uint16_t vbe_dispi_read_reg(uint16_t);
@@ -398,6 +541,17 @@ void kernel_main(void *boot_info) {
                 klog_printf("WuBuOS: LFB mapped %u/%u pages (staying RAM fb)\n",
                             nmapped, pages);
             }
+        } else if (g_limine_ok && limine_framebuffer_request.response) {
+            /* L4: no Bochs LFB (real UEFI hardware) or forced off -- the
+             * firmware already gave us a GOP framebuffer. Defer the attach
+             * until AFTER wubu_vmm_init(): the mapper allocates page-table
+             * pages from the vmm pool, and wubu_vmm_init() RESETS that
+             * pool's bitmap -- a pre-init mapping's PT pages get handed
+             * out again and the surface #PFs the first time a task draws
+             * (measured: cr2=GOP_VA in vbe_clear). Post-init allocations
+             * are bitmap-tracked and survive. */
+            gop_fb_pending = 1;
+            klog_printf("WuBuOS: GOP fb present -- attaching after vmm init\n");
         } else {
             klog_printf("WuBuOS: bochs VBE absent (black screen, no panel)\n");
         }
@@ -453,6 +607,11 @@ void kernel_main(void *boot_info) {
     wubu_theme_init();
     wubu_hid_init();
     wubu_vmm_init();
+    /* L4: NOW map + attach the GOP framebuffer (see the deferral note at
+     * the display block): the vmm bitmap is live, so the mapper's PT-page
+     * allocations are owned and never recycled under the surface. */
+    if (gop_fb_pending)
+        gop_fb_attach(limine_framebuffer_request.response);
     /* interrupt-driven serial RX (gap E2): UART IRQ -> wubu_sync FIFO */
     extern void wubu_serial_init(void);
     wubu_serial_init();

@@ -6,7 +6,7 @@
 # tools, gui (dep: kernel + rt), bridge, apps (dep: all), worldsim, metal,
 # audio, shell, bear, and the hosted Wayland objects.
 
-.PHONY: all clean test kernel jit compiler runtime tools gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs shell bear hosted_objs hosted worldspace install uninstall window metal audio
+.PHONY: all clean test kernel jit compiler runtime tools gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs shell bear hosted_objs hosted worldspace install uninstall window metal audio gop-fb-gate
 
 all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear hosted_objs hosted
 	@echo "✅ WuBuOS built"
@@ -289,6 +289,12 @@ holyd-verify:
 # fix a wave, repeat until clean — then unpin boot-verify CI from gcc-13.
 kernel-strict:
 	$(MAKE) -B kernel KERNEL_CFLAGS="-Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=implicit-function-declaration"
+
+# L4 GOP/Limine framebuffer fallback gate: forced-GOP boot through the
+# WuBuFW measured chain (GOP handoff -> map -> pixel read-back selftest),
+# kernel-strict 0 errors, and the default boot proven unchanged.
+gop-fb-gate:
+	python3 tools/ci_gop_fb_assert.py
 
 iso: $(KERNEL)/kernel.elf
 	rm -rf $(CACHE)/iso-stage && mkdir -p $(CACHE)/iso-stage/boot/grub
