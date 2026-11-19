@@ -147,9 +147,32 @@ MAX_TESTS test-local caps — triage before touching).
   longer counted as a literal allocation. Compositor census: 0 conflicts.
 - Live nested run NOT performed (no DISPLAY in the agent session);
   `wcc_test.sh` remains the live gate on a desktop session.
-- NEXT compositor leg: wubucompositor.c is 1186 lines — dissolve into
-  per-concern leaves (globals/surface/xdg/seat/paint/GLX/XShm) per the
-  no-monolith law. The spawn leaf is the first extraction.
+- NEXT compositor leg: dissolve wubucompositor.c (1186 lines) per the
+  no-monolith law. Split map (line ranges approximate, from the function
+  census):
+  1. `wcc_internal.h` — move struct wcc_server / wcc_surface /
+     wcc_output_ctx + WC_OUTPUT_W/H out of the .c (shared by leaves,
+     opaque to the outside). Mechanical first step; build green.
+  2. `wcc_gpu.c` — gpu_destroy/setup/present (~229-287): GLX visual,
+     texture upload, fullscreen quad. Self-contained hardware concern.
+  3. `wcc_present.c` — blit + XShm fallback (~288-334);
+     `wcc_capture.c` — wcc_capture_screenshot PPM (~335-367).
+  4. `wcc_seat.c` — seat_mod_key/send_modifiers + pointer/keyboard/
+     touch impls + seat_bind (~170-192, 553-661). The wl_fixed_t and
+     modifiers rules from the skill live here.
+  5. `wcc_surface.c` — surface_* + commit + region + destroy listeners
+     (~194-227, 368-486); `wcc_globals.c` — ownership, refused no-ops,
+     compositor_bind (~488-551).
+  6. `wcc_output.c` — per-monitor wl_output globals (~663-707);
+     enumeration already lives in wcc_monitors.c.
+  7. `wcc_xdg.c` — wm_base/positioner/xdg_surface/toplevel (~709-900).
+     Read the GENERATED signatures for every request (skill pitfall).
+  8. `wcc_x11.c` + a fresh entry `main.c` — X event dispatch, input
+     forwarding, init/loop (~900-1186). The legacy wlroots main.c is
+     removed or renamed at this step (owner decision pending).
+  Each step: make green + make test-spawn; wcc_test.sh live on a
+  desktop session at the end. The spawn leaf (wcc_spawn.c) is already
+  extracted — step 0 done.
 
 ## Scope: wubuwizard is its own mission (owner directive 2026-11-19)
 
