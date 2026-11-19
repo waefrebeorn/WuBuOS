@@ -13,6 +13,7 @@
 #include "wubu_hw_detect.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>   /* gcc14 campaign: declare what you use */
 
 /* ---- W4/W5/W6/W7: Vulkan ICD selection ----
  *

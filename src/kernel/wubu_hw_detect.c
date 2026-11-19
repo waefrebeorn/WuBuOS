@@ -78,6 +78,8 @@
 #include "wubu_hidadv.h"
 #include "wubu_backlight.h"
 #include "wubu_mixgraph.h"
+#include "wubu_gpushader.h"   /* gcc14 campaign: declare what you use */
+#include "wubu_bta2dp.h"   /* gcc14 campaign: declare what you use */
 #include "wubu_raidcache.h"
 #include "wubu_pd.h"
 #include "wubu_calib.h"

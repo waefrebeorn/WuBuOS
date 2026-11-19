@@ -219,8 +219,8 @@ void kernel_main(void *boot_info) {
     /* 1. Zero BSS FIRST -- before any subsystem init.  klog_init() below
      * sets g_klog_ready (a BSS variable); zeroing BSS *after* init would
      * wipe that flag and every later klog_printf would silently no-op. */
-    uint64_t *bss = &_bss_start;
-    uint64_t *bss_end = &_bss_end;
+    uint64_t *bss = (uint64_t *)_bss_start;      /* linker symbols: char[] */
+    uint64_t *bss_end = (uint64_t *)_bss_end;    /* decay + explicit cast */
     while (bss < bss_end) *bss++ = 0;
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'1', %%al\n outb %%al, %%dx\n movb $'7', %%al\n outb %%al, %%dx" ::: "dx","al");
 

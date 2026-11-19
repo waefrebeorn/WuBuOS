@@ -81,27 +81,31 @@ tarballs + per-host build notes) once the matrix is green. Users
 never need a payment plan or a support ticket: clone, make, run —
 or download the ISO and boot it.
 
-## Campaign: kernel gcc14/C11 declaration hygiene (opened 2026-11-19)
+## Campaign CLOSED: kernel gcc14/C11 declaration hygiene (2026-11-19)
 
 The boot-verify CI (gcc14 on ubuntu-latest) exposed that the kernel
-still compiles via implicit declarations and other pre-C11 habits:
+still compiled via implicit declarations and other pre-C11 habits:
 **214 strict errors** measured with -Werror=incompatible-pointer-types
 -Werror=int-conversion -Werror=implicit-function-declaration.
+**Closed same day: 214 -> 0.** Owner directive: "goal is gcc14, move
+into that" — CI now builds with the runner's gcc14 AND runs
+`make kernel-strict` as a permanent ratchet step.
 
-Wave 1 (fixed, verified): the prototype-scope struct tag in wubu_drv.h
-(a REAL type bug — probe's parameter was a different type from the
-device struct); missing includes in fat32_format.c, wubu_agi_kernel.c,
-interrupt_pic.c, interrupt_syscall.c, wubu_attest.c, wubu_serial.h
-(now self-contained), wubu_probe_matrix.c, wubu_acpi.c,
-wubu_console_recovery.c, wubu_pe_personality.c; vsnprintf forward
-declaration in libc.c. Also found: libc.h re-defines struct tm /
-sigaction / cli/sti that libc.c owns — a duplicate-owner merge for a
-later wave (libc.c cannot include its own header today).
-
-Ratchet: `make kernel-strict` (mk/targets.mk). Fix a wave, re-measure,
-repeat until clean; then unpin boot-verify CI from gcc-13. Until then
-CI builds the kernel with gcc-13 (its current toolchain) — the boot
-proof is not blocked by the hygiene campaign.
+How: tools/kernel_strict_wave.py (campaign accelerator: parses the
+strict error log, maps each implicit declaration to its owning header,
+inserts the include, rebuilds, reports the remainder). Three waves:
+- wave 1 (manual): wubu_drv.h prototype-scope struct tag (a REAL type
+  bug); missing includes in 10 files; vsnprintf forward decl in libc.c.
+- wave 2 (tool): ~200 implicit declarations auto-mapped to owner
+  headers (wubu_probe_matrix.c alone calls ~200 subsystem summary
+  functions and now includes each owner).
+- wave 3 (manual): metal_main.c BSS linker-symbol casts (char[] ->
+  uint64_t* decay + explicit cast).
+Verified: kernel-strict 0 errors, normal build 0 errors, QEMU boot PASS
+(console + heartbeat), hosted green, bridge all pass.
+Still open (recorded): libc.h re-defines struct tm/sigaction/cli/sti
+that libc.c owns — duplicate-owner merge for a later batch (libc.c
+cannot include its own header today).
 
 ## Closed gap: WuBuKernel is public (2026-11-19)
 

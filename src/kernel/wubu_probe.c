@@ -78,6 +78,8 @@
 #include "wubu_gadget.h"
 #include "wubu_ucode.h"
 #include "wubu_ptp_sync.h"
+#include "wubu_gpushader.h"   /* gcc14 campaign: declare what you use */
+#include "wubu_bta2dp.h"   /* gcc14 campaign: declare what you use */
 #include "wubu_hdr.h"
 #include "wubu_wifi_reg.h"
 #include "wubu_trim.h"
