@@ -66,19 +66,19 @@ dots instead of guessing 6px).
 5. Re-run the audit; write the baseline only for keys that dropped.
 6. Commit with the before/after numbers; push per wubu-integration-workflow.
 
-## Frontier ledger (2026-11-19, after the startmenu batch)
+## Frontier ledger (2026-11-19, after the startmenu + taskbar batches)
 
 Geometry / colour hits per governed surface — work top-down:
 
-- `src/gui/shell/wm_taskbar.c` — 71 / 7. NEXT. Tile sizes 44/160, shell button
-  34, clock 64, radius 6 off-grid; classic hint text is a separate de-toy leg
-  (GUI slerm 0.5). Keep `taskbar_modern_layout()` the single geometry owner.
-- `src/gui/shell/win11_widgets.c` — 17 / 0.
+- `src/gui/shell/win11_widgets.c` — 17 / 0. NEXT.
 - `src/gui/shell/window_chrome.c` — 16 / 10. Colour hits are classic-era
   literals; route through the theme table like startmenu's shutdown row.
 - `src/gui/shell/wm_ctxmenu.c` — 16 / 1.
 - `src/gui/shell/wm_systray.c` — 16 / 3.
-- `src/gui/shell/startmenu.c` — 0 / 0. DONE (this batch).
+- `src/gui/shell/startmenu.c` — 0 / 0. DONE (batch 1).
+- `src/gui/shell/wm_taskbar.c` — 0 / 0. DONE (batch 2, with GUI slerm 0.5:
+  flat Fluent tiles, running-indicator pills gated by test_taskbar_indicator,
+  developer hint text removed; classic era bevels kept, every constant named).
 
 Beyond the governed surfaces (ledger only — no standing gate yet, scope each
 before measuring): explorer's internal ladder (`explorer_internal.h` EX_* vs
@@ -94,3 +94,10 @@ batch when picked up; do not boil the ocean in one pass.
   constant block; stale `WUBU_MENU_ROW_H 26` reconciled to the canonical row 24.
   Gates: test_wm 54/54, test_startmenu 6/6, test_gui_metrics, test_standards
   clean, hosted green, test_docs 581/0.
+- 2026-11-19 (batch 2): wm_taskbar.c fully migrated (geometry 71->0, colour
+  7->0) together with GUI slerm 0.5 — modern tiles are flat Fluent surfaces,
+  running state reads from 3px indicator pills (6 idle / 16 focused, accent),
+  the cycling developer-hint text is gone; classic path keeps its era bevels
+  with every constant named in wubu_tokens.h. Tree ratchet: geometry 136->65,
+  colour 21->14. Gates: test_wm 55/55 (new test_taskbar_indicator),
+  test_startmenu 6/6, test_standards clean, hosted green, test_docs 581/0.

@@ -34,7 +34,7 @@ static void draw_start_flag(int x, int y);   /* defined below */
 void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     memset(L, 0, sizeof *L);
     int th  = taskbar_height_dynamic();
-    int bh  = th - 8;
+    int bh  = th - WUBU_TASKBAR_TILE_INSET;
     int gap = WUBU_SPACE_XS;
 
     /* Measure the button row first so it can be centred. */
@@ -44,8 +44,8 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
         DosGuiWindow *w = &g_dwm.windows[idx];
         if (!w->alive || w->desktop != g_dwm.current_desktop) continue;
         int tw = vbe_text_width(w->title, 1) + WUBU_SPACE_LG;
-        if (tw < 44) tw = 44;
-        if (tw > 160) tw = 160;
+        if (tw < WUBU_TASKBAR_BTN_MIN_W) tw = WUBU_TASKBAR_BTN_MIN_W;
+        if (tw > WUBU_TASKBAR_BTN_MAX_W) tw = WUBU_TASKBAR_BTN_MAX_W;
         L->slot[L->n_slots].w = tw;
         L->slot[L->n_slots].h = bh;
         L->slot[L->n_slots].is_pin = 0;
@@ -56,19 +56,19 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     for (int i = 0; i < wubu_taskbar_count() && L->n_slots < 48; i++) {
         const WubuTask *t = wubu_taskbar_get(i);
         if (!t || !t->pinned || t->win_id >= 0) continue;
-        L->slot[L->n_slots].w = 44;
+        L->slot[L->n_slots].w = WUBU_TASKBAR_BTN_MIN_W;
         L->slot[L->n_slots].h = bh;
         L->slot[L->n_slots].is_pin = 1;
         L->slot[L->n_slots].index = i;
-        row_w += 44 + gap;
+        row_w += WUBU_TASKBAR_BTN_MIN_W + gap;
         L->n_slots++;
     }
     if (row_w > 0) row_w -= gap;
 
-    int start_w = th - 8;
-    int shell_w = 34;
+    int start_w = th - WUBU_TASKBAR_TILE_INSET;
+    int shell_w = WUBU_TASKBAR_SHELL_W;
     int shell_row_w = 3 * shell_w + 2 * gap;
-    int clock_w = 64;
+    int clock_w = WUBU_TASKBAR_CLOCK_W;
     int tray_w  = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS);
 
     int need = WUBU_SPACE_SM + start_w + gap + shell_row_w + gap + row_w + gap +
@@ -109,27 +109,28 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
 }
 
 /* Small monochrome glyphs for the shell buttons.  Drawn rather than font
- * glyphs so they scale with the tile and never depend on font coverage. */
+ * glyphs so they scale with the tile and never depend on font coverage.
+ * Stroke offsets are glyph-art, not layout. */
 static void draw_shell_glyph(int which, int cx, int cy, uint32_t color)
 {
     switch (which) {
     case 0:   /* Search: a magnifier (ring + handle) */
-        vbe_fill_rect(cx - 6, cy - 6, 8, 2, color);
-        vbe_fill_rect(cx - 6, cy + 4, 8, 2, color);
-        vbe_fill_rect(cx - 6, cy - 6, 2, 12, color);
-        vbe_fill_rect(cx + 2, cy - 6, 2, 12, color);
-        vbe_fill_rect(cx + 4, cy + 4, 2, 4, color);
-        vbe_fill_rect(cx + 6, cy + 6, 2, 4, color);
+        vbe_fill_rect(cx - 6, cy - 6, 8, 2, color); /* glyph-art */
+        vbe_fill_rect(cx - 6, cy + 4, 8, 2, color); /* glyph-art */
+        vbe_fill_rect(cx - 6, cy - 6, 2, 12, color); /* glyph-art */
+        vbe_fill_rect(cx + 2, cy - 6, 2, 12, color); /* glyph-art */
+        vbe_fill_rect(cx + 4, cy + 4, 2, 4, color); /* glyph-art */
+        vbe_fill_rect(cx + 6, cy + 6, 2, 4, color); /* glyph-art */
         break;
     case 1:   /* Task view: two overlapping rectangles */
-        vbe_rect(cx - 7, cy - 5, 14, 10, color);
-        vbe_rect(cx - 2, cy - 2, 10, 8, color);
+        vbe_rect(cx - 7, cy - 5, 14, 10, color); /* glyph-art */
+        vbe_rect(cx - 2, cy - 2, 10, 8, color); /* glyph-art */
         break;
     default:  /* Widgets: a 2x2 grid of squares */
-        vbe_fill_rect(cx - 7, cy - 7, 6, 6, color);
-        vbe_fill_rect(cx + 1, cy - 7, 6, 6, color);
-        vbe_fill_rect(cx - 7, cy + 1, 6, 6, color);
-        vbe_fill_rect(cx + 1, cy + 1, 6, 6, color);
+        vbe_fill_rect(cx - 7, cy - 7, 6, 6, color); /* glyph-art */
+        vbe_fill_rect(cx + 1, cy - 7, 6, 6, color); /* glyph-art */
+        vbe_fill_rect(cx - 7, cy + 1, 6, 6, color); /* glyph-art */
+        vbe_fill_rect(cx + 1, cy + 1, 6, 6, color); /* glyph-art */
         break;
     }
 }
@@ -144,26 +145,22 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
                      tc()->border_dark);
 
     /* Start: the 4-pane flag, centred in a rounded tile. */
-    draw_start_flag(L.start_x + L.start_w / 2 - 7,
-                    L.start_y + L.start_h / 2 - 7);
+    draw_start_flag(L.start_x + L.start_w / 2 - WUBU_TASKBAR_FLAG_SIZE / 2,
+                    L.start_y + L.start_h / 2 - WUBU_TASKBAR_FLAG_SIZE / 2);
 
-    /* Win11 shell buttons: Search, Task View, Widgets. */
-    static const char *shell_glyph[3] = { "S", "T", "W" };
+    /* Win11 shell buttons: flat subtle tiles — the era bevels are gone. */
     for (int i = 0; i < 3; i++) {
         int bx = L.shell_x[i];
-        vbe_fill_rect_rounded(bx, L.shell_y, L.shell_w, L.shell_h, 6,
-                              tc()->btn_face);
-        vbe_3d_raised_rounded_colors(bx, L.shell_y, L.shell_w, L.shell_h, 6,
-                                     tc()->border_light, tc()->border_face,
-                                     tc()->border_dark, tc()->border_darkest);
+        vbe_fill_rect_rounded(bx, L.shell_y, L.shell_w, L.shell_h,
+                              WUBU_METRIC_RADIUS_CONTROL, tc()->btn_face);
         draw_shell_glyph(i, bx + L.shell_w / 2, L.shell_y + L.shell_h / 2,
                          tc()->btn_text);
-        (void)shell_glyph;
     }
 
     for (int i = 0; i < L.n_slots; i++) {
         const WmTaskSlot *s = &L.slot[i];
         bool focused = false;
+        bool running = !s->is_pin;
         const char *title;
         if (s->is_pin) {
             const WubuTask *t = wubu_taskbar_get(s->index);
@@ -174,21 +171,36 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
             focused = (s->index == g_dwm.focused_id) &&
                       !(w->flags & DOSGUI_WIN_MINIMIZED);
         }
-        vbe_fill_rect_rounded(s->x, s->y, s->w, s->h, 6,
-                              focused ? tc()->select_bg : tc()->btn_face);
-        vbe_3d_raised_rounded_colors(s->x, s->y, s->w, s->h, 6,
-                                     tc()->border_light, tc()->border_face,
-                                     tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(s->x + 6, s->y + (s->h - 8) / 2, title,
-                      focused ? tc()->select_text : tc()->btn_text, 1);
+        /* Flat Fluent tile: the focused app gets a subtle lift, the rest
+         * sit flush on the bar. Running state reads from the indicator
+         * pill below, not from a Win98 bevel. */
+        vbe_fill_rect_rounded(s->x, s->y, s->w, s->h,
+                              WUBU_METRIC_RADIUS_CONTROL,
+                              focused ? tc()->btn_face : tc()->taskbar_bg);
+        vbe_draw_text(s->x + WUBU_SPACE_SM,
+                      s->y + (s->h - WUBU_FONT_CAP_H) / 2, title,
+                      focused ? tc()->btn_text : tc()->icon_text, 1);
+        if (running) {
+            int iw = focused ? WUBU_TASKBAR_INDICATOR_W_FOCUS
+                             : WUBU_TASKBAR_INDICATOR_W_IDLE;
+            int ix = s->x + (s->w - iw) / 2;
+            int iy = s->y + s->h - WUBU_TASKBAR_INDICATOR_GAP -
+                     WUBU_TASKBAR_INDICATOR_H;
+            vbe_fill_rect_rounded(ix, iy, iw, WUBU_TASKBAR_INDICATOR_H,
+                                  WUBU_TASKBAR_INDICATOR_H / 2,
+                                  focused ? tc()->select_bg
+                                          : WUBU_TASKBAR_INDICATOR_IDLE);
+        }
     }
 
     int tx = L.tray_x;
     for (int i = 0; i < g_dwm.systray_count; i++) {
         if (!g_dwm.systray_icons[i].visible) continue;
         vbe_fill_rect_rounded(tx, L.tray_y, DOSGUI_SYSTRAY_SIZE,
-                              DOSGUI_SYSTRAY_SIZE, 4, tc()->btn_face);
-        vbe_fill_rect(tx + 4, L.tray_y + 4, 16, 16,
+                              DOSGUI_SYSTRAY_SIZE, WUBU_METRIC_RADIUS_CONTROL,
+                              tc()->btn_face);
+        vbe_fill_rect(tx + WUBU_SPACE_XS, L.tray_y + WUBU_SPACE_XS,
+                      WUBU_TASKBAR_TRAY_ICON, WUBU_TASKBAR_TRAY_ICON,
                       g_dwm.systray_icons[i].icon_color);
         tx += DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS;
     }
@@ -199,7 +211,8 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
     g_dwm.clock_well_y = L.clock_y;
     g_dwm.clock_well_w = L.clock_w;
     g_dwm.clock_well_h = L.clock_h;
-    vbe_draw_text(L.clock_x + 4, L.clock_y + (L.clock_h - 8) / 2, clk,
+    vbe_draw_text(L.clock_x + WUBU_SPACE_XS,
+                  L.clock_y + (L.clock_h - WUBU_FONT_CAP_H) / 2, clk,
                   tc()->icon_text, 1);
 }
 
@@ -267,11 +280,11 @@ int taskbar_height(void) { return taskbar_height_dynamic(); }
 /* The Start button's emblem: the classic Win95-style 4-pane flag
  * (red / green / blue / yellow) with a black outline. */
 static void draw_start_flag(int x, int y) {
-    vbe_fill_rect(x,     y,     7, 7, 0xFE0000);   /* red    */
-    vbe_fill_rect(x + 7, y,     7, 7, 0x00A800);   /* green  */
-    vbe_fill_rect(x,     y + 7, 7, 7, 0x0000A8);   /* blue   */
-    vbe_fill_rect(x + 7, y + 7, 7, 7, 0xFFC800);   /* yellow */
-    vbe_rect(x, y, 14, 14, 0x000000);              /* outline */
+    vbe_fill_rect(x,     y,     7, 7, 0xFE0000);   /* brand-art red    */
+    vbe_fill_rect(x + 7, y,     7, 7, 0x00A800);   /* brand-art green  */
+    vbe_fill_rect(x,     y + 7, 7, 7, 0x0000A8);   /* brand-art blue   */
+    vbe_fill_rect(x + 7, y + 7, 7, 7, 0xFFC800);   /* brand-art yellow */
+    vbe_rect(x, y, 14, 14, 0x000000);              /* brand-art outline */
 }
 
 void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
@@ -284,40 +297,54 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
 
     vbe_fill_rect(0, ty, fb_w, th, tc()->taskbar_bg);
     vbe_hline(0, fb_w - 1, ty, tc()->taskbar_border);
-    int by = ty + (th - 22) / 2;
-    int start_w = theme()->Luna_start_button ? 54 : 60;
-    
+    int by = ty + (th - WUBU_TASKBAR_CLASSIC_BTN_H) / 2;
+    int start_w = theme()->Luna_start_button ? WUBU_TASKBAR_CLASSIC_START_W_LUNA
+                                             : WUBU_TASKBAR_CLASSIC_START_W;
+
     if (theme()->Luna_start_button) {
-        vbe_fill_rect_rounded(4, by, start_w + 20, 24, 4, tc()->start_btn_face);
-        vbe_3d_raised_rounded_colors(4, by, start_w + 20, 24, 4,
-                                     tc()->border_light, tc()->border_face,
-                                     tc()->border_dark, tc()->border_darkest);
+        int orb_w = start_w + WUBU_TASKBAR_CLASSIC_LUNA_EXTRA;
+        vbe_fill_rect_rounded(WUBU_SPACE_XS, by, orb_w,
+                              WUBU_TASKBAR_CLASSIC_LUNA_H,
+                              WUBU_METRIC_RADIUS_CONTROL, tc()->start_btn_face);
+        vbe_3d_raised_rounded_colors(WUBU_SPACE_XS, by, orb_w,
+                              WUBU_TASKBAR_CLASSIC_LUNA_H,
+                              WUBU_METRIC_RADIUS_CONTROL,
+                              tc()->border_light, tc()->border_face,
+                              tc()->border_dark, tc()->border_darkest);
         /* Win95-style 4-pane flag emblem (the Start button must have an icon). */
-        draw_start_flag(10, by + 5);
-        vbe_draw_text(28, by + 8, "Start", tc()->start_btn_text, 1);
+        draw_start_flag(WUBU_TASKBAR_CLASSIC_EDGE_PAD,
+                        by + (WUBU_TASKBAR_CLASSIC_LUNA_H - WUBU_TASKBAR_FLAG_SIZE) / 2);
+        vbe_draw_text(WUBU_TASKBAR_CLASSIC_EDGE_PAD + WUBU_TASKBAR_FLAG_SIZE + WUBU_SPACE_XS,
+                      by + WUBU_SPACE_SM, "Start", tc()->start_btn_text, 1);
     } else {
         /* Win98 Classic Start button: full-height-ish 3D raised silver
          * button, 4-pane flag emblem + text, with a 2px inner margin. */
-        int sbh = 22;
+        int sbh = WUBU_TASKBAR_CLASSIC_BTN_H;
         int sby = ty + (th - sbh) / 2;
-        vbe_fill_rect(4, sby, 60, sbh, tc()->start_btn_face);
-        vbe_3d_raised_colors(4, sby, 60, sbh,
+        vbe_fill_rect(WUBU_SPACE_XS, sby, WUBU_TASKBAR_CLASSIC_START_W, sbh,
+                      tc()->start_btn_face);
+        vbe_3d_raised_colors(WUBU_SPACE_XS, sby, WUBU_TASKBAR_CLASSIC_START_W, sbh,
                              tc()->border_light, tc()->border_face,
                              tc()->border_dark, tc()->border_darkest);
-        draw_start_flag(8, sby + (sbh - 14) / 2);
-        vbe_draw_text(26, sby + (sbh - 8) / 2, "Start", tc()->start_btn_text, 1);
+        draw_start_flag(WUBU_SPACE_SM, sby + (sbh - WUBU_TASKBAR_FLAG_SIZE) / 2);
+        vbe_draw_text(WUBU_SPACE_SM + WUBU_TASKBAR_FLAG_SIZE + WUBU_SPACE_XS,
+                      sby + (sbh - WUBU_FONT_CAP_H) / 2, "Start",
+                      tc()->start_btn_text, 1);
     }
 
-    int bx = theme()->Luna_start_button ? 82 : 72;
-    
+    int bx = theme()->Luna_start_button
+        ? WUBU_SPACE_XS + start_w + WUBU_TASKBAR_CLASSIC_LUNA_EXTRA + WUBU_SPACE_XS
+        : WUBU_SPACE_XS + start_w + WUBU_SPACE_SM;
+
     /* Reserve space for clock + tray icons on the right */
     taskbar_update_clock(time(NULL));
     char *clk = taskbar_get_clock_str();
     int clk_w = vbe_text_width(clk, 1);
-    int clock_reserve = clk_w + 20; /* clock + padding */
-    int tray_reserve = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS) + 10;
+    int clock_reserve = clk_w + 2 * WUBU_TASKBAR_CLASSIC_EDGE_PAD;
+    int tray_reserve = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS)
+                       + WUBU_TASKBAR_CLASSIC_EDGE_PAD;
     int right_reserve = clock_reserve + tray_reserve;
-    
+
     for (int j = 0; j < g_dwm.nz; j++) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
         if (!w->alive) continue;
@@ -327,21 +354,21 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
          * restored (the "lost window" bug). Draw it with a sunken look. */
         bool minimized = (w->flags & DOSGUI_WIN_MINIMIZED);
         int tw = vbe_text_width(w->title, 1);
-        int bw = tw + 24;                      /* padding either side */
-        if (bw < 120) bw = 120;                /* min width like real Win98 */
-        if (bw > 200) bw = 200;                /* cap so long titles don't eat the bar */
+        int bw = tw + WUBU_TASKBAR_CLASSIC_BTN_PAD;
+        if (bw < WUBU_TASKBAR_CLASSIC_BTN_MIN_W) bw = WUBU_TASKBAR_CLASSIC_BTN_MIN_W;
+        if (bw > WUBU_TASKBAR_CLASSIC_BTN_MAX_W) bw = WUBU_TASKBAR_CLASSIC_BTN_MAX_W;
         bool focused = (g_dwm.zorder[j] == g_dwm.focused_id);
-        
+
         /* Check if button would overlap reserved area */
         if (bx + bw > g_dwm.screen_w - right_reserve) break;
-        
-        int bh = 22;
+
+        int bh = WUBU_TASKBAR_CLASSIC_BTN_H;
         int bby = ty + (th - bh) / 2;
         char truncated[64];
         strncpy(truncated, w->title, sizeof(truncated) - 1);
         truncated[sizeof(truncated) - 1] = '\0';
-        /* truncate to fit button width (bw - 16 for padding + icon gap) */
-        while (strlen(truncated) > 1 && vbe_text_width(truncated, 1) > bw - 26) {
+        while (strlen(truncated) > 1 &&
+               vbe_text_width(truncated, 1) > bw - WUBU_TASKBAR_CLASSIC_TEXT_RESERVE) {
             truncated[strlen(truncated) - 1] = '\0';
         }
 
@@ -350,22 +377,25 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             vbe_3d_sunken_colors(bx, bby, bw, bh,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, tc()->select_text, 1);
+            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_CAP_H) / 2,
+                          truncated, tc()->select_text, 1);
         } else if (minimized) {
             /* Sunken + dimmed: clearly "not on screen" but present. */
             vbe_fill_rect(bx, bby, bw, bh, tc()->btn_face);
             vbe_3d_sunken_colors(bx, bby, bw, bh,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, tc()->btn_text, 1);
+            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_CAP_H) / 2,
+                          truncated, tc()->btn_text, 1);
         } else {
             vbe_fill_rect(bx, bby, bw, bh, tc()->btn_face);
             vbe_3d_raised_colors(bx, bby, bw, bh,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, tc()->btn_text, 1);
+            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_CAP_H) / 2,
+                          truncated, tc()->btn_text, 1);
         }
-        bx += bw + 3;   /* 3px gap between buttons */
+        bx += bw + WUBU_TASKBAR_CLASSIC_BTN_GAP;
         if (bx > g_dwm.screen_w - right_reserve) break;
     }
 
@@ -375,22 +405,26 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     for (int i = 0; i < wubu_taskbar_count(); i++) {
         const WubuTask *t = wubu_taskbar_get(i);
         if (!t || !t->pinned || t->win_id >= 0) continue;
-        if (bx + 120 > g_dwm.screen_w - right_reserve) break;
+        if (bx + WUBU_TASKBAR_CLASSIC_PIN_W > g_dwm.screen_w - right_reserve) break;
 
-        int bh = 22;
+        int bh = WUBU_TASKBAR_CLASSIC_BTN_H;
         int bby = ty + (th - bh) / 2;
-        vbe_fill_rect(bx, bby, 120, bh, tc()->btn_face);
-        vbe_3d_raised_colors(bx, bby, 120, bh,
+        vbe_fill_rect(bx, bby, WUBU_TASKBAR_CLASSIC_PIN_W, bh, tc()->btn_face);
+        vbe_3d_raised_colors(bx, bby, WUBU_TASKBAR_CLASSIC_PIN_W, bh,
                              tc()->border_light, tc()->btn_face,
                              tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(bx + 8, bby + (bh - 8) / 2, t->title, tc()->btn_text, 1);
+        vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_CAP_H) / 2,
+                      t->title, tc()->btn_text, 1);
         /* A pin marker: a small raised square at the button's right edge. */
-        vbe_fill_rect(bx + 120 - 12, bby + 6, 6, 6, tc()->select_bg);
-        bx += 123;
+        vbe_fill_rect(bx + WUBU_TASKBAR_CLASSIC_PIN_W - 2 * WUBU_TASKBAR_CLASSIC_PIN_MARK,
+                      bby + WUBU_TASKBAR_CLASSIC_PIN_MARK,
+                      WUBU_TASKBAR_CLASSIC_PIN_MARK, WUBU_TASKBAR_CLASSIC_PIN_MARK,
+                      tc()->select_bg);
+        bx += WUBU_TASKBAR_CLASSIC_PIN_W + WUBU_TASKBAR_CLASSIC_BTN_GAP;
     }
 
     /* System tray icons (drawn from right to left, before clock) */
-    int tray_x = fb_w - 10;
+    int tray_x = fb_w - WUBU_TASKBAR_CLASSIC_EDGE_PAD;
 
     /* Clock - use clk/clk_w from earlier in function */
     taskbar_update_clock(time(NULL));
@@ -401,25 +435,32 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
      * check fired when bx=72 (no windows) and dragged the clock to x=22 —
      * ON TOP of the Start button (user-reported 2026-08-06).  Never do
      * that: clamp only at the Start-button edge as a hard floor. */
-    int clock_x = fb_w - clk_w - 10;
-    if (clock_x < 68) clock_x = 68;   /* right of the 60px Start button */
-    if (clock_x + clk_w > fb_w - 4) clock_x = fb_w - 4 - clk_w;
+    int clock_x = fb_w - clk_w - WUBU_TASKBAR_CLASSIC_EDGE_PAD;
+    if (clock_x < WUBU_TASKBAR_CLASSIC_CLOCK_FLOOR)
+        clock_x = WUBU_TASKBAR_CLASSIC_CLOCK_FLOOR;
+    if (clock_x + clk_w > fb_w - WUBU_SPACE_XS)
+        clock_x = fb_w - WUBU_SPACE_XS - clk_w;
 
     /* Win98 parity: the clock sits in a RECESSED (sunken) well and is a
      * clickable button — clicking it opens the clock/calendar popup. */
-    int cw_y = ty + (th - 20) / 2;
-    g_dwm.clock_well_x = clock_x - 3;
+    int cw_y = ty + (th - WUBU_TASKBAR_CLASSIC_CLOCK_H) / 2;
+    g_dwm.clock_well_x = clock_x - WUBU_TASKBAR_CLASSIC_CLOCK_PAD;
     g_dwm.clock_well_y = cw_y;
-    g_dwm.clock_well_w = clk_w + 6;
-    g_dwm.clock_well_h = 20;
-    vbe_fill_rect(clock_x - 3, cw_y, clk_w + 6, 20, tc()->btn_face);
-    vbe_3d_sunken_colors(clock_x - 3, cw_y, clk_w + 6, 20,
+    g_dwm.clock_well_w = clk_w + 2 * WUBU_TASKBAR_CLASSIC_CLOCK_PAD;
+    g_dwm.clock_well_h = WUBU_TASKBAR_CLASSIC_CLOCK_H;
+    vbe_fill_rect(clock_x - WUBU_TASKBAR_CLASSIC_CLOCK_PAD, cw_y,
+                  clk_w + 2 * WUBU_TASKBAR_CLASSIC_CLOCK_PAD,
+                  WUBU_TASKBAR_CLASSIC_CLOCK_H, tc()->btn_face);
+    vbe_3d_sunken_colors(clock_x - WUBU_TASKBAR_CLASSIC_CLOCK_PAD, cw_y,
+                         clk_w + 2 * WUBU_TASKBAR_CLASSIC_CLOCK_PAD,
+                         WUBU_TASKBAR_CLASSIC_CLOCK_H,
                          tc()->border_light, tc()->border_face,
                          tc()->border_dark, tc()->border_darkest);
-    vbe_draw_text(clock_x, ty + (th - 8) / 2, clk,
-                  theme()->Luna_start_button ? 0xFFFFFF : tc()->icon_text, 1);
+    vbe_draw_text(clock_x, ty + (th - WUBU_FONT_CAP_H) / 2, clk,
+                  theme()->Luna_start_button ? tc()->start_btn_text
+                                             : tc()->icon_text, 1);
 
-    tray_x = clock_x - 10;
+    tray_x = clock_x - WUBU_TASKBAR_CLASSIC_EDGE_PAD;
 
     /* Draw system tray icons */
     for (int i = g_dwm.systray_count - 1; i >= 0; i--) {
@@ -432,78 +473,62 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                                  tc()->border_light, tc()->border_face,
                                  tc()->border_dark, tc()->border_darkest);
 
-            vbe_fill_rect(x + 4, y + 4, 16, 16, g_dwm.systray_icons[i].icon_color);
+            vbe_fill_rect(x + WUBU_SPACE_XS, y + WUBU_SPACE_XS,
+                          WUBU_TASKBAR_TRAY_ICON, WUBU_TASKBAR_TRAY_ICON,
+                          g_dwm.systray_icons[i].icon_color);
 
             /* Draw notification badge if count > 0 */
             if (g_dwm.systray_icons[i].notification_count > 0) {
                 char badge[8];
-                snprintf(badge, sizeof(badge), "%d", 
+                snprintf(badge, sizeof(badge), "%d",
                     g_dwm.systray_icons[i].notification_count > 9 ? 9 : g_dwm.systray_icons[i].notification_count);
-                int bx = x + DOSGUI_SYSTRAY_SIZE - 8;
-                int by = y;
-                vbe_fill_rect_rounded(bx, by, 12, 12, 6, 0xFF0000);
-                vbe_draw_text(bx + 2, by + 1, badge, 0xFFFFFF, 1);
+                int bx2 = x + DOSGUI_SYSTRAY_SIZE - WUBU_SPACE_SM;
+                int by2 = y;
+                vbe_fill_rect_rounded(bx2, by2, WUBU_TASKBAR_CLASSIC_BADGE,
+                                      WUBU_TASKBAR_CLASSIC_BADGE,
+                                      WUBU_TASKBAR_CLASSIC_BADGE / 2,
+                                      WUBU_TASKBAR_CLASSIC_BADGE_BG);
+                vbe_draw_text(bx2 + WUBU_SPACE_2XS, by2 + 1, badge,
+                              WUBU_TASKBAR_CLASSIC_BADGE_FG, 1);
             }
             tray_x -= DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS;
         }
     }
 
-    int desk_x = tray_x - 150;
+    int desk_x = tray_x - WUBU_TASKBAR_CLASSIC_PAGER_RESERVE;
     /* Virtual-desktop pager: only show when more than one desktop exists.
      * Rendering 9 always-on numbered tabs on a single-desktop machine is
      * the confusing "1 2 3 4 5 6 7 8 9 COMPUTER" garbage. */
     if (g_dwm.desktop_count > 1) {
     for (int d = 0; d < g_dwm.desktop_count; d++) {
-        int dx = desk_x + d * 16;
+        int dx = desk_x + d * WUBU_TASKBAR_CLASSIC_PAGER_PITCH;
+        int dy = ty + (th - WUBU_TASKBAR_CLASSIC_PAGER_H) / 2;
+        char label = (d == 9) ? 'M' : ('1' + d);
+        int lx = dx + (WUBU_TASKBAR_CLASSIC_PAGER_W - vbe_text_width(&label, 1)) / 2;
         if (d == g_dwm.current_desktop) {
-            vbe_fill_rect_rounded(dx, ty + (th - 16) / 2, 14, 16, 2, tc()->select_bg);
-            vbe_3d_sunken_rounded_colors(dx, ty + (th - 16) / 2, 14, 16, 2,
-                                          tc()->border_light, tc()->border_face,
-                                          tc()->border_dark, tc()->border_darkest);
-            char label = (d == 9) ? 'M' : ('1' + d);
-            vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->select_text, 1);
+            vbe_fill_rect_rounded(dx, dy, WUBU_TASKBAR_CLASSIC_PAGER_W,
+                                  WUBU_TASKBAR_CLASSIC_PAGER_H, WUBU_RADIUS_XS,
+                                  tc()->select_bg);
+            vbe_3d_sunken_rounded_colors(dx, dy, WUBU_TASKBAR_CLASSIC_PAGER_W,
+                                  WUBU_TASKBAR_CLASSIC_PAGER_H, WUBU_RADIUS_XS,
+                                  tc()->border_light, tc()->border_face,
+                                  tc()->border_dark, tc()->border_darkest);
+            vbe_draw_text(lx, ty + (th - WUBU_FONT_CAP_H) / 2, &label,
+                          tc()->select_text, 1);
         } else {
-            vbe_fill_rect_rounded(dx, ty + (th - 16) / 2, 14, 16, 2, tc()->btn_face);
-            vbe_3d_raised_rounded_colors(dx, ty + (th - 16) / 2, 14, 16, 2,
-                                          tc()->border_light, tc()->border_face,
-                                          tc()->border_dark, tc()->border_darkest);
-            char label = (d == 9) ? 'M' : ('1' + d);
-            vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->btn_text, 1);
+            vbe_fill_rect_rounded(dx, dy, WUBU_TASKBAR_CLASSIC_PAGER_W,
+                                  WUBU_TASKBAR_CLASSIC_PAGER_H, WUBU_RADIUS_XS,
+                                  tc()->btn_face);
+            vbe_3d_raised_rounded_colors(dx, dy, WUBU_TASKBAR_CLASSIC_PAGER_W,
+                                  WUBU_TASKBAR_CLASSIC_PAGER_H, WUBU_RADIUS_XS,
+                                  tc()->border_light, tc()->border_face,
+                                  tc()->border_dark, tc()->border_darkest);
+            vbe_draw_text(lx, ty + (th - WUBU_FONT_CAP_H) / 2, &label,
+                          tc()->btn_text, 1);
         }
     }
     }
-
-    /* -- Status bar tip (cycling keyboard hint) ------------------ */
-    {
-        static time_t last_tip_swap = 0;
-        static int tip_index = 0;
-        time_t now = time(NULL);
-
-        if (now != last_tip_swap) {
-            /* Cycle tip every ~10 seconds (checked every render frame) */
-            if (now - last_tip_swap >= 10) {
-                tip_index = (tip_index + 1) % 6;
-                last_tip_swap = now;
-            }
-            /* Initialize clock on first render */
-            if (last_tip_swap == 0) {
-                last_tip_swap = now;
-                tip_index = 0;
-            }
-        }
-
-        const char *tips[] = {
-            "Ctrl+T = cycle theme",
-            "Alt+F4 = close window",
-            "Win key = Start menu",
-            "Ctrl+Alt+Left/Right = desktop",
-            "Shift+F10 = context menu",
-            "Ctrl+T = cycle theme",
-        };
-        const char *tip = tips[tip_index % 6];
-        int tip_x = desk_x - vbe_text_width(tip, 1) - 20;
-        if (tip_x > start_w + 90) {
-            vbe_draw_text(tip_x, ty + (th - 8) / 2, tip, tc()->icon_text, 1);
-        }
-    }
+    /* The cycling developer-hint text that used to live here is gone: a
+     * product taskbar does not print its own cheat sheet (GUI slerm 0.5).
+     * Shortcuts belong in the walkthrough and the docs. */
 }

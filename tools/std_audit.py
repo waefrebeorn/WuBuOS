@@ -125,7 +125,7 @@ def audit_magic_geometry(sources, root):
             stripped = line.strip()
             if stripped.startswith("*") or stripped.startswith("/*"):
                 continue
-            if "brand-art" in line or "icon-identity" in line:
+            if "brand-art" in line or "icon-identity" in line or "glyph-art" in line:
                 continue
             if any(tok in line for tok in (
                     "WUBU_SPACE_", "WUBU_RADIUS_", "WUBU_TITLE_",
@@ -169,7 +169,7 @@ def audit_theme_colors(sources, root):
             stripped = line.strip()
             if stripped.startswith("*") or stripped.startswith("/*"):
                 continue
-            if "brand-art" in line or "icon-identity" in line:
+            if "brand-art" in line or "icon-identity" in line or "glyph-art" in line:
                 continue
             if not re.search(r"vbe_|\bbg\s*=|\bfg\s*=|color", line):
                 continue

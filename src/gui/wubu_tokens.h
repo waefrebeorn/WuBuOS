@@ -85,6 +85,47 @@
 #define WUBU_TITLE_PAD     WUBU_SPACE_SM   /* icon and title inset */
 
 #define WUBU_TASKBAR_H     WUBU_METRIC_TASKBAR_H   /* taskbar: canonical */
+
+/* Modern (Win11-class) taskbar. Indicator measurements from the reference
+ * shell spec (3px pill, 2px above the button bottom, 6 idle / 16 focused). */
+#define WUBU_TASKBAR_BTN_MIN_W        44
+#define WUBU_TASKBAR_BTN_MAX_W        160
+#define WUBU_TASKBAR_SHELL_W          34
+#define WUBU_TASKBAR_CLOCK_W          64
+#define WUBU_TASKBAR_TILE_INSET       8   /* bar height minus tile height */
+#define WUBU_TASKBAR_INDICATOR_H      3
+#define WUBU_TASKBAR_INDICATOR_W_IDLE 6
+#define WUBU_TASKBAR_INDICATOR_W_FOCUS 16
+#define WUBU_TASKBAR_INDICATOR_GAP    2
+#define WUBU_TASKBAR_INDICATOR_IDLE   0x9A9A9Au /* running-unfocused pill */
+
+/* Classic (Win98/XP) taskbar: era-accurate values, named so the surface
+ * holds no geometry literals. Bevels stay — they ARE the era look. */
+#define WUBU_TASKBAR_CLASSIC_BTN_H     22
+#define WUBU_TASKBAR_CLASSIC_BTN_MIN_W 120
+#define WUBU_TASKBAR_CLASSIC_BTN_MAX_W 200
+#define WUBU_TASKBAR_CLASSIC_BTN_GAP   3   /* off-grid: Win98 button pitch */
+#define WUBU_TASKBAR_CLASSIC_BTN_PAD   24  /* title padding either side */
+#define WUBU_TASKBAR_CLASSIC_TEXT_RESERVE 26 /* padding + icon gap */
+#define WUBU_TASKBAR_CLASSIC_START_W   60
+#define WUBU_TASKBAR_CLASSIC_START_W_LUNA 54
+#define WUBU_TASKBAR_CLASSIC_LUNA_EXTRA 20 /* Luna orb wider than its label */
+#define WUBU_TASKBAR_CLASSIC_LUNA_H    24
+#define WUBU_TASKBAR_CLASSIC_PIN_W     120
+#define WUBU_TASKBAR_CLASSIC_PIN_MARK  6   /* pin marker square */
+#define WUBU_TASKBAR_CLASSIC_CLOCK_H   20
+#define WUBU_TASKBAR_CLASSIC_CLOCK_PAD 3   /* sunken well inset */
+#define WUBU_TASKBAR_CLASSIC_EDGE_PAD  10  /* screen-edge margins */
+#define WUBU_TASKBAR_CLASSIC_CLOCK_FLOOR 68 /* right of the Start button */
+#define WUBU_TASKBAR_TRAY_ICON         16  /* glyph inside a tray tile */
+#define WUBU_TASKBAR_FLAG_SIZE         14  /* the 4-pane Start emblem */
+#define WUBU_TASKBAR_CLASSIC_BADGE     12
+#define WUBU_TASKBAR_CLASSIC_BADGE_BG  0xFF0000u /* era notification red */
+#define WUBU_TASKBAR_CLASSIC_BADGE_FG  0xFFFFFFu
+#define WUBU_TASKBAR_CLASSIC_PAGER_W   14
+#define WUBU_TASKBAR_CLASSIC_PAGER_H   16
+#define WUBU_TASKBAR_CLASSIC_PAGER_PITCH 16
+#define WUBU_TASKBAR_CLASSIC_PAGER_RESERVE 150
 #define WUBU_MENU_PAD      WUBU_SPACE_MD   /* menu content inset */
 #define WUBU_MENU_ROW_H    WUBU_METRIC_ROW_H /* menu row = canonical row height
                                               * (was a stale 26 here while the

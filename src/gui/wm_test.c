@@ -1584,6 +1584,39 @@ static void test_caption_metrics(void) {
     PASS();
 }
 
+/* -- Running-indicator pills (modern taskbar) --------------------- */
+
+static void test_taskbar_indicator(void) {
+    TEST("taskbar indicator: accent when focused, idle when minimized, none for pins");
+    wubu_screensaver_set_enabled(false);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    DosGuiWindow *w = wm_create(200, 150, 300, 200, "Ind");
+    wm_set_focus(w);
+    wm_render(NULL, 1024, 768);
+
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    CHECK(L.n_slots >= 1, "the running window owns a slot");
+    const WmTaskSlot *s = &L.slot[0];
+    int ix = s->x + s->w / 2;
+    int iy = s->y + s->h - WUBU_TASKBAR_INDICATOR_GAP -
+             WUBU_TASKBAR_INDICATOR_H + 1;
+    CHECK(vbe_get_pixel(ix, iy) == tc()->select_bg,
+          "focused window draws the accent pill");
+
+    w->flags |= DOSGUI_WIN_MINIMIZED;
+    wm_render(NULL, 1024, 768);
+    CHECK(vbe_get_pixel(ix, iy) == WUBU_TASKBAR_INDICATOR_IDLE,
+          "minimized window keeps an idle pill");
+    CHECK(vbe_get_pixel(ix + WUBU_TASKBAR_INDICATOR_W_IDLE, iy) ==
+          tc()->taskbar_bg,
+          "idle pill is narrow (6px), not full-width");
+    wm_shutdown();
+    wubu_screensaver_set_enabled(true);
+    PASS();
+}
+
 /* -- Auto-hide taskbar (modern theme) --------------------------- */
 
 static void test_taskbar_autohide(void) {
@@ -1735,6 +1768,7 @@ int main(void) {
     test_slime_seam();
     test_caption_metrics();
     test_window_shadow();
+    test_taskbar_indicator();
     test_taskbar_autohide();
     test_modern_taskbar();
 

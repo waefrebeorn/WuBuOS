@@ -252,4 +252,9 @@ second implementation.
   blanks the screen mid-test — disable it in render-differential tests.
 - 0.7 DONE (2026-11-19) — greeter initial theme cursor now reads the settings
   default; gate asserts selection == settings theme id (test_greeter 28/28).
-- 0.3–0.6, 1.x–3.x OPEN.
+- 0.5 DONE (2026-11-19) — modern taskbar: flat Fluent tiles (era bevels
+  removed), running-indicator pills per the reference (3px tall, 2px above
+  the button bottom, 6px idle / 16px focused, accent when focused), developer
+  hint text deleted. Gate: test_taskbar_indicator in test_wm (55/55).
+  Acrylic fill for the bar itself lands with Tier 1.1.
+- 0.3–0.4, 0.6, 1.x–3.x OPEN.
