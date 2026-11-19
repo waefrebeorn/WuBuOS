@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "wubu_virtio_blk.h"
+#include "wubu_virtqueue.c"   /* shared vring core (one owner) */
 #include "wubu_virtio_blk.c"
 
 static int failures = 0;
@@ -81,14 +82,14 @@ static void fake_process(void)
      * driver: a wrong driver layout reads garbage and fails checks. */
     uint32_t avail_off = 16u * fake_qsize;
     uint32_t used_off = (avail_off + 6u + 2u * fake_qsize + 4095u) & ~4095u;
-    vblk_desc_t *desc = (vblk_desc_t *)ring;
-    vblk_avail_t *av = (vblk_avail_t *)(ring + avail_off);
-    vblk_used_t *us = (vblk_used_t *)(ring + used_off);
+    wubu_vq_desc_t *desc = (wubu_vq_desc_t *)ring;
+    wubu_vq_avail_t *av = (wubu_vq_avail_t *)(ring + avail_off);
+    wubu_vq_used_t *us = (wubu_vq_used_t *)(ring + used_off);
 
     uint16_t head = av->ring[(uint16_t)(av->idx - 1) % fake_qsize];
     last_head = head;
     /* walk the chain */
-    vblk_desc_t *d0 = &desc[head];
+    wubu_vq_desc_t *d0 = &desc[head];
     vblk_req_hdr_t hdr;
     memcpy(&hdr, (void *)(uintptr_t)d0->addr, sizeof(hdr));
     last_type = hdr.type;
@@ -98,11 +99,11 @@ static void fake_process(void)
     last_data_flags = 0;
     uint8_t *data = NULL;
     uint32_t dlen = 0;
-    vblk_desc_t *cur = d0;
-    while (cur->flags & VBLK_DESC_F_NEXT) {
+    wubu_vq_desc_t *cur = d0;
+    while (cur->flags & WUBU_VQ_DESC_F_NEXT) {
         cur = &desc[cur->next];
         last_chain++;
-        if (cur->len == 1 && (cur->flags & VBLK_DESC_F_WRITE)) {
+        if (cur->len == 1 && (cur->flags & WUBU_VQ_DESC_F_WRITE)) {
             /* terminal status descriptor: device-writable, 1 byte */
             uint8_t st = (fake_ioerr || hdr.sector >= FAKE_SECTORS ||
                           hdr.sector * 512 + dlen > sizeof(fake_disk)) ? 1 : 0;
@@ -130,35 +131,35 @@ static void fake_process(void)
 static uint8_t f_inb(uint16_t p)
 {
     uint16_t o = (uint16_t)(p - fake_iobase);
-    if (o == VBLK_REG_ISR) { uint8_t v = fake_isr; fake_isr = 0; return v; }
-    if (o == VBLK_REG_STATUS && fake_status_fail)
-        return (uint8_t)(fake_regs[o] | VBLK_S_FAILED);
+    if (o == WUBU_VQ_REG_ISR) { uint8_t v = fake_isr; fake_isr = 0; return v; }
+    if (o == WUBU_VQ_REG_STATUS && fake_status_fail)
+        return (uint8_t)(fake_regs[o] | WUBU_VQ_S_FAILED);
     return fake_regs[o];
 }
 static void f_outb(uint16_t p, uint8_t v) { fake_regs[p - fake_iobase] = v; }
 static uint16_t f_inw(uint16_t p)
 {
     uint16_t o = (uint16_t)(p - fake_iobase);
-    if (o == VBLK_REG_QUEUE_NUM) return fake_qsize;
+    if (o == WUBU_VQ_REG_QUEUE_NUM) return fake_qsize;
     uint16_t v; memcpy(&v, fake_regs + o, 2); return v;
 }
 static void f_outw(uint16_t p, uint16_t v)
 {
     uint16_t o = (uint16_t)(p - fake_iobase);
-    if (o == VBLK_REG_QUEUE_NOTIFY) { fake_process(); return; }
+    if (o == WUBU_VQ_REG_QUEUE_NOTIFY) { fake_process(); return; }
     memcpy(fake_regs + o, &v, 2);
 }
 static uint32_t f_inl(uint16_t p)
 {
     uint16_t o = (uint16_t)(p - fake_iobase);
-    if (o == VBLK_REG_HOST_FEATURES) return fake_features;
+    if (o == WUBU_VQ_REG_HOST_FEATURES) return fake_features;
     uint32_t v; memcpy(&v, fake_regs + o, 4); return v;
 }
 static void f_outl(uint16_t p, uint32_t v)
 {
     uint16_t o = (uint16_t)(p - fake_iobase);
-    if (o == VBLK_REG_GUEST_FEATURES) { fake_guest_features = v; return; }
-    if (o == VBLK_REG_QUEUE_PFN) { fake_ring_pa = (uint64_t)v << 12; return; }
+    if (o == WUBU_VQ_REG_GUEST_FEATURES) { fake_guest_features = v; return; }
+    if (o == WUBU_VQ_REG_QUEUE_PFN) { fake_ring_pa = (uint64_t)v << 12; return; }
     memcpy(fake_regs + o, &v, 4);
 }
 
@@ -180,8 +181,8 @@ static void fake_reset(uint16_t qsize, uint32_t features, int msix)
     memset(fake_regs, 0, sizeof(fake_regs));
     memset(fake_disk, 0, sizeof(fake_disk));
     fake_arena_used = 0;
-    g_mem.alloc = arena_alloc;
-    g_mem.free = arena_free;
+    wubu_vq_mem.alloc = arena_alloc;
+    wubu_vq_mem.free = arena_free;
     fake_qsize = qsize;
     fake_features = features;
     fake_msix = msix;
@@ -192,13 +193,13 @@ static void fake_reset(uint16_t qsize, uint32_t features, int msix)
     notify_count = 0;
     /* capacity at the legacy config offset: MSI-X is never ENABLED by
      * the polled driver, so the window stays 0x14 even with the cap */
-    uint16_t cfg = VBLK_REG_CONFIG;
+    uint16_t cfg = WUBU_VQ_REG_CONFIG;
     uint32_t lo = FAKE_SECTORS, hi = 0;
     memcpy(fake_regs + cfg, &lo, 4);
     memcpy(fake_regs + cfg + 4, &hi, 4);
-    g_io.inb = f_inb; g_io.outb = f_outb;
-    g_io.inw = f_inw; g_io.outw = f_outw;
-    g_io.inl = f_inl; g_io.outl = f_outl;
+    wubu_vq_io.inb = f_inb; wubu_vq_io.outb = f_outb;
+    wubu_vq_io.inw = f_inw; wubu_vq_io.outw = f_outw;
+    wubu_vq_io.inl = f_inl; wubu_vq_io.outl = f_outl;
 }
 
 int main(void)
@@ -207,9 +208,9 @@ int main(void)
 
     /* 1. ring layout arithmetic (pure function, spec values) */
     uint32_t ao, uo, tot;
-    vblk_ring_layout(128, &ao, &uo, &tot);
+    wubu_vq_layout(128, &ao, &uo, &tot);
     CHECK(ao == 2048 && uo == 4096 && tot == 4096 + 6 + 8 * 128);
-    vblk_ring_layout(256, &ao, &uo, &tot);
+    wubu_vq_layout(256, &ao, &uo, &tot);
     CHECK(ao == 4096 && uo == 8192 && tot == 8192 + 6 + 8 * 256);
 
     /* 2. probe: negotiation + ring programming + capacity */
@@ -218,17 +219,17 @@ int main(void)
     CHECK(d != NULL);
     if (!d) { printf("test_virtio_blk: probe died, aborting\n"); return 1; }
     CHECK(wubu_virtio_blk_capacity(d) == FAKE_SECTORS);
-    CHECK(d->qsize == 128);
+    CHECK(d->vq.qsize == 128);
     CHECK(fake_guest_features == (1u << 9));      /* only FLUSH accepted */
-    CHECK(fake_regs[VBLK_REG_STATUS] ==
-          (VBLK_S_ACK | VBLK_S_DRIVER | VBLK_S_DRIVER_OK));
-    CHECK(fake_ring_pa == (uint64_t)(uintptr_t)d->ring);
-    CHECK(((uintptr_t)d->ring & 4095) == 0);      /* page-aligned queue */
-    CHECK((uint8_t *)d->desc == d->ring);
-    CHECK((uint8_t *)d->avail - d->ring == 2048);
-    CHECK((uint8_t *)d->used - d->ring == 4096);
-    CHECK((uint8_t *)d->hdr >= d->ring + 4096 + 6 + 8 * 128);
-    CHECK(d->avail->flags == 0);                  /* no interrupt spam */
+    CHECK(fake_regs[WUBU_VQ_REG_STATUS] ==
+          (WUBU_VQ_S_ACK | WUBU_VQ_S_DRIVER | WUBU_VQ_S_DRIVER_OK));
+    CHECK(fake_ring_pa == (uint64_t)(uintptr_t)d->vq.ring);
+    CHECK(((uintptr_t)d->vq.ring & 4095) == 0);      /* page-aligned queue */
+    CHECK((uint8_t *)d->vq.desc == d->vq.ring);
+    CHECK((uint8_t *)d->vq.avail - d->vq.ring == 2048);
+    CHECK((uint8_t *)d->vq.used - d->vq.ring == 4096);
+    CHECK((uint8_t *)d->hdr >= d->vq.ring + 4096 + 6 + 8 * 128);
+    CHECK(d->vq.avail->flags == 0);                  /* no interrupt spam */
     CHECK(notify_count == 1);                     /* probe sanity read */
     CHECK(last_type == VBLK_T_IN && last_sector == 0);
 
@@ -240,15 +241,15 @@ int main(void)
     CHECK(last_sector == 100);
     CHECK(last_data_len == 3 * 512);
     CHECK(last_chain == 3);                       /* hdr -> data -> status */
-    CHECK(!(last_data_flags & VBLK_DESC_F_WRITE));/* OUT data is read-only */
-    CHECK((last_data_flags & VBLK_DESC_F_NEXT) != 0);
+    CHECK(!(last_data_flags & WUBU_VQ_DESC_F_WRITE));/* OUT data is read-only */
+    CHECK((last_data_flags & WUBU_VQ_DESC_F_NEXT) != 0);
     CHECK(memcmp(fake_disk + 100 * 512, wbuf, 3 * 512) == 0);
 
     /* 4. read back through the ring (IN data must be device-writable) */
     memset(rbuf, 0, sizeof(rbuf));
     CHECK(wubu_virtio_blk_read(d, 100, 3, rbuf) == 0);
     CHECK(last_type == VBLK_T_IN);
-    CHECK((last_data_flags & VBLK_DESC_F_WRITE) != 0);
+    CHECK((last_data_flags & WUBU_VQ_DESC_F_WRITE) != 0);
     CHECK(memcmp(rbuf, wbuf, 3 * 512) == 0);
 
     /* 5. sector math: out-of-range refused BEFORE any doorbell */
@@ -279,8 +280,8 @@ int main(void)
         CHECK(wubu_virtio_blk_write(d, 500 + (i % 100), 1, one) == 0);
     }
     CHECK(notify_count == nc + 300);
-    CHECK(d->used->idx == (uint16_t)(nc + 300));
-    CHECK(d->last_used == d->used->idx);
+    CHECK(d->vq.used->idx == (uint16_t)(nc + 300));
+    CHECK(d->vq.last_used == d->vq.used->idx);
 
     /* 8. completion handling: device error status -> -1, then recovery */
     CHECK(wubu_virtio_blk_write(d, 1000, 3, wbuf) == 0);
@@ -326,11 +327,11 @@ int main(void)
     fake_reset(256, 1u << 9, 1);
     d = wubu_virtio_blk_probe();
     CHECK(d != NULL);
-    CHECK(d->qsize == 256);
-    CHECK(d->cfg_off == VBLK_REG_CONFIG);
+    CHECK(d->vq.qsize == 256);
+    CHECK(d->cfg_off == WUBU_VQ_REG_CONFIG);
     CHECK(wubu_virtio_blk_capacity(d) == FAKE_SECTORS);
-    CHECK((uint8_t *)d->avail - d->ring == 4096);
-    CHECK((uint8_t *)d->used - d->ring == 8192);
+    CHECK((uint8_t *)d->vq.avail - d->vq.ring == 4096);
+    CHECK((uint8_t *)d->vq.used - d->vq.ring == 8192);
     CHECK(wubu_virtio_blk_write(d, 7, 1, wbuf) == 0);
     CHECK(wubu_virtio_blk_read(d, 7, 1, rbuf) == 0);
     CHECK(memcmp(rbuf, wbuf, 512) == 0);
