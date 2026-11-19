@@ -116,6 +116,9 @@ def census(root):
             name, val = m.group(1), m.group(2).strip()
             if val.startswith(("(",)) and "(" in val.split()[0]:
                 continue  # function-like macro: not a constant
+            # Compare VALUES, not trailing comments: 0x20 /* a */ and
+            # 0x20 /* b */ are mirrors, not conflicts.
+            val = re.split(r"/\*|//", val)[0].strip()
             lineno = text[:m.start()].count("\n") + 1
             defines.setdefault(name, []).append((rel, lineno, val))
         code = strip_comments(text)

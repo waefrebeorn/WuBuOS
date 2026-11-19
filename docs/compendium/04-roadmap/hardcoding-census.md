@@ -8,13 +8,17 @@ literal-size allocations, literal sleeps. The front door for owners is
 `docs/CONSTANTS.md`; the batch protocol is in
 `docs/compendium/04-roadmap/dehardcode-workflow.md`.
 
-## Org frontier (2026-11-19)
+## Org frontier (2026-11-19, corrected classifier)
+
+The first census run counted trailing comments as part of a `#define`
+value, so identical values with different comments read as CONFLICTS.
+Fixed (values compared comment-free); these are the honest numbers:
 
 | repo | files | dup CONFLICTS | dup mirrors | paths | env | alloc | sleep |
 |---|---|---|---|---|---|---|---|
-| wubuos (body) | 2274 | 64 | 144 | 3230 | 95 | 180 | 23 |
-| wubunos (compiler) | 253 | 35 | 79 | 71 | 58 | 54 | 8 |
-| wubuwizard (brain) | 1608 | 64 | 30 | 485 | 218 | 193 | 1 |
+| wubuos (body) | 2274 | 55 | 153 | 3230 | 95 | 180 | 23 |
+| wubunos (compiler) | 254 | 4 | 81 | 71 | 58 | 54 | 8 |
+| wubuwizard (brain) | 1608 | 56 | 38 | 485 | 218 | 193 | 1 |
 | wubucompositor | 9 | 1 | 0 | 2 | 3 | 2 | 0 |
 | wubulens | 23 | 0 | 0 | 20 | 8 | 2 | 1 |
 | W-Code | 10 | 0 | 0 | 15 | 1 | 4 | 0 |
@@ -25,7 +29,7 @@ Work order: CONFLICTS first (one side is usually a bug), then mirrors
 owners, then allocation/sleep naming. Each repo is edited in its OWN
 checkout with its OWN gates — never across the submodule boundary.
 
-## Fixed in the body this session (15 conflicts closed, all gated)
+## Fixed in the body this session (9 true conflicts + 6 mirrors single-owned)
 
 - **Mach-O magics** — the kernel loader's private `MH_MAGIC_64` was
   `0xFEEDFC02` (WRONG: it rejected every valid 64-bit Mach-O) while VSL had
@@ -46,6 +50,28 @@ checkout with its OWN gates — never across the submodule boundary.
   private FTW numbering BEFORE the system `<ftw.h>` / `wubu_ftw.h`
   (a POST-system-header fill-in by design), shadowing the real flags.
   Block removed. Gate: test_snapshot 133/133.
+
+## Sibling leg 1: wubunos (compiler) — pushed a3cf7c5 (wubu-integration)
+
+The PIC encoder (`wubu_isa_pic.c`) and interpreter (`wubu_pic_interp.c`)
+kept PRIVATE opcode tables that had drifted — three real codegen bugs:
+- `MIR_EQ` emitted 0x16 where the executor runs GTS: equality compiled
+  to signed-greater-than. EQ is 0x18.
+- `MIR_LT`/`MIR_ULT` emitted 0x15 where the executor runs LEU (<=):
+  less-than compiled to less-or-equal.
+- `MIR_GT` (signed) emitted GTU (unsigned): GT(-5,3) was true.
+
+Fix: `wubu_pic_opcodes.h` is the ONE owner — the executor's numbering is
+the contract, the encoder conforms; both private tables deleted.
+Encoder: GT→GTS, LT→GTS with operands swapped (a<b ⟺ b>a), ULT→LEQ.
+Gate: `test_isa_driver` gained a 16-case comparison battery across all
+13 ISAs (EQ/LT had ZERO coverage — that is why the drift shipped).
+Verified 356/392: pic passes all 16; the 22 pre-existing failures are
+unchanged. The battery newly exposes z80 signed lt/gt (4 cases), mips eq
+(1), ptx (9) — next backend work items, recorded not hidden.
+wubunos census after: 4 conflicts / 81 mirrors (remaining conflicts:
+CC_LE/CC_NE layer-local HolyD-vs-m68k names, OP_RETURN wasm-vs-spirv,
+MAX_TESTS test-local caps — triage before touching).
 
 ## Triage classes (do not "fix" blindly)
 
