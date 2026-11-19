@@ -82,7 +82,8 @@ def main():
     # supervisor's continuous promotions (run-agi.sh WUBU_AGI_LIVENESS);
     # "Bonzi Buddy loop active" still proves a full MMIO frame rendered.
     rc, out = run(["bash", "run-agi.sh"], cwd=FW, timeout=agi_window() + 180,
-                  env_extra={"WUBU_AGI_BOOT_WINDOW": "90",
+                  env_extra={"WUBU_AGI_BOOT_WINDOW":
+                             os.environ.get("WUBU_AGI_BOOT_WINDOW", "90"),
                              "WUBU_AGI_LIVENESS": "promoted"})
     if rc != 0:
         for line in out.splitlines():
