@@ -28,8 +28,14 @@ mkdir -p build
 $CC -std=c11 -Wall -Wextra -O2 tools/mkpe.c  -o build/mkpe
 $CC -std=c11 -Wall -Wextra -O2 tools/mkesp.c -o build/mkesp
 $CC -std=c11 -Wall -Wextra -O2 "$ROOT/tools/mkmod.c" -o build/mkmod
+# -march=x86-64: freestanding loader pins its ISA baseline. Distro
+# gcc14 (Ubuntu 26.04) defaults to x86-64-v3: -mno-sse blocks vectors
+# but NOT BMI2 — sha256's rotr compiled to rorx, which qemu64 #UDs,
+# silently hanging the measured boot (CI run 44541328255). Same bug
+# family as the kernel memset incident; the pin is the permanent fix.
 LCFLAGS="-std=c11 -Wall -Wextra -O2 -ffreestanding -fno-pie -fno-pic
          -fno-stack-protector -fno-builtin -mno-red-zone -mno-sse -mno-mmx
+         -march=x86-64 -mtune=generic
          -mno-80387 -fno-asynchronous-unwind-tables -fno-unwind-tables
          -Wno-unused-parameter -Iloader"
 $CC $LCFLAGS -c loader/sha256.c    -o build/lsha.o
