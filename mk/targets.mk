@@ -288,7 +288,7 @@ holyd-verify:
 # prototype-scope struct tags). Wave 1 fixed 11 files. Ratchet: run this,
 # fix a wave, repeat until clean — then unpin boot-verify CI from gcc-13.
 kernel-strict:
-	$(MAKE) -B kernel KERNEL_CFLAGS="-Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=implicit-function-declaration"
+	$(MAKE) -B kernel KERNEL_CFLAGS="-Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -march=x86-64 -mtune=generic -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=implicit-function-declaration"
 
 iso: $(KERNEL)/kernel.elf
 	rm -rf $(CACHE)/iso-stage && mkdir -p $(CACHE)/iso-stage/boot/grub

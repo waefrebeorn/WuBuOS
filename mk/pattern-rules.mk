@@ -12,7 +12,13 @@
 #   table whose slots were 0xFFFFFFFF / non-canonical (vsl boot crash at
 #   `jmp *CSWTCH.21(,%rax,8)` -> #PF at 0xFFFFFFFF).  Kernel builds must not
 #   rely on GCC jumping through rodata tables; compare-chains are safe.
-KERNEL_CFLAGS = -Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables
+# -march=x86-64: the kernel pins its OWN ISA baseline. Distro compilers drift
+#   (Ubuntu 26.04 gcc14 defaults to x86-64-v3): an inherited -march let gcc
+#   vectorize memset with vpbroadcastb/ymm — #UD on any CPU without AVX2
+#   (qemu64 TCG), triple fault before the IDT exists. Caught by the multi-host
+#   boot gate (CI run 44509946540, vmovd at memset+0x21). Freestanding code
+#   must never inherit the build host's default architecture.
+KERNEL_CFLAGS = -Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -march=x86-64 -mtune=generic
 
 $(KERNEL)/%.o: $(KERNEL)/%.c
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude
