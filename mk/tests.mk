@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -593,6 +593,16 @@ test_gui_metrics:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude src/gui/wubu_gui_metrics.c  src/runtime/wubu_crc32.c \
 		src/gui/test_wubu_gui_metrics.c -o $(RT)/wubu_gui_metrics_test
 	$(RT)/wubu_gui_metrics_test
+
+# GUI compositing foundation (slerm of impossible-os gfx; see
+# docs/compendium/04-roadmap/gui-slerm-impossible-os.md)
+test_gui_gfx:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -Iinclude \
+		src/gui/gfx/gui_surface.c src/gui/gfx/gui_blend.c \
+		src/gui/gfx/gui_shape.c src/gui/gfx/gui_blur.c \
+		src/kernel/vbe.c src/gui/gfx/gui_gfx_test.c \
+		-o $(GUI)/gfx/gui_gfx_test
+	$(GUI)/gfx/gui_gfx_test
 
 # macOS layer tests
 test_vsl_macho:

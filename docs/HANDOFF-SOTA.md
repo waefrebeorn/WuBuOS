@@ -82,6 +82,9 @@ Build layout: `Makefile` includes `mk/vars.mk`, `objects.mk`, `targets.mk`,
 ## Where to start working
 
 `docs/compendium/04-roadmap/grunt-work-tiers.md` — tiered claims, cheapest first.
+`docs/compendium/04-roadmap/gui-slerm-impossible-os.md` — the GUI slerm workflow
+(owner directive 2026-11-19): pinned reference, license boundary, ownership map,
+tiered legs with evidence gates. The GUI is the current priority workstream.
 Tier 0 items are deliberately small and self-contained; finish several per batch
 before committing, then run the relevant tier of the gate and read the real
 output. Commit per logical change with an honest message naming what was verified.
