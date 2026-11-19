@@ -89,6 +89,16 @@ def main():
         for line in out.splitlines():
             if "MISSING" in line or "RESULT" in line or "ERROR MARKERS" in line:
                 print(line)
+        # Devil's advocate: the marker list says WHAT is missing, not WHERE
+        # the chain stopped. Dump the boot log's last words — the loader
+        # prints explicit FAIL markers (no ESP / AllocatePages / unreadable
+        # N bytes / not ELF64) that pinpoint the stall.
+        try:
+            log = open(LOG, "rb").read().decode(errors="replace")
+            print("--- agi-boot.log tail (forced GOP boot) ---")
+            print("\n".join(log.splitlines()[-40:]))
+        except OSError as e:
+            print("no boot log: %s" % e)
         print("FAIL: WuBuFW measured chain broke under forced GOP")
         return 1
     data = open(LOG, "rb").read()
