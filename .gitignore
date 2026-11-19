@@ -167,3 +167,5 @@ src/runtime/wubu_dos_emu_smoke
 WUBU_ERA_*.OK
 __pycache__/
 *.pyc
+kernel_strict_latest.txt
+ci_serial.bin
