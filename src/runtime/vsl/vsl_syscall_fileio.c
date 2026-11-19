@@ -12,14 +12,18 @@
 int64_t vsl_sys_read(uint64_t fd, uint64_t buf, uint64_t count,
                       uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    ssize_t result = read((int)fd, (void *)buf, (size_t)count);
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
+    ssize_t result = read(host_fd, (void *)buf, (size_t)count);
     return result < 0 ? -errno : (int64_t)result;
 }
 
 int64_t vsl_sys_write(uint64_t fd, uint64_t buf, uint64_t count,
                        uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    ssize_t result = write((int)fd, (const void *)buf, (size_t)count);
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
+    ssize_t result = write(host_fd, (const void *)buf, (size_t)count);
     return result < 0 ? -errno : (int64_t)result;
 }
 
@@ -57,8 +61,10 @@ int64_t vsl_sys_stat(uint64_t path, uint64_t buf, uint64_t c,
 int64_t vsl_sys_fstat(uint64_t fd, uint64_t buf, uint64_t c,
                        uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
     struct stat st;
-    int rc = fstat((int)fd, &st);
+    int rc = fstat(host_fd, &st);
     if (rc < 0) return -errno;
     if (buf) {
         memset((void *)buf, 0, sizeof(struct stat));
@@ -70,7 +76,9 @@ int64_t vsl_sys_fstat(uint64_t fd, uint64_t buf, uint64_t c,
 int64_t vsl_sys_ioctl(uint64_t fd, uint64_t req, uint64_t arg,
                        uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    int result = ioctl((int)fd, (unsigned long)req, (void *)arg);
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
+    int result = ioctl(host_fd, (unsigned long)req, (void *)arg);
     return result < 0 ? -errno : (int64_t)result;
 }
 
@@ -191,16 +199,20 @@ int64_t vsl_sys_clock_gettime(uint64_t clk_id, uint64_t tp, uint64_t c,
 int64_t vsl_sys_pread64(uint64_t fd, uint64_t buf, uint64_t count,
                          uint64_t pos_low, uint64_t pos_high, uint64_t f) {
     (void)f;
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
     int64_t offset = ((int64_t)pos_high << 32) | (int64_t)pos_low;
-    ssize_t result = pread64((int)fd, (void *)buf, (size_t)count, offset);
+    ssize_t result = pread64(host_fd, (void *)buf, (size_t)count, offset);
     return result < 0 ? -errno : (int64_t)result;
 }
 
 int64_t vsl_sys_pwrite64(uint64_t fd, uint64_t buf, uint64_t count,
                           uint64_t pos_low, uint64_t pos_high, uint64_t f) {
     (void)f;
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
     int64_t offset = ((int64_t)pos_high << 32) | (int64_t)pos_low;
-    ssize_t result = pwrite64((int)fd, (const void *)buf, (size_t)count, offset);
+    ssize_t result = pwrite64(host_fd, (const void *)buf, (size_t)count, offset);
     return result < 0 ? -errno : (int64_t)result;
 }
 
@@ -208,7 +220,9 @@ int64_t vsl_sys_readv(uint64_t fd, uint64_t iov, uint64_t iovcnt,
                        uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
     struct iovec *vec = (struct iovec *)iov;
-    ssize_t result = readv((int)fd, vec, (int)iovcnt);
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
+    ssize_t result = readv(host_fd, vec, (int)iovcnt);
     return result < 0 ? -errno : (int64_t)result;
 }
 
@@ -216,7 +230,9 @@ int64_t vsl_sys_writev(uint64_t fd, uint64_t iov, uint64_t iovcnt,
                        uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
     const struct iovec *vec = (const struct iovec *)iov;
-    ssize_t result = writev((int)fd, vec, (int)iovcnt);
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
+    ssize_t result = writev(host_fd, vec, (int)iovcnt);
     return result < 0 ? -errno : (int64_t)result;
 }
 

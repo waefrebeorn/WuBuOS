@@ -6,6 +6,9 @@
 #include "vsl_syscall_internal.h"
 #include <sched.h>
 #include <linux/sched.h>
+#include <linux/futex.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 /* ====================================================================
  * PROCESS MANAGEMENT SYSCALLS
@@ -421,4 +424,47 @@ int64_t vsl_sys_sched_yield(uint64_t a, uint64_t b, uint64_t c,
     (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
     int rc = sched_yield();
     return rc < 0 ? -errno : 0;
+}
+
+/* -- Thread identity & robust-futex bookkeeping (L14) ---------------
+ * glibc static startup calls set_tid_address + set_robust_list before
+ * main(). The kernel stores these per-thread; we store them per VSL
+ * process (one guest thread per process in the user-mode leg). The
+ * pointers are GUEST addresses: the owner of the guest address space
+ * (the WEMU bridge) dereferences them at thread exit, not us. */
+
+int64_t vsl_sys_gettid(uint64_t a, uint64_t b, uint64_t c,
+                       uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return (int64_t)syscall(SYS_gettid);
+}
+
+int64_t vsl_sys_set_tid_address(uint64_t tidptr, uint64_t b, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    if (p) p->tid_address = tidptr;
+    return (int64_t)syscall(SYS_gettid);
+}
+
+int64_t vsl_sys_set_robust_list(uint64_t head, uint64_t len, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    if (len != sizeof(struct robust_list_head)) return -22; /* EINVAL */
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    if (p) {
+        p->robust_list_head = head;
+        p->robust_list_len = len;
+    }
+    return 0;
+}
+
+int64_t vsl_sys_get_robust_list(uint64_t pid, uint64_t head_ptr, uint64_t len_ptr,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    VSL_PROC *p = vsl_get_process(pid ? (uint32_t)pid : g_vsl.current_pid);
+    if (!p) return -3; /* ESRCH */
+    if (head_ptr) *(uint64_t *)head_ptr = p->robust_list_head;
+    if (len_ptr) *(uint64_t *)len_ptr = p->robust_list_len;
+    return 0;
 }

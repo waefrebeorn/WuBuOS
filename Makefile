@@ -16,6 +16,7 @@ include mk/vars.mk
 include mk/objects.mk
 include mk/targets.mk
 include mk/pattern-rules.mk
+include mk/wemu_user.mk
 include mk/tests.mk
 include mk/sanitize.mk
 include mk/vendored.mk

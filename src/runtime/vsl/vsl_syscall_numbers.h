@@ -113,6 +113,10 @@
 #define VSL_SYS_UNAME       63
 #define VSL_SYS_GETRLIMIT   97
 #define VSL_SYS_SETRLIMIT   98
+#define VSL_SYS_GETTID      186
+#define VSL_SYS_SET_TID_ADDRESS 218
+#define VSL_SYS_SET_ROBUST_LIST 273
+#define VSL_SYS_GET_ROBUST_LIST 274
 
 /* Additional syscalls */
 #define VSL_SYS_GETDENTS64  217

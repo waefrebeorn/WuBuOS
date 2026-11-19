@@ -60,6 +60,15 @@ struct VSL_PROC {
     uint64_t         rsp;
     uint64_t         rbp;
     uint64_t         flags;
+    /* Linux thread-exit bookkeeping (set_tid_address / robust futexes) */
+    uint64_t         tid_address;       /* guest ptr written 0 at thread exit */
+    uint64_t         robust_list_head;  /* guest ptr, 0 = none */
+    uint64_t         robust_list_len;
+    /* mprotect overrides on the virtual user arena (L14). The virtual
+     * model has no per-page attributes of its own; these records are
+     * the bookkeeping, enforcement arrives with the WEMU paging leg. */
+    struct { uint64_t addr, len; int prot; } mprot[16];
+    uint32_t         n_mprot;
 };
 
 /* Full VSL_FD definition (internal - public header has opaque) */

@@ -26,3 +26,6 @@
 [submodule "src/kernel/WuBuKernel"]
 	path = src/kernel/WuBuKernel
 	url = https://github.com/Waefrebeorn/WuBuKernel.git
+[submodule "src/wemu"]
+	path = src/wemu
+	url = https://github.com/waefrebeorn/wemu.git

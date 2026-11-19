@@ -74,7 +74,7 @@ test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib t
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
-test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_vsl_kernel_adapt
+test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_vsl_kernel_adapt test_wemu_busybox
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
@@ -525,6 +525,17 @@ test_vsl_kernel_adapt: $(VSL_OBJS) src/runtime/vsl/vsl_kernel_adapt_test.c
 		src/runtime/vsl/vsl_kernel_adapt_test.c \
 		-o src/runtime/vsl/vsl_kernel_adapt_test -ldl -lvulkan -lcuda
 	./src/runtime/vsl/vsl_kernel_adapt_test
+
+# L14: WEMU user-mode + VSL Linux bridge. REAL static busybox applets
+# (echo/uname/cat/ls/true/false) with exact-output assertions — the
+# qemu-user smoke standard. WEMU comes from the src/wemu submodule at
+# public main + the committed user-mode patch (mk/wemu_user.mk).
+test_wemu_busybox: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_bridge_test.c
+	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(WEMU_INC) $(RT)/wubu_crc32.c \
+		$(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
+		$(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_bridge_test.c \
+		-o $(RT)/wubu_wemu_bridge_test $(WEMU_LIB) -ldl -lvulkan -lcuda
+	./$(RT)/wubu_wemu_bridge_test
 
 # L11: VSL EXECUTES. Real in-process engine for static freestanding Linux
 # ELF: entry transfer + seccomp SIGSYS trap into vsl_syscall_dispatch.
