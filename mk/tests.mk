@@ -534,7 +534,7 @@ test_wemu_busybox: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(WEMU_INC) $(RT)/wubu_crc32.c \
 		$(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 		$(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_bridge_test.c \
-		-o $(RT)/wubu_wemu_bridge_test $(WEMU_LIB) -ldl -lvulkan -lcuda
+		-o $(RT)/wubu_wemu_bridge_test $(WEMU_LIB) -ldl -lvulkan -lcuda -lm
 	./$(RT)/wubu_wemu_bridge_test
 
 # L11: VSL EXECUTES. Real in-process engine for static freestanding Linux

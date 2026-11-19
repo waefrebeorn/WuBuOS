@@ -54,10 +54,10 @@
 #define VSL_SYS_SYMLINK     88
 #define VSL_SYS_READLINK    89
 #define VSL_SYS_CHMOD       90
-#define VSL_SYS_FCHMOD      94
+#define VSL_SYS_FCHMOD      91
 #define VSL_SYS_CHOWN       92
-#define VSL_SYS_LCHOWN      95
-#define VSL_SYS_FCHOWN      96
+#define VSL_SYS_LCHOWN      94
+#define VSL_SYS_FCHOWN      93
 #define VSL_SYS_LSTAT       6
 #define VSL_SYS_POLL        7
 #define VSL_SYS_EPOLL_CREATE 213
@@ -111,8 +111,14 @@
 #define VSL_SYS_PRLIMIT64   302
 #define VSL_SYS_ALARM       37
 #define VSL_SYS_UNAME       63
+/* x86-64 time-of-day: 96 gettimeofday, 201 time. The old header had
+ * i386-relic numbers here (fchmod 94 / lchown 95 / fchown 96), which
+ * made guest gettimeofday dispatch into fchown — busybox date printed
+ * epoch 0. Audited against asm/unistd_64.h 2026-11-19. */
+#define VSL_SYS_GETTIMEOFDAY 96
+#define VSL_SYS_TIME        201
 #define VSL_SYS_GETRLIMIT   97
-#define VSL_SYS_SETRLIMIT   98
+#define VSL_SYS_SETRLIMIT   160
 #define VSL_SYS_GETTID      186
 #define VSL_SYS_SET_TID_ADDRESS 218
 #define VSL_SYS_SET_ROBUST_LIST 273
@@ -135,13 +141,13 @@
 #define VSL_SYS_TIMERFD_CREATE 283
 #define VSL_SYS_TIMERFD_SETTIME 286
 #define VSL_SYS_TIMERFD_GETTIME 287
-#define VSL_SYS_EVENTFD     323
+#define VSL_SYS_EVENTFD     284
 #define VSL_SYS_EVENTFD2    290
 #define VSL_SYS_INOTIFY_INIT 253
 #define VSL_SYS_INOTIFY_ADD_WATCH 254
 #define VSL_SYS_INOTIFY_RM_WATCH 255
-/* VSL_SYS_SIGNALFD (308) removed - obsolete, use signalfd4 (282) instead */
-#define VSL_SYS_SIGNALFD4   282
+/* signalfd4 is x86-64 nr 289 (282 was the obsolete signalfd) */
+#define VSL_SYS_SIGNALFD4   289
 #define VSL_SYS_PSELECT6    270
 #define VSL_SYS_PPOLL       271
 #define VSL_SYS_READLINKAT  267

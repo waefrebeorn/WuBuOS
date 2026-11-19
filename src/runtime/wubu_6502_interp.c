@@ -133,6 +133,10 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
     cpu.pc = 0;
 
     while (!cpu.halted && cpu.pc < size) {
+        /* Hardening: the longest immediate is abs16 (2 bytes) — a
+         * truncated program at the buffer edge must halt, not read
+         * code[pc+1]/code[pc+2] past the caller's buffer. */
+        if (cpu.pc + 3 > size) { cpu.halted = 1; break; }
         uint8_t op = code[cpu.pc++];
         uint8_t lo, hi;
         uint16_t addr, ea;

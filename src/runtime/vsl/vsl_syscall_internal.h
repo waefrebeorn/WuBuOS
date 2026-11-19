@@ -167,6 +167,10 @@ int64_t vsl_sys_getcwd(uint64_t buf, uint64_t size, uint64_t c,
                         uint64_t d, uint64_t e, uint64_t f);
 int64_t vsl_sys_chdir(uint64_t path, uint64_t b, uint64_t c,
                        uint64_t d, uint64_t e, uint64_t f);
+int64_t vsl_sys_gettimeofday(uint64_t tv, uint64_t tz, uint64_t c,
+                             uint64_t d, uint64_t e, uint64_t f);
+int64_t vsl_sys_time(uint64_t tloc, uint64_t b, uint64_t c,
+                     uint64_t d, uint64_t e, uint64_t f);
 int64_t vsl_sys_clock_gettime(uint64_t clk_id, uint64_t tp, uint64_t c,
                                uint64_t d, uint64_t e, uint64_t f);
 int64_t vsl_sys_pread64(uint64_t fd, uint64_t buf, uint64_t count,

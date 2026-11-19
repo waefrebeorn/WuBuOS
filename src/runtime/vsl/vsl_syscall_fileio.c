@@ -172,7 +172,10 @@ int64_t vsl_sys_getcwd(uint64_t buf, uint64_t size, uint64_t c,
                         uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
     char *result = getcwd((char *)buf, (size_t)size);
-    return result ? (int64_t)buf : -errno;
+    /* Linux getcwd returns the string LENGTH incl. NUL — libc getcwd
+     * returns the buffer pointer. Returning the pointer made the WEMU
+     * bridge gwrite() a pointer-sized copy (segfault in busybox pwd). */
+    return result ? (int64_t)strlen(result) + 1 : -errno;
 }
 
 int64_t vsl_sys_chdir(uint64_t path, uint64_t b, uint64_t c,
@@ -190,6 +193,27 @@ int64_t vsl_sys_clock_gettime(uint64_t clk_id, uint64_t tp, uint64_t c,
     if (rc < 0) return -errno;
     if (tp) memcpy((void *)tp, &ts, sizeof(struct timespec));
     return 0;
+}
+
+int64_t vsl_sys_gettimeofday(uint64_t tv, uint64_t tz, uint64_t c,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    struct timeval t;
+    struct timezone z;
+    int rc = gettimeofday(tv ? &t : NULL, tz ? &z : NULL);
+    if (rc < 0) return -errno;
+    if (tv) memcpy((void *)tv, &t, sizeof t);
+    if (tz) memcpy((void *)tz, &z, sizeof z);
+    return 0;
+}
+
+int64_t vsl_sys_time(uint64_t tloc, uint64_t b, uint64_t c,
+                     uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    time_t t = time(NULL);
+    if (t == (time_t)-1) return -errno;
+    if (tloc) *(time_t *)tloc = t;
+    return (int64_t)t;
 }
 
 /* ====================================================================

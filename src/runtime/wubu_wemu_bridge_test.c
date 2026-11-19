@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 #define FAIL(...) do { fprintf(stderr, "FAIL: " __VA_ARGS__); exit(1); } while (0)
 
@@ -140,6 +141,188 @@ int main(void) {
         if (cap.exit_code != 1) FAIL("false exit %d want 1\n", cap.exit_code);
         wubu_wemu_capture_free(&cap);
         printf("ok: busybox true -> 0, busybox false -> 1\n");
+    }
+
+    /* ---- wave 2: broader applet surface (devil's-advocate expansion).
+     * Each failure here is a discovered syscall/instruction gap. File
+     * applets get EXACT oracles; checksum/base64 applets are compared
+     * against the HOST coreutils output (independent oracle). ---- */
+    {
+        char fx[] = "/tmp/wemu_fx_XXXXXX";
+        int fd = mkstemp(fx);
+        if (fd < 0) FAIL("mkstemp fx\n");
+        const char *data = "delta\nalpha\ncharlie\nbravo\nalpha\n";
+        if (write(fd, data, strlen(data)) != (ssize_t)strlen(data)) FAIL("write fx\n");
+        close(fd);
+
+        struct { char *argv[8]; const char *want; } cases[] = {
+            { {"busybox","head","-n","2",fx,NULL}, "delta\nalpha\n" },
+            { {"busybox","tail","-n","1",fx,NULL}, "alpha\n" },
+            { {"busybox","grep","alpha",fx,NULL}, "alpha\nalpha\n" },
+            { {"busybox","sort",fx,NULL}, "alpha\nalpha\nbravo\ncharlie\ndelta\n" },
+            { {"busybox","sed","s/alpha/ALPHA/",fx,NULL}, "delta\nALPHA\ncharlie\nbravo\nALPHA\n" },
+            { {"busybox","seq","1","5",NULL}, "1\n2\n3\n4\n5\n" },
+            { {"busybox","expr","3","+","4",NULL}, "7\n" },
+        };
+        for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+            run_applet(cases[i].argv, &cap);
+            report(cases[i].argv[1], &cap);
+            if (cap.exit_code != 0) FAIL("%s exit %d\n", cases[i].argv[1], cap.exit_code);
+            if (!cap.out || strcmp(cap.out, cases[i].want) != 0)
+                FAIL("%s stdout=[%s] want [%s]\n", cases[i].argv[1],
+                     cap.out ? cap.out : "(null)", cases[i].want);
+            printf("ok: busybox %s -> exact\n", cases[i].argv[1]);
+            wubu_wemu_capture_free(&cap);
+        }
+
+        /* wc -l: count prefix (path formatting varies) */
+        {
+            char *argv[] = { "busybox","wc","-l",fx,NULL };
+            run_applet(argv, &cap); report("wc", &cap);
+            if (cap.exit_code != 0 || !cap.out || strncmp(cap.out, "5 ", 2) != 0)
+                FAIL("wc -l want '5 ...' got [%s]\n", cap.out ? cap.out : "(null)");
+            printf("ok: busybox wc -l -> 5\n");
+            wubu_wemu_capture_free(&cap);
+        }
+        /* cut + awk on their own fixtures */
+        {
+            char cf[] = "/tmp/wemu_cut_XXXXXX";
+            fd = mkstemp(cf);
+            if (fd < 0) FAIL("mkstemp cut\n");
+            if (write(fd, "a:b:c\nd:e:f\n", 10) != 10) FAIL("write cut\n");
+            close(fd);
+            char *argv[] = { "busybox","cut","-d:","-f1",cf,NULL };
+            run_applet(argv, &cap); report("cut", &cap);
+            if (cap.exit_code != 0 || !cap.out || strcmp(cap.out, "a\nd\n") != 0)
+                FAIL("cut got [%s]\n", cap.out ? cap.out : "(null)");
+            printf("ok: busybox cut -> exact\n");
+            wubu_wemu_capture_free(&cap);
+            unlink(cf);
+        }
+        {
+            char af[] = "/tmp/wemu_awk_XXXXXX";
+            fd = mkstemp(af);
+            if (fd < 0) FAIL("mkstemp awk\n");
+            if (write(fd, "one two\nthree four\n", 17) != 17) FAIL("write awk\n");
+            close(fd);
+            char *argv[] = { "busybox","awk","{print $1}",af,NULL };
+            run_applet(argv, &cap); report("awk", &cap);
+            if (cap.exit_code != 0 || !cap.out || strcmp(cap.out, "one\nthree\n") != 0)
+                FAIL("awk got [%s]\n", cap.out ? cap.out : "(null)");
+            printf("ok: busybox awk -> exact\n");
+            wubu_wemu_capture_free(&cap);
+            unlink(af);
+        }
+        /* host-oracle applets: md5sum / sha256sum / base64 */
+        {
+            const char *tools[] = { "md5sum", "sha256sum", "base64" };
+            for (int t = 0; t < 3; t++) {
+                char cmd[512], want[4096];
+                snprintf(cmd, sizeof cmd, "%s %s", tools[t], fx);
+                FILE *p = popen(cmd, "r");
+                if (!p) FAIL("popen %s\n", tools[t]);
+                size_t wn = fread(want, 1, sizeof want - 1, p);
+                want[wn] = 0; pclose(p);
+                char *argv[] = { "busybox", (char *)tools[t], fx, NULL };
+                run_applet(argv, &cap); report(tools[t], &cap);
+                if (cap.exit_code != 0 || !cap.out || strcmp(cap.out, want) != 0)
+                    FAIL("%s mismatch:\n got [%s]\nwant [%s]\n", tools[t],
+                         cap.out ? cap.out : "(null)", want);
+                printf("ok: busybox %s == host coreutils\n", tools[t]);
+                wubu_wemu_capture_free(&cap);
+            }
+        }
+        /* filesystem mutation round-trip: mkdir/touch/cp/mv/rm */
+        {
+            char dir[] = "/tmp/wemu_fs_XXXXXX";
+            if (!mkdtemp(dir)) FAIL("mkdtemp fs\n");
+            char f1[300], f2[300], f3[300];
+            snprintf(f1, sizeof f1, "%s/f", dir);
+            snprintf(f2, sizeof f2, "%s/g", dir);
+            snprintf(f3, sizeof f3, "%s/h", dir);
+            char *mk[] = { "busybox","touch",f1,NULL };
+            run_applet(mk, &cap); report("touch", &cap);
+            if (cap.exit_code != 0 || access(f1, F_OK) != 0) FAIL("touch\n");
+            wubu_wemu_capture_free(&cap);
+            char *cp[] = { "busybox","cp",f1,f2,NULL };
+            run_applet(cp, &cap); report("cp", &cap);
+            if (cap.exit_code != 0 || access(f2, F_OK) != 0) FAIL("cp\n");
+            wubu_wemu_capture_free(&cap);
+            char *mv[] = { "busybox","mv",f2,f3,NULL };
+            run_applet(mv, &cap); report("mv", &cap);
+            if (cap.exit_code != 0 || access(f3, F_OK) != 0 || access(f2, F_OK) == 0)
+                FAIL("mv\n");
+            wubu_wemu_capture_free(&cap);
+            char *rm[] = { "busybox","rm",f1,f3,NULL };
+            run_applet(rm, &cap); report("rm", &cap);
+            if (cap.exit_code != 0 || access(f1, F_OK) == 0 || access(f3, F_OK) == 0)
+                FAIL("rm\n");
+            wubu_wemu_capture_free(&cap);
+            rmdir(dir);
+            printf("ok: busybox touch/cp/mv/rm round-trip\n");
+        }
+        /* pwd / id / sleep / test / date / hostname: exit + shape */
+        {
+            char *argv[] = { "busybox","pwd",NULL };
+            run_applet(argv, &cap); report("pwd", &cap);
+            char cwd[512];
+            if (cap.exit_code != 0 || !cap.out || !getcwd(cwd, sizeof cwd) ||
+                strncmp(cap.out, cwd, strlen(cwd)) != 0)
+                FAIL("pwd got [%s] want [%s]\n", cap.out ? cap.out : "(null)", cwd);
+            printf("ok: busybox pwd -> cwd\n");
+            wubu_wemu_capture_free(&cap);
+        }
+        {
+            char *argv[] = { "busybox","id",NULL };
+            run_applet(argv, &cap); report("id", &cap);
+            if (cap.exit_code != 0 || !cap.out || !strstr(cap.out, "uid="))
+                FAIL("id got [%s]\n", cap.out ? cap.out : "(null)");
+            printf("ok: busybox id -> uid=...\n");
+            wubu_wemu_capture_free(&cap);
+        }
+        {
+            char *argv[] = { "busybox","sleep","0",NULL };
+            run_applet(argv, &cap); report("sleep", &cap);
+            if (cap.exit_code != 0) FAIL("sleep exit %d\n", cap.exit_code);
+            printf("ok: busybox sleep 0\n");
+            wubu_wemu_capture_free(&cap);
+        }
+        {
+            char *argv[] = { "busybox","test","-f",fx,NULL };
+            run_applet(argv, &cap); report("test -f", &cap);
+            if (cap.exit_code != 0) FAIL("test -f existing exit %d\n", cap.exit_code);
+            wubu_wemu_capture_free(&cap);
+            char *argv2[] = { "busybox","test","-f","/nonexistent-wemu",NULL };
+            run_applet(argv2, &cap); report("test -f missing", &cap);
+            if (cap.exit_code != 1) FAIL("test -f missing exit %d want 1\n", cap.exit_code);
+            wubu_wemu_capture_free(&cap);
+            printf("ok: busybox test -f -> 0/1\n");
+        }
+        {
+            char *argv[] = { "busybox","date",NULL };
+            run_applet(argv, &cap); report("date", &cap);
+            /* shape is not enough: epoch-0 passed the old check. Assert
+             * the CURRENT year — gettimeofday/time must return real time. */
+            time_t now = time(NULL);
+            struct tm tmv;
+            localtime_r(&now, &tmv);
+            char year[16];
+            snprintf(year, sizeof year, "%d", tmv.tm_year + 1900);
+            if (cap.exit_code != 0 || !cap.out || !strstr(cap.out, year))
+                FAIL("date exit %d out [%s] want year %s\n", cap.exit_code,
+                     cap.out ? cap.out : "(null)", year);
+            printf("ok: busybox date -> %s", cap.out);
+            wubu_wemu_capture_free(&cap);
+        }
+        {
+            char *argv[] = { "busybox","hostname",NULL };
+            run_applet(argv, &cap); report("hostname", &cap);
+            if (cap.exit_code != 0 || !cap.out || cap.out_len < 1)
+                FAIL("hostname exit %d\n", cap.exit_code);
+            printf("ok: busybox hostname -> %s", cap.out);
+            wubu_wemu_capture_free(&cap);
+        }
+        unlink(fx);
     }
 
     printf("WEMU BUSYBOX GATE PASS (real static applets, exact output)\n");

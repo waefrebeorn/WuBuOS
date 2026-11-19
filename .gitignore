@@ -169,3 +169,5 @@ __pycache__/
 *.pyc
 kernel_strict_latest.txt
 ci_serial.bin
+ci_qemu_err.txt
+ci_qemu_int.log

@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
 #include <sys/utsname.h>
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
@@ -329,6 +331,11 @@ static int64_t bridge_syscall_inner(WemuCpu *cpu, uint64_t nr,
         }
         return rv;
     }
+    case 201: { /* time(tloc): returns seconds; tloc optional out */
+        int64_t t = time(NULL);
+        if (args[0] && gwrite(cpu, args[0], &t, 8) != 0) return -14;
+        return t;
+    }
     case 228: { /* clock_gettime(clk, tp) */
         uint8_t tp[16];
         regs[1] = (uint64_t)(uintptr_t)tp;
@@ -407,6 +414,19 @@ static int64_t bridge_syscall_inner(WemuCpu *cpu, uint64_t nr,
         }
         return rv;
     }
+    case 115: { /* getgroups(size, list): bounce the gid array out.
+        * size==0 asks for the count only (no pointer). */
+        if (args[0] == 0) return vsl_syscall_dispatch(nr, regs);
+        if (args[0] > 65536) return -22;
+        gid_t *gl = malloc((size_t)args[0] * sizeof *gl);
+        if (!gl) return -12;
+        regs[1] = (uint64_t)(uintptr_t)gl;
+        rv = vsl_syscall_dispatch(nr, regs);
+        if (rv > 0 && gwrite(cpu, args[1], gl, (size_t)rv * sizeof *gl) != 0)
+            rv = -14;
+        free(gl);
+        return rv;
+    }
     case 79: { /* getcwd(buf, size) */
         if (args[1] > BOUNCE_MAX) return -22;
         char *buf = malloc((size_t)args[1] ? (size_t)args[1] : 1);
@@ -459,6 +479,31 @@ static int64_t bridge_syscall_inner(WemuCpu *cpu, uint64_t nr,
         if (gstr(cpu, args[b], path2, sizeof path2) != 0) return -14;
         regs[a] = (uint64_t)(uintptr_t)path;
         regs[b] = (uint64_t)(uintptr_t)path2;
+        return vsl_syscall_dispatch(nr, regs);
+    }
+    case 280: { /* utimensat(dirfd, path, times[2], flags): touch/cp -p.
+        * path may be NULL (futimens semantics on dirfd); times NULL
+        * means "now". Bounce the 32-byte timespec array guest->host. */
+        if (args[1]) {
+            if (gstr(cpu, args[1], path, sizeof path) != 0) return -14;
+            regs[1] = (uint64_t)(uintptr_t)path;
+        }
+        struct timespec ts[2];
+        if (args[2]) {
+            if (gread(cpu, args[2], ts, sizeof ts) != 0) return -14;
+            regs[2] = (uint64_t)(uintptr_t)ts;
+        }
+        return vsl_syscall_dispatch(nr, regs);
+    }
+    case 235: case 261: { /* utimes(path, tv[2]) / futimesat(dirfd,path,tv) */
+        uint64_t pidx = nr == 235 ? 0 : 1;
+        if (gstr(cpu, args[pidx], path, sizeof path) != 0) return -14;
+        regs[pidx] = (uint64_t)(uintptr_t)path;
+        struct timeval tv[2];
+        if (args[pidx + 1]) {
+            if (gread(cpu, args[pidx + 1], tv, sizeof tv) != 0) return -14;
+            regs[pidx + 1] = (uint64_t)(uintptr_t)tv;
+        }
         return vsl_syscall_dispatch(nr, regs);
     }
     default:

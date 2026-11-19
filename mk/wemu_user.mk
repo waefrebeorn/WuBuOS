@@ -1,6 +1,6 @@
 # L14: WEMU user-mode build (reconciled 2026-11-19).
 #
-# src/wemu is a submodule pinned at leg/user-mode-vsl (75537bf): the
+# src/wemu is a submodule pinned at leg/user-mode-vsl (775bf40): the
 # user-mode leg (ELF loader, SysV stack, FS/GS TLS bases, SSE2/AVX2
 # growth, the vpandn es=16 fix) is UPSTREAM in the wemu repo — the
 # former patch overlay is gone. This fragment builds WEMU out-of-tree
@@ -13,7 +13,7 @@ WEMU_LIB   := $(WEMU_BUILD)/libwemu-user.a
 WEMU_INC   := -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src
 WEMU_CFLAGS := -std=c11 -O2 -g -Wall -Wextra -Werror
 WEMU_SRC_NAMES := wemu_cpu wemu_mem wemu_decode wemu_exec wemu_sse \
-                  wemu_string wemu_machine wemu_elf
+                  wemu_string wemu_machine wemu_elf wemu_x87
 WEMU_OBJS := $(patsubst %,$(WEMU_BUILD)/src/%.o,$(WEMU_SRC_NAMES))
 
 # Copy rule: refresh when the submodule pointer or any source changes.
