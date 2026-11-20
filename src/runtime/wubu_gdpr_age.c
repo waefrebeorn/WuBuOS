@@ -15,6 +15,7 @@
 #include "wubu_gdpr_age.h"
 #include "wubu_uuid.h"
 #include <stdio.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
@@ -95,7 +96,7 @@ wubu_age_status_t wubu_gdpr_age_check(void) {
     int age;
     char uuid[37];
     uint64_t ts;
-    if (sscanf(line, "%c %d %36s %llu", &status_char, &age, uuid, &ts) != 4)
+    if (sscanf(line, "%c %d %36s %" SCNu64, &status_char, &age, uuid, &ts) != 4)
         return WUBU_AGE_UNKNOWN;
     g_last_result.declared_age = age;
     g_last_result.consent_ts_ms = ts;
