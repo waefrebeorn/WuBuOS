@@ -655,7 +655,9 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_exit_group.elf \
 	$(RT)/vsl/exec_guests/guest_fault.elf \
 	$(RT)/vsl/exec_guests/guest_dyn.elf \
-	$(RT)/vsl/exec_guests/guest_dynsym.elf
+	$(RT)/vsl/exec_guests/guest_dynsym.elf \
+	$(RT)/vsl/exec_guests/libvsldep.so \
+	$(RT)/vsl/exec_guests/guest_dtneeded.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -680,6 +682,27 @@ $(RT)/vsl/exec_guests/guest_dynsym.elf: $(RT)/vsl/exec_guests/guest_dynsym.c
 	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
 		-fno-stack-protector -fno-asynchronous-unwind-tables \
 		-Wl,-N -Wl,--build-id=none -Wl,-e,_start $< -o $@
+
+# DT_NEEDED differential fixture pair.  libvsldep.so is a freestanding ET_DYN
+# named by its own soname so the allow-listed loader finds it by DT_NEEDED;
+# its vsl_dep_entry export is imported by the main object.  The main object
+# carries DT_NEEDED libvsldep.so and a JUMP_SLOT for vsl_dep_entry.  Built
+# WITHOUT -N: ld 2.42 refuses to link a dynamic input into a -N (-Omagic)
+# output ("attempted static link of dynamic object"), so the main keeps
+# normal PT_LOADs; VSL maps the union RWX anyway.
+$(RT)/vsl/exec_guests/libvsldep.so: $(RT)/vsl/exec_guests/guest_dep.c
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,-N -Wl,--build-id=none -Wl,-soname,libvsldep.so $< -o $@
+
+$(RT)/vsl/exec_guests/guest_dtneeded.elf: \
+		$(RT)/vsl/exec_guests/guest_dtneeded.c \
+		$(RT)/vsl/exec_guests/libvsldep.so
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start -Wl,--no-as-needed \
+		-L$(RT)/vsl/exec_guests -l:libvsldep.so \
+		$(RT)/vsl/exec_guests/guest_dtneeded.c -o $@
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o

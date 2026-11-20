@@ -24,8 +24,18 @@
  * names, unregistered IFUNC resolvers and any other relocation type are hard
  * rejects (VSL_EXEC_ERR_RELOC / VSL_EXEC_ERR_RELOCTYPE) -- never guessed.
  * There is NO TLS model: TPOFF/DTPMOD/TLSDESC and STT_TLS symbols are all
- * rejected.  No glibc, no ld.so, no DT_NEEDED, no lazy PLT binding, no
- * init/fini.  Loaded ET_DYN images must stay within this contract.
+ * rejected.  No glibc, no ld.so, no lazy PLT binding, no init/fini.
+ *
+ * DT_NEEDED is supported ONLY in this bounded form: an allow-listed search
+ * directory is configured with vsl_dyn_set_dep_search_dir(); each DT_NEEDED
+ * soname must be a plain basename found there, must be a freestanding ET_DYN
+ * guest object (no ld.so), and is mapped at its own in-window bias.  Its
+ * exported dynamic symbols are merged into the bounded symbol table (first
+ * definition wins), so a main image can import from it.  Counts, name
+ * lengths, depth, file sizes and total mapped bytes are capped.  A missing,
+ * malformed, out-of-tree or unknown dependency is a hard VSL_EXEC_ERR_RELOC;
+ * nothing is ever guessed or loaded from the host system.  Loaded ET_DYN
+ * images must stay within this contract.
  *
  * Guest link addresses MUST fall inside [VSL_USER_BASE, VSL_USER_BASE +
  * VSL_USER_SIZE): that window is the seccomp trap scope, so guest code
@@ -76,7 +86,9 @@ typedef struct {
     uint32_t relocations_applied;/* relocations applied (all supported types) */
     uint32_t relocations_skipped;/* unsupported types -> RELOCTYPE error */
     uint32_t symbols_resolved;  /* symbol-based relocations resolved from
-                                 * in-image definitions + host table */
+                                 * in-image definitions + host/dep table */
+    /* DT_NEEDED diagnostics (zero for static ET_EXEC / no dependencies) */
+    uint32_t deps_loaded;       /* freestanding ET_DYN deps loaded, in order */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
@@ -96,5 +108,18 @@ uint64_t vsl_dyn_host_symbol(const char *name);
 uint64_t vsl_dyn_shim_call_count(void);   /* vsl_test_shim invocations */
 uint64_t vsl_dyn_write_call_count(void);  /* host write-shim invocations */
 uint64_t vsl_dyn_ifunc_call_count(void);  /* IRELATIVE host resolver calls */
+
+/* Bounded DT_NEEDED dependency loading.  Set the ONLY directory from which
+ * DT_NEEDED objects may be loaded (an allow-listed path in the repo/test
+ * tree).  Each soname must be a plain basename inside it; paths that escape
+ * the directory (../, symlinks, absolute names) are refused.  NULL (or an
+ * empty string) clears the allow-list, so any DT_NEEDED then fails closed
+ * with VSL_EXEC_ERR_RELOC.  Returns 0 on success, -1 on a bad directory. */
+int vsl_dyn_set_dep_search_dir(const char *dir);
+/* Load-order view of the LAST run: soname at index idx, or NULL if absent. */
+const char *vsl_dyn_dep_name(uint32_t idx);
+/* Runtime address of a symbol exported by a loaded dependency, or 0 if the
+ * name is not in the merged (bounded) dependency symbol table. */
+uint64_t vsl_dyn_dep_symbol(const char *name);
 
 #endif /* WUBUOS_VSL_EXEC_ENGINE_H */

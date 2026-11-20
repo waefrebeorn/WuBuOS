@@ -329,6 +329,78 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 #define EX_STRTAB_MAX (1u << 20)
 #define EX_COPY_MAX  256u    /* max bytes one COPY relocation may move */
 
+/* -- bounded DT_NEEDED dependency state --------------------------------
+ * All of this is per-run state, reset at the top of vsl_exec_elf_bytes().
+ * Only objects found under the configured allow-listed directory are loaded;
+ * nothing from the host's system library paths is ever consulted. */
+#define EX_DEP_MAX         8u     /* max dependencies per image graph */
+#define EX_DEP_SYM_MAX     512u   /* max merged exported symbols */
+#define EX_DEP_NAME_MAX    64u    /* max DT_NEEDED soname length */
+#define EX_DEP_PATH_MAX    1024u  /* max allow-list / joined path length */
+#define EX_DEP_FILE_MAX    (8u * 1024u * 1024u)  /* max bytes per dep file */
+#define EX_DEP_DEPTH_MAX   4u     /* max DT_NEEDED recursion depth */
+#define EX_DEP_BYTES_MAX   (32u * 1024u * 1024u) /* max total mapped dep bytes */
+
+static char g_dep_dir[EX_DEP_PATH_MAX];
+static int  g_dep_dir_set;
+
+typedef struct {
+    char     name[EX_DEP_NAME_MAX + 1];
+    uint8_t *map;                       /* mmap base, for cleanup */
+    uint64_t map_lo, map_hi;            /* page-aligned mapped range */
+} VslDepObj;
+
+typedef struct {
+    char     name[EX_NAME_MAX + 1];     /* owned copy; dep bytes are freed */
+    uint64_t addr;                      /* dep_bias + st_value */
+} VslDepSym;
+
+static VslDepObj g_dep_objs[EX_DEP_MAX];
+static uint32_t  g_dep_count;           /* objects loaded (also array used) */
+static VslDepSym g_dep_syms[EX_DEP_SYM_MAX];
+static uint32_t  g_dep_sym_count;
+static char      g_dep_order[EX_DEP_MAX][EX_DEP_NAME_MAX + 1];
+static uint32_t  g_dep_order_count;
+static uint64_t  g_dep_bytes;
+
+int vsl_dyn_set_dep_search_dir(const char *dir) {
+    if (!dir || !dir[0]) {
+        g_dep_dir[0] = 0;
+        g_dep_dir_set = 0;
+        return 0;
+    }
+    if (strlen(dir) >= sizeof(g_dep_dir)) return -1;
+    snprintf(g_dep_dir, sizeof(g_dep_dir), "%s", dir);
+    g_dep_dir_set = 1;
+    return 0;
+}
+
+const char *vsl_dyn_dep_name(uint32_t idx) {
+    return idx < g_dep_order_count ? g_dep_order[idx] : NULL;
+}
+
+static int ex_dep_lookup(const char *name, uint64_t *addr); /* below */
+
+uint64_t vsl_dyn_dep_symbol(const char *name) {
+    uint64_t addr = 0;
+    if (name && ex_dep_lookup(name, &addr)) return addr;
+    return 0;
+}
+
+/* Look up an exported symbol merged from a loaded dependency.  First
+ * definition wins (matching the static link order).  Returns 1 and writes
+ * *addr (when non-NULL) on a hit, 0 on a miss. */
+static int ex_dep_lookup(const char *name, uint64_t *addr) {
+    if (!name || !name[0]) return 0;
+    for (uint32_t i = 0; i < g_dep_sym_count; i++) {
+        if (strcmp(g_dep_syms[i].name, name) == 0) {
+            if (addr) *addr = g_dep_syms[i].addr;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Determine the dynamic symbol count from DT_HASH (nchain) or DT_GNU_HASH
  * (walk the longest chain).  A hash table is REQUIRED: without one we cannot
  * bound the symbol table and refuse to guess.  Returns 0 ok, -1 malformed. */
@@ -427,8 +499,13 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     const char *name = (const char *)(f + stroff + st_name);
     size_t room = (size_t)(strsz - st_name);
     if (!memchr(name, 0, room) || strlen(name) > EX_NAME_MAX) return -1;
-    uint64_t addr = vsl_dyn_host_symbol(name);
-    if (addr == 0) return -1;                         /* unknown -> fail closed */
+    uint64_t addr = 0;
+    if (ex_dep_lookup(name, &addr)) {         /* merged DT_NEEDED exports first */
+        *out = addr;
+        return 0;
+    }
+    addr = vsl_dyn_host_symbol(name);
+    if (addr == 0) return -1;                 /* unknown -> fail closed */
     *out = addr;
     return 0;
 }
@@ -605,7 +682,7 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
         case EX_DT_SYMENT:  syment = val; break;
         case EX_DT_HASH:    hash = val;   break;
         case EX_DT_GNU_HASH:gnu_hash = val;break;
-        default: break;                              /* DT_NEEDED etc: ignored */
+        default: break;    /* other tags ignored; DT_NEEDED loaded before this */
         }
     }
 
@@ -693,11 +770,339 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
     return 0;
 }
 
+/* -- bounded DT_NEEDED dependency loader ------------------------------
+ * No glibc, no ld.so: dependencies are freestanding ET_DYN guest objects
+ * read from the configured allow-listed directory, mapped at their own
+ * in-window bias, relocated with the SAME bounded resolver, and their
+ * exported dynsyms merged into g_dep_syms.  Every count/size is capped and
+ * every failure is a hard reject; the caller maps it to ERR_RELOC. */
+
+#define EX_DT_NEEDED 1ULL
+
+typedef struct {
+    uint64_t needed[EX_DEP_MAX];         /* DT_STRTAB offsets of sonames */
+    uint32_t needed_count;
+    uint64_t strtab, strsz, symtab, syment, hash, gnu_hash;
+} VslDynInfo;
+
+/* Parse the DT_* tags a dependency needs: DT_NEEDED names, string/symbol
+ * tables for exports, and hashes to bound the symbol count. */
+static int ex_parse_dyn(const uint8_t *f, size_t fsz,
+                        uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                        VslDynInfo *di) {
+    memset(di, 0, sizeof(*di));
+    di->syment = 24;
+    uint64_t doff = 0, dsz = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *cur = f + phoff + (uint64_t)i * phentsize;
+        uint32_t t;
+        memcpy(&t, cur, 4);
+        if (t != 2) continue;                       /* PT_DYNAMIC */
+        memcpy(&doff, cur + 8, 8);
+        memcpy(&dsz, cur + 32, 8);
+        break;
+    }
+    if (dsz == 0) return 0;                         /* no dynamic section */
+    if (doff > fsz || dsz > fsz - doff || dsz < 16) return -1;
+    const uint8_t *d = f + doff;
+    for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
+        uint64_t tag, val;
+        memcpy(&tag, d + k, 8);
+        memcpy(&val, d + k + 8, 8);
+        if (tag == EX_DT_NULL) break;
+        switch (tag) {
+        case EX_DT_NEEDED:
+            if (di->needed_count >= EX_DEP_MAX) return -1;
+            di->needed[di->needed_count++] = val;
+            break;
+        case EX_DT_HASH:    di->hash = val;     break;
+        case EX_DT_STRTAB:  di->strtab = val;   break;
+        case EX_DT_SYMTAB:  di->symtab = val;   break;
+        case EX_DT_STRSZ:   di->strsz = val;    break;
+        case EX_DT_SYMENT:  di->syment = val;   break;
+        case EX_DT_GNU_HASH:di->gnu_hash = val; break;
+        default: break;
+        }
+    }
+    if (di->needed_count && (di->strtab == 0 || di->strsz == 0 ||
+                             di->strsz > EX_STRTAB_MAX)) return -1;
+    return 0;
+}
+
+/* Read a DT_NEEDED soname from DT_STRTAB.  Only a plain basename from a
+ * small safe character set is accepted: no '/', no '..', no escapes. */
+static int ex_needed_name(const uint8_t *f, size_t fsz,
+                          uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                          const VslDynInfo *di, uint32_t idx,
+                          char out[EX_DEP_NAME_MAX + 1]) {
+    uint64_t stroff;
+    if (idx >= di->needed_count || di->needed[idx] >= di->strsz) return -1;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        di->strtab, di->strsz, &stroff) != 0) return -1;
+    const char *s = (const char *)(f + stroff + di->needed[idx]);
+    size_t room = (size_t)(di->strsz - di->needed[idx]);
+    if (!memchr(s, 0, room)) return -1;
+    size_t n = strlen(s);
+    if (n == 0 || n > EX_DEP_NAME_MAX) return -1;
+    if (strchr(s, '/') || strchr(s, '\\') || strstr(s, "..")) return -1;
+    for (size_t i = 0; i < n; i++) {
+        char c = s[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+              (c >= '0' && c <= '9') || c == '.' || c == '_' ||
+              c == '-' || c == '+')) return -1;
+    }
+    memcpy(out, s, n + 1);
+    return 0;
+}
+
+/* Open a dependency ONLY from inside the allow-listed directory.  Both the
+ * directory and the joined path are canonicalised with realpath(); the
+ * canonical file must be a strict child of the canonical directory, so a
+ * symlink or ../ cannot escape the repo/test tree. */
+static uint8_t *ex_read_dep_file(const char *name, size_t *out_sz) {
+    if (!g_dep_dir_set || !g_dep_dir[0]) return NULL;
+    char path[EX_DEP_PATH_MAX];
+    int n = snprintf(path, sizeof(path), "%s/%s", g_dep_dir, name);
+    if (n < 0 || (size_t)n >= sizeof(path)) return NULL;
+    /* realpath(NULL) allocates a PATH_MAX-sized result; a smaller explicit
+     * buffer trips glibc fortify's __realpath_chk. */
+    char *dcanon = realpath(g_dep_dir, NULL);
+    char *pcanon = realpath(path, NULL);
+    if (!dcanon || !pcanon) { free(dcanon); free(pcanon); return NULL; }
+    size_t dl = strlen(dcanon);
+    int inside = (strncmp(pcanon, dcanon, dl) == 0 && pcanon[dl] == '/');
+    free(dcanon);
+    free(pcanon);
+    if (!inside) return NULL;
+    FILE *fp = fopen(path, "rb");
+    if (!fp) return NULL;
+    uint8_t *buf = NULL;
+    if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); return NULL; }
+    long sz = ftell(fp);
+    if (sz <= 0 || (uint64_t)sz > EX_DEP_FILE_MAX) { fclose(fp); return NULL; }
+    rewind(fp);
+    buf = malloc((size_t)sz);
+    if (!buf) { fclose(fp); return NULL; }
+    size_t got = fread(buf, 1, (size_t)sz, fp);
+    fclose(fp);
+    if (got != (size_t)sz) { free(buf); return NULL; }
+    *out_sz = got;
+    return buf;
+}
+
+/* Map one ET_DYN image at a free bias in the VSL window.  Reuses the same
+ * collision check and RWX union mapping as the main image; no relocations
+ * are applied here (the caller does that after recording the mapping). */
+static int ex_map_dyn_image(const uint8_t *f, size_t fsz,
+                            uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                            uint8_t **out_map, uint64_t *out_bias,
+                            uint64_t *out_lo, uint64_t *out_hi) {
+    uint64_t link_lo = UINT64_MAX, link_hi = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *cur = f + phoff + (uint64_t)i * phentsize;
+        uint32_t t; uint64_t v, ms;
+        memcpy(&t, cur, 4);
+        if (t != 1) continue;
+        memcpy(&v, cur + 16, 8);
+        memcpy(&ms, cur + 40, 8);
+        if (ms == 0) continue;
+        uint64_t ps = v & ~0xFFFULL, pe = (v + ms + 0xFFF) & ~0xFFFULL;
+        if (ps < link_lo) link_lo = ps;
+        if (pe > link_hi) link_hi = pe;
+    }
+    if (link_lo == UINT64_MAX || link_hi <= link_lo) return -1;
+    uint64_t span = link_hi - link_lo;
+    if (span > (uint64_t)VSL_USER_SIZE || span > EX_DEP_BYTES_MAX) return -1;
+    uint64_t base = 0;
+    for (uint64_t k = 0; k < 64; k++) {
+        uint64_t cand = EX_WIN_LO + k * 0x00100000ULL;
+        if (cand + span > EX_WIN_HI) break;
+        if (ex_range_free(cand, cand + span)) { base = cand; break; }
+    }
+    if (!base) return -1;
+    uint64_t bias = base - link_lo;
+
+    uint64_t lo = UINT64_MAX, hi = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *cur = f + phoff + (uint64_t)i * phentsize;
+        uint32_t t; uint64_t v, ms;
+        memcpy(&t, cur, 4);
+        if (t != 1) continue;
+        memcpy(&v, cur + 16, 8);
+        memcpy(&ms, cur + 40, 8);
+        if (ms == 0) continue;
+        uint64_t dest = v + bias;
+        if (dest < EX_WIN_LO || dest + ms > EX_WIN_HI) return -1;
+        uint64_t ps = dest & ~0xFFFULL, pe = (dest + ms + 0xFFF) & ~0xFFFULL;
+        if (ps < lo) lo = ps;
+        if (pe > hi) hi = pe;
+    }
+    if (lo == UINT64_MAX || hi <= lo || !ex_range_free(lo, hi)) return -1;
+    if (hi - lo > EX_DEP_BYTES_MAX - g_dep_bytes) return -1;
+    uint8_t *map = mmap((void *)(uintptr_t)lo, (size_t)(hi - lo),
+                        PROT_READ | PROT_WRITE | PROT_EXEC,
+                        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    if (map == MAP_FAILED || (uint64_t)(uintptr_t)map != lo) return -1;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *cur = f + phoff + (uint64_t)i * phentsize;
+        uint32_t t; uint64_t o, v, fs;
+        memcpy(&t, cur, 4);
+        if (t != 1) continue;
+        memcpy(&o, cur + 8, 8);
+        memcpy(&v, cur + 16, 8);
+        memcpy(&fs, cur + 32, 8);
+        if (fs && o + fs <= fsz)
+            memcpy((void *)(uintptr_t)(v + bias), f + o, (size_t)fs);
+    }
+    g_dep_bytes += (hi - lo);
+    *out_map = map; *out_bias = bias; *out_lo = lo; *out_hi = hi;
+    return 0;
+}
+
+/* Merge every defined exported dynamic symbol of one dependency into the
+ * bounded table.  Names are COPIED (the dep file buffer is freed on return);
+ * first definition wins; TLS, undefined and special-section symbols are
+ * skipped.  A hash table is required so the symbol count is never guessed. */
+static int ex_register_exports(const uint8_t *f, size_t fsz,
+                               uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                               const VslDynInfo *di, uint64_t bias) {
+    if (di->symtab == 0 || di->syment < 24) return 0; /* nothing exported */
+    uint32_t n = 0;
+    if (ex_symbol_count(f, fsz, phnum, phentsize, phoff,
+                        di->hash, di->gnu_hash, &n) != 0) return -1;
+    if (n > EX_SYM_MAX) return -1;
+    int have_str = (di->strtab && di->strsz && di->strsz <= EX_STRTAB_MAX);
+    if (n > 1 && !have_str) return -1;
+    uint64_t stroff = 0;
+    if (have_str && ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                                    di->strtab, di->strsz, &stroff) != 0) return -1;
+    for (uint32_t i = 1; i < n; i++) {
+        uint64_t so;
+        if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                            di->symtab + (uint64_t)i * di->syment, 24, &so) != 0)
+            return -1;
+        uint32_t st_name; uint8_t st_info; uint16_t st_shndx; uint64_t st_value;
+        memcpy(&st_name,  f + so,      4);
+        st_info = f[so + 4];
+        memcpy(&st_shndx, f + so + 6,  2);
+        memcpy(&st_value, f + so + 8,  8);
+        if ((st_info & 0x0f) == 6) continue;            /* STT_TLS */
+        if (st_shndx == 0 || st_shndx >= 0xff00) continue; /* UND/special */
+        if (!have_str || st_name >= di->strsz) return -1;
+        const char *nm = (const char *)(f + stroff + st_name);
+        size_t room = (size_t)(di->strsz - st_name);
+        if (!memchr(nm, 0, room) || nm[0] == 0 || strlen(nm) > EX_NAME_MAX)
+            return -1;
+        if (ex_dep_lookup(nm, NULL)) continue;          /* first wins */
+        if (g_dep_sym_count >= EX_DEP_SYM_MAX) return -1;
+        VslDepSym *slot = &g_dep_syms[g_dep_sym_count++];
+        snprintf(slot->name, sizeof(slot->name), "%s", nm);
+        slot->addr = bias + st_value;
+    }
+    return 0;
+}
+
+/* Recursively load the DT_NEEDED graph of one image.  `depth` and the global
+ * caps keep a malicious cycle or explosion fail-closed.  Dependencies are
+ * loaded and their exports merged BEFORE the caller relocates the main
+ * image, so imported symbols always resolve. */
+static int ex_load_dependencies(const uint8_t *f, size_t fsz,
+                                uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                                unsigned depth) {
+    if (depth > EX_DEP_DEPTH_MAX || g_dep_count >= EX_DEP_MAX) return -1;
+    VslDynInfo di;
+    if (ex_parse_dyn(f, fsz, phnum, phentsize, phoff, &di) != 0) return -1;
+    for (uint32_t i = 0; i < di.needed_count; i++) {
+        char name[EX_DEP_NAME_MAX + 1];
+        if (ex_needed_name(f, fsz, phnum, phentsize, phoff, &di, i, name) != 0)
+            return -1;
+        int already = 0;                               /* cycle / diamond */
+        for (uint32_t j = 0; j < g_dep_order_count; j++)
+            if (strcmp(g_dep_order[j], name) == 0) { already = 1; break; }
+        if (already) continue;
+        if (g_dep_count >= EX_DEP_MAX) return -1;
+        size_t dsz = 0;
+        uint8_t *df = ex_read_dep_file(name, &dsz);
+        if (!df) return -1;                            /* missing -> fail closed */
+        uint64_t entry = 0;
+        uint16_t dphnum, dphentsize;
+        uint64_t dphoff;
+        uint16_t et = 0;
+        if (dsz < 64 || vsl_elf_validate(df, dsz, &entry) != 0) {
+            free(df); return -1;
+        }
+        memcpy(&et, df + 16, 2);
+        memcpy(&dphoff, df + 32, 8);
+        memcpy(&dphentsize, df + 54, 2);
+        memcpy(&dphnum, df + 56, 2);
+        if (et != 3 || dphoff + (uint64_t)dphnum * dphentsize > dsz ||
+            dphentsize < 56) {                         /* ET_DYN only */
+            free(df); return -1;
+        }
+        VslDynInfo ddi;
+        if (ex_parse_dyn(df, dsz, dphnum, dphentsize, dphoff, &ddi) != 0) {
+            free(df); return -1;
+        }
+        uint8_t *dmap = NULL;
+        uint64_t dbias = 0, dlo = 0, dhi = 0;
+        if (ex_map_dyn_image(df, dsz, dphnum, dphentsize, dphoff,
+                             &dmap, &dbias, &dlo, &dhi) != 0) {
+            free(df); return -1;
+        }
+        VslDepObj *obj = &g_dep_objs[g_dep_count++];   /* record for cleanup */
+        snprintf(obj->name, sizeof(obj->name), "%s", name);
+        obj->map = dmap; obj->map_lo = dlo; obj->map_hi = dhi;
+        snprintf(g_dep_order[g_dep_order_count++], EX_DEP_NAME_MAX + 1,
+                 "%s", name);
+        uint32_t applied = 0, skipped = 0, resolved = 0;
+        int rr = ex_apply_relocations(df, dsz, dbias, dlo, dhi,
+                                      dphnum, dphentsize, dphoff,
+                                      &applied, &skipped, &resolved);
+        if (rr != 0 || skipped ||
+            ex_register_exports(df, dsz, dphnum, dphentsize, dphoff,
+                                &ddi, dbias) != 0 ||
+            ex_load_dependencies(df, dsz, dphnum, dphentsize, dphoff,
+                                 depth + 1) != 0) {
+            free(df); return -1;
+        }
+        free(df);
+    }
+    return 0;
+}
+
+/* Unmap dependency mappings but KEEP the load-order and merged-symbol view
+ * so the gate can inspect it after the run.  The mappings are gone, so the
+ * stored addresses are diagnostic only until the next run replaces them. */
+static void ex_release_dep_mappings(void) {
+    for (uint32_t i = 0; i < g_dep_count; i++) {
+        if (g_dep_objs[i].map) {
+            munmap(g_dep_objs[i].map,
+                   (size_t)(g_dep_objs[i].map_hi - g_dep_objs[i].map_lo));
+            g_dep_objs[i].map = NULL;
+        }
+    }
+    g_dep_bytes = 0;
+}
+
+/* Full per-run reset: release mappings and clear all diagnostic state. */
+static void ex_reset_dep_state(void) {
+    ex_release_dep_mappings();
+    memset(g_dep_objs, 0, sizeof(g_dep_objs));
+    memset(g_dep_syms, 0, sizeof(g_dep_syms));
+    memset(g_dep_order, 0, sizeof(g_dep_order));
+    g_dep_count = g_dep_sym_count = g_dep_order_count = 0;
+}
+
+/* Backwards-compatible name used by the rollback paths: a failed load leaves
+ * NO stale dependency state at all. */
+static void ex_unload_dependencies(void) { ex_reset_dep_state(); }
+
 /* -- the engine ------------------------------------------------------- */
 int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
                        VslExecResult *out) {
     if (!out) return VSL_EXEC_ERR_ARGS;
     memset(out, 0, sizeof(*out));
+    ex_unload_dependencies();              /* reset per-run DT_NEEDED state */
     if (!elf_data || elf_size < 64) {
         out->status = VSL_EXEC_ERR_ARGS;
         return out->status;
@@ -721,8 +1126,6 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         out->status = VSL_EXEC_ERR_FORMAT;
         return out->status;
     }
-
-    /* 2. Parse ELF header + program header table. */
     uint16_t e_phnum = (uint16_t)p[56] | ((uint16_t)p[57] << 8);
     uint16_t e_phentsize = (uint16_t)p[54] | ((uint16_t)p[55] << 8);
     uint64_t e_phoff;
@@ -730,6 +1133,21 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
     if (e_phoff + (uint64_t)e_phnum * e_phentsize > elf_size) {
         out->status = VSL_EXEC_ERR_FORMAT;
         return out->status;
+    }
+
+    /* 2b. ET_DYN: load the bounded DT_NEEDED graph BEFORE choosing the main
+     *     bias, so dependencies occupy their own in-window mappings and their
+     *     exports are merged before the main image is relocated.  Any missing,
+     *     malformed or out-of-tree dependency fails closed with ERR_RELOC. */
+    if (is_dyn) {
+        if (ex_load_dependencies(p, elf_size, e_phnum, e_phentsize, e_phoff,
+                                 0) != 0) {
+            ex_unload_dependencies();
+            out->status = VSL_EXEC_ERR_RELOC;
+            ex_unload_dependencies();   /* roll back any dep mappings */
+            return out->status;
+        }
+        out->deps_loaded = g_dep_count;
     }
 
     /* Pass A: link-time geometry (needed to choose an ET_DYN load bias). */
@@ -747,6 +1165,7 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         if (p_memsz == 0) continue;
         if (p_offset + p_filesz > elf_size) {
             out->status = VSL_EXEC_ERR_FORMAT;
+            ex_unload_dependencies();   /* roll back any dep mappings */
             return out->status;
         }
         uint64_t ps = p_vaddr & ~0xFFFULL;
@@ -762,11 +1181,13 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
     if (is_dyn) {
         if (link_lo == UINT64_MAX || link_hi <= link_lo) {
             out->status = VSL_EXEC_ERR_FORMAT;
+            ex_unload_dependencies();   /* roll back any dep mappings */
             return out->status;
         }
         uint64_t span = link_hi - link_lo;
         if (span > (uint64_t)VSL_USER_SIZE) {
             out->status = VSL_EXEC_ERR_WINDOW;
+            ex_unload_dependencies();   /* roll back any dep mappings */
             return out->status;
         }
         int found = 0;
@@ -781,6 +1202,7 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         }
         if (!found) {
             out->status = VSL_EXEC_ERR_COLLISION;
+            ex_unload_dependencies();   /* roll back any dep mappings */
             return out->status;
         }
     }
@@ -806,6 +1228,7 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         uint64_t dest = p_vaddr + load_bias;
         if (dest < EX_WIN_LO || dest + p_memsz > EX_WIN_HI) {
             out->status = VSL_EXEC_ERR_WINDOW;
+            ex_unload_dependencies();   /* roll back any dep mappings */
             return out->status;
         }
         uint64_t ps = dest & ~0xFFFULL;
@@ -820,10 +1243,12 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
     }
     if (n_load == 0 || entry < xlo || entry >= xhi) {
         out->status = VSL_EXEC_ERR_ENTRY;
+        ex_unload_dependencies();   /* roll back any dep mappings */
         return out->status;
     }
     if (!ex_range_free(lo, hi)) {
         out->status = VSL_EXEC_ERR_COLLISION;
+        ex_unload_dependencies();   /* roll back any dep mappings */
         return out->status;
     }
 
@@ -1001,6 +1426,7 @@ cleanup:
         wubu_kernel_select(old_kernel);
     if (map && (uint64_t)(uintptr_t)map == lo)
         munmap(map, (size_t)(hi - lo));
+    ex_release_dep_mappings();        /* keep load-order/symbol view for gate */
     if (stack) munmap(stack, EX_STACK_SIZE);
     if (out->status == VSL_EXEC_OK && rc != VSL_EXEC_OK)
         out->status = rc;

@@ -19,6 +19,13 @@
  * function output and call counters are asserted, with the pre-change rule
  * as negative control.  TLS/TPOFF/DTPMOD/TLSDESC are asserted REJECTED.
  *
+ * DT_NEEDED leg: a real gcc -shared main object whose DT_NEEDED names a
+ * freestanding ET_DYN dependency in the allow-listed guest directory.  The
+ * gate asserts the dependency's own output precedes the main's (load order),
+ * the imported function ran through the merged symbol table, and that a
+ * missing dependency / disabled allow-list fails closed with ERR_RELOC.
+ * The pre-change loader ignored DT_NEEDED and rejected the unresolved import.
+ *
  * Usage: vsl_exec_test <guest-dir>   (guests built by mk/tests.mk)
  */
 #include "../../egojar.h"
@@ -209,6 +216,54 @@ static int legacy_rejects_nonrelative(const uint8_t *img, size_t n) {
         }
     }
     return saw_nonrelative;
+}
+
+/* Read a built fixture into memory so a gate can mutate a copy in place
+ * (used by the DT_NEEDED missing-soname negative control). */
+static uint8_t *read_test_file(const char *path, size_t *out_sz) {
+    FILE *fp = fopen(path, "rb");
+    if (!fp) return NULL;
+    if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); return NULL; }
+    long sz = ftell(fp);
+    if (sz <= 0 || sz > 16 * 1024 * 1024) { fclose(fp); return NULL; }
+    rewind(fp);
+    uint8_t *buf = malloc((size_t)sz);
+    if (!buf) { fclose(fp); return NULL; }
+    size_t got = fread(buf, 1, (size_t)sz, fp);
+    fclose(fp);
+    if (got != (size_t)sz) { free(buf); return NULL; }
+    *out_sz = got;
+    return buf;
+}
+
+/* Faithful model of the PRE-CHANGE relocation rule: PT_DYNAMIC's DT_NEEDED
+ * tags were ignored (`default: break`) and no dependency was loaded, so an
+ * import such as vsl_dep_entry (absent from the fixed host table) failed
+ * closed with VSL_EXEC_ERR_RELOC.  Returns 1 when this image would have been
+ * rejected for that reason. */
+static int legacy_rejects_dtneeded(const uint8_t *img, size_t n) {
+    if (n < 64) return 0;
+    uint64_t phoff; uint16_t phentsize, phnum;
+    memcpy(&phoff, img + 32, 8);
+    memcpy(&phentsize, img + 54, 2);
+    memcpy(&phnum, img + 56, 2);
+    if (phoff + (uint64_t)phnum * phentsize > n) return 0;
+    uint64_t doff = 0, dsz = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *ph = img + phoff + (uint64_t)i * phentsize;
+        uint32_t t; memcpy(&t, ph, 4);
+        if (t != 2) continue;
+        memcpy(&doff, ph + 8, 8);
+        memcpy(&dsz, ph + 32, 8);
+        break;
+    }
+    if (dsz < 16 || doff > n || dsz > n - doff) return 0;
+    for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
+        uint64_t tag; memcpy(&tag, img + doff + k, 8);
+        if (tag == 0) break;
+        if (tag == 1) return 1;                      /* DT_NEEDED ignored */
+    }
+    return 0;
 }
 
 /* Hand-assemble a tiny ET_DYN with IMPORTED symbols (DT_HASH + DT_SYMTAB
@@ -759,6 +814,87 @@ int main(int argc, char **argv) {
                    VSL_EXEC_ERR_RELOCTYPE);
             CHECK(rc == VSL_EXEC_ERR_RELOCTYPE && r.relocations_skipped == 1,
                   "TLS relocation rejected: no TLS model (verified negative)");
+        }
+    }
+
+    /* (p) Bounded DT_NEEDED differential gate.  The main object imports
+     *     vsl_dep_entry from libvsldep.so, a freestanding ET_DYN found ONLY
+     *     in the allow-listed guest dir.  Pre-change loader ignored DT_NEEDED
+     *     and rejected the unresolved import; here the dep is mapped first,
+     *     relocated, its export merged, then the main relocates and calls it.
+     *     Output order (dependency marker BEFORE main marker) proves load
+     *     order and real control flow, not just a mapped file. */
+    {
+        size_t n = 0;
+        snprintf(path, sizeof(path), "%s/guest_dtneeded.elf", dir);
+        uint8_t *img = read_test_file(path, &n);
+        CHECK(img != NULL, "DT_NEEDED main fixture readable");
+        if (img) {
+            CHECK(legacy_rejects_dtneeded(img, n),
+                  "negative control: pre-change loader rejects DT_NEEDED fixture");
+            CHECK(vsl_dyn_set_dep_search_dir(dir) == 0,
+                  "allow-listed dependency search dir accepted");
+            rc = vsl_exec_elf_bytes(img, n, &r);
+            uint64_t magic = 0;
+            if (r.output_len >= 22) memcpy(&magic, r.output + 14, 8);
+            const char *dep0 = vsl_dyn_dep_name(0);
+            uint64_t depfn = vsl_dyn_dep_symbol("vsl_dep_entry");
+            printf("[gate p] DT_NEEDED: rc=%d exit=%d deps=%u dep0=%s out_len=%zu "
+                   "out=\"%.*s\" magic=0x%llx depfn=0x%llx\n",
+                   rc, r.exit_code, r.deps_loaded, dep0 ? dep0 : "(none)",
+                   r.output_len, (int)r.output_len, r.output,
+                   (unsigned long long)magic, (unsigned long long)depfn);
+            CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                  "DT_NEEDED main runs to exit(0)");
+            CHECK(r.deps_loaded == 1, "exactly one dependency loaded");
+            CHECK(dep0 && strcmp(dep0, "libvsldep.so") == 0,
+                  "load order: libvsldep.so is dependency 0");
+            CHECK(vsl_dyn_dep_name(1) == NULL,
+                  "no phantom dependency in the load-order view");
+            CHECK(r.output_len == 33,
+                  "output: 14 dep + 8 magic + 11 main bytes");
+            CHECK(r.output_len == 33 &&
+                  memcmp(r.output, "VSLDEP-CALLED\n", 14) == 0,
+                  "dependency code ran FIRST (loaded before main relocations)");
+            CHECK(magic == 0x56534445504d4141ULL,
+                  "imported vsl_dep_entry returned its real magic via merged table");
+            CHECK(r.output_len == 33 &&
+                  memcmp(r.output + 22, "VSLMAIN-OK\n", 11) == 0,
+                  "main continued after calling into the dependency");
+            CHECK(depfn >= VSL_USER_BASE && depfn < VSL_USER_BASE + VSL_USER_SIZE,
+                  "merged dep symbol address lies inside the VSL trap window");
+
+            /* Negative control: no allow-listed dir -> missing dependency. */
+            CHECK(vsl_dyn_set_dep_search_dir(NULL) == 0,
+                  "dependency allow-list cleared");
+            rc = vsl_exec_elf_bytes(img, n, &r);
+            printf("[gate p] missing dep (no allow-list): rc=%d status=%d "
+                   "(want %d)\n", rc, r.status, VSL_EXEC_ERR_RELOC);
+            CHECK(rc == VSL_EXEC_ERR_RELOC,
+                  "missing dependency refused (fail-closed ERR_RELOC)");
+            CHECK(vsl_dyn_dep_name(0) == NULL,
+                  "failed load leaves no stale dependency state");
+
+            /* Negative control: soname absent from an otherwise valid dir. */
+            CHECK(vsl_dyn_set_dep_search_dir(dir) == 0,
+                  "dependency allow-list restored");
+            uint8_t *at = NULL;
+            for (size_t i = 0; i + 12 <= n; i++)
+                if (memcmp(img + i, "libvsldep.so", 12) == 0) { at = img + i; break; }
+            CHECK(at != NULL, "DT_NEEDED soname located in fixture");
+            if (at) {
+                uint8_t saved = at[8];
+                at[8] = 'X';                       /* libvsldep.so -> libvsldeX.so */
+                rc = vsl_exec_elf_bytes(img, n, &r);
+                printf("[gate p] missing soname: rc=%d status=%d (want %d)\n",
+                       rc, r.status, VSL_EXEC_ERR_RELOC);
+                CHECK(rc == VSL_EXEC_ERR_RELOC,
+                      "unknown/missing DT_NEEDED soname refused (ERR_RELOC)");
+                at[8] = saved;
+            }
+            CHECK(vsl_dyn_set_dep_search_dir(NULL) == 0,
+                  "dependency allow-list cleared after gate");
+            free(img);
         }
     }
 
