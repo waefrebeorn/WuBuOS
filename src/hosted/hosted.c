@@ -417,7 +417,14 @@ static void wubu_hosted_spawn_buddy(void)
     execl(orb, "wubu-buddy", (char *)NULL);
     _exit(127);
 }
+#else
+/* The capture harness compiles this TU with -DWUBU_HOSTED_TEST and supplies
+ * its own main. Keep the unconditional spawn call above linkable without
+ * launching a companion window into the capture session. */
+static void wubu_hosted_spawn_buddy(void) {}
+#endif
 
+#ifndef WUBU_HOSTED_TEST
 int main(int argc, char **argv) {
     hosted_state_t state;
     int init_ret = hosted_init(&state, argc, argv);
