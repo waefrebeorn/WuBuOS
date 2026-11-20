@@ -6,6 +6,7 @@
 
 #include "../egojar.h"
 #include "wubu_vsl.h"
+#include "vsl/vsl_internal.h"
 #include "vsl/vsl_syscall_numbers.h"
 
 #include <stdio.h>
@@ -233,6 +234,34 @@ int main(void) {
 
     T(vsl_munmap(mmap_addr, 4096) == 0, "munmap() succeeds");
     T(vsl_munmap(mmap_addr, 4096) != 0, "double munmap fails");
+
+    /* MAP_FIXED: dynamic loaders map segments at their link addresses.
+     * A bump allocator that ignores the flag puts them somewhere else. */
+    const uint64_t fixed_at = VSL_USER_BASE + 0x100000;
+    const uint64_t arena_end = VSL_USER_BASE + VSL_USER_SIZE;
+    uint32_t maps0 = g_vsl.n_mmaps;
+    T(vsl_mmap(fixed_at, 4096, 0x3, 0x32, -1, 0) == fixed_at,
+      "MAP_FIXED maps at the requested address");
+    T(g_vsl.n_mmaps == maps0 + 1,
+      "MAP_FIXED adds exactly one mapping");
+    T(vsl_mmap(fixed_at, 4096, 0x3, 0x32, -1, 0) == fixed_at,
+      "MAP_FIXED replaces the mapping at that address");
+    T(g_vsl.n_mmaps == maps0 + 1,
+      "MAP_FIXED replacement leaves no duplicate mapping");
+    T(vsl_mmap(fixed_at + 0x1000, 4096, 0x3, 0x32, -1, 0) == fixed_at + 0x1000,
+      "MAP_FIXED maps an adjacent address");
+    T(vsl_mmap(fixed_at, 8192, 0x3, 0x32, -1, 0) == fixed_at,
+      "MAP_FIXED over two mappings succeeds");
+    T(g_vsl.n_mmaps == maps0 + 1,
+      "MAP_FIXED covering two mappings collapses them into one");
+    T(vsl_munmap(fixed_at, 8192) == 0 && g_vsl.n_mmaps == maps0,
+      "the replaced range unmaps cleanly");
+    T(vsl_mmap(0, 4096, 0x3, 0x32, -1, 0) == (uint64_t)-22,
+      "MAP_FIXED with addr 0 returns EINVAL");
+    T(vsl_mmap(VSL_USER_BASE + 0x1001, 4096, 0x3, 0x32, -1, 0) == (uint64_t)-22,
+      "MAP_FIXED with an unaligned address returns EINVAL");
+    T(vsl_mmap(arena_end, 4096, 0x3, 0x32, -1, 0) == (uint64_t)-12,
+      "MAP_FIXED outside the arena returns ENOMEM");
 
     /* -- File Operations -- */
     printf("\n[File Operations]\n");
