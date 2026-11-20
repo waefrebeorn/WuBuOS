@@ -1,0 +1,47 @@
+diff --git a/include/wemu.h b/include/wemu.h
+--- a/include/wemu.h
++++ b/include/wemu.h
+@@ -38,6 +38,12 @@
+ /* Guest memory (translation-aware when paging is enabled). */
+ int wemu_mem_read(WemuCpu *cpu, uint64_t va, void *dst, size_t len);
+ int wemu_mem_write(WemuCpu *cpu, uint64_t va, const void *src, size_t len);
++
++/* Optional guest-memory permission hook (WuBuOS VSL mprotect enforcement).
++ * Return 0 to allow the access; nonzero denies it and WEMU raises #PF with
++ * CR2 = va. A NULL hook (the default) keeps legacy guest RAM permissive. */
++typedef int (*WemuMemPermFn)(uint64_t va, size_t len, int is_write, void *ud);
++void wemu_set_mem_perm_hook(WemuMemPermFn fn, void *ud);
+ 
+ /* Paging control: cr3 + CR0.PG. Without it, VA == GPA. */
+ void wemu_cpu_set_cr3(WemuCpu *cpu, uint64_t cr3);
+diff --git a/src/wemu_mem.c b/src/wemu_mem.c
+--- a/src/wemu_mem.c
++++ b/src/wemu_mem.c
+@@ -2,6 +2,15 @@
+  * One concern: address translation and checked memory access. */
+ #include "wemu_internal.h"
+ #include <stdlib.h>
++
++/* Optional permission hook (declared in wemu.h). Single owner; NULL means
++ * permissive legacy guest RAM. Installed by the WuBuOS WEMU bridge. */
++static WemuMemPermFn g_mem_perm_fn;
++static void *g_mem_perm_ud;
++void wemu_set_mem_perm_hook(WemuMemPermFn fn, void *ud) {
++    g_mem_perm_fn = fn;
++    g_mem_perm_ud = ud;
++}
+ 
+ int wemu_gpa_read(WemuCpu *cpu, uint64_t gpa, void *dst, size_t len) {
+     if (gpa > cpu->ram_size || len > cpu->ram_size - gpa) {
+@@ -80,6 +89,11 @@
+         if (f) { cpu->fault = f; return -1; }
+         uint64_t chunk = 0x1000 - (va & 0xfff);
+         if (chunk > len) chunk = len;
++        if (g_mem_perm_fn && g_mem_perm_fn(va, (size_t)chunk, 1, g_mem_perm_ud)) {
++            cpu->fault = 14;               /* #PF: write to a protected page */
++            cpu->cr2 = va;
++            return -1;
++        }
+         if (wemu_gpa_write(cpu, gpa, s, (size_t)chunk) != 0) return -1;
+         va += chunk; s += chunk; len -= (size_t)chunk;
+     }

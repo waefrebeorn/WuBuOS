@@ -17,11 +17,15 @@ WEMU_SRC_NAMES := wemu_cpu wemu_mem wemu_decode wemu_exec wemu_sse \
 WEMU_OBJS := $(patsubst %,$(WEMU_BUILD)/src/%.o,$(WEMU_SRC_NAMES))
 
 # Copy rule: refresh when the submodule pointer or any source changes.
-$(WEMU_BUILD)/.copied: $(WEMU_SUB)/.git $(wildcard $(WEMU_SUB)/src/*.c) $(wildcard $(WEMU_SUB)/src/*.h) $(wildcard $(WEMU_SUB)/include/*.h)
+# The VSL mprotect enforcement hook is a NARROW overlay applied only to the
+# out-of-tree copy (never to the submodule): it adds wemu_set_mem_perm_hook()
+# so the WEMU guest-memory write path consults VSL's single-owner prot table.
+$(WEMU_BUILD)/.copied: $(WEMU_SUB)/.git $(wildcard $(WEMU_SUB)/src/*.c) $(wildcard $(WEMU_SUB)/src/*.h) $(wildcard $(WEMU_SUB)/include/*.h) mk/wemu-mprotect-prot.patch
 	rm -rf $(WEMU_BUILD)
 	mkdir -p $(WEMU_BUILD)
 	cp -r $(WEMU_SUB)/src $(WEMU_SUB)/include $(WEMU_SUB)/tests \
 	      $(WEMU_SUB)/Makefile $(WEMU_BUILD)/
+	patch -p1 -d $(WEMU_BUILD) < mk/wemu-mprotect-prot.patch
 	touch $@
 
 # Objects depend on the stamp (the .c files only exist after the copy

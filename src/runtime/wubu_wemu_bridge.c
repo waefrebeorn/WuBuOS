@@ -22,6 +22,7 @@
 #include "wubu_vsl.h"
 #include "wubu_kernel_xchg.h"
 #include "vsl/vsl_syscall.h"
+#include "vsl/vsl_prot.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +97,19 @@ static int gstr(WemuCpu *cpu, uint64_t va, char *dst, size_t cap) {
         if (!c) return 0;
     }
     return -14;
+}
+
+/* ---- VSL protection hook -------------------------------------------- */
+
+/* WEMU calls this before every guest store. vsl_prot_query() reads the
+ * SINGLE owner table (VSL's mmap/mprot records); -1 means the VA is legacy
+ * or unmanaged guest RAM, which stays permissive (no regression). */
+int wubu_wemu_prot_hook(uint64_t va, size_t len, int is_write, void *ud) {
+    (void)len; (void)ud;
+    int prot = vsl_prot_query(va);
+    if (prot < 0) return 0;                   /* legacy/unmanaged: allow */
+    if (is_write && !(prot & VSL_PROT_WRITE)) return -1;  /* #PF on store */
+    return 0;
 }
 
 /* ---- the syscall hook --------------------------------------------- */
@@ -607,6 +621,7 @@ int wubu_wemu_run_elf(const char *path, char *const argv[],
 
     WemuCpu *cpu = wemu_cpu_create(BRIDGE_RAM);
     if (!cpu) return -1;
+    wemu_set_mem_perm_hook(wubu_wemu_prot_hook, NULL);
     if (wemu_cpu_load_elf(cpu, path, NULL, 0, argv) != 0) {
         wemu_cpu_destroy(cpu);
         return -1;

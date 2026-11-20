@@ -84,7 +84,7 @@ test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib t
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
-test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_vsl_kernel_adapt test_wemu_busybox
+test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_vsl_kernel_adapt test_wemu_busybox test_wemu_protect
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
@@ -517,6 +517,7 @@ test_vsl_nt_ext: $(VSL_NT_EXT_OBJS)
 VSL_OBJS = \
 	$(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_kernel_adapt.o $(RT)/wubu_kernel_xchg.o $(RT)/vsl/vsl_syscall_proc.o \
 	$(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o \
+	$(RT)/vsl/vsl_prot.o \
 	$(RT)/vsl/vsl_syscall_net.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o \
 	$(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o \
 	$(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o \
@@ -546,6 +547,15 @@ test_wemu_busybox: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/
 		$(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_bridge_test.c \
 		-o $(RT)/wubu_wemu_bridge_test $(WEMU_LIB) -ldl -lvulkan -lcuda -lm
 	./$(RT)/wubu_wemu_bridge_test
+
+# Differential gate: VSL mprotect protections are REALLY enforced in the
+# WEMU guest-memory write path, with a pre-change (no-hook) negative control.
+test_wemu_protect: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_prot_test.c
+	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(WEMU_INC) $(RT)/wubu_crc32.c \
+		$(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
+		$(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_prot_test.c \
+		-o $(RT)/wubu_wemu_prot_test $(WEMU_LIB) -ldl -lvulkan -lcuda -lm
+	./$(RT)/wubu_wemu_prot_test
 
 # L11: VSL EXECUTES. Real in-process engine for static freestanding Linux
 # ELF: entry transfer + seccomp SIGSYS trap into vsl_syscall_dispatch.

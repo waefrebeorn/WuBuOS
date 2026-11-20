@@ -45,6 +45,12 @@ void wubu_wemu_capture_free(wubu_wemu_capture *cap);
 int wubu_wemu_run_elf(const char *path, char *const argv[],
                       wubu_wemu_capture *cap);
 
+/* VSL-backed guest-memory permission hook. WEMU calls it before each guest
+ * store; 0 allows, nonzero denies (#PF with CR2=va). It reads VSL's single
+ * prot table via vsl_prot_query() and stays permissive for legacy RAM.
+ * Install it with wemu_set_mem_perm_hook(). */
+int wubu_wemu_prot_hook(uint64_t va, size_t len, int is_write, void *ud);
+
 #ifdef __cplusplus
 }
 #endif
