@@ -195,6 +195,134 @@ static uint64_t ex_build_stack(uint8_t *base, size_t size, uint64_t entry) {
     return (uint64_t)(uintptr_t)p & ~15ULL;
 }
 
+/* -- ET_DYN helpers -------------------------------------------------- */
+
+/* Translate a link-time virtual address to a raw file offset by finding the
+ * PT_LOAD segment that covers it.  `need` bytes must be present in the file
+ * (not just in the zero-filled BSS tail). */
+static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
+                           uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                           uint64_t vaddr, uint64_t need, uint64_t *out_off) {
+    for (int i = 0; i < phnum; i++) {
+        const uint8_t *cur = f + phoff + (uint64_t)i * phentsize;
+        uint32_t t;
+        uint64_t o, v, filesz;
+        memcpy(&t, cur, 4);
+        if (t != 1) continue;                       /* PT_LOAD */
+        memcpy(&o, cur + 8, 8);
+        memcpy(&v, cur + 16, 8);
+        memcpy(&filesz, cur + 32, 8);
+        if (vaddr >= v && vaddr - v <= filesz &&
+            need <= filesz - (vaddr - v) &&
+            o + (vaddr - v) + need <= fsz) {
+            *out_off = o + (vaddr - v);
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/* Apply the dynamic relocations of an ET_DYN image after its PT_LOAD bytes
+ * are in place.  MINIMAL: R_X86_64_RELATIVE (8) only.  Every other type is
+ * counted in *skipped and makes the caller reject the image -- we do NOT
+ * pretend to resolve GLOB_DAT/JUMP_SLOT/COPY/etc (no symbol resolver here).
+ * Returns 0 ok, -1 malformed tables. */
+#define EX_DT_NULL       0
+#define EX_DT_RELA       7
+#define EX_DT_RELASZ     8
+#define EX_DT_RELAENT    9
+#define EX_DT_REL       17
+#define EX_DT_RELSZ     18
+#define EX_DT_RELENT    19
+#define EX_R_X86_64_RELATIVE 8
+
+static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
+                                uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                                uint32_t *out_applied, uint32_t *out_skipped) {
+    *out_applied = *out_skipped = 0;
+
+    /* Locate PT_DYNAMIC and read its file bytes. */
+    uint64_t doff = 0, dsz = 0;
+    for (int i = 0; i < phnum; i++) {
+        const uint8_t *cur = f + phoff + (uint64_t)i * phentsize;
+        uint32_t t;
+        memcpy(&t, cur, 4);
+        if (t != 2) continue;                       /* PT_DYNAMIC */
+        memcpy(&doff, cur + 8, 8);
+        memcpy(&dsz, cur + 32, 8);
+        break;
+    }
+    if (dsz == 0) return 0;                         /* no dynamic section */
+    if (doff > fsz || dsz > fsz - doff) return -1;
+    if (dsz < 16) return 0;
+
+    /* Parse d_tag/d_val pairs until DT_NULL. */
+    uint64_t rela = 0, relasz = 0, relaent = 24;
+    uint64_t rel  = 0, relsz  = 0, relent = 16;
+    const uint8_t *d = f + doff;
+    for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
+        uint64_t tag, val;
+        memcpy(&tag, d + k, 8);
+        memcpy(&val, d + k + 8, 8);
+        if (tag == EX_DT_NULL) break;
+        switch (tag) {
+        case EX_DT_RELA:   rela = val;   break;
+        case EX_DT_RELASZ: relasz = val; break;
+        case EX_DT_RELAENT:relaent = val;break;
+        case EX_DT_REL:    rel = val;    break;
+        case EX_DT_RELSZ:  relsz = val;  break;
+        case EX_DT_RELENT: relent = val; break;
+        default: break;
+        }
+    }
+
+    /* RELA: r_addend is explicit.  *addr = bias + addend for RELATIVE. */
+    if (rela && relasz) {
+        uint64_t off;
+        if (relaent < 24) relaent = 24;
+        if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff, rela, relasz, &off) != 0)
+            return -1;
+        for (uint64_t k = 0; k + relaent <= relasz; k += relaent) {
+            const uint8_t *r = f + off + k;
+            uint64_t r_offset, r_info, r_addend;
+            memcpy(&r_offset, r, 8);
+            memcpy(&r_info, r + 8, 8);
+            memcpy(&r_addend, r + 16, 8);
+            uint32_t type = (uint32_t)(r_info & 0xffffffffu);
+            uint64_t *where = (uint64_t *)(uintptr_t)(bias + r_offset);
+            if (type == EX_R_X86_64_RELATIVE) {
+                *where = bias + r_addend;
+                (*out_applied)++;
+            } else {
+                (*out_skipped)++;
+            }
+        }
+    }
+
+    /* REL: implicit addend already stored at the target word. */
+    if (rel && relsz) {
+        uint64_t off;
+        if (relent < 16) relent = 16;
+        if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff, rel, relsz, &off) != 0)
+            return -1;
+        for (uint64_t k = 0; k + relent <= relsz; k += relent) {
+            const uint8_t *r = f + off + k;
+            uint64_t r_offset, r_info;
+            memcpy(&r_offset, r, 8);
+            memcpy(&r_info, r + 8, 8);
+            uint32_t type = (uint32_t)(r_info & 0xffffffffu);
+            uint64_t *where = (uint64_t *)(uintptr_t)(bias + r_offset);
+            if (type == EX_R_X86_64_RELATIVE) {
+                *where += bias;
+                (*out_applied)++;
+            } else {
+                (*out_skipped)++;
+            }
+        }
+    }
+    return 0;
+}
+
 /* -- the engine ------------------------------------------------------- */
 int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
                        VslExecResult *out) {
@@ -210,17 +338,21 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         return out->status;
     }
 
-    /* 1. Validate through the single owner; require STATIC ET_EXEC. */
-    uint64_t entry = 0;
-    if (vsl_elf_validate(elf_data, elf_size, &entry) != 0) {
+    /* 1. Validate through the single owner; ET_EXEC or ET_DYN accepted. */
+    uint64_t entry_link = 0;
+    if (vsl_elf_validate(elf_data, elf_size, &entry_link) != 0) {
         out->status = VSL_EXEC_ERR_FORMAT;
         return out->status;
     }
     const uint8_t *p = (const uint8_t *)elf_data;
     uint16_t e_type = (uint16_t)p[16] | ((uint16_t)p[17] << 8);
-    if (e_type != 2) { out->status = VSL_EXEC_ERR_FORMAT; return out->status; }
+    int is_dyn = (e_type == 3);
+    if (e_type != 2 && e_type != 3) {
+        out->status = VSL_EXEC_ERR_FORMAT;
+        return out->status;
+    }
 
-    /* 2. Walk PT_LOAD: bounding range + executable extents. */
+    /* 2. Parse ELF header + program header table. */
     uint16_t e_phnum = (uint16_t)p[56] | ((uint16_t)p[57] << 8);
     uint16_t e_phentsize = (uint16_t)p[54] | ((uint16_t)p[55] << 8);
     uint64_t e_phoff;
@@ -229,6 +361,63 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         out->status = VSL_EXEC_ERR_FORMAT;
         return out->status;
     }
+
+    /* Pass A: link-time geometry (needed to choose an ET_DYN load bias). */
+    uint64_t link_lo = UINT64_MAX, link_hi = 0;
+    for (int i = 0; i < e_phnum; i++) {
+        const uint8_t *cur = p + e_phoff + (uint64_t)i * e_phentsize;
+        uint32_t p_type;
+        uint64_t p_offset, p_vaddr, p_filesz, p_memsz;
+        memcpy(&p_type, cur, 4);
+        if (p_type != 1) continue;                   /* PT_LOAD */
+        memcpy(&p_offset, cur + 8, 8);
+        memcpy(&p_vaddr, cur + 16, 8);
+        memcpy(&p_filesz, cur + 32, 8);
+        memcpy(&p_memsz, cur + 40, 8);
+        if (p_memsz == 0) continue;
+        if (p_offset + p_filesz > elf_size) {
+            out->status = VSL_EXEC_ERR_FORMAT;
+            return out->status;
+        }
+        uint64_t ps = p_vaddr & ~0xFFFULL;
+        uint64_t pe = (p_vaddr + p_memsz + 0xFFF) & ~0xFFFULL;
+        if (ps < link_lo) link_lo = ps;
+        if (pe > link_hi) link_hi = pe;
+    }
+
+    /* ET_DYN: pick a page-aligned base inside the trap window such that the
+     * whole image fits and nothing is mapped there.  bias = base - link_lo.
+     * ET_EXEC keeps bias 0 (map at the original absolute link addresses). */
+    uint64_t load_bias = 0;
+    if (is_dyn) {
+        if (link_lo == UINT64_MAX || link_hi <= link_lo) {
+            out->status = VSL_EXEC_ERR_FORMAT;
+            return out->status;
+        }
+        uint64_t span = link_hi - link_lo;
+        if (span > (uint64_t)VSL_USER_SIZE) {
+            out->status = VSL_EXEC_ERR_WINDOW;
+            return out->status;
+        }
+        int found = 0;
+        for (uint64_t k = 0; k < 64; k++) {
+            uint64_t base = EX_WIN_LO + k * 0x00100000ULL;
+            if (base + span > EX_WIN_HI) break;
+            if (ex_range_free(base, base + span)) {
+                load_bias = base - link_lo;
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            out->status = VSL_EXEC_ERR_COLLISION;
+            return out->status;
+        }
+    }
+    out->load_bias = load_bias;                      /* 0 for ET_EXEC */
+    uint64_t entry = entry_link + load_bias;
+
+    /* Pass B: biased bounding range + executable extents. */
     uint64_t lo = UINT64_MAX, hi = 0;
     uint64_t xlo = UINT64_MAX, xhi = 0;
     int n_load = 0;
@@ -244,21 +433,18 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         memcpy(&p_filesz, cur + 32, 8);
         memcpy(&p_memsz, cur + 40, 8);
         if (p_memsz == 0) continue;
-        if (p_offset + p_filesz > elf_size) {
-            out->status = VSL_EXEC_ERR_FORMAT;
-            return out->status;
-        }
-        if (p_vaddr < EX_WIN_LO || p_vaddr + p_memsz > EX_WIN_HI) {
+        uint64_t dest = p_vaddr + load_bias;
+        if (dest < EX_WIN_LO || dest + p_memsz > EX_WIN_HI) {
             out->status = VSL_EXEC_ERR_WINDOW;
             return out->status;
         }
-        uint64_t ps = p_vaddr & ~0xFFFULL;
-        uint64_t pe = (p_vaddr + p_memsz + 0xFFF) & ~0xFFFULL;
+        uint64_t ps = dest & ~0xFFFULL;
+        uint64_t pe = (dest + p_memsz + 0xFFF) & ~0xFFFULL;
         if (ps < lo) lo = ps;
         if (pe > hi) hi = pe;
         if (p_flags & 1) { /* PF_X */
-            if (p_vaddr < xlo) xlo = p_vaddr;
-            if (p_vaddr + p_memsz > xhi) xhi = p_vaddr + p_memsz;
+            if (dest < xlo) xlo = dest;
+            if (dest + p_memsz > xhi) xhi = dest + p_memsz;
         }
         n_load++;
     }
@@ -299,7 +485,22 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         memcpy(&p_vaddr, cur + 16, 8);
         memcpy(&p_filesz, cur + 32, 8);
         if (p_filesz)
-            memcpy((void *)(uintptr_t)p_vaddr, p + p_offset, (size_t)p_filesz);
+            memcpy((void *)(uintptr_t)(p_vaddr + load_bias), p + p_offset,
+                   (size_t)p_filesz);
+    }
+
+    /* 3b. ET_DYN: apply RELATIVE relocations to the loaded image.  No
+     *     symbol resolution: any other relocation type is a hard reject. */
+    if (is_dyn) {
+        uint32_t applied = 0, skipped = 0;
+        if (ex_apply_relocations(elf_data, elf_size, load_bias, e_phnum,
+                                 e_phentsize, e_phoff, &applied, &skipped) != 0) {
+            rc = VSL_EXEC_ERR_RELOC;
+            goto cleanup;
+        }
+        out->relocations_applied = applied;
+        out->relocations_skipped = skipped;
+        if (skipped) { rc = VSL_EXEC_ERR_RELOCTYPE; goto cleanup; }
     }
 
     /* 4. Process record through the single owner; run as that pid. */

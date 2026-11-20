@@ -56,6 +56,83 @@ static size_t build_tiny_elf(uint8_t *buf, uint64_t vaddr, uint16_t e_type,
     return 0x1000 + n;
 }
 
+/* Hand-assemble a minimal ET_DYN with ONE known R_X86_64_RELATIVE:
+ *   PT_LOAD @0x1000 (code + data), PT_DYNAMIC @0x1200, .rela @0x1300.
+ * The relocation writes (load_bias + 0x1110) into the 8-byte slot @0x1100.
+ * Code writes those 8 raw bytes to fd 1, then writes "VSL-DYN-OK\n" through
+ * the relocated pointer, then exit(0).  Perfectly known computed address. */
+#define EX_DYN_ADDEND 0x1110ULL
+static size_t build_dyn_elf(uint8_t *buf) {
+    memset(buf, 0, 0x1400);
+    buf[0] = 0x7f; buf[1] = 'E'; buf[2] = 'L'; buf[3] = 'F';
+    buf[4] = 2; buf[5] = 1; buf[6] = 1;
+    uint16_t u16; uint32_t u32; uint64_t u64;
+    u16 = 3;    memcpy(buf + 16, &u16, 2);       /* e_type ET_DYN */
+    u16 = 0x3e; memcpy(buf + 18, &u16, 2);       /* EM_X86_64 */
+    u32 = 1;    memcpy(buf + 20, &u32, 4);       /* EV_CURRENT */
+    u64 = 0x1000; memcpy(buf + 24, &u64, 8);     /* e_entry (link address) */
+    u64 = 64;   memcpy(buf + 32, &u64, 8);       /* e_phoff */
+    u16 = 64;   memcpy(buf + 52, &u16, 2);       /* e_ehsize */
+    u16 = 56;   memcpy(buf + 54, &u16, 2);       /* e_phentsize */
+    u16 = 2;    memcpy(buf + 56, &u16, 2);       /* e_phnum */
+    /* phdr[0] PT_LOAD @64 */
+    u32 = 1;    memcpy(buf + 64, &u32, 4);
+    u32 = 7;    memcpy(buf + 68, &u32, 4);       /* PF_R|W|X */
+    u64 = 0x1000; memcpy(buf + 72, &u64, 8);     /* p_offset */
+    u64 = 0x1000; memcpy(buf + 80, &u64, 8);     /* p_vaddr */
+    u64 = 0x1000; memcpy(buf + 88, &u64, 8);     /* p_paddr */
+    u64 = 0x400;  memcpy(buf + 96, &u64, 8);     /* p_filesz */
+    u64 = 0x400;  memcpy(buf + 104, &u64, 8);    /* p_memsz */
+    u64 = 0x1000; memcpy(buf + 112, &u64, 8);    /* p_align */
+    /* phdr[1] PT_DYNAMIC @120 */
+    u32 = 2;    memcpy(buf + 120, &u32, 4);
+    u32 = 6;    memcpy(buf + 124, &u32, 4);      /* PF_R|W */
+    u64 = 0x1200; memcpy(buf + 128, &u64, 8);    /* p_offset */
+    u64 = 0x1200; memcpy(buf + 136, &u64, 8);    /* p_vaddr */
+    u64 = 0x1200; memcpy(buf + 144, &u64, 8);    /* p_paddr */
+    u64 = 0x40;   memcpy(buf + 152, &u64, 8);    /* p_filesz */
+    u64 = 0x40;   memcpy(buf + 160, &u64, 8);    /* p_memsz */
+    u64 = 8;      memcpy(buf + 168, &u64, 8);    /* p_align */
+    /* code @0x1000 (RIP-relative displacements are base-independent) */
+    {
+        static const uint8_t code[] = {
+            0x48,0x8d,0x35,0xf9,0x00,0x00,0x00,   /* lea 0x1100(%rip),%rsi */
+            0xb8,0x01,0x00,0x00,0x00,             /* mov $1,%eax */
+            0xbf,0x01,0x00,0x00,0x00,             /* mov $1,%edi */
+            0xba,0x08,0x00,0x00,0x00,             /* mov $8,%edx */
+            0x0f,0x05,                           /* syscall: write ptr bytes */
+            0x48,0x8b,0x35,0xe1,0x00,0x00,0x00,   /* mov 0x1100(%rip),%rsi */
+            0xb8,0x01,0x00,0x00,0x00,             /* mov $1,%eax */
+            0xbf,0x01,0x00,0x00,0x00,             /* mov $1,%edi */
+            0xba,0x0b,0x00,0x00,0x00,             /* mov $11,%edx */
+            0x0f,0x05,                           /* syscall: write string */
+            0xb8,0x3c,0x00,0x00,0x00,             /* mov $60,%eax */
+            0x31,0xff,                           /* xor %edi,%edi */
+            0x0f,0x05                            /* syscall: exit(0) */
+        };
+        memcpy(buf + 0x1000, code, sizeof(code));
+    }
+    memcpy(buf + 0x1110, "VSL-DYN-OK\n", 11);
+    /* PT_DYNAMIC @0x1200 */
+    u64 = 7;    memcpy(buf + 0x1200, &u64, 8); u64 = 0x1300; memcpy(buf + 0x1208, &u64, 8);
+    u64 = 8;    memcpy(buf + 0x1210, &u64, 8); u64 = 24;     memcpy(buf + 0x1218, &u64, 8);
+    u64 = 9;    memcpy(buf + 0x1220, &u64, 8); u64 = 24;     memcpy(buf + 0x1228, &u64, 8);
+    u64 = 0;    memcpy(buf + 0x1230, &u64, 8); u64 = 0;      memcpy(buf + 0x1238, &u64, 8);
+    /* Elf64_Rela @0x1300: r_offset=0x1100, r_info=8 (RELATIVE), addend=0x1110 */
+    u64 = 0x1100; memcpy(buf + 0x1300, &u64, 8);
+    u64 = 8;      memcpy(buf + 0x1308, &u64, 8);
+    u64 = EX_DYN_ADDEND; memcpy(buf + 0x1310, &u64, 8);
+    return 0x1400;
+}
+
+/* Pre-change loader rule: any e_type != ET_EXEC(2) was rejected as FORMAT.
+ * Used as the differential negative control against the exact fixture. */
+static int legacy_rejects_et_dyn(const uint8_t *img, size_t n) {
+    if (n < 64) return 0;
+    uint16_t t = (uint16_t)img[16] | ((uint16_t)img[17] << 8);
+    return t != 2;
+}
+
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
     if (argc < 2) {
@@ -159,14 +236,62 @@ int main(int argc, char **argv) {
         rc = vsl_exec_elf_bytes(garbage, sizeof(garbage), &r);
         CHECK(rc == VSL_EXEC_ERR_FORMAT, "garbage bytes rejected (FORMAT)");
         size_t n = build_tiny_elf(img, 0x40000000ULL, 3 /* ET_DYN */, code, sizeof(code));
-        rc = vsl_exec_elf_bytes(img, n, &r);
-        CHECK(rc == VSL_EXEC_ERR_FORMAT, "ET_DYN rejected (static ET_EXEC only)");
+        /* ET_DYN is now SUPPORTED (gates i/j). The pre-change rule would have
+         * rejected this same image: keep that as the negative control. */
+        CHECK(legacy_rejects_et_dyn(img, n),
+              "ET_DYN image would be rejected by pre-change loader");
         n = build_tiny_elf(img, 0x400000ULL /* below VSL window */, 2, code, sizeof(code));
         rc = vsl_exec_elf_bytes(img, n, &r);
         CHECK(rc == VSL_EXEC_ERR_WINDOW, "out-of-window link address rejected");
         rc = vsl_exec_elf("/nonexistent/vsl-guest.elf", &r);
         CHECK(rc == VSL_EXEC_ERR_ARGS, "missing file rejected cleanly");
     }
+
+    /* (i) ET_DYN differential gate: hand-assembled ET_DYN with one known
+     *     R_X86_64_RELATIVE.  Pre-change loader rejects it; new one runs it
+     *     and the guest echoes the computed relocated address. */
+    {
+        uint8_t img[0x1400];
+        size_t n = build_dyn_elf(img);
+        CHECK(legacy_rejects_et_dyn(img, n),
+              "negative control: pre-change loader rejects this ET_DYN fixture");
+        rc = vsl_exec_elf_bytes(img, n, &r);
+        uint64_t ptr = 0;
+        if (r.output_len >= 8) memcpy(&ptr, r.output, 8);
+        printf("[gate i] ET_DYN(relative): rc=%d exit=%d bias=0x%llx applied=%u skipped=%u "
+               "ptr=0x%llx out_len=%zu tail=\"%.*s\"\n",
+               rc, r.exit_code, (unsigned long long)r.load_bias,
+               r.relocations_applied, r.relocations_skipped,
+               (unsigned long long)ptr, r.output_len,
+               (int)(r.output_len > 8 ? r.output_len - 8 : 0),
+               r.output_len > 8 ? r.output + 8 : "");
+        CHECK(rc == VSL_EXEC_OK && r.exit_code == 0, "ET_DYN: runs to exit(0)");
+        CHECK(r.load_bias != 0, "ET_DYN: non-zero load bias selected");
+        CHECK(r.relocations_applied == 1 && r.relocations_skipped == 0,
+              "ET_DYN: exactly one RELATIVE relocation applied, none skipped");
+        CHECK(r.output_len == 19, "ET_DYN: 8 pointer bytes + 11 string bytes");
+        CHECK(ptr == r.load_bias + EX_DYN_ADDEND,
+              "ET_DYN: relocated pointer == load_bias + addend (computed address)");
+        CHECK((ptr & 0xfffULL) == (EX_DYN_ADDEND & 0xfffULL),
+              "ET_DYN: chosen base is page-aligned (pointer low bits match addend)");
+        CHECK(ptr >= VSL_USER_BASE && ptr < VSL_USER_BASE + VSL_USER_SIZE,
+              "ET_DYN: relocated address lies inside VSL trap window");
+        CHECK(r.output_len == 19 && memcmp(r.output + 8, "VSL-DYN-OK\n", 11) == 0,
+              "ET_DYN: string read through relocated pointer");
+    }
+
+    /* (j) A REAL gcc-produced ET_DYN shared object with one R_X86_64_RELATIVE. */
+    snprintf(path, sizeof(path), "%s/guest_dyn.elf", dir);
+    rc = vsl_exec_elf(path, &r);
+    printf("[gate j] real .so: rc=%d exit=%d bias=0x%llx applied=%u skipped=%u out_len=%zu out=\"%.*s\"\n",
+           rc, r.exit_code, (unsigned long long)r.load_bias,
+           r.relocations_applied, r.relocations_skipped, r.output_len,
+           (int)r.output_len, r.output);
+    CHECK(rc == VSL_EXEC_OK && r.exit_code == 0, "real ET_DYN .so runs to exit(0)");
+    CHECK(r.load_bias != 0 && r.relocations_applied >= 1 && r.relocations_skipped == 0,
+          "real .so: relocated at a bias with RELATIVE applied");
+    CHECK(r.output_len == 11 && memcmp(r.output, "VSL-DYN-SO\n", 11) == 0,
+          "real .so: output read through relocated pointer");
 
     /* (h) host syscalls still real after all runs (filter ALLOW path) */
     CHECK(getpid() > 0, "host getpid still works after engine runs");

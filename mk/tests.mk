@@ -640,12 +640,23 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_getpid.elf \
 	$(RT)/vsl/exec_guests/guest_uname.elf \
 	$(RT)/vsl/exec_guests/guest_exit_group.elf \
-	$(RT)/vsl/exec_guests/guest_fault.elf
+	$(RT)/vsl/exec_guests/guest_fault.elf \
+	$(RT)/vsl/exec_guests/guest_dyn.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
 		-fno-stack-protector -fno-asynchronous-unwind-tables \
 		-Wl,-N -Wl,-Ttext-segment=0x40000000 -Wl,--build-id=none $< -o $@
+
+# ET_DYN differential fixture: a REAL gcc-produced shared object whose single
+# R_X86_64_RELATIVE relocation is applied by the VSL loader.  No libc and no
+# external symbols: just _start writing through the relocated pointer.
+$(RT)/vsl/exec_guests/guest_dyn.elf: \
+		$(RT)/vsl/exec_guests/guest_dyn.c \
+		$(RT)/vsl/exec_guests/guest_dyn_start.S
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-stack-protector \
+		-fno-asynchronous-unwind-tables -Wl,-N -Wl,--build-id=none \
+		-Wl,-e,_start $^ -o $@
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o

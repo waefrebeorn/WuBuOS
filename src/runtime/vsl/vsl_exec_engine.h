@@ -1,13 +1,20 @@
 /*
  * vsl_exec_engine.h  --  VSL in-process execution engine (L11)
  *
- * Runs a STATIC freestanding x86-64 Linux ELF (ET_EXEC) inside the host
- * process: segments are mapped at their link addresses inside the VSL user
- * window, control transfers to e_entry on a private guest stack, and every
- * syscall the guest issues is trapped by a seccomp SECCOMP_RET_TRAP filter
- * scoped to the VSL user window and dispatched through the REAL
- * vsl_syscall_dispatch() (Linux personality).  exit/exit_group unwind back
- * to the caller via siglongjmp -- the host process never dies.
+ * Runs a freestanding x86-64 Linux ELF (static ET_EXEC, or ET_DYN with
+ * R_X86_64_RELATIVE-only relocations) inside the host process: segments are
+ * mapped at their link addresses (ET_EXEC) or at a chosen in-window base
+ * (ET_DYN) inside the VSL user window, control transfers to e_entry on a
+ * private guest stack, and every syscall the guest issues is trapped by a
+ * seccomp SECCOMP_RET_TRAP filter scoped to the VSL user window and
+ * dispatched through the REAL vsl_syscall_dispatch() (Linux personality).
+ * exit/exit_group unwind back to the caller via siglongjmp -- the host
+ * process never dies.
+ *
+ * ET_DYN support is deliberately MINIMAL: only R_X86_64_RELATIVE is applied.
+ * Any other dynamic relocation type is rejected (VSL_EXEC_ERR_RELOCTYPE);
+ * there is no ld.so/glibc compatibility, no symbol resolution and no
+ * external-symbol (GLOB_DAT/JUMP_SLOT/COPY/TLSDESC) support.
  *
  * Guest link addresses MUST fall inside [VSL_USER_BASE, VSL_USER_BASE +
  * VSL_USER_SIZE): that window is the seccomp trap scope, so guest code
@@ -39,7 +46,9 @@ enum {
     VSL_EXEC_ERR_FILTER    = -7,  /* seccomp filter install failed */
     VSL_EXEC_ERR_ENTRY     = -8,  /* entry not inside a loaded exec segment */
     VSL_EXEC_ERR_FAULT     = -9,  /* guest SIGSEGV/SIGBUS (engine survived) */
-    VSL_EXEC_ERR_SIGNAL    = -10  /* sigaction/setcontext setup failed */
+    VSL_EXEC_ERR_SIGNAL    = -10, /* sigaction/setcontext setup failed */
+    VSL_EXEC_ERR_RELOC     = -11, /* ET_DYN relocation table malformed */
+    VSL_EXEC_ERR_RELOCTYPE = -12  /* ET_DYN has unsupported relocation types */
 };
 
 typedef struct {
@@ -51,6 +60,10 @@ typedef struct {
     uint64_t fault_addr;        /* si_addr when status == ERR_FAULT */
     size_t   output_len;        /* bytes captured from guest fd 1+2 */
     char     output[VSL_EXEC_OUTPUT_MAX];
+    /* ET_DYN diagnostics (zero for static ET_EXEC) */
+    uint64_t load_bias;         /* bias applied to ET_DYN link addresses */
+    uint32_t relocations_applied;/* R_X86_64_RELATIVE entries applied */
+    uint32_t relocations_skipped;/* relocation types not supported -> error */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
