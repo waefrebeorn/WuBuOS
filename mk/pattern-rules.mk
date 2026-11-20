@@ -64,6 +64,14 @@ $(JIT)/%.o: $(JIT)/%.c
 $(GUI)/%.o: $(GUI)/%.c
 	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) `pkg-config --cflags wlroots vulkan gbm libdrm 2>/dev/null` -MMD -MP -c $< -o $@ -Iinclude
 
+# Hosted signing leaves: compiled with the AUTO-DETECTED backend config.
+# Separate object path so a plain test/GUI build cannot leave a stale
+# no-backend object that `make hosted` would then link without the native
+# core.  The generated config header is a prerequisite for rebuilds.
+$(WUBU_EDDSA_BUILD_DIR)/hosted/%.o: $(GUI)/%.c $(WUBU_EDDSA_BUILD_DIR)/native_eddsa_config.h
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(WUBU_EDDSA_HOSTED_CFLAGS) -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -MMD -MP -c $< -o $@ -Iinclude
+
 # Special rule for wubu_ui_hosted.o
 $(GUI)/wubu_ui_hosted.o: $(GUI)/wubu_ui.c
 	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) `pkg-config --cflags wlroots vulkan gbm libdrm 2>/dev/null` -MMD -MP -c $< -o $@ -Iinclude

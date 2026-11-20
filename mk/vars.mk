@@ -30,6 +30,16 @@ SHELL_DIR  = src/shell
 BEAR    = src/bear
 FW       = src/firmware
 
+# ── Auto-detected EdDSA backend config (hosted/product build) ──────────────
+# Build-time probe: probes what is installed, NEVER fetches anything.  An
+# already-cached repo-local mbedTLS dev root enables the ladder (and, with
+# OpenSSL, the native core); an absent root yields a valid fail-closed config
+# instead of blocking `make hosted`.  Regenerated at parse time and written
+# only on change, so the generated header also drives incremental rebuilds.
+WUBU_EDDSA_BUILD_DIR := build
+$(shell mkdir -p $(WUBU_EDDSA_BUILD_DIR) && bash tools/detect_native_eddsa.sh --out-dir $(WUBU_EDDSA_BUILD_DIR) --quiet)
+include $(WUBU_EDDSA_BUILD_DIR)/native_eddsa.mk
+
 # ── Hosted TLS configuration gate ─────────────────────────────────────────
 # The DEFAULT hosted build deliberately does NOT link mbedTLS: HTTPS fails
 # closed (oci_http_connect returns -1 without -DWUBU_HAVE_MBEDTLS).  Wiring

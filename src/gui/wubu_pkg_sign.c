@@ -4,6 +4,10 @@
  * mbedTLS build); this file is the single owner of the signed-message
  * layout and of the fail-closed package gate.
  */
+#ifdef WUBU_EDDSA_USE_BUILD_CONFIG
+/* Auto-detected backend config (tools/detect_native_eddsa.sh). */
+#include "native_eddsa_config.h"
+#endif
 #include "wubu_pkg_sign.h"
 #include "wubu_pkg_sign_internal.h"
 #include "../runtime/wubu_crypto.h"

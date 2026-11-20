@@ -4,6 +4,11 @@
  * WUBU_HAVE_MBEDTLS is defined. Never use MBEDTLS_SSL_H as the feature
  * macro: it is mbedTLS's own include guard.
  */
+#ifdef WUBU_EDDSA_USE_BUILD_CONFIG
+/* Auto-detected backend config from tools/detect_native_eddsa.sh.  Included
+ * FIRST so the feature macros are visible to wubu_pkg_sign_internal.h. */
+#include "native_eddsa_config.h"
+#endif
 #include "wubu_pkg_sign.h"
 #include "wubu_pkg_sign_internal.h"
 #include "../runtime/wubu_crypto.h"
@@ -172,6 +177,13 @@ cleanup:
 #define WUBU_ED25519_FIELD_LIMBS \
     ((255u / (sizeof(mbedtls_mpi_uint) * 8u)) + 1u)
 
+#ifdef WUBU_EDDSA_CT_PROBE
+/* Evidence-only counter: compiled ONLY by tools/eddsa_ct_evidence.sh, never
+ * by a product or gate build. Counts constant-selection calls. */
+static unsigned long wubu_ct_cswap_calls = 0;
+unsigned long wubu_pkg_ed25519_ct_cswap_calls(void) { return wubu_ct_cswap_calls; }
+#endif
+
 static int ge_grow(ge *p, size_t limbs) {
     int rc = mbedtls_mpi_grow(&p->x, limbs);
     if (!rc) rc = mbedtls_mpi_grow(&p->y, limbs);
@@ -185,6 +197,9 @@ static int ge_grow(ge *p, size_t limbs) {
  * 2.28.8 object code masks the swap byte into an all-ones/all-zeros limb mask
  * with neg/or/sar and XOR-selects every limb (no data-dependent branch). */
 static int ge_cswap(ge *a, ge *b, unsigned char swap) {
+#ifdef WUBU_EDDSA_CT_PROBE
+    ++wubu_ct_cswap_calls;
+#endif
     int rc = mbedtls_mpi_safe_cond_swap(&a->x, &b->x, swap);
     if (!rc) rc = mbedtls_mpi_safe_cond_swap(&a->y, &b->y, swap);
     if (!rc) rc = mbedtls_mpi_safe_cond_swap(&a->z, &b->z, swap);
@@ -675,4 +690,28 @@ bool wubu_pkg_verify_bytes(const uint8_t *data, size_t len, const char *domain,
     }
     return wubu_pkg_sign_verify_ed25519(digest, pubkey_hex, sig, err, errsz);
 }
+
+#ifdef WUBU_EDDSA_CT_PROBE
+/* Evidence hook: run the REAL production ladder on a raw little-endian
+ * scalar and return the number of constant-selection calls it made.  The
+ * evidence script asserts this count is identical for every scalar class. */
+int wubu_pkg_ed25519_ct_ladder_run(const char *scalar_hex, char *err, size_t errsz) {
+    uint8_t s[32];
+    mbedtls_mpi n;
+    ge p, r;
+    int rc = 0;
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!constants_init()) { wubu_pkg_sign_set_err(err, errsz, "constants init failed"); return -1; }
+    if (hex_to_32(scalar_hex, s) != 0) { wubu_pkg_sign_set_err(err, errsz, "bad scalar hex"); return -1; }
+    mbedtls_mpi_init(&n); ge_init(&p); ge_init(&r);
+    TRY(scalar_from_le(&n, s, 32));
+    TRY(ge_base(&p));
+    wubu_ct_cswap_calls = 0;
+    TRY(ge_mul(&r, &p, &n));
+cleanup:
+    mbedtls_mpi_free(&n); ge_free(&p); ge_free(&r);
+    if (rc != 0) wubu_pkg_sign_set_err(err, errsz, "ladder probe failed");
+    return rc;
+}
+#endif /* WUBU_EDDSA_CT_PROBE */
 #endif /* WUBU_HAVE_MBEDTLS */
