@@ -17,7 +17,15 @@
  */
 #include "wubu_drv.h"
 #include "wubu_drv_virtio.h"
-#include "wubu_virtio_ids.h"
+/* Independent oracle: these are the IDs a real QEMU legacy virtio device
+ * presents. Deliberately literal — using wubu_virtio_ids.h for both the
+ * simulated device and the assertion would let both drift together and
+ * the gate would pass on wrong IDs. */
+#define QEMU_VIRTIO_VENDOR     0x1AF4u
+#define QEMU_VIRTIO_BLK_DEVICE 0x1001u
+#define QEMU_VIRTIO_NET_DEVICE 0x1000u
+#define QEMU_VIRTIO_GPU_DEVICE 0x100Fu
+#define QEMU_VIRTIO_INPUT_DEVICE 0x1010u
 #include "wubu_drv_arm.h"
 #include "wubu_drv_intel.h"
 #include <stdio.h>
@@ -41,14 +49,14 @@ int main(void)
     wubu_drv_dev_t d;
     memset(&d, 0, sizeof(d));
     d.bus = WUBU_DRV_BUS_PCI;
-    d.vendor = WUBU_VIRTIO_VENDOR_ID;
-    d.device = WUBU_VIRTIO_BLK_DEVICE_ID;   /* real legacy virtio-blk */
+    d.vendor = QEMU_VIRTIO_VENDOR;
+    d.device = QEMU_VIRTIO_BLK_DEVICE;   /* real legacy virtio-blk */
     wubu_drv_add_device(&d);
-    d.device = WUBU_VIRTIO_NET_DEVICE_ID;   /* real legacy virtio-net */
+    d.device = QEMU_VIRTIO_NET_DEVICE;   /* real legacy virtio-net */
     wubu_drv_add_device(&d);
-    d.device = WUBU_VIRTIO_GPU_DEVICE_ID;   /* real legacy virtio-gpu */
+    d.device = QEMU_VIRTIO_GPU_DEVICE;   /* real legacy virtio-gpu */
     wubu_drv_add_device(&d);
-    d.device = WUBU_VIRTIO_INPUT_DEVICE_ID; /* real legacy virtio-input */
+    d.device = QEMU_VIRTIO_INPUT_DEVICE; /* real legacy virtio-input */
     wubu_drv_add_device(&d);
 
     wubu_drv_probe();
@@ -56,23 +64,23 @@ int main(void)
     /* the behavior gate: real legacy PCI IDs must bind to the RIGHT driver */
     const wubu_drv_dev_t *vblk = wubu_drv_find("virtio-blk");
     if (!vblk) FAIL("virtio-blk (1AF4:1001) not bound");
-    if (vblk->vendor != WUBU_VIRTIO_VENDOR_ID ||
-        vblk->device != WUBU_VIRTIO_BLK_DEVICE_ID)
+    if (vblk->vendor != QEMU_VIRTIO_VENDOR ||
+        vblk->device != QEMU_VIRTIO_BLK_DEVICE)
         FAIL("virtio-blk bound to %04X:%04X, want %04X:%04X",
              vblk->vendor, vblk->device,
-             WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_BLK_DEVICE_ID);
+             QEMU_VIRTIO_VENDOR, QEMU_VIRTIO_BLK_DEVICE);
     const wubu_drv_dev_t *vnet = wubu_drv_find("virtio-net");
     if (!vnet) FAIL("virtio-net (1AF4:1000) not bound");
-    if (vnet->vendor != WUBU_VIRTIO_VENDOR_ID ||
-        vnet->device != WUBU_VIRTIO_NET_DEVICE_ID)
+    if (vnet->vendor != QEMU_VIRTIO_VENDOR ||
+        vnet->device != QEMU_VIRTIO_NET_DEVICE)
         FAIL("virtio-net bound to %04X:%04X, want %04X:%04X",
              vnet->vendor, vnet->device,
-             WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_NET_DEVICE_ID);
+             QEMU_VIRTIO_VENDOR, QEMU_VIRTIO_NET_DEVICE);
     const wubu_drv_dev_t *vgpu = wubu_drv_find("virtio-gpu");
-    if (!vgpu || vgpu->device != WUBU_VIRTIO_GPU_DEVICE_ID)
+    if (!vgpu || vgpu->device != QEMU_VIRTIO_GPU_DEVICE)
         FAIL("virtio-gpu (1AF4:100F) not bound");
     const wubu_drv_dev_t *vinput = wubu_drv_find("virtio-input");
-    if (!vinput || vinput->device != WUBU_VIRTIO_INPUT_DEVICE_ID)
+    if (!vinput || vinput->device != QEMU_VIRTIO_INPUT_DEVICE)
         FAIL("virtio-input (1AF4:1010) not bound");
 
     if (!wubu_virtio_negotiated()) FAIL("virtio negotiation failed");
