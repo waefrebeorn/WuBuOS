@@ -278,7 +278,13 @@ int wubu_pkgmgr_key_revoked_count(void);
  * see src/gui/wubu_pkgmgr_revoke_feed.c for the exact grammar.  The admin
  * signature is over a domain-separated SHA-256 of the EXACT feed file bytes
  * (distinct from the single-command domain below) and is verified before
- * any database mutation.  Entries are then applied atomically. */
+ * any database mutation.  Entries are then applied atomically.
+ *
+ * A feed may begin with a signed `{"seq":N}` generation line.  The importer
+ * enforces N strictly monotonically inside the same transaction as the entry
+ * apply: N <= the stored generation refuses with zero DB writes (replay),
+ * while N > stored applies and advances the generation atomically.  Seq-less
+ * feeds have generation 0 and keep the legacy idempotent behavior. */
 #define WUBU_PKG_REVOCATION_FEED_DOMAIN "WUBU-PKG-REVOCATION-v1/feed"
 #define WUBU_PKGMGR_FEED_MAX_BYTES  (64u * 1024u)
 #define WUBU_PKGMGR_FEED_MAX_ENTRIES 64u

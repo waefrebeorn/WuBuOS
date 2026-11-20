@@ -42,9 +42,10 @@ void wubu_pkg_sync_config_init(wubu_pkg_sync_config_t *cfg);
 
 /* Load trusted sync URLs from `path` (one `trusted_sync_url=<url>` per line;
  * blank and '#' lines are ignored), then append comma-separated URLs from the
- * WUBU_PKGMGR_SYNC_URLS environment variable, then from `extra`.  A missing
- * file is fine (no URLs trusted); a malformed line/bad URL returns -1.
- * Returns the resulting trusted URL count (bounded). */
+ * WUBU_PKGMGR_SYNC_URLS environment variable, from `extra` (CLI), and finally
+ * from the GUI settings store key `trusted_sync_url`.  A missing file is fine
+ * (no URLs); a malformed line/bad URL returns -1.  Returns the resulting
+ * trusted URL count (bounded). */
 int wubu_pkg_sync_config_load(const char *path, const char *extra,
                               wubu_pkg_sync_config_t *cfg);
 

@@ -11,6 +11,7 @@
  */
 #include "wubu_pkgmgr_revoke_sync.h"
 #include "wubu_pkgmgr.h"
+#include "wubu_settings.h"
 #include "../runtime/oci/oci_internal.h"
 
 #include <ctype.h>
@@ -98,6 +99,10 @@ int wubu_pkg_sync_config_load(const char *path, const char *extra,
     /* A missing config file simply means no file-configured URLs. */
     if (!config_add_csv(cfg, getenv("WUBU_PKGMGR_SYNC_URLS"))) return -1;
     if (!config_add_csv(cfg, extra)) return -1;
+    /* GUI settings store is a first-class read path, not just config/env/CLI.
+     * Callers initialise settings before sync; an empty/uninitialised store
+     * simply contributes no URLs. */
+    if (!config_add_csv(cfg, wubu_settings_trusted_sync_url())) return -1;
     return cfg->n;
 }
 

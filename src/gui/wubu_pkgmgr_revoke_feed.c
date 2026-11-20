@@ -7,8 +7,11 @@
  *
  * Grammar (NDJSON): the file is a sequence of newline-delimited lines.  A
  * blank line or a line whose first non-whitespace byte is '#' is ignored.
- * Every other line must be one JSON object with EXACTLY two string members,
- * in either order:
+ * An OPTIONAL first meaningful line is the signed generation header
+ *     {"seq":<positive decimal integer>}
+ * (parsed by this leaf, enforced atomically by the importer).  Every other
+ * line must be one JSON object with EXACTLY two string members, in either
+ * order:
  *
  *     {"op":"revoke","key":"<64 lowercase hex chars>"}
  *     {"op":"unrevoke","key":"<64 lowercase hex chars>"}
@@ -22,6 +25,8 @@
 #include "wubu_pkgmgr_revoke_feed.h"
 #include "wubu_pkgmgr.h"
 
+#include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -109,16 +114,50 @@ static bool parse_entry(const char *line, wubu_revoke_feed_entry_t *e) {
     return key_hex_valid(e->key);
 }
 
-bool wubu_pkg_revoke_feed_parse(const uint8_t *data, size_t len,
-                                wubu_revoke_feed_entry_t *out,
-                                size_t max_entries, size_t *out_n,
-                                char *err, size_t errsz) {
+/* Parse an optional signed generation header: exactly {"seq":<uint>}.
+ * Returns false for any other line; never called on comments/blanks. */
+static bool parse_seq_line(const char *line, uint64_t *out_seq) {
+    const char *p = line;
+    uint64_t v = 0;
+    char name[16];
+
+    skip_ws(&p);
+    if (!eat(&p, '{')) return false;
+    skip_ws(&p);
+    if (!parse_plain_string(&p, name, sizeof(name))) return false;
+    if (strcmp(name, "seq") != 0) return false;
+    skip_ws(&p);
+    if (!eat(&p, ':')) return false;
+    skip_ws(&p);
+    if (*p < '0' || *p > '9') return false;
+    while (*p >= '0' && *p <= '9') {
+        unsigned d = (unsigned)(*p - '0');
+        /* Bounded to signed 64-bit so SQLite INTEGER round-trips exactly. */
+        if (v > (((uint64_t)INT64_MAX - d) / 10u)) return false;
+        v = v * 10u + d;
+        p++;
+    }
+    if (v == 0) return false;
+    skip_ws(&p);
+    if (!eat(&p, '}')) return false;
+    skip_ws(&p);
+    if (*p != '\0') return false;   /* trailing garbage */
+    *out_seq = v;
+    return true;
+}
+
+bool wubu_pkg_revoke_feed_parse_seq(const uint8_t *data, size_t len,
+                                    wubu_revoke_feed_entry_t *out,
+                                    size_t max_entries, size_t *out_n,
+                                    uint64_t *out_seq,
+                                    char *err, size_t errsz) {
     feed_seterr(err, errsz, "");
     if (!out || !out_n || !data) {
         feed_seterr(err, errsz, "bad parser arguments");
         return false;
     }
     *out_n = 0;
+    if (out_seq) *out_seq = 0;
     if (len == 0) { feed_seterr(err, errsz, "empty feed"); return false; }
     if (len > WUBU_PKGMGR_FEED_MAX_BYTES) {
         feed_seterr(err, errsz, "feed exceeds byte limit");
@@ -126,6 +165,8 @@ bool wubu_pkg_revoke_feed_parse(const uint8_t *data, size_t len,
     }
 
     size_t n = 0;
+    bool have_seq = false;
+    uint64_t seq = 0;
     const char *cur = (const char *)data;
     const char *end = cur + len;
     while (cur < end) {
@@ -154,11 +195,20 @@ bool wubu_pkg_revoke_feed_parse(const uint8_t *data, size_t len,
         const char *t = line;
         skip_ws(&t);
         if (*t && *t != '#') {
-            wubu_revoke_feed_entry_t e;
-            if (!parse_entry(t, &e)) {
-                feed_seterr(err, errsz, "malformed feed entry");
-                return false;
-            }
+            uint64_t line_seq = 0;
+            if (parse_seq_line(t, &line_seq)) {
+                if (have_seq || n > 0) {
+                    feed_seterr(err, errsz, "generation line must be first and unique");
+                    return false;
+                }
+                have_seq = true;
+                seq = line_seq;
+            } else {
+                wubu_revoke_feed_entry_t e;
+                if (!parse_entry(t, &e)) {
+                    feed_seterr(err, errsz, "malformed feed entry");
+                    return false;
+                }
             /* One key may appear at most once: rejects both a duplicate and
              * a conflicting revoke/unrevoke pair for the same key. */
             for (size_t i = 0; i < n; i++) {
@@ -172,6 +222,7 @@ bool wubu_pkg_revoke_feed_parse(const uint8_t *data, size_t len,
                 return false;
             }
             out[n++] = e;
+            }  /* end entry branch */
         }
         if (!nl) break;
         cur = nl + 1;
@@ -179,5 +230,14 @@ bool wubu_pkg_revoke_feed_parse(const uint8_t *data, size_t len,
 
     if (n == 0) { feed_seterr(err, errsz, "feed has no entries"); return false; }
     *out_n = n;
+    if (out_seq && have_seq) *out_seq = seq;
     return true;
+}
+
+bool wubu_pkg_revoke_feed_parse(const uint8_t *data, size_t len,
+                                wubu_revoke_feed_entry_t *out,
+                                size_t max_entries, size_t *out_n,
+                                char *err, size_t errsz) {
+    return wubu_pkg_revoke_feed_parse_seq(data, len, out, max_entries,
+                                          out_n, NULL, err, errsz);
 }

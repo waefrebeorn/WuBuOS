@@ -79,5 +79,6 @@ bool wubu_settings_high_contrast(void) { return g_settings.a11y.high_contrast; }
 bool wubu_settings_reduce_motion(void) { return g_settings.a11y.reduce_animations; }
 const char *wubu_settings_font_family(void) { return g_settings.fonts.font_family; }
 int wubu_settings_font_size(void) { return g_settings.fonts.font_size; }
+const char *wubu_settings_trusted_sync_url(void) { return g_settings.trusted_sync_url; }
 
 /* EOF */

@@ -19,6 +19,7 @@
 #include "wubu_pkgmgr.h"
 #include "wubu_pkgmgr_revoke_sync.h"
 #include "wubu_pkg_sign.h"
+#include "wubu_settings.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,9 +51,12 @@ static void usage(const char *name) {
         "       %s sign-recover <new_admin_pub_hex> --seed <seed_hex>\n"
         "       %s [--db DIR] feed <feed_file> --sig <sig_hex>\n"
         "       %s [--db DIR] sync <url> [--trusted <url[,url...]>]\n"
+        "       %s [--db DIR] set-sync-url <url[,url...]>\n"
+        "       %s [--db DIR] get-sync-url\n"
         "       %s sign <revoke|unrevoke> <key_hex> --seed <seed_hex>\n",
         name, name, name, name, name, name, name, name, name, name,
-        name, name, name, name, name, name, name, name, name, name, name, name);
+        name, name, name, name, name, name, name, name, name, name,
+        name, name, name, name, name, name);
 }
 
 static const char *opt_value(int argc, char **argv, const char *flag) {
@@ -298,6 +302,8 @@ int main(int argc, char **argv) {
         printf("%s feed %s applied %zu\n", ok ? "OK" : "REFUSED", pos[1], applied);
         rc = ok ? 0 : 1;
     } else if (strcmp(cmd, "sync") == 0 && np >= 2) {
+        /* GUI settings store is a first-class trusted-URL read path. */
+        wubu_settings_init();
         wubu_pkg_sync_config_t sync_cfg;
         char cfgpath[600];
         size_t applied = 0;
@@ -388,6 +394,20 @@ int main(int argc, char **argv) {
             printf("EXPIRY %s %lld\n", pos[1], (long long)exp);
         else
             printf("NOEXPIRY %s\n", pos[1]);
+    } else if (strcmp(cmd, "set-sync-url") == 0 && np >= 2) {
+        wubu_settings_init();
+        WubuSettings *s = wubu_settings_mut();
+        if (strlen(pos[1]) >= sizeof(s->trusted_sync_url)) {
+            fprintf(stderr, "ctl: set-sync-url: value too long\n");
+            rc = 1;
+        } else {
+            snprintf(s->trusted_sync_url, sizeof(s->trusted_sync_url), "%s", pos[1]);
+            wubu_settings_save();
+            printf("OK set-sync-url %s\n", s->trusted_sync_url);
+        }
+    } else if (strcmp(cmd, "get-sync-url") == 0) {
+        wubu_settings_init();
+        printf("SYNCURL %s\n", wubu_settings_get()->trusted_sync_url);
     } else if (strcmp(cmd, "list") == 0) {
         char keys[WUBU_PKGMGR_MAX_REVOKED_KEYS][65];
         int n = wubu_pkgmgr_key_revoked_list(keys, WUBU_PKGMGR_MAX_REVOKED_KEYS);

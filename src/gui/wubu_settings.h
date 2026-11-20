@@ -14,6 +14,10 @@
 
 /* -- Desktop Icon Layout (persistent, ReactOS NTUSER.DAT-style) --- */
 #define WUBU_ICON_LAYOUT_MAX 64
+
+/* GUI settings store key: comma-separated trusted revocation-feed sync URLs.
+ * Mirrors the bounded sync URL set in wubu_pkgmgr_revoke_sync.h. */
+#define WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX 512
 typedef struct {
     char name[32];      /* Icon display name (match key) */
     int  grid_x;        /* Persisted grid column */
@@ -132,6 +136,7 @@ typedef struct {
     DisplaySettings display;
     A11ySettings    a11y;
     PrivacySettings privacy;
+    char trusted_sync_url[WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX]; /* GUI-configured trusted sync URLs */
     uint32_t version;                /* Config schema version */
     uint64_t last_modified;          /* Unix timestamp */
 } WubuSettings;
@@ -171,5 +176,6 @@ bool     wubu_settings_high_contrast(void);        /* a11y.high_contrast */
 bool     wubu_settings_reduce_motion(void);        /* a11y.reduce_animations */
 const char *wubu_settings_font_family(void);       /* fonts.font_family */
 int      wubu_settings_font_size(void);            /* fonts.font_size */
+const char *wubu_settings_trusted_sync_url(void);  /* trusted_sync_url (GUI settings read path) */
 
 #endif /* WUBU_SETTINGS_H */

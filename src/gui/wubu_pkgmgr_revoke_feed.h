@@ -31,4 +31,18 @@ bool wubu_pkg_revoke_feed_parse(const uint8_t *data, size_t len,
                                 size_t max_entries, size_t *out_n,
                                 char *err, size_t errsz);
 
+/* Same strict parse, but also extracts the OPTIONAL signed generation
+ * header.  A generation line is the FIRST meaningful line and has the exact
+ * form {"seq":<positive decimal integer <= INT64_MAX>}.  It is part of the
+ * exact signed bytes, so it cannot be altered without invalidating the
+ * detached signature.  *out_seq receives 0 when no generation line is
+ * present (a legacy feed without a counter; accepted for compatibility).
+ * A second generation line, or one appearing after an entry, rejects the
+ * WHOLE feed. */
+bool wubu_pkg_revoke_feed_parse_seq(const uint8_t *data, size_t len,
+                                    wubu_revoke_feed_entry_t *out,
+                                    size_t max_entries, size_t *out_n,
+                                    uint64_t *out_seq,
+                                    char *err, size_t errsz);
+
 #endif /* WUBU_PKGMGR_REVOKE_FEED_H */

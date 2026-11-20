@@ -137,6 +137,7 @@ void settings_apply_defaults(WubuSettings *s) {
     settings_default_display(&s->display);
     settings_default_a11y(&s->a11y);
     settings_default_privacy(&s->privacy);
+    s->trusted_sync_url[0] = '\0';
     s->version = 1;
     s->last_modified = (uint64_t)time(NULL);
 }

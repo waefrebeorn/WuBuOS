@@ -127,6 +127,14 @@ static const char SCHEMA_SQL[] =
     "CREATE TABLE IF NOT EXISTS pkg_escrow_keys ("
     "  pubkey_hex TEXT PRIMARY KEY,"
     "  seq INTEGER NOT NULL"
+    ");"
+    /* Monotonic signed-feed generation. A feed with a {"seq":N} header may
+     * only advance this value; a lower or equal N is a replay and is refused
+     * inside the same transaction as the entry apply. Value 0 (no row) means
+     * no signed feed has been applied yet. */
+    "CREATE TABLE IF NOT EXISTS pkg_feed_gen ("
+    "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+    "  generation INTEGER NOT NULL DEFAULT 0"
     ");";
 
 /* -- Initialize ---------------------------------------------------- */
@@ -794,15 +802,13 @@ static bool feed_read(const char *feed_path, uint8_t **out_data, size_t *out_sz,
     return true;
 }
 
-/* Steps 3/4/5: strict parse + all-or-nothing apply. Caller owns `data`. */
-static bool feed_apply(const uint8_t *data, size_t sz, size_t *out_applied,
-                       char *err, size_t errsz) {
-    wubu_revoke_feed_entry_t entries[WUBU_PKGMGR_FEED_MAX_ENTRIES];
-    size_t n = 0;
-    if (!wubu_pkg_revoke_feed_parse(data, sz, entries,
-                                    WUBU_PKGMGR_FEED_MAX_ENTRIES, &n, err, errsz))
-        return false;
-
+/* Steps 3/4/5: entries are parsed once (by feed_import_common) then applied
+ * all-or-nothing.  The signed generation check is INSIDE the same write
+ * transaction, before any entry row is touched, so a replay leaves the DB
+ * byte-for-byte unchanged.  Caller owns `entries`. */
+static bool feed_apply_parsed(const wubu_revoke_feed_entry_t *entries, size_t n,
+                              uint64_t seq, size_t *out_applied,
+                              char *err, size_t errsz) {
     /* Preflight the cache size so a valid feed cannot overflow it. */
     size_t final_count = (size_t)g_pkgmgr.n_revoked_keys;
     for (size_t i = 0; i < n; i++) {
@@ -819,6 +825,32 @@ static bool feed_apply(const uint8_t *data, size_t sz, size_t *out_applied,
         feed_seterr(err, errsz, "cannot begin feed transaction"); return false;
     }
     bool ok = true;
+
+    /* Monotonic replay gate. BEGIN IMMEDIATE holds the write lock, so the
+     * read-compare-advance below is atomic against a concurrent sync. */
+    if (seq > 0) {
+        sqlite3_stmt *gs = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "SELECT generation FROM pkg_feed_gen WHERE id = 1",
+                -1, &gs, NULL) != SQLITE_OK) {
+            db_exec("ROLLBACK");
+            feed_seterr(err, errsz, "cannot read feed generation"); return false;
+        }
+        int64_t current = 0;
+        int grc = sqlite3_step(gs);
+        if (grc == SQLITE_ROW) current = (int64_t)sqlite3_column_int64(gs, 0);
+        sqlite3_finalize(gs);
+        if (grc != SQLITE_ROW && grc != SQLITE_DONE) {
+            db_exec("ROLLBACK");
+            feed_seterr(err, errsz, "cannot read feed generation"); return false;
+        }
+        if ((uint64_t)current >= seq) {
+            db_exec("ROLLBACK");
+            feed_seterr(err, errsz, "stale signed feed generation (replay refused)");
+            return false;
+        }
+    }
+
     time_t now = time(NULL);
     for (size_t i = 0; i < n && ok; i++) {
         const char *sql = entries[i].op == WUBU_REVOKE_FEED_REVOKE
@@ -833,6 +865,20 @@ static bool feed_apply(const uint8_t *data, size_t sz, size_t *out_applied,
             sqlite3_bind_int64(stmt, 2, (sqlite3_int64)now);
         ok = (sqlite3_step(stmt) == SQLITE_DONE);
         sqlite3_finalize(stmt);
+    }
+    /* Advance the generation in the SAME transaction as the entries: if the
+     * commit fails the whole feed, including the counter, rolls back. */
+    if (ok && seq > 0) {
+        sqlite3_stmt *us = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "INSERT OR REPLACE INTO pkg_feed_gen (id, generation) VALUES (1, ?1)",
+                -1, &us, NULL) != SQLITE_OK) {
+            ok = false;
+        } else {
+            sqlite3_bind_int64(us, 1, (sqlite3_int64)seq);
+            ok = (sqlite3_step(us) == SQLITE_DONE);
+            sqlite3_finalize(us);
+        }
     }
     if (ok) ok = (db_exec("COMMIT") == 0);
     if (!ok) {
@@ -896,34 +942,43 @@ static bool feed_verify_quorum(const uint8_t *data, size_t sz,
     return true;
 }
 
+/* The ONE parse -> authenticate -> apply path for both importers.  Parsing
+ * (including the signed generation line) happens BEFORE authentication and
+ * before any DB write; the signature is checked over the EXACT bytes.  A
+ * seq-less legacy feed has generation 0 and skips only the replay check --
+ * removing the line from a signed feed changes the bytes and breaks the
+ * signature, so this is not a replay bypass. */
+static bool feed_import_common(const char *feed_path,
+                               const char *const *sigs, size_t n_sigs,
+                               size_t *out_applied, char *err, size_t errsz) {
+    if (out_applied) *out_applied = 0;
+    feed_seterr(err, errsz, "");
+    uint8_t *data = NULL; size_t sz = 0;
+    if (!feed_read(feed_path, &data, &sz, err, errsz)) return false;
+    wubu_revoke_feed_entry_t entries[WUBU_PKGMGR_FEED_MAX_ENTRIES];
+    size_t n = 0; uint64_t seq = 0;
+    bool ok = wubu_pkg_revoke_feed_parse_seq(data, sz, entries,
+                    WUBU_PKGMGR_FEED_MAX_ENTRIES, &n, &seq, err, errsz);
+    if (ok) ok = feed_verify_quorum(data, sz, sigs, n_sigs, err, errsz);
+    if (ok) ok = feed_apply_parsed(entries, n, seq, out_applied, err, errsz);
+    free(data);
+    return ok;
+}
+
 /* Legacy single-signature importer, now a thin wrapper over the SAME global
  * quorum verifier above. With an explicit 2-of-2 policy, one signature is
  * refused; with no policy the implicit 1-of-1 admin default applies. There
  * is no separate admin-only verification path to bypass the policy. */
 bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
                                  size_t *out_applied, char *err, size_t errsz) {
-    if (out_applied) *out_applied = 0;
-    feed_seterr(err, errsz, "");
-    uint8_t *data = NULL; size_t sz = 0;
-    if (!feed_read(feed_path, &data, &sz, err, errsz)) return false;
     const char *sigs[1] = { sig_hex };
-    bool ok = feed_verify_quorum(data, sz, sigs, 1, err, errsz);
-    if (ok) ok = feed_apply(data, sz, out_applied, err, errsz);
-    free(data);
-    return ok;
+    return feed_import_common(feed_path, sigs, 1, out_applied, err, errsz);
 }
 
 bool wubu_pkgmgr_key_feed_import_quorum(const char *feed_path,
                                         const char *const *sigs, size_t n_sigs,
                                         size_t *out_applied, char *err, size_t errsz) {
-    if (out_applied) *out_applied = 0;
-    feed_seterr(err, errsz, "");
-    uint8_t *data = NULL; size_t sz = 0;
-    if (!feed_read(feed_path, &data, &sz, err, errsz)) return false;
-    bool ok = feed_verify_quorum(data, sz, sigs, n_sigs, err, errsz);
-    if (ok) ok = feed_apply(data, sz, out_applied, err, errsz);
-    free(data);
-    return ok;
+    return feed_import_common(feed_path, sigs, n_sigs, out_applied, err, errsz);
 }
 
 int wubu_pkgmgr_key_revoked_list(char out[][65], int max) {
