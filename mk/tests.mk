@@ -1036,6 +1036,12 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 	-o wubu_gui_shot $(HOSTED_LIBS)
 	./wubu_gui_shot
 
+# linux_product_gate: prove the Linux product boots and renders, not just
+# links. Opt-in (not in the parallel full gate: it invokes make internally).
+.PHONY: test_linux_product
+test_linux_product:
+	bash tools/linux_product_gate.sh
+
 
 # a11y_shot: Real-GUI video capture of the accessibility cluster.
 # Same minimal object graph as test_ui, plus the a11y harness +
