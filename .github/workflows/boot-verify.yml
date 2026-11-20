@@ -52,6 +52,13 @@ jobs:
         run: WUBU_BOOT_WINDOW=300 make virtio-persist-gate
       - name: Display ratchet (GOP pixel gate + strict + default boot)
         run: WUBU_BOOT_WINDOW=300 WUBU_AGI_BOOT_WINDOW=600 make gop-fb-gate
+      - name: Opt-in crypto gates (pinned repo-local mbedTLS dev root)
+        run: |
+          # OpenSSL dev is an explicit dependency of the native Ed25519 gate,
+          # not a host assumption; the aggregate also gates/skips it if absent.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libssl-dev
+          make test_optin_crypto
       - uses: actions/upload-artifact@v4
         if: always()
         with:

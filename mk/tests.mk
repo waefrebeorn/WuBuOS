@@ -47,7 +47,13 @@ test_ed25519_native:
 mbedtls-devroot:
 	bash tools/fetch_mbedtls_devroot.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native
+# Single aggregate for every opt-in crypto gate.  Fetches/reuses the pinned
+# repo-local mbedTLS root, exports it deterministically to all gates, and runs
+# them fail-fast.  This is the target the boot-verify CI step calls.
+test_optin_crypto:
+	bash tools/test_optin_crypto.sh
+
+.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds
