@@ -978,6 +978,10 @@ test_exec_games: $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/wubu_exec_games_
 		$(RT)/wubu_exec_format.c $(RT)/wubu_exec_container.c \
 		$(RT)/wubu_exec_dos.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_wasm.c \
 		$(RT)/wubu_host_exec.c $(KERNEL)/wubu_kvfs.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
+		$(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c \
+		$(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c \
+		$(RT)/wubu_container.c $(RT)/container/wubucontainer_registry.c \
 		$(RT)/wubu_secmon.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_fallback.c \
 		$(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
 		$(KERNEL)/wubu_pe.c $(KERNEL)/wubu_elf.c $(KERNEL)/wubu_macho.c \
@@ -2822,7 +2826,7 @@ test_ns_bridge:
 		$(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c \
 		$(RT)/wubu_spawn.c $(RT)/wubu_gpu_backend.c $(RT)/wubu_ns_bridge_test.c \
-		$(RT)/wubu_hw_fallback.c \
+		$(RT)/wubu_hw_fallback.c $(RT)/wubu_hw_sensors_fallback.c \
 		-o $(RT)/wubu_ns_bridge_test
 	$(RT)/wubu_ns_bridge_test
 
@@ -2837,7 +2841,7 @@ test_ns_9p:
 		$(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c \
 		$(RT)/wubu_spawn.c $(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_copy.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_ns_snap.c $(RT)/wubu_gpu_backend.c $(KERNEL)/memory.c \
-		$(RT)/wubu_hw_fallback.c \
+		$(RT)/wubu_hw_fallback.c $(RT)/wubu_hw_sensors_fallback.c \
 		-o $(RT)/wubu_ns_9p_test
 	$(RT)/wubu_ns_9p_test
 

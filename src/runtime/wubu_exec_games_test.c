@@ -91,11 +91,8 @@ int  wubu_ct_cgroup_create(const char *container_name, char *out_path, size_t pa
 void wubu_ct_cgroup_destroy(const char *cgroup_path) { (void)cgroup_path; }
 
 /* ---- stubs for symbols not in the linked .c set ---- */
-int wubu_container_parse(const void *data, size_t data_size,
-    WUBU_HEADER *out_header, const void **out_payload, size_t *out_payload_size) {
-    (void)data;(void)data_size;(void)out_header;(void)out_payload;(void)out_payload_size; return -1; }
-WUBU_PAYLOAD_TYPE wubu_detect_payload_type(const void *data, size_t size) {
-    (void)data;(void)size; return 0; }
+/* container_parse/detect_payload_type now come from the real
+ * wubu_container.c — duplicated stubs here caused link errors. */
 /* dos proc stubs (called by wubu_exec_dos.c, not needed for ELF/PE) */
 WubuDosProc *wubu_dos_proc_launch(const char *dos_path, int fmt) { (void)dos_path;(void)fmt; return NULL; }
 void wubu_dos_proc_destroy(WubuDosProc *p) { (void)p; }
