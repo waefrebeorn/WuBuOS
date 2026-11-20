@@ -195,6 +195,47 @@ static uint64_t ex_build_stack(uint8_t *base, size_t size, uint64_t entry) {
     return (uint64_t)(uintptr_t)p & ~15ULL;
 }
 
+/* -- fixed host-provided ET_DYN symbols -------------------------------
+ * The VSL loader is NOT a general dynamic linker.  Undefined symbols in an
+ * ET_DYN image resolve ONLY from this small, fixed table (plus definitions
+ * inside the image itself).  Every other name fails closed. */
+static uint64_t g_dyn_shim_calls;
+static uint64_t g_dyn_write_calls;
+static const char g_dyn_test_data[] = "VSL-DYNSYM-DATA\n";
+
+/* Host write shim: the guest calls this through a JUMP_SLOT GOT entry.  It
+ * issues a plain host write() (fd 1 is the engine's capture memfd during a
+ * run, so output lands in VslExecResult.output).  Being host code it is
+ * outside the seccomp trap window -- no recursive trapping. */
+static int64_t vsl_dyn_write_shim(int fd, const void *buf, size_t n) {
+    g_dyn_write_calls++;
+    return (int64_t)syscall(SYS_write, (int)fd, buf, n);
+}
+
+/* Test syscall shim: returns a stable magic and records the call so the gate
+ * can prove the GOT entry really points HERE and not at some other code. */
+static uint64_t vsl_dyn_test_shim_fn(void) {
+    g_dyn_shim_calls++;
+    return 0x56534c53484d4949ULL;                 /* "VSLSHMII" */
+}
+
+typedef struct { const char *name; uint64_t addr; } VslDynHostSym;
+static const VslDynHostSym g_dyn_host_syms[] = {
+    { "write",         (uint64_t)(uintptr_t)&vsl_dyn_write_shim },
+    { "vsl_test_shim", (uint64_t)(uintptr_t)&vsl_dyn_test_shim_fn },
+    { "vsl_test_data", (uint64_t)(uintptr_t)g_dyn_test_data },
+};
+
+uint64_t vsl_dyn_host_symbol(const char *name) {
+    if (!name) return 0;
+    for (size_t i = 0; i < sizeof(g_dyn_host_syms) / sizeof(g_dyn_host_syms[0]); i++)
+        if (strcmp(name, g_dyn_host_syms[i].name) == 0)
+            return g_dyn_host_syms[i].addr;
+    return 0;
+}
+uint64_t vsl_dyn_shim_call_count(void)   { return g_dyn_shim_calls; }
+uint64_t vsl_dyn_write_call_count(void)  { return g_dyn_write_calls; }
+
 /* -- ET_DYN helpers -------------------------------------------------- */
 
 /* Translate a link-time virtual address to a raw file offset by finding the
@@ -222,24 +263,189 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
     return -1;
 }
 
-/* Apply the dynamic relocations of an ET_DYN image after its PT_LOAD bytes
- * are in place.  MINIMAL: R_X86_64_RELATIVE (8) only.  Every other type is
- * counted in *skipped and makes the caller reject the image -- we do NOT
- * pretend to resolve GLOB_DAT/JUMP_SLOT/COPY/etc (no symbol resolver here).
- * Returns 0 ok, -1 malformed tables. */
+/* Dynamic tags / relocation types we understand.  The resolver is bounded:
+ * symbol tables, string tables and relocation counts are capped, and only
+ * the four relocation types below are applied.  Unknown symbol names and
+ * unsupported types are rejected (fail closed) -- never guessed. */
 #define EX_DT_NULL       0
+#define EX_DT_PLTRELSZ   2
+#define EX_DT_HASH       4
+#define EX_DT_STRTAB     5
+#define EX_DT_SYMTAB     6
 #define EX_DT_RELA       7
 #define EX_DT_RELASZ     8
 #define EX_DT_RELAENT    9
-#define EX_DT_REL       17
-#define EX_DT_RELSZ     18
-#define EX_DT_RELENT    19
+#define EX_DT_STRSZ      10
+#define EX_DT_SYMENT     11
+#define EX_DT_REL        17
+#define EX_DT_RELSZ      18
+#define EX_DT_RELENT     19
+#define EX_DT_PLTREL     20
+#define EX_DT_JMPREL     23
+#define EX_DT_GNU_HASH   0x6ffffef5ULL
+
+#define EX_R_X86_64_64       1
+#define EX_R_X86_64_GLOB_DAT 6
+#define EX_R_X86_64_JUMP_SLOT 7
 #define EX_R_X86_64_RELATIVE 8
 
+#define EX_SYM_MAX   4096u   /* max dynamic symbols / relocations per table */
+#define EX_NAME_MAX  128u    /* max resolved symbol name length */
+#define EX_STRTAB_MAX (1u << 20)
+
+/* Determine the dynamic symbol count from DT_HASH (nchain) or DT_GNU_HASH
+ * (walk the longest chain).  A hash table is REQUIRED: without one we cannot
+ * bound the symbol table and refuse to guess.  Returns 0 ok, -1 malformed. */
+static int ex_symbol_count(const uint8_t *f, size_t fsz,
+                           uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                           uint64_t hash, uint64_t gnu_hash, uint32_t *out) {
+    if (hash) {
+        uint64_t off;
+        if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff, hash, 8, &off) != 0)
+            return -1;
+        uint32_t nchain;
+        memcpy(&nchain, f + off + 4, 4);            /* DT_HASH: nbucket,nchain */
+        if (nchain == 0 || nchain > EX_SYM_MAX) return -1;
+        *out = nchain;
+        return 0;
+    }
+    if (gnu_hash) {
+        uint64_t off;
+        if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff, gnu_hash, 16, &off) != 0)
+            return -1;
+        uint32_t nbuckets, symoffset, bloom_size, bloom_shift;
+        memcpy(&nbuckets,    f + off,      4);
+        memcpy(&symoffset,   f + off + 4,  4);
+        memcpy(&bloom_size,  f + off + 8,  4);
+        memcpy(&bloom_shift, f + off + 12, 4);
+        (void)bloom_shift;
+        if (nbuckets == 0 || nbuckets > EX_SYM_MAX ||
+            bloom_size == 0 || bloom_size > EX_SYM_MAX ||
+            symoffset > EX_SYM_MAX) return -1;
+        uint64_t fixed = 16 + (uint64_t)bloom_size * 8 + (uint64_t)nbuckets * 4;
+        if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                            gnu_hash, fixed, &off) != 0) return -1;
+        const uint8_t *buckets = f + off + 16 + (uint64_t)bloom_size * 8;
+        uint32_t maxb = 0;
+        for (uint32_t i = 0; i < nbuckets; i++) {
+            uint32_t b;
+            memcpy(&b, buckets + (uint64_t)i * 4, 4);
+            if (b > maxb) maxb = b;
+        }
+        if (maxb < symoffset) { *out = symoffset; return 0; }
+        if (maxb >= EX_SYM_MAX) return -1;
+        uint64_t chain = gnu_hash + fixed;
+        uint32_t idx = maxb - symoffset;
+        for (uint32_t iter = 0; iter < EX_SYM_MAX; iter++, idx++) {
+            if (idx >= EX_SYM_MAX) return -1;
+            uint64_t coff;
+            if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                                chain + (uint64_t)idx * 4, 4, &coff) != 0) return -1;
+            uint32_t v;
+            memcpy(&v, f + coff, 4);
+            if (v & 1) {                            /* last chain entry */
+                uint64_t n = (uint64_t)symoffset + idx + 1;
+                if (n > EX_SYM_MAX) return -1;
+                *out = (uint32_t)n;
+                return 0;
+            }
+        }
+        return -1;
+    }
+    return -1;
+}
+
+/* Resolve one dynamic symbol index to its runtime address.  Defined symbols
+ * are bias + st_value; undefined names are looked up ONLY in the fixed host
+ * table.  Returns 0 ok, -1 unknown symbol / malformed entry (fail closed). */
+static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
+                             uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                             uint64_t symtab, uint64_t syment,
+                             uint64_t strtab, uint64_t strsz,
+                             uint32_t symcount, uint32_t symidx,
+                             uint64_t bias, uint64_t *out) {
+    if (symidx >= symcount || symtab == 0 || syment < 24) return -1;
+    uint64_t so;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        symtab + (uint64_t)symidx * syment, 24, &so) != 0) return -1;
+    uint32_t st_name;
+    uint8_t st_info;
+    uint16_t st_shndx;
+    uint64_t st_value;
+    memcpy(&st_name,  f + so,      4);
+    st_info = f[so + 4];
+    memcpy(&st_shndx, f + so + 6,  2);
+    memcpy(&st_value, f + so + 8,  8);
+    if ((st_info & 0x0f) == 6) return -1;            /* STT_TLS has no plain addr */
+    if (st_shndx != 0) {                             /* SHN_UNDEF == 0 */
+        if (st_shndx == 0xfff1) { *out = st_value; return 0; } /* SHN_ABS */
+        if (st_shndx >= 0xff00) return -1;           /* COMMON/XINDEX/processor */
+        *out = bias + st_value;
+        return 0;
+    }
+    if (strtab == 0 || strsz == 0 || strsz > EX_STRTAB_MAX || st_name >= strsz)
+        return -1;
+    uint64_t stroff;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff, strtab, strsz, &stroff) != 0)
+        return -1;
+    const char *name = (const char *)(f + stroff + st_name);
+    size_t room = (size_t)(strsz - st_name);
+    if (!memchr(name, 0, room) || strlen(name) > EX_NAME_MAX) return -1;
+    uint64_t addr = vsl_dyn_host_symbol(name);
+    if (addr == 0) return -1;                         /* unknown -> fail closed */
+    *out = addr;
+    return 0;
+}
+
+/* Apply one relocation.  Returns 0 ok, -1 malformed/unknown symbol,
+ * 1 unsupported type (counted as skipped; caller rejects the whole image). */
+static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
+                        uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                        uint64_t symtab, uint64_t syment,
+                        uint64_t strtab, uint64_t strsz, uint32_t symcount,
+                        uint64_t r_offset, uint64_t r_info, int64_t addend,
+                        int has_addend, uint32_t *resolved) {
+    uint32_t type   = (uint32_t)(r_info & 0xffffffffu);
+    uint32_t symidx = (uint32_t)(r_info >> 32);
+    uint64_t dest = bias + r_offset;
+    if (dest < EX_WIN_LO || dest + 8 > EX_WIN_HI) return -1;
+    uint64_t *where = (uint64_t *)(uintptr_t)dest;
+    switch (type) {
+    case EX_R_X86_64_RELATIVE:
+        *where = has_addend ? bias + (uint64_t)addend : *where + bias;
+        return 0;
+    case EX_R_X86_64_64:
+    case EX_R_X86_64_GLOB_DAT:
+    case EX_R_X86_64_JUMP_SLOT: {
+        uint64_t S;
+        if (symidx == 0) {                           /* STN_UNDEF null symbol */
+            S = 0;
+        } else if (ex_resolve_symbol(f, fsz, phnum, phentsize, phoff,
+                                     symtab, syment, strtab, strsz,
+                                     symcount, symidx, bias, &S) != 0) {
+            return -1;
+        }
+        uint64_t val = (type == EX_R_X86_64_64)
+                     ? S + (has_addend ? (uint64_t)addend : *where)
+                     : S;                            /* GLOB_DAT/JUMP_SLOT: S */
+        *where = val;
+        if (symidx != 0) (*resolved)++;
+        return 0;
+    }
+    default:
+        return 1;                                    /* unsupported -> skipped */
+    }
+}
+
+/* Apply the dynamic relocations of an ET_DYN image after its PT_LOAD bytes
+ * are in place.  Handles the bounded set above; every other type is counted
+ * in *skipped and makes the caller reject the image (fail closed).
+ * Returns 0 ok, -1 malformed/unknown symbol. */
 static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                 uint16_t phnum, uint16_t phentsize, uint64_t phoff,
-                                uint32_t *out_applied, uint32_t *out_skipped) {
-    *out_applied = *out_skipped = 0;
+                                uint32_t *out_applied, uint32_t *out_skipped,
+                                uint32_t *out_resolved) {
+    *out_applied = *out_skipped = *out_resolved = 0;
 
     /* Locate PT_DYNAMIC and read its file bytes. */
     uint64_t doff = 0, dsz = 0;
@@ -253,12 +459,14 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
         break;
     }
     if (dsz == 0) return 0;                         /* no dynamic section */
-    if (doff > fsz || dsz > fsz - doff) return -1;
-    if (dsz < 16) return 0;
+    if (doff > fsz || dsz > fsz - doff || dsz < 16) return -1;
 
     /* Parse d_tag/d_val pairs until DT_NULL. */
     uint64_t rela = 0, relasz = 0, relaent = 24;
     uint64_t rel  = 0, relsz  = 0, relent = 16;
+    uint64_t jmprel = 0, pltrelsz = 0, pltrel = 0;
+    uint64_t symtab = 0, strtab = 0, strsz = 0, syment = 24;
+    uint64_t hash = 0, gnu_hash = 0;
     const uint8_t *d = f + doff;
     for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
         uint64_t tag, val;
@@ -266,60 +474,104 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
         memcpy(&val, d + k + 8, 8);
         if (tag == EX_DT_NULL) break;
         switch (tag) {
-        case EX_DT_RELA:   rela = val;   break;
-        case EX_DT_RELASZ: relasz = val; break;
-        case EX_DT_RELAENT:relaent = val;break;
-        case EX_DT_REL:    rel = val;    break;
-        case EX_DT_RELSZ:  relsz = val;  break;
-        case EX_DT_RELENT: relent = val; break;
-        default: break;
+        case EX_DT_RELA:    rela = val;   break;
+        case EX_DT_RELASZ:  relasz = val; break;
+        case EX_DT_RELAENT: relaent = val;break;
+        case EX_DT_REL:     rel = val;    break;
+        case EX_DT_RELSZ:   relsz = val;  break;
+        case EX_DT_RELENT:  relent = val; break;
+        case EX_DT_JMPREL:  jmprel = val; break;
+        case EX_DT_PLTRELSZ:pltrelsz = val;break;
+        case EX_DT_PLTREL:  pltrel = val; break;
+        case EX_DT_SYMTAB:  symtab = val; break;
+        case EX_DT_STRTAB:  strtab = val; break;
+        case EX_DT_STRSZ:   strsz = val;  break;
+        case EX_DT_SYMENT:  syment = val; break;
+        case EX_DT_HASH:    hash = val;   break;
+        case EX_DT_GNU_HASH:gnu_hash = val;break;
+        default: break;                              /* DT_NEEDED etc: ignored */
         }
     }
 
-    /* RELA: r_addend is explicit.  *addr = bias + addend for RELATIVE. */
-    if (rela && relasz) {
-        uint64_t off;
-        if (relaent < 24) relaent = 24;
-        if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff, rela, relasz, &off) != 0)
-            return -1;
-        for (uint64_t k = 0; k + relaent <= relasz; k += relaent) {
-            const uint8_t *r = f + off + k;
-            uint64_t r_offset, r_info, r_addend;
-            memcpy(&r_offset, r, 8);
-            memcpy(&r_info, r + 8, 8);
-            memcpy(&r_addend, r + 16, 8);
-            uint32_t type = (uint32_t)(r_info & 0xffffffffu);
-            uint64_t *where = (uint64_t *)(uintptr_t)(bias + r_offset);
-            if (type == EX_R_X86_64_RELATIVE) {
-                *where = bias + r_addend;
-                (*out_applied)++;
-            } else {
-                (*out_skipped)++;
-            }
-        }
+    /* Pre-scan: only images that ACTUALLY contain symbol-based relocations
+     * need a bounded symbol table.  A pure RELATIVE image (the original
+     * minimal ET_DYN fixture) has none and must keep working. */
+    uint32_t symcount = 0;
+    int need_syms = 0;
+#define EX_SCAN_TABLE(TAB, SIZE, ENT, HAS_ADDEND) do {                        \
+        if ((TAB) && (SIZE)) {                                                \
+            uint64_t es = (ENT);                                              \
+            if (es < (HAS_ADDEND ? 24u : 16u)) es = (HAS_ADDEND ? 24u : 16u); \
+            uint64_t cnt = (SIZE) / es;                                       \
+            if ((SIZE) % es || cnt > EX_SYM_MAX) return -1;                   \
+            uint64_t off;                                                     \
+            if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,             \
+                                (TAB), (SIZE), &off) != 0) return -1;         \
+            for (uint64_t k = 0; k < cnt; k++) {                              \
+                uint64_t ri;                                                  \
+                memcpy(&ri, f + off + k * es + 8, 8);                         \
+                uint32_t ty = (uint32_t)(ri & 0xffffffffu);                   \
+                if (ty == EX_R_X86_64_64 || ty == EX_R_X86_64_GLOB_DAT ||     \
+                    ty == EX_R_X86_64_JUMP_SLOT) { need_syms = 1; break; }    \
+            }                                                                 \
+        }                                                                     \
+    } while (0)
+    EX_SCAN_TABLE(rela, relasz, relaent, 1);
+    EX_SCAN_TABLE(rel,  relsz,  relent, 0);
+    if (pltrelsz && !jmprel) return -1;
+    if (jmprel && pltrelsz) {
+        if (pltrel == EX_DT_RELA) EX_SCAN_TABLE(jmprel, pltrelsz, relaent, 1);
+        else if (pltrel == EX_DT_REL) EX_SCAN_TABLE(jmprel, pltrelsz, relent, 0);
+        else return -1;
+    }
+#undef EX_SCAN_TABLE
+    if (need_syms) {
+        if (ex_symbol_count(f, fsz, phnum, phentsize, phoff,
+                            hash, gnu_hash, &symcount) != 0) return -1;
+        if (symtab == 0 || strtab == 0) return -1;
     }
 
-    /* REL: implicit addend already stored at the target word. */
-    if (rel && relsz) {
-        uint64_t off;
-        if (relent < 16) relent = 16;
-        if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff, rel, relsz, &off) != 0)
-            return -1;
-        for (uint64_t k = 0; k + relent <= relsz; k += relent) {
-            const uint8_t *r = f + off + k;
-            uint64_t r_offset, r_info;
-            memcpy(&r_offset, r, 8);
-            memcpy(&r_info, r + 8, 8);
-            uint32_t type = (uint32_t)(r_info & 0xffffffffu);
-            uint64_t *where = (uint64_t *)(uintptr_t)(bias + r_offset);
-            if (type == EX_R_X86_64_RELATIVE) {
-                *where += bias;
-                (*out_applied)++;
-            } else {
-                (*out_skipped)++;
-            }
-        }
+    /* Walk one relocation table (RELA has explicit addend, REL does not). */
+#define EX_WALK_TABLE(TAB, SIZE, ENT, HAS_ADDEND) do {                       \
+        if ((TAB) && (SIZE)) {                                               \
+            uint64_t es = (ENT);                                             \
+            if (es < (HAS_ADDEND ? 24u : 16u)) es = (HAS_ADDEND ? 24u : 16u);\
+            uint64_t cnt = (SIZE) / es;                                      \
+            if ((SIZE) % es || cnt > EX_SYM_MAX) return -1;                  \
+            uint64_t off;                                                    \
+            if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,             \
+                                (TAB), (SIZE), &off) != 0) return -1;        \
+            for (uint64_t k = 0; k < cnt; k++) {                             \
+                const uint8_t *rr = f + off + k * es;                        \
+                uint64_t ro, ri, ra = 0;                                     \
+                memcpy(&ro, rr, 8);                                          \
+                memcpy(&ri, rr + 8, 8);                                      \
+                if (HAS_ADDEND) memcpy(&ra, rr + 16, 8);                      \
+                int vr = ex_apply_one(f, fsz, bias, phnum, phentsize, phoff,  \
+                                     symtab, syment, strtab, strsz, symcount, \
+                                     ro, ri, (int64_t)ra, HAS_ADDEND,         \
+                                     out_resolved);                          \
+                if (vr < 0) return -1;                                       \
+                if (vr > 0) (*out_skipped)++; else (*out_applied)++;          \
+            }                                                                \
+        }                                                                    \
+    } while (0)
+
+    EX_WALK_TABLE(rela, relasz, relaent, 1);
+    EX_WALK_TABLE(rel,  relsz,  relent, 0);
+
+    /* PLT/GOT JUMP_SLOTs live in a separate DT_JMPREL table (DT_PLTREL says
+     * RELA or REL).  gcc -shared emits these for every imported function;
+     * skipping them would leave the GOT pointing into the PLT resolver. */
+    if (pltrelsz && !jmprel) return -1;
+    if (jmprel && pltrelsz) {
+        if (pltrel == EX_DT_RELA)
+            EX_WALK_TABLE(jmprel, pltrelsz, relaent, 1);
+        else if (pltrel == EX_DT_REL)
+            EX_WALK_TABLE(jmprel, pltrelsz, relent, 0);
+        else return -1;
     }
+#undef EX_WALK_TABLE
     return 0;
 }
 
@@ -489,17 +741,20 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
                    (size_t)p_filesz);
     }
 
-    /* 3b. ET_DYN: apply RELATIVE relocations to the loaded image.  No
-     *     symbol resolution: any other relocation type is a hard reject. */
+    /* 3b. ET_DYN: apply RELATIVE / GLOB_DAT / JUMP_SLOT / 64 relocations.
+     *     Undefined symbols resolve only from a bounded fixed host table;
+     *     unknown names and unsupported types are a hard reject. */
     if (is_dyn) {
-        uint32_t applied = 0, skipped = 0;
+        uint32_t applied = 0, skipped = 0, resolved = 0;
         if (ex_apply_relocations(elf_data, elf_size, load_bias, e_phnum,
-                                 e_phentsize, e_phoff, &applied, &skipped) != 0) {
+                                 e_phentsize, e_phoff,
+                                 &applied, &skipped, &resolved) != 0) {
             rc = VSL_EXEC_ERR_RELOC;
             goto cleanup;
         }
         out->relocations_applied = applied;
         out->relocations_skipped = skipped;
+        out->symbols_resolved = resolved;
         if (skipped) { rc = VSL_EXEC_ERR_RELOCTYPE; goto cleanup; }
     }
 

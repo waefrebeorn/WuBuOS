@@ -2,19 +2,26 @@
  * vsl_exec_engine.h  --  VSL in-process execution engine (L11)
  *
  * Runs a freestanding x86-64 Linux ELF (static ET_EXEC, or ET_DYN with
- * R_X86_64_RELATIVE-only relocations) inside the host process: segments are
- * mapped at their link addresses (ET_EXEC) or at a chosen in-window base
- * (ET_DYN) inside the VSL user window, control transfers to e_entry on a
- * private guest stack, and every syscall the guest issues is trapped by a
- * seccomp SECCOMP_RET_TRAP filter scoped to the VSL user window and
- * dispatched through the REAL vsl_syscall_dispatch() (Linux personality).
+ * bounded dynamic relocations) inside the host process: segments are mapped
+ * at their link addresses (ET_EXEC) or at a chosen in-window base (ET_DYN)
+ * inside the VSL user window, control transfers to e_entry on a private
+ * guest stack, and every syscall the guest issues is trapped by a seccomp
+ * SECCOMP_RET_TRAP filter scoped to the VSL user window and dispatched
+ * through the REAL vsl_syscall_dispatch() (Linux personality).
  * exit/exit_group unwind back to the caller via siglongjmp -- the host
  * process never dies.
  *
- * ET_DYN support is deliberately MINIMAL: only R_X86_64_RELATIVE is applied.
- * Any other dynamic relocation type is rejected (VSL_EXEC_ERR_RELOCTYPE);
- * there is no ld.so/glibc compatibility, no symbol resolution and no
- * external-symbol (GLOB_DAT/JUMP_SLOT/COPY/TLSDESC) support.
+ * ET_DYN relocation support is deliberately BOUNDED, not a general dynamic
+ * linker: R_X86_64_RELATIVE, R_X86_64_64, R_X86_64_GLOB_DAT and
+ * R_X86_64_JUMP_SLOT are applied from DT_RELA/DT_REL/DT_JMPREL.  Symbol
+ * tables/counts come from DT_HASH or DT_GNU_HASH and are capped.  Undefined
+ * symbols resolve ONLY through a small fixed host table (see
+ * vsl_dyn_host_symbol): a test syscall shim, a host write() shim and a
+ * test data string.  Definitions inside the image resolve to bias+st_value.
+ * Unknown symbol names and any other relocation type are hard rejects
+ * (VSL_EXEC_ERR_RELOC / VSL_EXEC_ERR_RELOCTYPE) -- never guessed.  No glibc,
+ * no ld.so, no DT_NEEDED, no COPY/IRELATIVE/TLS/IFUNC, no lazy PLT binding,
+ * no init/fini.  Loaded ET_DYN images must stay within this contract.
  *
  * Guest link addresses MUST fall inside [VSL_USER_BASE, VSL_USER_BASE +
  * VSL_USER_SIZE): that window is the seccomp trap scope, so guest code
@@ -62,8 +69,10 @@ typedef struct {
     char     output[VSL_EXEC_OUTPUT_MAX];
     /* ET_DYN diagnostics (zero for static ET_EXEC) */
     uint64_t load_bias;         /* bias applied to ET_DYN link addresses */
-    uint32_t relocations_applied;/* R_X86_64_RELATIVE entries applied */
-    uint32_t relocations_skipped;/* relocation types not supported -> error */
+    uint32_t relocations_applied;/* relocations applied (all supported types) */
+    uint32_t relocations_skipped;/* unsupported types -> RELOCTYPE error */
+    uint32_t symbols_resolved;  /* symbol-based relocations resolved from
+                                 * in-image definitions + host table */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
@@ -74,5 +83,13 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
 
 /* Read a file and run it.  Same contract as vsl_exec_elf_bytes(). */
 int vsl_exec_elf(const char *path, VslExecResult *out);
+
+/* The bounded fixed host-symbol table used by the ET_DYN resolver.  Returns
+ * the runtime address of a host-provided symbol, or 0 when the name is not
+ * provided (the loader then fails closed).  Exposed so the differential
+ * gate can assert the EXACT address written into a guest GOT entry. */
+uint64_t vsl_dyn_host_symbol(const char *name);
+uint64_t vsl_dyn_shim_call_count(void);   /* vsl_test_shim invocations */
+uint64_t vsl_dyn_write_call_count(void);  /* host write-shim invocations */
 
 #endif /* WUBUOS_VSL_EXEC_ENGINE_H */

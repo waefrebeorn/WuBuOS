@@ -647,7 +647,8 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_uname.elf \
 	$(RT)/vsl/exec_guests/guest_exit_group.elf \
 	$(RT)/vsl/exec_guests/guest_fault.elf \
-	$(RT)/vsl/exec_guests/guest_dyn.elf
+	$(RT)/vsl/exec_guests/guest_dyn.elf \
+	$(RT)/vsl/exec_guests/guest_dynsym.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -663,6 +664,15 @@ $(RT)/vsl/exec_guests/guest_dyn.elf: \
 	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-stack-protector \
 		-fno-asynchronous-unwind-tables -Wl,-N -Wl,--build-id=none \
 		-Wl,-e,_start $^ -o $@
+
+# ET_DYN symbol-resolution fixture: a REAL gcc-produced shared object with
+# undefined symbols (write, vsl_test_shim, vsl_test_data) that generate
+# JUMP_SLOT/GLOB_DAT/R_X86_64_64 relocations, resolved by VSL's bounded
+# internal host-symbol table. GNU_HASH supplies the dynsym count.
+$(RT)/vsl/exec_guests/guest_dynsym.elf: $(RT)/vsl/exec_guests/guest_dynsym.c
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,-N -Wl,--build-id=none -Wl,-e,_start $< -o $@
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
