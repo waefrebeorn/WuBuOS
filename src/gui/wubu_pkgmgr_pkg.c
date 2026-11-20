@@ -4,6 +4,7 @@
 
 #include "wubu_crc32.h"
 #include "wubu_pkgmgr_internal.h"
+#include "wubu_pkg_sign.h"
 
 /* ============================================================
  * .wubu Container Format
@@ -120,44 +121,36 @@ bool write_pkg(const char* output_path, const wubu_pkg_manifest_t* manifest,
         header.crc32 = crc;
     }
 
-    /* Compute simple signature: SHA-256-like hash of header + manifest + payload */
-    {
-        /* Simple FNV-1a hash as a placeholder signature */
-        uint64_t hash = 0xcbf29ce484222325ULL;
-        const unsigned char *hptr = (const unsigned char *)&header;
-        for (size_t i = 0; i < offsetof(wubu_pkg_header_t, signature); i++) {
-            hash ^= hptr[i];
-            hash *= 0x100000001b3ULL;
+    /* Signature: Ed25519 over the canonical SHA-256 digest of
+     * header-with-zeroed-signature || manifest || payload.  The old FNV-1a
+     * placeholder is gone; without a key (or without mbedTLS) the package is
+     * explicitly UNSIGNED with a zero signature field and verification
+     * refuses to call that "verified". */
+    memset(header.signature, 0, sizeof(header.signature));
+#ifdef WUBU_HAVE_MBEDTLS
+    if (sign_key_hex && sign_key_hex[0]) {
+        uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+        uint8_t sig[WUBU_PKG_SIGNATURE_LEN];
+        char err[256];
+        bool hashed = wubu_pkg_sign_digest(
+            (const uint8_t *)&header, sizeof(header),
+            offsetof(wubu_pkg_header_t, signature), WUBU_PKG_SIG_SIZE,
+            mc_data, (size_t)manifest_csize, payload_archive, digest);
+        if (!hashed ||
+            !wubu_pkg_sign_ed25519(digest, sign_key_hex, sig, err, sizeof(err))) {
+            fprintf(stderr, "[pkgmgr] package signing failed: %s\n",
+                    hashed ? err : "cannot digest package contents");
+            free(manifest_compressed);
+            unlink(payload_archive);
+            return false;
         }
-        for (size_t i = 0; i < (size_t)manifest_csize; i++) {
-            hash ^= mc_data[i];
-            hash *= 0x100000001b3ULL;
-        }
-        /* Mix in payload hash */
-        FILE *pf = fopen(payload_archive, "rb");
-        if (pf) {
-            unsigned char buf[8192];
-            size_t n;
-            while ((n = fread(buf, 1, sizeof(buf), pf)) > 0) {
-                for (size_t i = 0; i < n; i++) {
-                    hash ^= buf[i];
-                    hash *= 0x100000001b3ULL;
-                }
-            }
-            fclose(pf);
-        }
-        /* Store 32 bytes of signature */
-        memcpy(header.signature, &hash, sizeof(hash));
-        /* Second half: hash of the first half mixed with CRC */
-        hash ^= (uint64_t)header.crc32;
-        hash *= 0x100000001b3ULL;
-        memcpy(header.signature + 8, &hash, sizeof(hash));
-        /* Fill remaining with derived bytes */
-        for (int i = 16; i < WUBU_PKG_SIG_SIZE; i++) {
-            header.signature[i] = (uint8_t)(hash >> ((i % 8) * 8)) ^ (uint8_t)i;
-        }
+        memcpy(header.signature, sig, sizeof(sig));
     }
-    
+#else
+    (void)sign_key_hex;  /* no crypto in this build: unsigned package */
+#endif
+
+
     /* Write container */
     FILE* out = fopen(output_path, "wb");
     if (!out) {
@@ -405,7 +398,47 @@ bool wubu_pkgmgr_create_package(const char* src_dir, const char* output_path,
 
 bool wubu_pkgmgr_verify_package(const char* pkg_path, const char* pubkey_hex) {
     wubu_pkg_header_t header;
-    return read_pkg_header(pkg_path, &header);
+    if (!pkg_path || !read_pkg_header(pkg_path, &header)) return false;
+    if (header.manifest_size == 0 || header.payload_size == 0) return false;
+
+#ifdef WUBU_HAVE_MBEDTLS
+    char err[256];
+    bool ok = wubu_pkg_sign_verify_package(
+        pkg_path, sizeof(header),
+        offsetof(wubu_pkg_header_t, signature), WUBU_PKG_SIG_SIZE,
+        header.manifest_size, pubkey_hex, err, sizeof(err));
+    if (!ok) {
+        fprintf(stderr, "[pkgmgr] Ed25519 verification FAILED: %s\n", err);
+        return false;
+    }
+    return true;
+#else
+    /* No mbedTLS: there is no honest way to verify a claimed signature.
+     * Fail closed if a key or a non-empty signature is present.  The only
+     * tolerated case is an explicitly UNSIGNED package (zero signature) with
+     * no trust anchor requested, kept for legacy test_pkgmgr compatibility;
+     * that is a structural check, NOT a signature verification. */
+    if (pubkey_hex && pubkey_hex[0]) {
+        fprintf(stderr,
+                "[pkgmgr] Ed25519 verification requested but mbedTLS is not "
+                "compiled in: FAIL CLOSED\n");
+        return false;
+    }
+    bool unsigned_pkg = true;
+    for (size_t i = 0; i < WUBU_PKG_SIG_SIZE; i++) {
+        if (header.signature[i]) { unsigned_pkg = false; break; }
+    }
+    if (!unsigned_pkg) {
+        fprintf(stderr,
+                "[pkgmgr] signed package cannot be verified without mbedTLS: "
+                "FAIL CLOSED\n");
+        return false;
+    }
+    fprintf(stderr,
+            "[pkgmgr] WARNING: mbedTLS unavailable - structural check only, "
+            "signature NOT verified (unsigned package)\n");
+    return true;
+#endif
 }
 
 bool wubu_pkgmgr_extract_package(const char* pkg_path, const char* dest_dir) {

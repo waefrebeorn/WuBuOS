@@ -265,6 +265,34 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
         return false;
     }
 
+#ifdef WUBU_HAVE_MBEDTLS
+    /* Fail-closed Ed25519 gate BEFORE any extraction: with the crypto build
+     * a package is never installed unless its signature verifies against a
+     * configured repository trust anchor.  The legacy no-mbedTLS build does
+     * not pretend to verify. */
+    if (g_pkgmgr.config.verify_signatures) {
+        const char *pubkey = NULL;
+        for (int i = 0; i < g_pkgmgr.n_repos; i++) {
+            if (g_pkgmgr.repos[i].enabled && g_pkgmgr.repos[i].pubkey[0]) {
+                pubkey = g_pkgmgr.repos[i].pubkey;
+                break;
+            }
+        }
+        if (!pubkey) {
+            fprintf(stderr,
+                    "[pkgmgr] install refused: no Ed25519 trust anchor configured\n");
+            free(manifest);
+            return false;
+        }
+        if (!wubu_pkgmgr_verify_package(pkg_path, pubkey)) {
+            fprintf(stderr,
+                    "[pkgmgr] install refused: Ed25519 signature verification failed\n");
+            free(manifest);
+            return false;
+        }
+    }
+#endif
+
     pkgmgr_progress("install", pkg_spec, 0.5, "Checking dependencies");
 
     wubu_pkg_installed_t *installed = calloc(256, sizeof(wubu_pkg_installed_t));
