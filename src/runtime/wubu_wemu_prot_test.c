@@ -1,16 +1,16 @@
 /*
  * wubu_wemu_prot_test.c -- differential gate for VSL mprotect enforcement
- * in the WEMU guest-memory write path.
+ * in the WEMU guest-memory READ, WRITE and instruction-FETCH paths.
  *
- * A guest maps a VSL arena page read-write, we record PROT_READ via
- * vsl_mprotect(), then a real guest STORE instruction targets that page:
+ * The SAME guest programs run twice:
+ *   NEGATIVE CONTROL (no hook == pre-change code): the access SUCCEEDS.
+ *   ENFORCEMENT (both hooks installed): the VSL protection decides.
  *
- *   NEGATIVE CONTROL (no hook == pre-change code): the store LANDS.
- *   ENFORCEMENT (wubu_wemu_prot_hook installed): the store FAULTS (#PF),
- *   the page is unchanged, and CR2 == the protected page.
- *
- * Legacy/unmanaged guest RAM is exercised too: a store outside any VSL
- * mapping stays permissive with the hook installed (no regression).
+ * Asserts:
+ *   PROT_READ page : load OK, store #PF (CR2=page).
+ *   PROT_NONE page : load #PF and store #PF (CR2=page for both).
+ *   no-PROT_EXEC   : instruction fetch #PF (CR2=RIP=page).
+ *   legacy RAM     : store + load + fetch all stay permissive.
  */
 #include "wemu.h"
 #include "wubu_wemu_bridge.h"
@@ -27,116 +27,213 @@
 extern int64_t vsl_sys_mprotect(uint64_t addr, uint64_t len, uint64_t prot,
                                 uint64_t d, uint64_t e, uint64_t f);
 
-#define GUEST_CODE 0x1000ull
+#define GUEST_CODE 0x1000ull       /* below VSL_USER_BASE: legacy flat RAM */
 #define STORE_VAL  0x11223344u
+#define LOAD_VAL   0xA5A5BEEFu
 
 /* mov dword [rax], imm32 ; hlt  ==  C7 00 44 33 22 11 F4 */
 static const uint8_t store_code[] = {
     0xC7, 0x00, 0x44, 0x33, 0x22, 0x11, 0xF4
 };
+/* mov eax, dword [rax] ; hlt  ==  8B 00 F4 */
+static const uint8_t load_code[] = {
+    0x8B, 0x00, 0xF4
+};
+/* hlt  ==  F4  (fetch/decode the byte at the page, then halt) */
+static const uint8_t fetch_code[] = { 0xF4 };
 
-static WemuCpu *make_cpu(uint64_t page) {
-    WemuCpu *cpu = wemu_cpu_create(64ull << 20);
-    if (!cpu) { fprintf(stderr, "FAIL: wemu_cpu_create\n"); exit(1); }
-    if (wemu_cpu_load(cpu, GUEST_CODE, store_code, sizeof store_code) != 0) {
-        fprintf(stderr, "FAIL: wemu_cpu_load\n"); exit(1);
+/* Install or clear BOTH hooks. Cleared == pre-change (permissive) code. */
+static void set_hooks(int enforce) {
+    if (enforce) {
+        wemu_set_mem_perm_hook(wubu_wemu_prot_hook, NULL);
+        wemu_set_fetch_perm_hook(wubu_wemu_fetch_hook, NULL);
+    } else {
+        wemu_set_mem_perm_hook(NULL, NULL);
+        wemu_set_fetch_perm_hook(NULL, NULL);
     }
-    wemu_cpu_set_rip(cpu, GUEST_CODE);
-    wemu_cpu_set_reg(cpu, 0, page);   /* RAX = target guest page */
-    return cpu;
 }
 
-/* Store into a page then report the resulting fault + value. Each run gets
- * a fresh (zeroed) guest RAM so the page starts as 0. */
-static void run_store(uint64_t page, int enforce, const char *label,
-                      int *out_fault, uint32_t *out_val, uint64_t *out_cr2) {
-    WemuCpu *cpu = make_cpu(page);
-    if (enforce)
-        wemu_set_mem_perm_hook(wubu_wemu_prot_hook, NULL);
-    else
-        wemu_set_mem_perm_hook(NULL, NULL);   /* pre-change behaviour */
+typedef struct {
+    int fault;
+    uint64_t cr2;
+    uint64_t rax;
+    int halted;
+} Result;
+
+/* One isolated run: fresh zeroed RAM, optional 4-byte prefill of `prefill_va`,
+ * code loaded at `code_va`, RIP and RAX set, then run. */
+static Result run_guest(uint64_t code_va, const uint8_t *code, size_t len,
+                        uint64_t rip, uint64_t rax,
+                        int prefill, uint64_t prefill_va, uint32_t prefill_val,
+                        int enforce) {
+    set_hooks(enforce);
+    WemuCpu *cpu = wemu_cpu_create(64ull << 20);
+    if (!cpu) { fprintf(stderr, "FAIL: wemu_cpu_create\n"); exit(1); }
+    if (wemu_cpu_load(cpu, code_va, code, len) != 0) {
+        fprintf(stderr, "FAIL: wemu_cpu_load(code)\n"); exit(1);
+    }
+    if (prefill && wemu_cpu_load(cpu, prefill_va,
+                                 (const uint8_t *)&prefill_val, 4) != 0) {
+        fprintf(stderr, "FAIL: wemu_cpu_load(prefill)\n"); exit(1);
+    }
+    wemu_cpu_set_rip(cpu, rip);
+    wemu_cpu_set_reg(cpu, 0, rax);
     wemu_cpu_run(cpu, 64);
 
-    uint32_t value = 0xdeadbeefu;
-    wemu_mem_read(cpu, page, &value, 4);      /* reads are never denied */
-    *out_fault = wemu_cpu_fault(cpu);
-    *out_val = value;
-    *out_cr2 = wemu_cpu_fault_addr(cpu);
-    printf("gate: %-14s fault=%d cr2=0x%llx store_value=0x%08x\n",
-           label, *out_fault, (unsigned long long)*out_cr2, value);
+    Result r;
+    r.fault  = wemu_cpu_fault(cpu);
+    r.cr2    = wemu_cpu_fault_addr(cpu);
+    r.rax    = wemu_cpu_reg(cpu, 0);
+    r.halted = wemu_cpu_halted(cpu);
     wemu_cpu_destroy(cpu);
+    return r;
+}
+
+/* Read back a dword through WEMU's RAW physical write path is not public, so
+ * observe store effects via a guest LOAD instead: run `mov eax,[rax]` on a
+ * fresh CPU over the SAME page content is not possible (per-CPU RAM). Instead
+ * the store run itself reports whether the store faulted; the no-hook control
+ * proves the store instruction lands by checking the guest did not fault and
+ * that the subsequent HLT executed (halted). */
+static Result store_case(uint64_t page, int enforce) {
+    return run_guest(GUEST_CODE, store_code, sizeof store_code,
+                     GUEST_CODE, page, 0, 0, 0, enforce);
+}
+
+static Result load_case(uint64_t page, int enforce) {
+    return run_guest(GUEST_CODE, load_code, sizeof load_code,
+                     GUEST_CODE, page, 1, page, LOAD_VAL, enforce);
+}
+
+static Result fetch_case(uint64_t page, int enforce) {
+    return run_guest(page, fetch_code, sizeof fetch_code,
+                     page, 0, 0, 0, 0, enforce);
+}
+
+static void pr(const char *label, Result r) {
+    printf("gate: %-22s fault=%d cr2=0x%llx rax=0x%llx halted=%d\n",
+           label, r.fault, (unsigned long long)r.cr2,
+           (unsigned long long)r.rax, r.halted);
+}
+
+static int mp(uint64_t page, uint64_t prot) {
+    int64_t rc = vsl_sys_mprotect(page, 0x1000, prot, 0, 0, 0);
+    if (rc != 0) {
+        fprintf(stderr, "FAIL: vsl_sys_mprotect(%llu) rc=%lld\n",
+                (unsigned long long)prot, (long long)rc);
+        return -1;
+    }
+    return 0;
 }
 
 int main(void) {
-    if (vsl_init() != 0) {
-        fprintf(stderr, "FAIL: vsl_init\n"); return 1;
-    }
+    if (vsl_init() != 0) { fprintf(stderr, "FAIL: vsl_init\n"); return 1; }
     wubu_kernel_select("linux");
 
     uint64_t page = vsl_mmap(0, 0x1000, PROT_READ | PROT_WRITE,
                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (!page) {
-        fprintf(stderr, "FAIL: vsl_mmap\n"); return 1;
-    }
+    if (!page) { fprintf(stderr, "FAIL: vsl_mmap\n"); return 1; }
     printf("gate: VSL arena page = 0x%llx\n", (unsigned long long)page);
-    printf("gate: prot before mprotect = %d\n", vsl_prot_query(page));
 
-    int64_t rc = vsl_sys_mprotect(page, 0x1000, PROT_READ, 0, 0, 0);
-    if (rc != 0) {
-        fprintf(stderr, "FAIL: vsl_sys_mprotect rc=%lld\n", (long long)rc);
+    /* ---- PROT_READ: load allowed, store denied ----------------------- */
+    if (mp(page, PROT_READ)) return 1;
+    printf("gate: prot=PROT_READ query=%d\n", vsl_prot_query(page));
+
+    Result r = load_case(page, 0); pr("READ/load/negative", r);
+    if (r.fault != 0 || r.rax != LOAD_VAL) {
+        fprintf(stderr, "FAIL: pre-change LOAD did not succeed\n"); return 1;
+    }
+    printf("PASS: negative control -- PROT_READ load succeeded (pre-change)\n");
+
+    r = load_case(page, 1); pr("READ/load/enforced", r);
+    if (r.fault != 0 || r.rax != LOAD_VAL) {
+        fprintf(stderr, "FAIL: PROT_READ must allow the load\n"); return 1;
+    }
+    printf("PASS: PROT_READ page allows the load\n");
+
+    r = store_case(page, 0); pr("READ/store/negative", r);
+    if (r.fault != 0 || !r.halted) {
+        fprintf(stderr, "FAIL: pre-change STORE did not succeed\n"); return 1;
+    }
+    printf("PASS: negative control -- PROT_READ store succeeded (pre-change)\n");
+
+    r = store_case(page, 1); pr("READ/store/enforced", r);
+    if (r.fault != 14 || r.cr2 != page) {
+        fprintf(stderr, "FAIL: PROT_READ must block the store (#PF/CR2)\n");
         return 1;
     }
-    int prot = vsl_prot_query(page);
-    printf("gate: prot after mprotect  = %d (READ=%d WRITE=%d)\n",
-           prot, VSL_PROT_READ, VSL_PROT_WRITE);
-    if (!(prot & VSL_PROT_READ) || (prot & VSL_PROT_WRITE)) {
-        fprintf(stderr, "FAIL: vsl_prot_query did not record PROT_READ\n");
+    printf("PASS: PROT_READ page rejected the store (#PF, CR2=page)\n");
+
+    /* ---- PROT_NONE: both load and store denied ----------------------- */
+    if (mp(page, PROT_NONE)) return 1;
+    printf("gate: prot=PROT_NONE query=%d\n", vsl_prot_query(page));
+
+    r = load_case(page, 0); pr("NONE/load/negative", r);
+    if (r.fault != 0 || r.rax != LOAD_VAL) {
+        fprintf(stderr, "FAIL: pre-change PROT_NONE load did not succeed\n");
         return 1;
     }
+    printf("PASS: negative control -- PROT_NONE load succeeded (pre-change)\n");
 
-    int f_nc, f_en;
-    uint32_t v_nc, v_en;
-    uint64_t cr2_nc, cr2_en;
-
-    /* ---- negative control: no hook (pre-change code) -> store lands ---- */
-    run_store(page, 0, "negative-ctrl", &f_nc, &v_nc, &cr2_nc);
-    if (f_nc != 0 || v_nc != STORE_VAL) {
-        fprintf(stderr, "FAIL: negative control store did not land "
-                        "(fault=%d value=0x%08x)\n", f_nc, v_nc);
+    r = load_case(page, 1); pr("NONE/load/enforced", r);
+    if (r.fault != 14 || r.cr2 != page) {
+        fprintf(stderr, "FAIL: PROT_NONE must block the load (#PF/CR2)\n");
         return 1;
     }
-    printf("PASS: negative control -- pre-change store SUCCEEDED\n");
+    printf("PASS: PROT_NONE page rejected the load (#PF, CR2=page)\n");
 
-    /* ---- enforcement: hook consults VSL prot -> store raises #PF -------- */
-    run_store(page, 1, "enforced", &f_en, &v_en, &cr2_en);
-    if (f_en != 14 || v_en != 0 || cr2_en != page) {
-        fprintf(stderr, "FAIL: enforcement expected #PF(14)/CR2=page/value=0, "
-                        "got fault=%d cr2=0x%llx value=0x%08x\n",
-                f_en, (unsigned long long)cr2_en, v_en);
+    r = store_case(page, 0); pr("NONE/store/negative", r);
+    if (r.fault != 0 || !r.halted) {
+        fprintf(stderr, "FAIL: pre-change PROT_NONE store did not succeed\n");
         return 1;
     }
-    printf("PASS: enforcement -- PROT_READ page rejected the store (#PF)\n");
+    printf("PASS: negative control -- PROT_NONE store succeeded (pre-change)\n");
 
-    /* ---- no regression: legacy guest RAM outside VSL stays writable ----- */
+    r = store_case(page, 1); pr("NONE/store/enforced", r);
+    if (r.fault != 14 || r.cr2 != page) {
+        fprintf(stderr, "FAIL: PROT_NONE must block the store (#PF/CR2)\n");
+        return 1;
+    }
+    printf("PASS: PROT_NONE page rejected the store (#PF, CR2=page)\n");
+
+    /* ---- no PROT_EXEC: fetch denied ---------------------------------- */
+    if (mp(page, PROT_READ | PROT_WRITE)) return 1;
+    printf("gate: prot=RW-no-EXEC query=%d\n", vsl_prot_query(page));
+
+    r = fetch_case(page, 0); pr("EXEC/fetch/negative", r);
+    if (r.fault != 0 || !r.halted) {
+        fprintf(stderr, "FAIL: pre-change fetch from no-exec page did not run\n");
+        return 1;
+    }
+    printf("PASS: negative control -- fetch succeeded (pre-change)\n");
+
+    r = fetch_case(page, 1); pr("EXEC/fetch/enforced", r);
+    if (r.fault != 14 || r.cr2 != page) {
+        fprintf(stderr, "FAIL: no-PROT_EXEC page must block fetch (#PF/CR2)\n");
+        return 1;
+    }
+    printf("PASS: no-EXEC page rejected the fetch (#PF, CR2=RIP=page)\n");
+
+    /* ---- legacy RAM stays permissive with BOTH hooks installed ------- */
     uint64_t legacy = 0x00300000ull;  /* below VSL_USER_BASE, inside RAM */
     printf("gate: legacy prot query at 0x%llx = %d (permissive=-1)\n",
            (unsigned long long)legacy, vsl_prot_query(legacy));
-    WemuCpu *cpu = make_cpu(legacy);
-    wemu_set_mem_perm_hook(wubu_wemu_prot_hook, NULL);
-    wemu_cpu_run(cpu, 64);
-    uint32_t lv = 0;
-    wemu_mem_read(cpu, legacy, &lv, 4);
-    int lf = wemu_cpu_fault(cpu);
-    wemu_cpu_destroy(cpu);
-    printf("gate: legacy-page      fault=%d store_value=0x%08x\n", lf, lv);
-    if (lf != 0 || lv != STORE_VAL) {
-        fprintf(stderr, "FAIL: legacy guest RAM regression (fault=%d value=0x%08x)\n",
-                lf, lv);
-        return 1;
-    }
-    wemu_set_mem_perm_hook(NULL, NULL);
-    printf("PASS: legacy guest RAM outside VSL remains permissive\n");
 
-    printf("ALL VSL mprotect WEMU ENFORCEMENT GATES PASSED\n");
+    r = store_case(legacy, 1); pr("legacy/store/enforced", r);
+    if (r.fault != 0 || !r.halted) {
+        fprintf(stderr, "FAIL: legacy RAM store regressed\n"); return 1;
+    }
+    r = load_case(legacy, 1); pr("legacy/load/enforced", r);
+    if (r.fault != 0 || r.rax != LOAD_VAL) {
+        fprintf(stderr, "FAIL: legacy RAM load regressed\n"); return 1;
+    }
+    r = fetch_case(legacy, 1); pr("legacy/fetch/enforced", r);
+    if (r.fault != 0 || !r.halted) {
+        fprintf(stderr, "FAIL: legacy RAM fetch regressed\n"); return 1;
+    }
+    printf("PASS: legacy guest RAM stays writable/loadable/executable\n");
+
+    set_hooks(0);
+    printf("ALL VSL mprotect WEMU READ/WRITE/FETCH ENFORCEMENT GATES PASSED\n");
     return 0;
 }

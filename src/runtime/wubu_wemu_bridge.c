@@ -99,17 +99,24 @@ static int gstr(WemuCpu *cpu, uint64_t va, char *dst, size_t cap) {
     return -14;
 }
 
-/* ---- VSL protection hook -------------------------------------------- */
+/* ---- VSL protection hooks ------------------------------------------- */
 
-/* WEMU calls this before every guest store. vsl_prot_query() reads the
- * SINGLE owner table (VSL's mmap/mprot records); -1 means the VA is legacy
- * or unmanaged guest RAM, which stays permissive (no regression). */
+/* Data access: WEMU calls this before every guest load (is_write=0) and
+ * store (is_write=1). vsl_prot_allows() reads the SINGLE owner table (VSL's
+ * mmap/mprot records); a legacy/unmanaged VA is always allowed (no
+ * regression). PROT_NONE has no READ/WRITE bit, so it blocks both. */
 int wubu_wemu_prot_hook(uint64_t va, size_t len, int is_write, void *ud) {
     (void)len; (void)ud;
-    int prot = vsl_prot_query(va);
-    if (prot < 0) return 0;                   /* legacy/unmanaged: allow */
-    if (is_write && !(prot & VSL_PROT_WRITE)) return -1;  /* #PF on store */
-    return 0;
+    int bit = is_write ? VSL_PROT_WRITE : VSL_PROT_READ;
+    return vsl_prot_allows(va, bit) ? 0 : -1;
+}
+
+/* Instruction fetch: the decoder consults this at RIP before fetching the
+ * first byte. Same SINGLE owner table; a VSL page without PROT_EXEC faults,
+ * legacy guest code stays executable. Narrow: checks the page holding RIP. */
+int wubu_wemu_fetch_hook(uint64_t va, size_t len, void *ud) {
+    (void)len; (void)ud;
+    return vsl_prot_allows(va, VSL_PROT_EXEC) ? 0 : -1;
 }
 
 /* ---- the syscall hook --------------------------------------------- */
@@ -622,6 +629,7 @@ int wubu_wemu_run_elf(const char *path, char *const argv[],
     WemuCpu *cpu = wemu_cpu_create(BRIDGE_RAM);
     if (!cpu) return -1;
     wemu_set_mem_perm_hook(wubu_wemu_prot_hook, NULL);
+    wemu_set_fetch_perm_hook(wubu_wemu_fetch_hook, NULL);
     if (wemu_cpu_load_elf(cpu, path, NULL, 0, argv) != 0) {
         wemu_cpu_destroy(cpu);
         return -1;

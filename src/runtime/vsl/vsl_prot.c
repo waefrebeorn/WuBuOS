@@ -35,3 +35,9 @@ int vsl_prot_query(uint64_t va) {
     }
     return prot;
 }
+
+int vsl_prot_allows(uint64_t va, int bit) {
+    int prot = vsl_prot_query(va);
+    if (prot < 0) return 1;          /* legacy/unmanaged memory: permissive */
+    return (prot & bit) ? 1 : 0;
+}

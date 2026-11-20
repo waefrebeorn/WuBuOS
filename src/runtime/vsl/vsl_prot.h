@@ -17,8 +17,15 @@
 #define VSL_PROT_WRITE 2
 #define VSL_PROT_EXEC  4
 
-/* Effective protection mask for guest VA, or -1 when the VA is NOT inside
- * a tracked VSL arena mapping (legacy guest memory => treat permissive). */
+/* Effective protection mask (VSL_PROT_READ|WRITE|EXEC bits) for a guest VA,
+ * or -1 when the VA is NOT inside a tracked VSL arena mapping (legacy guest
+ * memory => treat permissive). This is the SINGLE owner lookup; it answers
+ * read, write and execute questions from the one mmap/mprot record set. */
 int vsl_prot_query(uint64_t va);
+
+/* Convenience predicate over the SAME lookup (no second protection table).
+ * Returns 1 when access of kind `bit` is allowed at `va`. Legacy/unmanaged
+ * VAs (vsl_prot_query == -1) are permissive and always allowed. */
+int vsl_prot_allows(uint64_t va, int bit);
 
 #endif /* WUBUOS_VSL_PROT_H */
