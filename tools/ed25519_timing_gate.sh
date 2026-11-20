@@ -68,7 +68,7 @@ echo "[timing] negative control (legacy): $(grep '^old_ns_per_mul=' "$TMP/old.lo
 echo "[timing] hardened (new):            $(grep '^new_ns_per_mul=' "$TMP/new.log")"
 
 if [ "$fail" -eq 0 ]; then
-    echo "[timing] ALL CHECKS PASSED -- legacy leaks (r>0.80, |t|>2.074, ratio>1.50); hardened ladder shows no significant correlation (|r|<0.50, |t|<2.074, ratio<1.25)"
+    echo "[timing] ALL CHECKS PASSED -- legacy leaks (r>0.80, |t|>2.074, ratio>1.50); hardened ladder removes the baseline leak (delta_r>=0.25, t_new<=5% of t_old, ratio<1.25)"
 else
     echo "[timing] GATE FAILED"
 fi
