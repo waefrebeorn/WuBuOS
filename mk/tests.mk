@@ -30,6 +30,13 @@ test_oci_tls:
 test_pkg_ed25519:
 	bash tools/pkg_ed25519_gate.sh
 
+# Statistical timing differential for the Ed25519 scalar multiplication
+# (mbedTLS dev root required; NOT in the default `make test` tier).  Builds
+# the hardened ladder and the verbatim legacy double-and-add side by side and
+# asserts the legacy leaks while the ladder shows no significant correlation.
+test_ed25519_timing:
+	bash tools/ed25519_timing_gate.sh
+
 # Operator CLI for authorized Ed25519 key revocation. Opt-in: needs a
 # WUBU_MBEDTLS_ROOT mbedTLS dev root (the Ed25519 primitive lives there).
 pkg_key_ctl:

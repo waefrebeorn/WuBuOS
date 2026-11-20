@@ -145,7 +145,55 @@ cleanup:
     return rc;
 }
 
-static int ge_mul(ge *r, const ge *p, const mbedtls_mpi *n) {
+/* -- Constant-time scalar multiplication -------------------------------- *
+ * The previous double-and-add loop branched on every secret scalar bit
+ * (mbedtls_mpi_get_bit) and ran mbedtls_mpi_bitlen(n) times, so the count and
+ * pattern of ge_add() calls leaked both the Hamming weight and the bit length
+ * of the two signing scalars (a and r).  This is the timing side channel the
+ * differential probe in tools/ed25519_timing_gate.sh measures.
+ *
+ * Replacement is a full-width Montgomery ladder.  Each iteration performs
+ * exactly one group addition, one doubling and one conditional swap of all
+ * four projective coordinates; the trip count is the compile-time constant
+ * WUBU_ED25519_LADDER_BITS, and no secret bit selects a branch or indexes a
+ * table.  Conditional selection uses mbedTLS's own constant-time
+ * mbedtls_mpi_safe_cond_swap(), and the accumulator limbs are pre-sized so
+ * that no allocation can occur once the ladder is running.
+ *
+ * ge_mul_doubleadd() is retained ONLY as the negative control for the timing
+ * gate.  It is compiled out of every production build; the probe opts in with
+ * WUBU_ED25519_TIMING_PROBE, and WUBU_ED25519_LEGACY_MUL selects it as the
+ * public ge_mul only for the legacy comparison build of the probe.
+ */
+#define WUBU_ED25519_LADDER_BITS 256u
+#define WUBU_ED25519_FIELD_LIMBS \
+    ((255u / (sizeof(mbedtls_mpi_uint) * 8u)) + 1u)
+
+static int ge_grow(ge *p, size_t limbs) {
+    int rc = mbedtls_mpi_grow(&p->x, limbs);
+    if (!rc) rc = mbedtls_mpi_grow(&p->y, limbs);
+    if (!rc) rc = mbedtls_mpi_grow(&p->z, limbs);
+    if (!rc) rc = mbedtls_mpi_grow(&p->t, limbs);
+    return rc;
+}
+
+/* Constant-time conditional swap of a projective point.  mbedTLS documents
+ * mbedtls_mpi_safe_cond_swap() as leaking nothing about `swap`; its shipped
+ * 2.28.8 object code masks the swap byte into an all-ones/all-zeros limb mask
+ * with neg/or/sar and XOR-selects every limb (no data-dependent branch). */
+static int ge_cswap(ge *a, ge *b, unsigned char swap) {
+    int rc = mbedtls_mpi_safe_cond_swap(&a->x, &b->x, swap);
+    if (!rc) rc = mbedtls_mpi_safe_cond_swap(&a->y, &b->y, swap);
+    if (!rc) rc = mbedtls_mpi_safe_cond_swap(&a->z, &b->z, swap);
+    if (!rc) rc = mbedtls_mpi_safe_cond_swap(&a->t, &b->t, swap);
+    return rc;
+}
+
+#if defined(WUBU_ED25519_TIMING_PROBE) || defined(WUBU_ED25519_LEGACY_MUL)
+/* VERBATIM pre-hardening implementation -- NEGATIVE CONTROL ONLY.
+ * Secret-dependent branch + secret-dependent trip count. Never compiled into
+ * a package-signing binary; see tools/ed25519_timing_gate.sh. */
+static int ge_mul_doubleadd(ge *r, const ge *p, const mbedtls_mpi *n) {
     ge acc;
     int rc = 0;
     ge_init(&acc);
@@ -161,6 +209,52 @@ cleanup:
     ge_free(&acc);
     return rc;
 }
+#endif
+
+/* Production scalar multiplication: constant schedule, constant selection. */
+static int ge_mul_ladder(ge *r, const ge *p, const mbedtls_mpi *n) {
+    ge r0, r1, sum, dbl;
+    int rc = 0;
+    unsigned char swap = 0, bit;
+    ge_init(&r0); ge_init(&r1); ge_init(&sum); ge_init(&dbl);
+
+    TRY(ge_identity(&r0));            /* r0 = [0]P */
+    TRY(ge_copy(&r1, p));             /* r1 = [1]P */
+    /* Fix all limb counts before the loop: safe_cond_swap() grows MPIs, and
+     * a reallocation at a secret-dependent point would itself be a leak. */
+    TRY(ge_grow(&r0, WUBU_ED25519_FIELD_LIMBS));
+    TRY(ge_grow(&r1, WUBU_ED25519_FIELD_LIMBS));
+    TRY(ge_grow(&sum, WUBU_ED25519_FIELD_LIMBS));
+    TRY(ge_grow(&dbl, WUBU_ED25519_FIELD_LIMBS));
+
+    /* Invariant at loop top: r0 = [x]P, r1 = [x+1]P for the prefix x already
+     * consumed.  b = bit ^ swap restores that invariant; both the following
+     * group operations and the swap masks are independent of b's value. */
+    for (unsigned int i = WUBU_ED25519_LADDER_BITS; i > 0; --i) {
+        bit = (unsigned char)mbedtls_mpi_get_bit(n, i - 1);
+        swap ^= bit;
+        TRY(ge_cswap(&r0, &r1, swap));
+        TRY(ge_add(&sum, &r0, &r1));   /* [2x+1]P */
+        TRY(ge_add(&dbl, &r0, &r0));   /* [2x]P   */
+        TRY(ge_copy(&r1, &sum));
+        TRY(ge_copy(&r0, &dbl));
+        swap = bit;
+    }
+    TRY(ge_cswap(&r0, &r1, swap));     /* undo the final pending swap */
+    TRY(ge_copy(r, &r0));
+cleanup:
+    ge_free(&r0); ge_free(&r1); ge_free(&sum); ge_free(&dbl);
+    return rc;
+}
+
+/* Selecting the insecure loop requires BOTH macros: the probe defines the
+ * TIMING_PROBE macro itself, so a stray WUBU_ED25519_LEGACY_MUL in a normal
+ * build cannot silently put the old code back on the signing path. */
+#if defined(WUBU_ED25519_LEGACY_MUL) && defined(WUBU_ED25519_TIMING_PROBE)
+#define ge_mul ge_mul_doubleadd
+#else
+#define ge_mul ge_mul_ladder
+#endif
 
 static int ge_frombytes(ge *p, const uint8_t enc[32]) {
     uint8_t buf[32];
