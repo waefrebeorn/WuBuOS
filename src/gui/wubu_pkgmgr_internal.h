@@ -146,6 +146,10 @@ bool install_package_files(const wubu_pkg_manifest_t *manifest, const char *src_
 void generate_desktop_entry(const wubu_pkg_manifest_t *manifest, int entry_idx, const char *install_path);
 
 /* -- Fetch leaf (wubu_pkgmgr_fetch.c): download + sha256 gate ------ */
+#ifdef WUBU_HAVE_MBEDTLS
+/* Crypto build: verify a package against ANY enabled, keyed repository. */
+bool wubu_pkgmgr_verify_against_repos(const char *pkg_path);
+#endif
 
 /* Split scheme://host[:port][/path]; path gets "" when absent. */
 bool pkgmgr_split_url(const char *url, char *host, size_t hostsz,

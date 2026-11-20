@@ -192,6 +192,22 @@ int main(int argc, char **argv) {
     /* 7. Restore the pristine signed package and re-verify. */
     fails += expect("pristine package still verifies", wubu_pkgmgr_verify_package(pkg, pub), true);
 
+    /* 8. Install trust anchors: every enabled repo key is tried, not just
+     * the first one. A valid package signed by the SECOND configured repo
+     * must verify; with no matching key it must be refused. */
+    memset(g_pkgmgr.repos, 0, sizeof(g_pkgmgr.repos));
+    g_pkgmgr.n_repos = 2;
+    g_pkgmgr.repos[0].enabled = true;
+    snprintf(g_pkgmgr.repos[0].pubkey, sizeof(g_pkgmgr.repos[0].pubkey), "%s", wrong_pub);
+    g_pkgmgr.repos[1].enabled = true;
+    snprintf(g_pkgmgr.repos[1].pubkey, sizeof(g_pkgmgr.repos[1].pubkey), "%s", pub);
+    fails += expect("second repo trust anchor verifies",
+                    wubu_pkgmgr_verify_against_repos(pkg), true);
+    snprintf(g_pkgmgr.repos[1].pubkey, sizeof(g_pkgmgr.repos[1].pubkey), "%s", wrong_pub);
+    fails += expect("no matching trust anchor rejected",
+                    wubu_pkgmgr_verify_against_repos(pkg), false);
+    g_pkgmgr.n_repos = 0;
+
     free(orig);
     printf("[gate] %s (%d failure%s)\n", fails ? "FAILED" : "ALL CHECKS PASSED",
            fails, fails == 1 ? "" : "s");

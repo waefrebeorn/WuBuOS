@@ -192,6 +192,20 @@ static void remove_tree(const char *path) {
     if (rm_pid > 0) waitpid(rm_pid, NULL, 0);
 }
 
+#ifdef WUBU_HAVE_MBEDTLS
+bool wubu_pkgmgr_verify_against_repos(const char *pkg_path) {
+    /* A package carries no repo-origin field, so no single key can be
+     * assumed "the" owner. Every ENABLED, keyed repository is a configured
+     * trust anchor; accept if any of them verifies, reject if none does. */
+    for (int i = 0; i < g_pkgmgr.n_repos; i++) {
+        if (g_pkgmgr.repos[i].enabled && g_pkgmgr.repos[i].pubkey[0] &&
+            wubu_pkgmgr_verify_package(pkg_path, g_pkgmgr.repos[i].pubkey))
+            return true;
+    }
+    return false;
+}
+#endif
+
 bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
     pkgmgr_progress("install", pkg_spec, 0.1, "Resolving package");
 
@@ -271,22 +285,10 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
      * configured repository trust anchor.  The legacy no-mbedTLS build does
      * not pretend to verify. */
     if (g_pkgmgr.config.verify_signatures) {
-        const char *pubkey = NULL;
-        for (int i = 0; i < g_pkgmgr.n_repos; i++) {
-            if (g_pkgmgr.repos[i].enabled && g_pkgmgr.repos[i].pubkey[0]) {
-                pubkey = g_pkgmgr.repos[i].pubkey;
-                break;
-            }
-        }
-        if (!pubkey) {
+        if (g_pkgmgr.n_repos == 0 || !wubu_pkgmgr_verify_against_repos(pkg_path)) {
             fprintf(stderr,
-                    "[pkgmgr] install refused: no Ed25519 trust anchor configured\n");
-            free(manifest);
-            return false;
-        }
-        if (!wubu_pkgmgr_verify_package(pkg_path, pubkey)) {
-            fprintf(stderr,
-                    "[pkgmgr] install refused: Ed25519 signature verification failed\n");
+                    "[pkgmgr] install refused: no configured Ed25519 trust anchor "
+                    "verified this package\n");
             free(manifest);
             return false;
         }
