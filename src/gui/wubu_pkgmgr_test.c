@@ -498,10 +498,13 @@ bool test_stats(void) {
     config.allow_untrusted = true;
     
     TEST_ASSERT(wubu_pkgmgr_init(&config), "pkgmgr init");
-    
+    TEST_ASSERT(wubu_pkgmgr_repo_add("stats-repo", "https://example.invalid", "", 1),
+                "repo added for stats");
+
     wubu_pkgmgr_stats_t stats;
     TEST_ASSERT(wubu_pkgmgr_get_stats(&stats), "get stats");
     TEST_ASSERT(stats.installed_count >= 0, "installed count");
+    TEST_ASSERT(stats.total_repos >= 1, "stats reports the configured repo");
     
     wubu_pkgmgr_shutdown();
     return true;

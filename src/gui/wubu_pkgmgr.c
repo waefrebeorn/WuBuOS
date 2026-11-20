@@ -341,16 +341,22 @@ int wubu_pkgmgr_autoremove(bool dry_run) {
     return removed;
 }
 
-/* Verify installed packages by checking file checksums against the files table.
- * Returns 0 if all are intact, or -1 if any are broken. Populates out_broken
- * with the list of package ids whose files fail verification (caller must free). */
+/* Report real package/repository counts from the live tables. */
+static int cb_stats_count(void *data, int argc, char **argv, char **col) {
+    (void)argc; (void)col;
+    if (argv && argv[0]) *(int *)data = atoi(argv[0]);
+    return 0;
+}
+
 bool wubu_pkgmgr_get_stats(wubu_pkgmgr_stats_t *out) {
     if (!g_pkgmgr.initialized || !out) return false;
     memset(out, 0, sizeof(*out));
     int count = 0;
-    db_query("SELECT COUNT(*) FROM packages", NULL, &count);
+    /* db_query invokes the callback once per row; passing NULL left
+     * installed_count permanently at 0 even with packages installed. */
+    db_query("SELECT COUNT(*) FROM packages", cb_stats_count, &count);
     out->installed_count = count;
-    out->total_repos = 0;
+    out->total_repos = g_pkgmgr.n_repos;
     return true;
 }
 
