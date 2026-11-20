@@ -266,6 +266,53 @@ static int legacy_rejects_dtneeded(const uint8_t *img, size_t n) {
     return 0;
 }
 
+/* Model the PRE-CHANGE base-name-only loader on a COPY of a versioned
+ * fixture: clear DT_VERSYM's value so no version data is consulted.  All
+ * code, DT_NEEDED graph and relocations stay byte-identical; the resulting
+ * output is what the old loader would have produced from the same guest. */
+static int legacy_strip_versions(uint8_t *img, size_t n) {
+    if (n < 64) return 0;
+    uint64_t phoff; uint16_t phentsize, phnum;
+    memcpy(&phoff, img + 32, 8);
+    memcpy(&phentsize, img + 54, 2);
+    memcpy(&phnum, img + 56, 2);
+    if (phoff + (uint64_t)phnum * phentsize > n) return 0;
+    uint64_t doff = 0, dsz = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *ph = img + phoff + (uint64_t)i * phentsize;
+        uint32_t t; memcpy(&t, ph, 4);
+        if (t != 2) continue;
+        memcpy(&doff, ph + 8, 8);
+        memcpy(&dsz, ph + 32, 8);
+        break;
+    }
+    if (dsz < 16 || doff > n || dsz > n - doff) return 0;
+    for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
+        uint64_t tag; memcpy(&tag, img + doff + k, 8);
+        if (tag == 0) break;
+        if (tag == 0x6ffffff0ULL) {                  /* DT_VERSYM */
+            uint64_t zero = 0;
+            memcpy(img + doff + k + 8, &zero, 8);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Rename a version requirement in a COPY of the fixture's dynamic string
+ * table so the request has no matching definition (missing-version case). */
+static int rename_version(uint8_t *img, size_t n, const char *from, char to) {
+    size_t len = strlen(from);
+    if (len == 0 || n < len + 1) return 0;
+    for (size_t i = 0; i + len + 1 <= n; i++) {
+        if (memcmp(img + i, from, len) == 0 && img[i + len] == 0) {
+            img[i + len - 1] = to;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Hand-assemble a tiny ET_DYN with IMPORTED symbols (DT_HASH + DT_SYMTAB
  * + DT_STRTAB).  Three relocations exercise the bounded resolver:
  *   [0] R_X86_64_GLOB_DAT   sym=vsl_test_shim  -> slot @0x1100
@@ -906,7 +953,7 @@ int main(int argc, char **argv) {
      *     Negative control: the SAME bytes with both opt-in flags OFF (the
      *     pre-change loader behaviour) produce no markers and no resolver
      *     count -- the new feature, not the fixture, is what is being tested.
-     *     Full symbol versioning remains a verified boundary (base name only). */
+     *     Symbol versioning is gated separately in (r) below. */
     {
         size_t n = 0;
         snprintf(path, sizeof(path), "%s/guest_initplt.elf", dir);
@@ -982,6 +1029,104 @@ int main(int argc, char **argv) {
             CHECK(a2 == 0x56534c53484d4949ULL && b2 == 0x56534c53484d4949ULL,
                   "negative control: eager JUMP_SLOT still calls shim twice");
 
+            free(img);
+        }
+    }
+
+    /* (r) Bounded ELF symbol versioning + strong/weak preference differential.
+     *     The main fixture imports vsl_ver_entry@VSL_2 and vsl_weakpick@VSL_1.
+     *     Dependency A (first DT_NEEDED) has vsl_ver_entry@VSL_1 (WRONG) and
+     *     a WEAK vsl_weakpick@VSL_1; dependency B has the requested VSL_2
+     *     alias (hidden/weak) and a STRONG vsl_weakpick@VSL_1.  A base-name/
+     *     first-wins loader picks A's wrong default version; the bounded
+     *     loader matches version names and prefers strong over weak within
+     *     the same version.  Negative controls run the SAME bytes with
+     *     DT_VERSYM cleared (pre-change behaviour) and with the required
+     *     version renamed to a missing name. */
+    {
+        size_t n = 0;
+        snprintf(path, sizeof(path), "%s/guest_symver.elf", dir);
+        uint8_t *img = read_test_file(path, &n);
+        CHECK(img != NULL, "symbol-versioning main fixture readable");
+        if (img) {
+            CHECK(vsl_dyn_set_dep_search_dir(dir) == 0,
+                  "versioning gate: dependency allow-list accepted");
+            rc = vsl_exec_elf_bytes(img, n, &r);
+            uint64_t ver = 0, weakm = 0;
+            if (r.output_len >= 16) {
+                memcpy(&ver, r.output, 8);
+                memcpy(&weakm, r.output + 8, 8);
+            }
+            printf("[gate r] versioned: rc=%d exit=%d deps=%u out_len=%zu "
+                   "ver=0x%llx weak=0x%llx out=\"%.*s\"\n",
+                   rc, r.exit_code, r.deps_loaded, r.output_len,
+                   (unsigned long long)ver, (unsigned long long)weakm,
+                   (int)r.output_len, r.output);
+            CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                  "versioned guest runs to exit(0)");
+            CHECK(r.deps_loaded == 2, "both versioned dependencies loaded");
+            CHECK(r.output_len == 16, "two 8-byte magic words emitted");
+            CHECK(ver == 0x4242523200000002ULL,
+                  "vsl_ver_entry@VSL_2 resolved from dep B, not A's VSL_1");
+            CHECK(weakm == 0x5354524f00000002ULL,
+                  "strong vsl_weakpick@VSL_1 beats A's weak definition");
+
+            /* Negative control 1: same bytes, no version data -> old rule. */
+            uint8_t *old = (uint8_t *)malloc(n);
+            CHECK(old != NULL, "legacy control copy allocated");
+            if (old) {
+                memcpy(old, img, n);
+                CHECK(legacy_strip_versions(old, n) == 1,
+                      "negative control: DT_VERSYM cleared (pre-change rule)");
+                rc = vsl_exec_elf_bytes(old, n, &r);
+                uint64_t over = 0, oweak = 0;
+                if (r.output_len >= 16) {
+                    memcpy(&over, r.output, 8);
+                    memcpy(&oweak, r.output + 8, 8);
+                }
+                printf("[gate r] negative control (base-name only): "
+                       "rc=%d exit=%d out_len=%zu ver=0x%llx weak=0x%llx "
+                       "out=\"%.*s\"\n",
+                       rc, r.exit_code, r.output_len,
+                       (unsigned long long)over, (unsigned long long)oweak,
+                       (int)r.output_len, r.output);
+                CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                      "legacy control: guest still runs (old loader succeeded)");
+                CHECK(over == 0x4141523100000001ULL,
+                      "old loader picks WRONG default vsl_ver_entry@VSL_1 from dep A");
+                CHECK(over != ver,
+                      "version-name matching changes the resolved definition");
+                CHECK(oweak == weakm,
+                      "strong-over-weak preference stays active without version tags");
+                free(old);
+            }
+
+            /* Negative control 2: required version has NO definition. */
+            uint8_t *bad = (uint8_t *)malloc(n);
+            CHECK(bad != NULL, "missing-version copy allocated");
+            if (bad) {
+                memcpy(bad, img, n);
+                CHECK(rename_version(bad, n, "VSL_2", '9') == 1,
+                      "missing-version requirement renamed VSL_2 -> VSL_9");
+                rc = vsl_exec_elf_bytes(bad, n, &r);
+                printf("[gate r] missing version: rc=%d status=%d (want %d)\n",
+                       rc, r.status, VSL_EXEC_ERR_RELOC);
+                CHECK(rc == VSL_EXEC_ERR_RELOC,
+                      "missing version definition refused (fail-closed ERR_RELOC)");
+                /* Same mutated bytes under the old base-name-only rule: the
+                 * unknown version is ignored and the guest would still run. */
+                CHECK(legacy_strip_versions(bad, n) == 1,
+                      "missing-version control: DT_VERSYM cleared");
+                rc = vsl_exec_elf_bytes(bad, n, &r);
+                printf("[gate r] missing version (base-name only): "
+                       "rc=%d exit=%d out_len=%zu\n",
+                       rc, r.exit_code, r.output_len);
+                CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                      "old loader ignores the missing version and succeeds");
+                free(bad);
+            }
+            CHECK(vsl_dyn_set_dep_search_dir(NULL) == 0,
+                  "versioning gate: dependency allow-list cleared");
             free(img);
         }
     }

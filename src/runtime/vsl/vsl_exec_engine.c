@@ -563,6 +563,38 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 #define EX_STRTAB_MAX (1u << 20)
 #define EX_COPY_MAX  256u    /* max bytes one COPY relocation may move */
 
+/* -- bounded ELF symbol versioning -------------------------------------
+ * Byte-level parse of the GNU gABI .gnu.version / .gnu.version_d /
+ * .gnu.version_r tables.  No <elf.h>, no ld.so, no glibc ABI: the offsets
+ * and record sizes below are fixed by the ELF spec and read with memcpy.
+ * A versioned import is satisfied ONLY by a definition carrying the same
+ * version NAME; unversioned imports take the default strong definition.
+ * Any version index with no matching definition/need entry fails closed. */
+#define EX_DT_VERSYM      0x6ffffff0ULL
+#define EX_DT_VERDEF      0x6ffffffcULL
+#define EX_DT_VERDEFNUM   0x6ffffffdULL
+#define EX_DT_VERNEED     0x6ffffffeULL
+#define EX_DT_VERNEEDNUM  0x6fffffffULL
+#define EX_VER_NDX_LOCAL  0u
+#define EX_VER_NDX_GLOBAL 1u
+#define EX_VERSYM_HIDDEN  0x8000u          /* non-default version bit */
+#define EX_VER_NAME_MAX   64u
+#define EX_VERDEF_MAX     32u
+#define EX_VERNEED_MAX    32u
+#define EX_VER_AUX_MAX    32u              /* vernaux / verdaux per record */
+
+typedef struct {
+    uint16_t ndx;                          /* version index (hidden bit off) */
+    char     name[EX_VER_NAME_MAX + 1];
+} VslVerEnt;
+
+typedef struct {
+    VslVerEnt defs[EX_VERDEF_MAX];   uint32_t ndefs;
+    VslVerEnt needs[EX_VERNEED_MAX]; uint32_t nneeds;
+    uint64_t  versym_off;                  /* FILE offset of DT_VERSYM array */
+    int       have_versym;
+} VslVerCtx;
+
 /* -- bounded DT_NEEDED dependency state --------------------------------
  * All of this is per-run state, reset at the top of vsl_exec_elf_bytes().
  * Only objects found under the configured allow-listed directory are loaded;
@@ -575,6 +607,14 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 #define EX_DEP_DEPTH_MAX   4u     /* max DT_NEEDED recursion depth */
 #define EX_DEP_BYTES_MAX   (32u * 1024u * 1024u) /* max total mapped dep bytes */
 
+/* Dynamic-tag view shared by the dependency loader and the relocator. */
+typedef struct VslDynInfo {
+    uint64_t needed[EX_DEP_MAX];         /* DT_STRTAB offsets of sonames */
+    uint32_t needed_count;
+    uint64_t strtab, strsz, symtab, syment, hash, gnu_hash;
+    uint64_t versym, verdef, verdefnum, verneed, verneednum;
+} VslDynInfo;
+
 static char g_dep_dir[EX_DEP_PATH_MAX];
 static int  g_dep_dir_set;
 
@@ -586,6 +626,9 @@ typedef struct {
 
 typedef struct {
     char     name[EX_NAME_MAX + 1];     /* owned copy; dep bytes are freed */
+    char     ver[EX_VER_NAME_MAX + 1];  /* "" = unversioned / global scope */
+    uint8_t  weak;                      /* STB_WEAK definition */
+    uint8_t  is_default;                /* versym hidden bit clear */
     uint64_t addr;                      /* dep_bias + st_value */
 } VslDepSym;
 
@@ -621,18 +664,33 @@ uint64_t vsl_dyn_dep_symbol(const char *name) {
     return 0;
 }
 
-/* Look up an exported symbol merged from a loaded dependency.  First
- * definition wins (matching the static link order).  Returns 1 and writes
- * *addr (when non-NULL) on a hit, 0 on a miss. */
-static int ex_dep_lookup(const char *name, uint64_t *addr) {
+/* Rank a candidate definition: strong beats weak, default version beats a
+ * hidden (non-default) alias; ties keep link order (first definition wins). */
+static int ex_dep_rank(const VslDepSym *s) {
+    return (!s->weak ? 2 : 0) + (s->is_default ? 1 : 0);
+}
+
+/* Look up an exported symbol.  `ver` non-NULL requires an EXACT version-name
+ * match; NULL asks for the unversioned/default case and accepts any version
+ * but prefers the default, strong definition.  Returns 1 and writes *addr
+ * (when non-NULL) on a hit, 0 on a miss. */
+static int ex_dep_lookup_ver(const char *name, const char *ver, uint64_t *addr) {
     if (!name || !name[0]) return 0;
+    VslDepSym *best = NULL;
     for (uint32_t i = 0; i < g_dep_sym_count; i++) {
-        if (strcmp(g_dep_syms[i].name, name) == 0) {
-            if (addr) *addr = g_dep_syms[i].addr;
-            return 1;
-        }
+        VslDepSym *s = &g_dep_syms[i];
+        if (strcmp(s->name, name) != 0) continue;
+        if (ver && strcmp(s->ver, ver) != 0) continue;   /* exact version */
+        if (!best || ex_dep_rank(s) > ex_dep_rank(best)) best = s;
     }
-    return 0;
+    if (!best) return 0;
+    if (addr) *addr = best->addr;
+    return 1;
+}
+
+/* Base-name diagnostic view (used by the public accessor). */
+static int ex_dep_lookup(const char *name, uint64_t *addr) {
+    return ex_dep_lookup_ver(name, NULL, addr);
 }
 
 /* Determine the dynamic symbol count from DT_HASH (nchain) or DT_GNU_HASH
@@ -697,16 +755,162 @@ static int ex_symbol_count(const uint8_t *f, size_t fsz,
     return -1;
 }
 
+/* -- version table parsing (raw gABI bytes, bounded) -------------------- */
+static const char *ex_ver_lookup(const VslVerEnt *tab, uint32_t n, uint16_t ndx) {
+    ndx &= (uint16_t)~EX_VERSYM_HIDDEN;
+    if (ndx <= EX_VER_NDX_GLOBAL) return NULL;       /* local/global: unversioned */
+    for (uint32_t i = 0; i < n; i++)
+        if (tab[i].ndx == ndx) return tab[i].name;
+    return NULL;                                     /* missing -> fail closed */
+}
+
+/* Read a NUL-terminated version name out of DT_STRTAB. */
+static int ex_ver_name_at(const uint8_t *f, uint64_t stroff, uint64_t strsz,
+                          uint64_t nameoff, char out[EX_VER_NAME_MAX + 1]) {
+    if (nameoff >= strsz) return -1;
+    const char *s = (const char *)(f + stroff + nameoff);
+    size_t room = (size_t)(strsz - nameoff);
+    if (!memchr(s, 0, room)) return -1;
+    size_t n = strlen(s);
+    if (n == 0 || n > EX_VER_NAME_MAX) return -1;
+    memcpy(out, s, n + 1);
+    return 0;
+}
+
+/* Parse DT_VERSYM / DT_VERDEF / DT_VERNEED into a bounded per-image context.
+ * `symcount` bounds the versym array.  Every record is read via
+ * ex_vaddr_to_off with an explicit byte size; a truncated chain, an unknown
+ * revision, an unmapped table or an unnamed version makes the image fail
+ * closed.  VERDEFNUM/VERNEEDNUM (when present) must match the walked chain. */
+static int ex_parse_versions(const uint8_t *f, size_t fsz,
+                             uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                             const VslDynInfo *di, uint32_t symcount,
+                             VslVerCtx *vc) {
+    memset(vc, 0, sizeof(*vc));
+    if (di->versym == 0) return 0;                   /* unversioned image */
+    if (symcount == 0 || symcount > EX_SYM_MAX) return -1;
+    if (di->strtab == 0 || di->strsz == 0 || di->strsz > EX_STRTAB_MAX) return -1;
+    uint64_t voff, stroff;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        di->versym, (uint64_t)symcount * 2, &voff) != 0) return -1;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        di->strtab, di->strsz, &stroff) != 0) return -1;
+    vc->versym_off = voff;
+    vc->have_versym = 1;
+
+    if (di->verdef) {
+        uint64_t cur = di->verdef, walked = 0;
+        uint64_t limit = di->verdefnum ? di->verdefnum : EX_VERDEF_MAX;
+        if (limit > EX_VERDEF_MAX) return -1;
+        for (uint64_t i = 0; i < limit; i++) {
+            uint64_t off;
+            if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                                cur, 20, &off) != 0) return -1;
+            uint16_t vr, flags, ndx, cnt;
+            uint32_t aux, next;
+            memcpy(&vr,    f + off,      2);
+            memcpy(&flags, f + off + 2,  2);
+            memcpy(&ndx,   f + off + 4,  2);
+            memcpy(&cnt,   f + off + 6,  2);
+            memcpy(&aux,   f + off + 12, 4);
+            memcpy(&next,  f + off + 16, 4);
+            (void)flags;
+            if (vr != 1 || cnt == 0 || cnt > EX_VER_AUX_MAX || aux == 0 ||
+                (ndx & EX_VERSYM_HIDDEN)) return -1;
+            uint64_t aoff;
+            if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                                cur + aux, 8, &aoff) != 0) return -1;
+            uint32_t vda_name;
+            memcpy(&vda_name, f + aoff, 4);
+            if (vc->ndefs >= EX_VERDEF_MAX) return -1;
+            VslVerEnt *e = &vc->defs[vc->ndefs++];
+            e->ndx = ndx;
+            if (ex_ver_name_at(f, stroff, di->strsz, vda_name, e->name) != 0)
+                return -1;
+            walked++;
+            if (next == 0) break;
+            cur += next;
+        }
+        if (walked == 0 || (di->verdefnum && walked != di->verdefnum)) return -1;
+    }
+
+    if (di->verneed) {
+        uint64_t cur = di->verneed, walked = 0;
+        uint64_t limit = di->verneednum ? di->verneednum : EX_VERNEED_MAX;
+        if (limit > EX_VERNEED_MAX) return -1;
+        for (uint64_t i = 0; i < limit; i++) {
+            uint64_t off;
+            if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                                cur, 16, &off) != 0) return -1;
+            uint16_t vr, cnt; uint32_t aux, next;
+            memcpy(&vr,  f + off,      2);
+            memcpy(&cnt, f + off + 2,  2);
+            memcpy(&aux, f + off + 8,  4);
+            memcpy(&next, f + off + 12, 4);
+            if (vr != 1 || cnt == 0 || cnt > EX_VER_AUX_MAX || aux == 0) return -1;
+            uint64_t a = cur + aux;
+            for (uint16_t j = 0; j < cnt; j++) {
+                uint64_t aoff;
+                if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                                    a, 16, &aoff) != 0) return -1;
+                uint16_t flags, other; uint32_t vna_name, vna_next;
+                memcpy(&flags,    f + aoff + 4,  2);
+                memcpy(&other,    f + aoff + 6,  2);
+                memcpy(&vna_name, f + aoff + 8,  4);
+                memcpy(&vna_next, f + aoff + 12, 4);
+                (void)flags;
+                uint16_t ndx = other & (uint16_t)~EX_VERSYM_HIDDEN;
+                if (ndx <= EX_VER_NDX_GLOBAL) return -1;
+                if (vc->nneeds >= EX_VERNEED_MAX) return -1;
+                VslVerEnt *e = &vc->needs[vc->nneeds++];
+                e->ndx = ndx;
+                if (ex_ver_name_at(f, stroff, di->strsz, vna_name, e->name) != 0)
+                    return -1;
+                if (vna_next == 0) {
+                    if ((uint16_t)(j + 1) != cnt) return -1;
+                    break;
+                }
+                a += vna_next;
+            }
+            walked++;
+            if (next == 0) break;
+            cur += next;
+        }
+        if (walked == 0 || (di->verneednum && walked != di->verneednum)) return -1;
+    }
+    return 0;
+}
+
+/* Read one symbol's versym entry.  Returns the index with the hidden bit
+ * stripped in *ndx and the raw hidden bit in *hidden. */
+static int ex_sym_version(const uint8_t *f, const VslVerCtx *vc,
+                          uint32_t symidx, uint16_t *ndx, int *hidden) {
+    uint16_t v = EX_VER_NDX_GLOBAL;                  /* unversioned default */
+    if (vc && vc->have_versym) {
+        if (symidx >= EX_SYM_MAX) return -1;
+        memcpy(&v, f + vc->versym_off + (uint64_t)symidx * 2, 2);
+    }
+    *hidden = (v & EX_VERSYM_HIDDEN) != 0;
+    *ndx = v & (uint16_t)~EX_VERSYM_HIDDEN;
+    return 0;
+}
+
 /* Resolve one dynamic symbol index to its runtime address.  Defined symbols
  * are bias + st_value; undefined names are looked up ONLY in the fixed host
- * table.  Returns 0 ok, -1 unknown symbol / malformed entry (fail closed). */
+ * table or the merged DT_NEEDED export table, and a versioned import must
+ * match a definition's version NAME exactly (fail closed otherwise).
+ * Returns 0 ok, -1 unknown symbol / bad version / malformed entry. */
 static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
                              uint16_t phnum, uint16_t phentsize, uint64_t phoff,
                              uint64_t symtab, uint64_t syment,
                              uint64_t strtab, uint64_t strsz,
                              uint32_t symcount, uint32_t symidx,
-                             uint64_t bias, uint64_t *out) {
+                             uint64_t bias, const VslVerCtx *vc,
+                             uint64_t *out) {
     if (symidx >= symcount || symtab == 0 || syment < 24) return -1;
+    uint16_t vi = EX_VER_NDX_GLOBAL;
+    int hidden = 0;
+    if (ex_sym_version(f, vc, symidx, &vi, &hidden) != 0) return -1;
     uint64_t so;
     if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                         symtab + (uint64_t)symidx * syment, 24, &so) != 0) return -1;
@@ -720,6 +924,11 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     memcpy(&st_value, f + so + 8,  8);
     if ((st_info & 0x0f) == 6) return -1;            /* STT_TLS has no plain addr */
     if (st_shndx != 0) {                             /* SHN_UNDEF == 0 */
+        /* A defined symbol carrying a version index must have a matching
+         * DT_VERDEF name in THIS image, otherwise the version data is
+         * malformed/incomplete: refuse rather than silently ignore it. */
+        if (vi > EX_VER_NDX_GLOBAL &&
+            !ex_ver_lookup(vc->defs, vc->ndefs, vi)) return -1;
         if (st_shndx == 0xfff1) { *out = st_value; return 0; } /* SHN_ABS */
         if (st_shndx >= 0xff00) return -1;           /* COMMON/XINDEX/processor */
         *out = bias + st_value;
@@ -734,6 +943,15 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     size_t room = (size_t)(strsz - st_name);
     if (!memchr(name, 0, room) || strlen(name) > EX_NAME_MAX) return -1;
     uint64_t addr = 0;
+    /* Versioned import: the index must resolve to a DT_VERNEED name and a
+     * dependency export carrying that EXACT version name.  The unversioned
+     * host table has no version definitions, so it cannot satisfy it. */
+    if (vi > EX_VER_NDX_GLOBAL) {
+        const char *req = ex_ver_lookup(vc->needs, vc->nneeds, vi);
+        if (!req || !ex_dep_lookup_ver(name, req, &addr)) return -1;
+        *out = addr;
+        return 0;
+    }
     if (ex_dep_lookup(name, &addr)) {         /* merged DT_NEEDED exports first */
         *out = addr;
         return 0;
@@ -753,10 +971,16 @@ static int ex_resolve_copy(const uint8_t *f, size_t fsz,
                            uint16_t phnum, uint16_t phentsize, uint64_t phoff,
                            uint64_t symtab, uint64_t syment,
                            uint64_t strtab, uint64_t strsz, uint32_t symcount,
-                           uint32_t symidx, uint64_t *out_addr,
-                           uint64_t *out_size) {
+                           uint32_t symidx, const VslVerCtx *vc,
+                           uint64_t *out_addr, uint64_t *out_size) {
     if (symidx == 0 || symidx >= symcount || symtab == 0 || syment < 24)
         return -1;
+    uint16_t vi = EX_VER_NDX_GLOBAL;
+    int hidden = 0;
+    if (ex_sym_version(f, vc, symidx, &vi, &hidden) != 0) return -1;
+    /* The fixed host table has no version definitions; a versioned COPY
+     * requirement can never be satisfied -> fail closed. */
+    if (vi > EX_VER_NDX_GLOBAL) return -1;
     uint64_t so;
     if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                         symtab + (uint64_t)symidx * syment, 24, &so) != 0)
@@ -805,6 +1029,7 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
                         uint64_t map_lo, uint64_t map_hi,
                         uint64_t symtab, uint64_t syment,
                         uint64_t strtab, uint64_t strsz, uint32_t symcount,
+                        const VslVerCtx *vc,
                         uint64_t r_offset, uint64_t r_info, int64_t addend,
                         int has_addend, int lazy_plt, uint32_t *resolved) {
     uint32_t type   = (uint32_t)(r_info & 0xffffffffu);
@@ -820,7 +1045,8 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
     case EX_R_X86_64_COPY: {
         uint64_t src = 0, sz = 0;
         if (ex_resolve_copy(f, fsz, phnum, phentsize, phoff, symtab, syment,
-                            strtab, strsz, symcount, symidx, &src, &sz) != 0)
+                            strtab, strsz, symcount, symidx, vc,
+                            &src, &sz) != 0)
             return -1;
         if (dest > EX_WIN_HI - sz || dest > map_hi - sz) return -1;
         memcpy((void *)(uintptr_t)dest, (const void *)(uintptr_t)src,
@@ -847,7 +1073,7 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
             S = 0;
         } else if (ex_resolve_symbol(f, fsz, phnum, phentsize, phoff,
                                      symtab, syment, strtab, strsz,
-                                     symcount, symidx, bias, &S) != 0) {
+                                     symcount, symidx, bias, vc, &S) != 0) {
             return -1;
         }
         uint64_t val = (type == EX_R_X86_64_64)
@@ -906,6 +1132,10 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
     uint64_t jmprel = 0, pltrelsz = 0, pltrel = 0;
     uint64_t symtab = 0, strtab = 0, strsz = 0, syment = 24;
     uint64_t hash = 0, gnu_hash = 0;
+    VslVerCtx vc;
+    VslDynInfo vdi;
+    memset(&vc, 0, sizeof(vc));
+    memset(&vdi, 0, sizeof(vdi));
     const uint8_t *d = f + doff;
     for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
         uint64_t tag, val;
@@ -928,9 +1158,15 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
         case EX_DT_SYMENT:  syment = val; break;
         case EX_DT_HASH:    hash = val;   break;
         case EX_DT_GNU_HASH:gnu_hash = val;break;
+        case EX_DT_VERSYM:  vdi.versym = val; break;
+        case EX_DT_VERDEF:  vdi.verdef = val; break;
+        case EX_DT_VERDEFNUM: vdi.verdefnum = val; break;
+        case EX_DT_VERNEED: vdi.verneed = val; break;
+        case EX_DT_VERNEEDNUM: vdi.verneednum = val; break;
         default: break;    /* other tags ignored; DT_NEEDED loaded before this */
         }
     }
+    vdi.strtab = strtab; vdi.strsz = strsz;
 
     /* Pre-scan: only images that ACTUALLY contain symbol-based relocations
      * need a bounded symbol table.  A pure RELATIVE image (the original
@@ -965,10 +1201,14 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
         else return -1;
     }
 #undef EX_SCAN_TABLE
-    if (need_syms) {
+    if (need_syms || vdi.versym) {
         if (ex_symbol_count(f, fsz, phnum, phentsize, phoff,
                             hash, gnu_hash, &symcount) != 0) return -1;
         if (symtab == 0 || strtab == 0) return -1;
+        /* Version tables are validated even for a pure-RELATIVE image that
+         * merely carries them; malformed/uncounted version data is refused. */
+        if (ex_parse_versions(f, fsz, phnum, phentsize, phoff,
+                              &vdi, symcount, &vc) != 0) return -1;
     }
 
     /* Walk one relocation table (RELA has explicit addend, REL does not). */
@@ -990,6 +1230,7 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                 int vr = ex_apply_one(f, fsz, bias, phnum, phentsize, phoff,  \
                                      map_lo, map_hi,                          \
                                      symtab, syment, strtab, strsz, symcount, \
+                                     &vc,                                     \
                                      ro, ri, (int64_t)ra, HAS_ADDEND,         \
                                      lazy_plt, out_resolved);                 \
                 if (vr < 0) return -1;                                       \
@@ -1024,12 +1265,6 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
  * every failure is a hard reject; the caller maps it to ERR_RELOC. */
 
 #define EX_DT_NEEDED 1ULL
-
-typedef struct {
-    uint64_t needed[EX_DEP_MAX];         /* DT_STRTAB offsets of sonames */
-    uint32_t needed_count;
-    uint64_t strtab, strsz, symtab, syment, hash, gnu_hash;
-} VslDynInfo;
 
 /* Parse the DT_* tags a dependency needs: DT_NEEDED names, string/symbol
  * tables for exports, and hashes to bound the symbol count. */
@@ -1067,11 +1302,21 @@ static int ex_parse_dyn(const uint8_t *f, size_t fsz,
         case EX_DT_STRSZ:   di->strsz = val;    break;
         case EX_DT_SYMENT:  di->syment = val;   break;
         case EX_DT_GNU_HASH:di->gnu_hash = val; break;
+        case EX_DT_VERSYM:  di->versym = val;   break;
+        case EX_DT_VERDEF:  di->verdef = val;   break;
+        case EX_DT_VERDEFNUM: di->verdefnum = val; break;
+        case EX_DT_VERNEED: di->verneed = val;  break;
+        case EX_DT_VERNEEDNUM: di->verneednum = val; break;
         default: break;
         }
     }
     if (di->needed_count && (di->strtab == 0 || di->strsz == 0 ||
                              di->strsz > EX_STRTAB_MAX)) return -1;
+    /* Any version table needs a bounded string table for its version names. */
+    if (di->versym && (di->strtab == 0 || di->strsz == 0 ||
+                       di->strsz > EX_STRTAB_MAX)) return -1;
+    if ((di->verdef && di->verdefnum > EX_VERDEF_MAX) ||
+        (di->verneed && di->verneednum > EX_VERNEED_MAX)) return -1;
     return 0;
 }
 
@@ -1206,13 +1451,18 @@ static int ex_map_dyn_image(const uint8_t *f, size_t fsz,
 }
 
 /* Merge every defined exported dynamic symbol of one dependency into the
- * bounded table.  Names are COPIED (the dep file buffer is freed on return);
- * first definition wins; TLS, undefined and special-section symbols are
- * skipped.  A hash table is required so the symbol count is never guessed. */
+ * bounded table.  Names AND version names are COPIED (the dep file buffer is
+ * freed on return); TLS, undefined, version-local and special-section symbols
+ * are skipped.  A hash table is required so the symbol count is never guessed.
+ * Duplicate (base name, version) definitions use strong-over-weak: a later
+ * strong definition replaces an earlier weak one, otherwise link order wins.
+ * Multiple versions of one base name coexist so a versioned import can pick
+ * its exact match. */
 static int ex_register_exports(const uint8_t *f, size_t fsz,
                                uint16_t phnum, uint16_t phentsize, uint64_t phoff,
                                const VslDynInfo *di, uint64_t bias) {
-    if (di->symtab == 0 || di->syment < 24) return 0; /* nothing exported */
+    if (di->symtab == 0 || di->syment < 24)
+        return di->versym ? -1 : 0;              /* version data without symtab */
     uint32_t n = 0;
     if (ex_symbol_count(f, fsz, phnum, phentsize, phoff,
                         di->hash, di->gnu_hash, &n) != 0) return -1;
@@ -1222,6 +1472,9 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
     uint64_t stroff = 0;
     if (have_str && ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                                     di->strtab, di->strsz, &stroff) != 0) return -1;
+    VslVerCtx vc;
+    if (ex_parse_versions(f, fsz, phnum, phentsize, phoff, di, n, &vc) != 0)
+        return -1;
     for (uint32_t i = 1; i < n; i++) {
         uint64_t so;
         if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
@@ -1239,10 +1492,36 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
         size_t room = (size_t)(di->strsz - st_name);
         if (!memchr(nm, 0, room) || nm[0] == 0 || strlen(nm) > EX_NAME_MAX)
             return -1;
-        if (ex_dep_lookup(nm, NULL)) continue;          /* first wins */
+        uint16_t vi = EX_VER_NDX_GLOBAL;
+        int hidden = 0;
+        if (ex_sym_version(f, &vc, i, &vi, &hidden) != 0) return -1;
+        if (vi == EX_VER_NDX_LOCAL) continue;           /* version-local */
+        const char *verp = "";
+        if (vi > EX_VER_NDX_GLOBAL) {
+            verp = ex_ver_lookup(vc.defs, vc.ndefs, vi);
+            if (!verp) return -1;                      /* missing definition */
+        }
+        int weak = ((st_info >> 4) == 2);              /* STB_WEAK */
+        int is_default = !hidden;
+        VslDepSym *dup = NULL;
+        for (uint32_t j = 0; j < g_dep_sym_count; j++) {
+            if (strcmp(g_dep_syms[j].name, nm) == 0 &&
+                strcmp(g_dep_syms[j].ver, verp) == 0) { dup = &g_dep_syms[j]; break; }
+        }
+        if (dup) {                                     /* strong replaces weak */
+            if (dup->weak && !weak) {
+                dup->addr = bias + st_value;
+                dup->weak = 0;
+                dup->is_default = (uint8_t)is_default;
+            }
+            continue;
+        }
         if (g_dep_sym_count >= EX_DEP_SYM_MAX) return -1;
         VslDepSym *slot = &g_dep_syms[g_dep_sym_count++];
         snprintf(slot->name, sizeof(slot->name), "%s", nm);
+        snprintf(slot->ver, sizeof(slot->ver), "%s", verp);
+        slot->weak = (uint8_t)weak;
+        slot->is_default = (uint8_t)is_default;
         slot->addr = bias + st_value;
     }
     return 0;

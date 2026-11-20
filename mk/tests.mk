@@ -671,7 +671,10 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_dynsym.elf \
 	$(RT)/vsl/exec_guests/libvsldep.so \
 	$(RT)/vsl/exec_guests/guest_dtneeded.elf \
-	$(RT)/vsl/exec_guests/guest_initplt.elf
+	$(RT)/vsl/exec_guests/guest_initplt.elf \
+	$(RT)/vsl/exec_guests/libvslverA.so \
+	$(RT)/vsl/exec_guests/libvslverB.so \
+	$(RT)/vsl/exec_guests/guest_symver.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -726,6 +729,37 @@ $(RT)/vsl/exec_guests/guest_initplt.elf: $(RT)/vsl/exec_guests/guest_initplt.c
 	$(CC) -O0 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
 		-fno-stack-protector -fno-asynchronous-unwind-tables \
 		-Wl,--build-id=none -Wl,-e,_start $< -o $@
+
+# Symbol-versioning differential pair.  Dependency A is first in DT_NEEDED
+# and carries the WRONG version plus a weak definition; dependency B carries
+# the requested default version and the strong definition.  Version scripts
+# define the version nodes; .symver aliases attach them to real dynsyms.
+$(RT)/vsl/exec_guests/libvslverA.so: \
+		$(RT)/vsl/exec_guests/guest_verdep_a.c \
+		$(RT)/vsl/exec_guests/verdep_a.map
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,-N -Wl,--build-id=none -Wl,-soname,libvslverA.so \
+		-Wl,--version-script=$(RT)/vsl/exec_guests/verdep_a.map $< -o $@
+
+$(RT)/vsl/exec_guests/libvslverB.so: \
+		$(RT)/vsl/exec_guests/guest_verdep_b.c \
+		$(RT)/vsl/exec_guests/verdep_b.map
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,-N -Wl,--build-id=none -Wl,-soname,libvslverB.so \
+		-Wl,--version-script=$(RT)/vsl/exec_guests/verdep_b.map $< -o $@
+
+# Main imports vsl_ver_entry@VSL_2 and vsl_weakpick@VSL_1.  -N is omitted so
+# ld emits ordinary PT_LOADs and full DT_VERNEED/DT_VERSYM metadata.
+$(RT)/vsl/exec_guests/guest_symver.elf: \
+		$(RT)/vsl/exec_guests/guest_symver.c \
+		$(RT)/vsl/exec_guests/libvslverA.so \
+		$(RT)/vsl/exec_guests/libvslverB.so
+	$(CC) -O0 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start -Wl,--no-as-needed \
+		-L$(RT)/vsl/exec_guests -l:libvslverA.so -l:libvslverB.so $< -o $@
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o

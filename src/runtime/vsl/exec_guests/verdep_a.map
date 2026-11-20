@@ -1,0 +1,4 @@
+VSL_1 {
+    global: vsl_ver_entry; vsl_weakpick;
+    local: *;
+};

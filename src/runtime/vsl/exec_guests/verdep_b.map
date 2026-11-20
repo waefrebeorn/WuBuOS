@@ -1,0 +1,10 @@
+VSL_B1 {
+    global: vsl_ver_entry_v2; vsl_weakpick_strong;
+    local: *;
+};
+VSL_1 {
+    global: vsl_weakpick;
+} VSL_B1;
+VSL_2 {
+    global: vsl_ver_entry;
+} VSL_1;
