@@ -845,13 +845,13 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
           $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \
           $(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
           $(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
-          $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.c $(APPS)/notepad.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM  -Iinclude  $(RT)/wubu_crc32.c \
+          $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.o
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM  -Iinclude \
 	-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
 	-c $(HOSTED)/hosted.c -o /tmp/hosted_test.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM  -Iinclude  $(RT)/wubu_crc32.c \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM  -Iinclude \
 	-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
-	wubu_gui_shot.c /tmp/hosted_test.o src/kernel/vbe.c \
+	$(sort wubu_gui_shot.c /tmp/hosted_test.o src/kernel/vbe.c \
 	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
 	$(RT)/wubu_onboarding.c $(GUI)/shell/wubu_shell_greeter.o \
 	$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
@@ -859,8 +859,8 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \
 	$(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
 	$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
-	$(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.c $(APPS)/notepad.o \
-	-o wubu_gui_shot -no-pie -Wl,--allow-multiple-definition -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lm
+	$(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.o) \
+	-o wubu_gui_shot -no-pie -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lm
 	./wubu_gui_shot
 
 
@@ -874,10 +874,10 @@ $(RT)/wubu_effect.c \
 		$(GUI)/wubu_a11y.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c wubu_a11y_shot.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
 		$(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_spawn.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/styxfs_path.c $(RT)/wubu_fs_util.c $(RT)/wubu_netlink.c \
+		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_spawn.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/styxfs_path.c $(RT)/wubu_fs_util.c $(RT)/wubu_netlink.c $(RT)/wubu_guest_root.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) \
 	$(TOOLS)/screenshot.c \
-	-o wubu_a11y_shot -no-pie -Wl,--allow-multiple-definition -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c
+	-o wubu_a11y_shot -no-pie -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c
 	./wubu_a11y_shot
 
 # desktop_shot: Full desktop-environment verification capture.
@@ -892,10 +892,10 @@ desktop_shot: wubu_desktop_shot.c
 				$(GUI)/wubu_a11y.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c wubu_desktop_shot.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
 		$(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_spawn.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/styxfs_path.c $(RT)/wubu_fs_util.c $(RT)/wubu_netlink.c \
+		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_spawn.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/styxfs_path.c $(RT)/wubu_fs_util.c $(RT)/wubu_netlink.c $(RT)/wubu_guest_root.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) \
 		$(TOOLS)/screenshot.c \
-		-o wubu_desktop_shot -no-pie -Wl,--allow-multiple-definition -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c
+		-o wubu_desktop_shot -no-pie -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c
 	./wubu_desktop_shot
 
 
@@ -2510,7 +2510,7 @@ $(RT)/wubu_effect.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(APPS)/control/control.c \
 		$(GUI)/shell/window_chrome.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(RT)/wubu_guest_root.c \
-		$(APPS)/control_test.c -o $(APPS)/control_test -Wl,--allow-multiple-definition -lm
+		$(APPS)/control_test.c -o $(APPS)/control_test -lm
 	$(APPS)/control_test
 
 test_proton2:
