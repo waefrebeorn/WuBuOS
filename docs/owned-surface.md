@@ -6,40 +6,55 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 2001
-- OWNED (appear in a test target recipe): 679
-- VENDORED / unproven (no test-target recipe reference): 1322
+- product source modules: 3704
+- OWNED (appear in a test target recipe): 870
+- VENDORED / unproven (no test-target recipe reference): 2834
 
 ## OWNED modules (tested)
 
 - `ahci.c`  -- tests: test_ahci
+- `app_bundle.c`  -- tests: test_app_bundle
 - `app_canvas.c`  -- tests: test_apps
+- `apps.c`  -- tests: test_apps_weak;test_apps
+- `apps_gap_test_stub.c`  -- tests: test_apps_gap
+- `apps_test_stubs.c`  -- tests: test_gui_screenshot
+- `apps_wet.c`  -- tests: test_startmenu_files;test_startmenu;test_apps_weak;test_apps
 - `bear_arena.c`  -- tests: test_bear_opt
+- `bear_cudnn.c`  -- tests: test_bear_opt
+- `bear_cudnn_cublas.c`  -- tests: test_bear_opt
+- `bear_cudnn_cuda.c`  -- tests: test_bear_opt
 - `bear_opt.c`  -- tests: test_bear_opt
+- `bear_train.c`  -- tests: test_bear_opt
+- `bear_vulkan_soft.c`  -- tests: test_bear_opt
+- `bigmac_out.c`  -- tests: test_cp_sound;test_cp_hardware;test_controlpanel;test_glott_speak
+- `bpm.c`  -- tests: test_bpm
+- `bpm_games.c`  -- tests: test_bpm_games
 - `bridge.c`  -- tests: test_bridge_flip
 - `cab_extract.c`  -- tests: test_cab_extract
 - `calc.c`  -- tests: test_calc;test_apps
 - `calc_math.c`  -- tests: test_calc;test_apps
-- `cmd.c`  -- tests: test_cmd
+- `cmd.c`  -- tests: test_cmd;test_guests_panel;test_apps
 - `cmd_test_stub.c`  -- tests: test_cmd
 - `control.c`  -- tests: test_control;test_apps
-- `ct_iso_cgroup.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
-- `ct_iso_ns.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
-- `ct_iso_seccomp.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
-- `apps.c`  -- tests: test_apps
-- `apps_gap_test_stub.c`  -- tests: test_apps_gap
-- `apps_test_stubs.c`  -- tests: test_gui_screenshot
-- `bpm.c`  -- tests: test_bpm
-- `bpm_games.c`  -- tests: test_bpm_games
 - `controlpanel.c`  -- tests: test_cp_hardware;test_controlpanel;test_cp_dnt
 - `cp_display.c`  -- tests: test_controlpanel;test_cp_dnt
 - `cp_hardware.c`  -- tests: test_cp_hardware;test_controlpanel;test_cp_dnt
 - `cp_network.c`  -- tests: test_controlpanel;test_cp_dnt
 - `cp_sound.c`  -- tests: test_cp_sound;test_cp_hardware;test_controlpanel;test_cp_dnt
 - `cp_theme.c`  -- tests: test_controlpanel;test_cp_dnt
+- `ct_iso_cgroup.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
+- `ct_iso_ns.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
+- `ct_iso_seccomp.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
+- `desktop_stubs.c`  -- tests: test_apps;test_wet_applet;test_first_run;test_tutorial
 - `dos_window.c`  -- tests: test_dos_window
 - `dos_window_test_stub.c`  -- tests: test_dos_window
-- `era_apps.c`  -- tests: test_startmenu
+- `editor.c`  -- tests: test_apps
+- `edr_core.c`  -- tests: test_holyd_agi;test_era_apps
+- `edr_fanotify.c`  -- tests: test_holyd_agi;test_era_apps
+- `edr_poller.c`  -- tests: test_holyd_agi;test_era_apps
+- `edr_proc_pin.c`  -- tests: test_holyd_agi;test_era_apps
+- `entity.c`  -- tests: test_worldsim;test_bridge
+- `era_apps.c`  -- tests: test_startmenu_files;test_startmenu
 - `era_apps_test_stub.c`  -- tests: test_bpm
 - `explorer.c`  -- tests: test_explorer
 - `explorer_drives.c`  -- tests: test_explorer
@@ -54,43 +69,6 @@ the kernel/driver build or nowhere in the test recipes).
 - `explorer_test_stub.c`  -- tests: test_explorer
 - `explorer_tree.c`  -- tests: test_explorer
 - `explorer_zip.c`  -- tests: test_explorer
-- `startmenu.c`  -- tests: test_startmenu
-- `startmenu_db.c`  -- tests: test_startmenu
-- `startmenu_power.c`  -- tests: test_startmenu
-- `startmenu_search.c`  -- tests: test_startmenu
-- `startmenu_test_stub.c`  -- tests: test_startmenu
-- `startmenu_tree.c`  -- tests: test_startmenu
-- `term.c`  -- tests: test_term
-- `term_ansi.c`  -- tests: test_term
-- `term_pty.c`  -- tests: test_term
-- `term_render.c`  -- tests: test_term
-- `term_tabs.c`  -- tests: test_term
-- `term_test_stub.c`  -- tests: test_term
-- `window_chrome.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_clock.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_ctxmenu.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_ctxmenu_engine.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_desktop.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_holyc_term.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_icon_glyphs.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_icons.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_input.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_layout.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_render.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_systray.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_systray_test_stub.c`  -- tests: test_wm_tray_world
-- `wm_taskbar.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_test_stub.c`  -- tests: test_holyd;test_holyc_agi;test_wm;test_ui
-- `wm_tray_world.c`  -- tests: test_wm_tray_world
-- `wm_window.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_window_state.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `editor.c`  -- tests: test_apps
-- `edr_core.c`  -- tests: test_holyc_agi
-- `edr_fanotify.c`  -- tests: test_holyc_agi
-- `edr_poller.c`  -- tests: test_holyc_agi
-- `edr_proc_pin.c`  -- tests: test_holyc_agi
-- `entity.c`  -- tests: test_worldsim;test_bridge
 - `fat32.c`  -- tests: test_fat32
 - `fat32_cluster.c`  -- tests: test_fat32
 - `fat32_dir.c`  -- tests: test_fat32
@@ -98,11 +76,21 @@ the kernel/driver build or nowhere in the test recipes).
 - `fat32_file.c`  -- tests: test_fat32
 - `fat32_format.c`  -- tests: test_fat32
 - `fat32_name.c`  -- tests: test_fat32
-- `fm.c`  -- tests: test_apps
-- `gui_dbuf.c`  -- tests: test_dbuf
+- `fs_persist_fuzz.c`  -- tests: test_fs_persist_fuzz
+- `getting_started.c`  -- tests: test_first_run
+- `guests_panel.c`  -- tests: test_guests_panel
+- `gui_blend.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
+- `gui_blur.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
+- `gui_dbuf.c`  -- tests: test_dbuf;test_effect;test_apps;test_wet_applet
+- `gui_shape.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
+- `gui_surface.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
 - `hosted.c`  -- tests: test_hosted
-- `input.c`  -- tests: test_input;test_steaminput;test_metal;test_apps
-- `interrupt.c`  -- tests: test_metal;test_apps
+- `hosted_display.c`  -- tests: test_hosted_display
+- `hosted_fs_persist.c`  -- tests: test_revolver;test_startmenu_files;test_startmenu;test_era_apps
+- `hosted_pe.c`  -- tests: test_hosted_pe
+- `hosted_styxfs.c`  -- tests: test_revolver;test_startmenu_files;test_startmenu;test_era_apps
+- `input.c`  -- tests: test_input;test_input_keymap;test_evdev;test_steaminput
+- `interrupt.c`  -- tests: test_metal;test_apps;test_wet_applet;test_first_run
 - `interrupt_apic.c`  -- tests: test_metal
 - `interrupt_pit.c`  -- tests: test_metal
 - `interrupt_syscall.c`  -- tests: test_metal
@@ -123,11 +111,14 @@ the kernel/driver build or nowhere in the test recipes).
 - `jit_minic_loop.c`  -- tests: test_jit_loop;test_jit_regression;test_drivers;test_isa_driver
 - `jit_minic_token.c`  -- tests: test_jit_regression;test_drivers;test_isa_driver;test_mir_opt
 - `jit_minic_type.c`  -- tests: test_jit_type;test_jit_regression;test_drivers;test_isa_driver
+- `json_fuzz.c`  -- tests: test_json_fuzz
 - `klog.c`  -- tests: test_tasking;test_agi_play;test_exec_games;test_zlib
+- `libc.c`  -- tests: test_kvfs
 - `libc_string.c`  -- tests: test_agi_play;test_exec_games;test_pe_personality;test_holyd_roundtrip
 - `memory.c`  -- tests: test_memory;test_tasking;test_gui_screenshot;test_agi_play
+- `mime_fuzz.c`  -- tests: test_mime_fuzz
 - `music.c`  -- tests: test_apps_gap;test_apps
-- `notepad.c`  -- tests: test_apps
+- `notepad.c`  -- tests: test_notepad_save;test_apps
 - `notes.c`  -- tests: test_apps_gap;test_apps
 - `oci_blob_store.c`  -- tests: test_oci
 - `oci_cleanup.c`  -- tests: test_oci
@@ -142,51 +133,85 @@ the kernel/driver build or nowhere in the test recipes).
 - `oci_registry.c`  -- tests: test_oci
 - `oci_runtime_spec.c`  -- tests: test_oci
 - `physics.c`  -- tests: test_worldsim;test_bridge
+- `quick_settings.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `regedit.c`  -- tests: test_apps
 - `render.c`  -- tests: test_worldsim;test_bridge
 - `repl.c`  -- tests: test_apps
 - `screenshot.c`  -- tests: test_screenshot
 - `seccomp_registry.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
+- `service_mgr.c`  -- tests: test_service_mgr
+- `service_mgr_test_stub.c`  -- tests: test_service_mgr
 - `sim.c`  -- tests: test_worldsim;test_bridge
+- `spellmod_fuzz.c`  -- tests: test_spellmod_fuzz
+- `startmenu.c`  -- tests: test_startmenu_files;test_startmenu
+- `startmenu_db.c`  -- tests: test_startmenu_files;test_startmenu
+- `startmenu_power.c`  -- tests: test_startmenu_files;test_startmenu
+- `startmenu_search.c`  -- tests: test_startmenu_files;test_startmenu
+- `startmenu_test_stub.c`  -- tests: test_startmenu_files;test_startmenu
+- `startmenu_tree.c`  -- tests: test_startmenu_files;test_startmenu
 - `styx_enc.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styx_fid.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styx_names.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styx_parse.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styx_serve.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styxfs_callbacks.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
+- `styxfs_host.c`  -- tests: test_exec_games;test_host_exec;test_guest_import;test_guests_panel
 - `styxfs_path.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styxfs_posix.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styxfs_server.c`  -- tests: test_dos_proc;test_dos_window
 - `styxfs_util.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styxfs_vfs.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
-- `tasking.c`  -- tests: test_tasking;test_metal;test_apps
+- `taskbar_tasks.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `tasking.c`  -- tests: test_tasking;test_metal;test_apps;test_wet_applet
 - `taskmgr.c`  -- tests: test_apps
+- `term.c`  -- tests: test_pty_exec;test_term
+- `term_ansi.c`  -- tests: test_pty_exec;test_term
+- `term_pty.c`  -- tests: test_pty_exec;test_term
+- `term_render.c`  -- tests: test_pty_exec;test_term
+- `term_tabs.c`  -- tests: test_pty_exec;test_term
+- `term_test_stub.c`  -- tests: test_pty_exec;test_term
 - `terrain.c`  -- tests: test_worldsim;test_bridge
 - `test_archd_n1.c`  -- tests: test_archd_n1
 - `test_arm64_enc.c`  -- tests: test_arm64_enc
 - `test_colonel.c`  -- tests: test_colonel
 - `test_cp_sound.c`  -- tests: test_cp_sound
 - `test_dram_hedge.c`  -- tests: test_dram_hedge
+- `test_font_case.c`  -- tests: test_font_case
+- `test_fs_persist.c`  -- tests: test_fs_persist
 - `test_hive.c`  -- tests: test_hive
 - `test_hwdetect.c`  -- tests: test_hwdetect
+- `test_kernel_xchg.c`  -- tests: test_kernel_xchg
+- `test_mingru.c`  -- tests: test_bear_drivers
 - `test_minic_cg.c`  -- tests: test_minic_cg
+- `test_notepad_save.c`  -- tests: test_notepad_save
+- `test_nt_abi.c`  -- tests: test_nt_abi
+- `test_policy_forward.c`  -- tests: test_bear_drivers
+- `test_revolver.c`  -- tests: test_revolver
 - `test_svc_super.c`  -- tests: test_svc_super
+- `test_sync.c`  -- tests: test_sync
 - `test_synth.c`  -- tests: test_synth
 - `test_tandem.c`  -- tests: test_tandem
+- `test_thermal_read.c`  -- tests: test_thermal_read
+- `test_win32_core.c`  -- tests: test_win32_core
+- `test_worldsim.c`  -- tests: test_worldsim
+- `test_wubu_audio_backend.c`  -- tests: test_audio_backend
+- `test_wubu_crc32.c`  -- tests: test_crc32
+- `test_wubu_gui_metrics.c`  -- tests: test_gui_metrics
 - `test_wubu_sound.c`  -- tests: test_wubu_sound
 - `todo.c`  -- tests: test_apps_gap;test_apps
 - `txfs.c`  -- tests: test_txfs
-- `vbe.c`  -- tests: test_bridge;test_screenshot;test_gui_screenshot;test_wm
+- `vbe.c`  -- tests: test_gui_gfx;test_wm_shadow;test_bridge;test_screenshot
 - `vbe_ws_bridge.c`  -- tests: test_bridge
-- `vsl.c`  -- tests: test_apps;test_vsl_cpm;test_vsl_macclassic;test_syscall
-- `vsl_driver.c`  -- tests: test_apps
-- `vsl_elf.c`  -- tests: test_apps
-- `vsl_file.c`  -- tests: test_apps
-- `vsl_gpu_vulkan.c`  -- tests: test_apps
-- `vsl_macho.c`  -- tests: test_apps;test_vsl_macho;test_vsl_cpm;test_vsl_macclassic
-- `vsl_memory.c`  -- tests: test_apps
-- `vsl_process.c`  -- tests: test_apps;test_vsl_cpm;test_vsl_macclassic;test_syscall
-- `vsl_shared.c`  -- tests: test_apps
+- `vsl.c`  -- tests: test_runtime_apps;test_vsl_cpm;test_vsl_macclassic;test_syscall
+- `vsl_driver.c`  -- tests: test_runtime_apps
+- `vsl_elf.c`  -- tests: test_runtime_apps
+- `vsl_file.c`  -- tests: test_runtime_apps
+- `vsl_gpu_vulkan.c`  -- tests: test_runtime_apps
+- `vsl_kernel_adapt.c`  -- tests: test_vsl_cpm;test_vsl_macclassic;test_syscall
+- `vsl_macho.c`  -- tests: test_runtime_apps;test_vsl_macho;test_vsl_cpm;test_vsl_macclassic
+- `vsl_memory.c`  -- tests: test_runtime_apps
+- `vsl_process.c`  -- tests: test_runtime_apps;test_vsl_cpm;test_vsl_macclassic;test_syscall
+- `vsl_shared.c`  -- tests: test_runtime_apps
 - `vsl_syscall.c`  -- tests: test_vsl_cpm;test_vsl_macclassic;test_syscall
 - `vsl_syscall_cpm.c`  -- tests: test_vsl_cpm;test_vsl_macclassic;test_syscall
 - `vsl_syscall_fileio.c`  -- tests: test_vsl_cpm;test_vsl_macclassic;test_syscall
@@ -197,35 +222,96 @@ the kernel/driver build or nowhere in the test recipes).
 - `vsl_syscall_memory.c`  -- tests: test_vsl_cpm;test_vsl_macclassic;test_syscall
 - `vsl_syscall_net.c`  -- tests: test_vsl_cpm;test_vsl_macclassic;test_syscall
 - `vsl_syscall_proc.c`  -- tests: test_vsl_cpm;test_vsl_macclassic;test_syscall
+- `vws_designer.c`  -- tests: test_vws_designer
+- `vws_emit.c`  -- tests: test_tutorial;test_vws_designer
+- `vws_form.c`  -- tests: test_tutorial;test_vws_designer
+- `vws_load.c`  -- tests: test_tutorial;test_vws_designer
+- `vws_lua.c`  -- tests: test_tutorial;test_vws_designer
+- `vws_templates.c`  -- tests: test_wet_applet;test_tutorial;test_vws_designer
+- `wb_lv_arena.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
+- `wb_lv_coro.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
+- `wb_lv_eval.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
+- `wb_lv_host.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
+- `wb_lv_lex.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
+- `wb_lv_parse.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
+- `wb_lv_stdlib.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
+- `wb_lv_string.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
+- `wb_lv_value.c`  -- tests: test_hw_writeback;test_tutorial;test_vws_designer
 - `weight_check.c`  -- tests: test_weights
+- `wet_app.c`  -- tests: test_hw_writeback
+- `wet_applet.c`  -- tests: test_wet_applet
+- `wet_backend_vbe.c`  -- tests: test_hw_writeback
+- `wet_controls.c`  -- tests: test_hw_writeback
+- `wet_input.c`  -- tests: test_hw_writeback
+- `wet_layout.c`  -- tests: test_hw_writeback
+- `wet_lua.c`  -- tests: test_wet_lua;test_wet_applet;test_tutorial;test_vws_designer
+- `wet_render.c`  -- tests: test_hw_writeback
+- `wet_selftest.c`  -- tests: test_wet
+- `wet_widget.c`  -- tests: test_hw_writeback
+- `win11_shell.c`  -- tests: test_wm;test_ui;test_a11y;test_guests_panel
+- `win11_snap.c`  -- tests: test_wm;test_ui;test_a11y;test_guests_panel
+- `win11_widgets.c`  -- tests: test_wm;test_ui;test_a11y;test_guests_panel
+- `win32_core.c`  -- tests: test_win32_core
+- `window_chrome.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_clock.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_ctxmenu.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_ctxmenu_engine.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_desktop.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_holyc_term.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_icon_glyphs.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_icons.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_input.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_layout.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_overview.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_render.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_rim.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_shadow.c`  -- tests: test_wm_shadow;test_wm;test_guests_panel
+- `wm_slime.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_systray.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_systray_test_stub.c`  -- tests: test_wm_tray_world
+- `wm_taskbar.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_test_stub.c`  -- tests: test_holyd;test_holyd_agi;test_wm;test_ui
+- `wm_tray_world.c`  -- tests: test_wm_tray_world
+- `wm_window.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wm_window_state.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wubu_6502_interp.c`  -- tests: test_drivers;test_isa_driver;test_mir_opt;test_gauntlet
 - `wubu_9pc.c`  -- tests: test_w9pc;test_w9pc
 - `wubu_a11y.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wubu_accel.c`  -- tests: test_hw_accel
+- `wubu_account.c`  -- tests: test_account;test_first_run;test_greeter
 - `wubu_adreno600.c`  -- tests: test_hw_adreno600
 - `wubu_adreno700.c`  -- tests: test_hw_adreno700
 - `wubu_aec.c`  -- tests: test_hw_aec
+- `wubu_agent.c`  -- tests: test_ns_worldspace;test_ns_worldspace;test_agent
 - `wubu_agi_kernel.c`  -- tests: test_agi_kernel
 - `wubu_agi_play.c`  -- tests: test_agi_play
 - `wubu_ampere.c`  -- tests: test_hw_ampere
 - `wubu_anticheat.c`  -- tests: test_anticheat
 - `wubu_applaunch.c`  -- tests: test_wubu_applaunch;test_wubu_selfbuild
 - `wubu_arch.c`  -- tests: test_trash;test_wm;test_ui;test_a11y
-- `wubu_archd_daemon.c`  -- tests: test_ns_bridge;test_ns_9p
-- `wubu_archd_fs.c`  -- tests: test_ns_bridge;test_ns_9p
-- `wubu_archd_svc.c`  -- tests: test_ns_bridge;test_ns_9p
-- `wubu_archd_svc_super.c`  -- tests: test_svc_super;test_ns_bridge;test_ns_9p
+- `wubu_archd_daemon.c`  -- tests: test_service_mgr;test_ns_bridge;test_ns_9p
+- `wubu_archd_fs.c`  -- tests: test_service_mgr;test_ns_bridge;test_ns_9p
+- `wubu_archd_loop.c`  -- tests: test_service_mgr;test_ns_9p
+- `wubu_archd_svc.c`  -- tests: test_service_mgr;test_ns_bridge;test_ns_9p
+- `wubu_archd_svc_super.c`  -- tests: test_svc_super;test_service_mgr;test_ns_bridge;test_ns_9p
 - `wubu_archd_util.c`  -- tests: test_trash;test_wm;test_ui;test_a11y
 - `wubu_arctic_islands.c`  -- tests: test_hw_arctic_islands
 - `wubu_arm64.c`  -- tests: test_minic_cg;test_jit_regression;test_arm64_enc;test_drivers
-- `wubu_attest.c`  -- tests: test_agi_kernel
-- `wubu_audio.c`  -- tests: test_audio;test_hw_audio
-- `wubu_audio_chips.c`  -- tests: test_audio
-- `wubu_audio_daw.c`  -- tests: test_audio
-- `wubu_audio_engine.c`  -- tests: test_audio
-- `wubu_audio_furnace.c`  -- tests: test_audio
-- `wubu_audio_sf2.c`  -- tests: test_audio
+- `wubu_atom.c`  -- tests: test_atom
+- `wubu_atspi.c`  -- tests: test_wubu_atspi;test_wubu_atspi_tree
+- `wubu_atspi_tree.c`  -- tests: test_wubu_atspi_tree
+- `wubu_attest.c`  -- tests: test_wubu_boot_attest_edr;test_agi_kernel
+- `wubu_audio.c`  -- tests: test_audio;test_audio_backend;test_hw_audio
+- `wubu_audio_backend.c`  -- tests: test_cp_hardware;test_controlpanel;test_audio_backend
+- `wubu_audio_chips.c`  -- tests: test_audio;test_audio_backend
+- `wubu_audio_daw.c`  -- tests: test_audio;test_audio_backend
+- `wubu_audio_engine.c`  -- tests: test_audio;test_audio_backend
+- `wubu_audio_furnace.c`  -- tests: test_audio;test_audio_backend
+- `wubu_audio_sf2.c`  -- tests: test_audio;test_audio_backend
+- `wubu_audio_sink.c`  -- tests: test_cp_sound;test_glott_speak;test_audio_backend
 - `wubu_audiofw.c`  -- tests: test_hw_audiofw
+- `wubu_aur.c`  -- tests: test_wubu_aur
 - `wubu_auracast.c`  -- tests: test_hw_auracast
 - `wubu_auth.c`  -- tests: test_ns_background;test_auth;test_session_daemon;test_session_mgr
 - `wubu_backlight.c`  -- tests: test_hw_backlight
@@ -235,12 +321,16 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_bio.c`  -- tests: test_hw_bio
 - `wubu_blk.c`  -- tests: test_blk
 - `wubu_blkqos.c`  -- tests: test_hw_blkqos
-- `wubu_bonzi.c`  -- tests: test_wm;test_ui;test_a11y;test_startmenu
+- `wubu_bonzi.c`  -- tests: test_wm;test_ui;test_a11y;test_startmenu_files
 - `wubu_bonzi_study.c`  -- tests: test_bonzi_study;test_tandem
+- `wubu_boot_attest.c`  -- tests: test_wubu_boot_attest;test_wubu_boot_attest_relay;test_wubu_boot_attest_edr
+- `wubu_boot_attest_edr.c`  -- tests: test_wubu_boot_attest_edr
+- `wubu_boot_attest_relay.c`  -- tests: test_wubu_boot_attest_relay;test_wubu_boot_attest_edr
 - `wubu_bottle_flatpak.c`  -- tests: test_bottles;test_ns_bridge;test_ns_9p
 - `wubu_bottle_io.c`  -- tests: test_bottles;test_ns_bridge;test_ns_9p
 - `wubu_bottle_lifecycle.c`  -- tests: test_bottles;test_ns_bridge;test_ns_9p
 - `wubu_bottle_ops.c`  -- tests: test_bottles;test_ns_bridge;test_ns_9p
+- `wubu_bottle_serialize.c`  -- tests: test_ns_9p
 - `wubu_bottles_fs.c`  -- tests: test_bottles;test_ns_bridge;test_ns_9p
 - `wubu_bottles_json.c`  -- tests: test_bottles;test_ns_bridge;test_ns_9p
 - `wubu_bt.c`  -- tests: test_hw_bt
@@ -250,6 +340,10 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_btbeacon.c`  -- tests: test_hw_btbeacon
 - `wubu_btclassic.c`  -- tests: test_hw_btclassic
 - `wubu_bthfp.c`  -- tests: test_hw_bthfp
+- `wubu_buddy_anim.c`  -- tests: test_buddy_anim
+- `wubu_buddy_emotion.c`  -- tests: test_buddy_emotion
+- `wubu_buddy_orb.c`  -- tests: test_buddy_orb
+- `wubu_buddy_rig.c`  -- tests: test_buddy_rig
 - `wubu_bus.c`  -- tests: test_wubu_applaunch;test_wubu_selfbuild;test_wubu_bus;test_session_boot
 - `wubu_cab.c`  -- tests: test_cab;test_cab_extract
 - `wubu_calib.c`  -- tests: test_hw_calib
@@ -285,14 +379,18 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_compute.c`  -- tests: test_hw_compute
 - `wubu_computectx.c`  -- tests: test_hw_computectx
 - `wubu_container.c`  -- tests: test_oci;test_wubu;test_dos_proc;test_syscall
+- `wubu_container_universal.c`  -- tests: test_wubu_container_universal
+- `wubu_crc32.c`  -- tests: test_network;test_snapshot;test_oci;test_holyd
 - `wubu_ct_bwrap.c`  -- tests: test_pressure_vessel
 - `wubu_ct_isolate.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `wubu_ct_isolate_cgroup.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `wubu_cuda.c`  -- tests: test_hw_cuda
+- `wubu_daemon_client.c`  -- tests: test_wubu_daemon_client
 - `wubu_dapm.c`  -- tests: test_hw_dapm
 - `wubu_dapmwidget.c`  -- tests: test_hw_dapmwidget
 - `wubu_dappath.c`  -- tests: test_hw_dappath
 - `wubu_dax.c`  -- tests: test_hw_dax
+- `wubu_dbus.c`  -- tests: test_wubu_dbus;test_wubu_atspi;test_wubu_atspi_tree
 - `wubu_ddcci.c`  -- tests: test_hw_ddcci
 - `wubu_decode.c`  -- tests: test_hw_decode
 - `wubu_dedup.c`  -- tests: test_hw_dedup
@@ -306,6 +404,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_disasm.c`  -- tests: test_jit_regression;test_drivers;test_isa_driver;test_mir_opt
 - `wubu_display.c`  -- tests: test_drm_direct;test_hw_display
 - `wubu_dmcrypt.c`  -- tests: test_hw_dmcrypt
+- `wubu_doldoc.c`  -- tests: test_wubu_doldoc
 - `wubu_dos_emu.c`  -- tests: test_drivers;test_isa_driver;test_mir_opt;test_gauntlet
 - `wubu_dos_emu_alu.c`  -- tests: test_drivers;test_isa_driver;test_mir_opt;test_gauntlet
 - `wubu_dos_emu_decode.c`  -- tests: test_drivers;test_isa_driver;test_mir_opt;test_gauntlet
@@ -327,24 +426,31 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_drv_net.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_nvme.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_sd.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
-- `wubu_drv_thermal.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
+- `wubu_drv_thermal.c`  -- tests: test_thermal_read;test_drv;test_machines;test_world
 - `wubu_drv_usb.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_virtio.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_dspgraph.c`  -- tests: test_hw_dspgraph
 - `wubu_dspmode.c`  -- tests: test_hw_dspmode
 - `wubu_dsptrace.c`  -- tests: test_hw_dsptrace
 - `wubu_ducking.c`  -- tests: test_hw_ducking
-- `wubu_dxvk_conf.c`  -- tests: test_apps;test_proton;test_launch;test_gamelib
+- `wubu_dxvk_conf.c`  -- tests: test_runtime_apps;test_proton;test_launch;test_gamelib
 - `wubu_ec_control.c`  -- tests: test_ec_control;test_ns_ec
-- `wubu_editor.c`  -- tests: test_apps2
-- `wubu_editor_bookmark.c`  -- tests: test_apps2
-- `wubu_editor_find.c`  -- tests: test_apps2
-- `wubu_editor_macro.c`  -- tests: test_apps2
-- `wubu_editor_selection.c`  -- tests: test_apps2
-- `wubu_editor_undo.c`  -- tests: test_apps2
+- `wubu_edid.c`  -- tests: test_wubu_gop_modes;test_wubu_edid_kms;test_wubu_edid_xrandr;test_wubu_edid_scan
+- `wubu_edid_kms.c`  -- tests: test_wubu_edid_kms
+- `wubu_edid_scan.c`  -- tests: test_wubu_edid_kms;test_wubu_edid_xrandr;test_wubu_edid_scan
+- `wubu_edid_xrandr.c`  -- tests: test_wubu_edid_xrandr
+- `wubu_editor.c`  -- tests: test_apps2;test_apps
+- `wubu_editor_bookmark.c`  -- tests: test_apps2;test_apps
+- `wubu_editor_find.c`  -- tests: test_apps2;test_apps
+- `wubu_editor_macro.c`  -- tests: test_apps2;test_apps
+- `wubu_editor_selection.c`  -- tests: test_apps2;test_apps
+- `wubu_editor_undo.c`  -- tests: test_apps2;test_apps
+- `wubu_edr.c`  -- tests: test_era_apps
+- `wubu_effect.c`  -- tests: test_vk_effect;test_dbuf;test_effect;test_ns_background
 - `wubu_elf.c`  -- tests: test_exec_games
 - `wubu_encode.c`  -- tests: test_hw_encode
 - `wubu_eq.c`  -- tests: test_hw_eq
+- `wubu_evdev.c`  -- tests: test_evdev
 - `wubu_exec.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_exec_games
 - `wubu_exec_container.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_exec_games
 - `wubu_exec_dos.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_exec_games
@@ -359,11 +465,12 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_fencesync.c`  -- tests: test_hw_fencesync
 - `wubu_filter.c`  -- tests: test_hw_filter
 - `wubu_fingerprint.c`  -- tests: test_hw_fingerprint
+- `wubu_firstboot.c`  -- tests: test_wubu_firstboot
 - `wubu_fpga.c`  -- tests: test_hw_fpga
-- `wubu_fs_util.c`  -- tests: test_gamelib;test_bottles;test_ns_bridge;test_ns_9p
+- `wubu_fs_util.c`  -- tests: test_gamelib;test_hosted_pe;test_bottles;test_ns_bridge
 - `wubu_fusefs.c`  -- tests: test_hw_fusefs
 - `wubu_fw.c`  -- tests: test_hw_fw
-- `wubu_gaad.c`  -- tests: test_screenshot;test_gaad;test_agi_kernel;test_wubu_wm
+- `wubu_gaad.c`  -- tests: test_screenshot;test_gaad;test_agi_kernel;test_metal
 - `wubu_gadget.c`  -- tests: test_hw_gadget
 - `wubu_game_launch.c`  -- tests: test_game_launch;test_bpm_games;test_game_session;test_agi_play
 - `wubu_game_launch_test_stub.c`  -- tests: test_game_launch;test_bpm_games;test_game_session;test_agi_play
@@ -379,7 +486,10 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_gamepaddz.c`  -- tests: test_hw_gamepaddz
 - `wubu_gbm.c`  -- tests: test_drm_direct
 - `wubu_gc.c`  -- tests: test_gc
-- `wubu_gdpr_age.c`  -- tests: test_holyc_agi
+- `wubu_gdpr_age.c`  -- tests: test_holyd_agi;test_era_apps
+- `wubu_gesture.c`  -- tests: test_hw_gesture
+- `wubu_glott.c`  -- tests: test_glott_speak
+- `wubu_gop_modes.c`  -- tests: test_wubu_gop_modes
 - `wubu_gpu_backend.c`  -- tests: test_ns_bridge;test_ns_9p
 - `wubu_gpuband.c`  -- tests: test_hw_gpuband
 - `wubu_gpucsched.c`  -- tests: test_hw_gpucsched
@@ -393,36 +503,49 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_gpusensor.c`  -- tests: test_hw_gpusensor
 - `wubu_gpushader.c`  -- tests: test_hw_gpushader
 - `wubu_gt2xx.c`  -- tests: test_hw_gt2xx
+- `wubu_guest_import.c`  -- tests: test_guest_import;test_guests_panel
+- `wubu_guest_root.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
+- `wubu_gui_metrics.c`  -- tests: test_gui_metrics
+- `wubu_gvfs.c`  -- tests: test_wubu_gvfs
+- `wubu_gvfs_mount.c`  -- tests: test_wubu_gvfs_mount
+- `wubu_gvfs_path.c`  -- tests: test_wubu_gvfs_path;test_wubu_gvfs_mount
 - `wubu_hc_eval_stub.c`  -- tests: test_dos_window
 - `wubu_hdr.c`  -- tests: test_hw_hdr
 - `wubu_hid.c`  -- tests: test_hw_hid
 - `wubu_hidadv.c`  -- tests: test_hw_hidadv
 - `wubu_hive.c`  -- tests: test_runtime;test_hive
-- `wubu_holyc_agi.c`  -- tests: test_holyc_agi
-- `wubu_holyd.c`  -- tests: test_holyd;test_holyc_agi
-- `wubu_holyd_9p.c`  -- tests: test_holyd;test_holyc_agi
-- `wubu_holyd_event.c`  -- tests: test_holyd;test_holyc_agi
-- `wubu_holyd_exec.c`  -- tests: test_holyd;test_holyc_agi
-- `wubu_holyd_input.c`  -- tests: test_holyd;test_holyc_agi
-- `wubu_holyd_lifecycle.c`  -- tests: test_holyd;test_holyc_agi
-- `wubu_holyd_save.c`  -- tests: test_holyd;test_holyc_agi
-- `wubu_holyd_session.c`  -- tests: test_holyd;test_holyc_agi
-- `wubu_holyd_window.c`  -- tests: test_holyd;test_holyc_agi
+- `wubu_holyd.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_holyd_9p.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_holyd_agi.c`  -- tests: test_holyd_agi
+- `wubu_holyd_event.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_holyd_exec.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_holyd_input.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_holyd_lifecycle.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_holyd_save.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_holyd_session.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_holyd_window.c`  -- tests: test_holyd;test_holyd_agi
+- `wubu_hook.c`  -- tests: test_wubu_hook
 - `wubu_host_exec.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
+- `wubu_hosted_hw.c`  -- tests: test_hosted_hw;test_ns_worldspace;test_ns_worldspace
 - `wubu_hw_detect.c`  -- tests: test_hw_hw_detect
-- `wubu_hw_stub.c`  -- tests: test_wubu;test_syscall;test_launch;test_exec_games
+- `wubu_hw_fallback.c`  -- tests: test_wubu;test_syscall;test_launch;test_exec_games
+- `wubu_hw_sensors_fallback.c`  -- tests: test_wm;test_ui;test_a11y;test_guests_panel
 - `wubu_hwdetect.c`  -- tests: test_hwdetect
 - `wubu_ieccontrol.c`  -- tests: test_hw_ieccontrol
 - `wubu_ima.c`  -- tests: test_hw_ima
 - `wubu_image.c`  -- tests: test_oci
 - `wubu_image_cache.c`  -- tests: test_oci
 - `wubu_image_codec.c`  -- tests: test_apps2;test_apps
+- `wubu_image_ffmpeg.c`  -- tests: test_wm;test_ui;test_a11y;test_image_ffmpeg
 - `wubu_image_manifest.c`  -- tests: test_oci
+- `wubu_image_names.c`  -- tests: test_oci
 - `wubu_image_ops.c`  -- tests: test_oci
 - `wubu_image_parse.c`  -- tests: test_oci
 - `wubu_image_tar.c`  -- tests: test_oci
 - `wubu_inflate.c`  -- tests: test_zlib;test_zip;test_cab;test_cab_extract
 - `wubu_input.c`  -- tests: test_hw_input
+- `wubu_install.c`  -- tests: test_wubu_install;test_wubu_install_tty;test_wubu_firstboot
+- `wubu_install_tty.c`  -- tests: test_wubu_install_tty
 - `wubu_instinct.c`  -- tests: test_hw_instinct
 - `wubu_intel_gma.c`  -- tests: test_hw_intel_gma
 - `wubu_intel_icelake.c`  -- tests: test_hw_intel_icelake
@@ -434,22 +557,26 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_jackdetect.c`  -- tests: test_hw_jackdetect
 - `wubu_jackimpedance.c`  -- tests: test_hw_jackimpedance
 - `wubu_jackstate.c`  -- tests: test_hw_jackstate
-- `wubu_json.c`  -- tests: test_mime;test_trash;test_gamelib;test_wm
+- `wubu_json.c`  -- tests: test_json_fuzz;test_mime;test_trash;test_gamelib
+- `wubu_kernel_xchg.c`  -- tests: test_kernel_xchg;test_ns_kernels
 - `wubu_kvfs.c`  -- tests: test_wubu;test_syscall;test_launch;test_agi_play
 - `wubu_ladder.c`  -- tests: test_synth
 - `wubu_leaudio.c`  -- tests: test_hw_leaudio
 - `wubu_leaudioldr.c`  -- tests: test_hw_leaudioldr
 - `wubu_lfn.c`  -- tests: test_fat32;test_lfn
+- `wubu_lock_screen.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wubu_logind.c`  -- tests: test_ns_background;test_logind;test_session_daemon;test_session_mgr
 - `wubu_loudness.c`  -- tests: test_hw_loudness
+- `wubu_lua_gui.c`  -- tests: test_lua_gui
 - `wubu_lvm.c`  -- tests: test_hw_lvm
 - `wubu_lzx.c`  -- tests: test_lzx;test_cab;test_cab_extract
-- `wubu_macho.c`  -- tests: test_exec_games
+- `wubu_macho.c`  -- tests: test_kernel_macho;test_exec_games
 - `wubu_mali_g52.c`  -- tests: test_hw_mali_g52
 - `wubu_mali_g720.c`  -- tests: test_hw_mali_g720
 - `wubu_mali_g77.c`  -- tests: test_hw_mali_g77
 - `wubu_manifest.c`  -- tests: test_manifest
 - `wubu_manifest_json.c`  -- tests: test_manifest
+- `wubu_mascot.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wubu_math.c`  -- tests: test_math;test_bridge;test_screenshot;test_gui_screenshot
 - `wubu_mdraid.c`  -- tests: test_hw_mdraid
 - `wubu_mem.c`  -- tests: test_hw_mem
@@ -460,8 +587,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_metal_evdev.c`  -- tests: test_metal
 - `wubu_metal_vulkan.c`  -- tests: test_metal
 - `wubu_metal_x11.c`  -- tests: test_metal
-- `wubu_mime.c`  -- tests: test_mime;test_explorer
-- `wubu_mime_desktop.c`  -- tests: test_mime;test_explorer
+- `wubu_mime.c`  -- tests: test_mime;test_mime_contract;test_explorer;test_mime_fuzz
+- `wubu_mime_desktop.c`  -- tests: test_mime;test_mime_contract;test_explorer;test_mime_fuzz
 - `wubu_mips_interp.c`  -- tests: test_drivers;test_isa_driver;test_mir_opt;test_gauntlet
 - `wubu_mixergraph.c`  -- tests: test_hw_mixergraph
 - `wubu_mixgraph.c`  -- tests: test_hw_mixgraph
@@ -490,16 +617,21 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_ns_bridge.c`  -- tests: test_ns_bridge;test_ns_9p
 - `wubu_ns_dram.c`  -- tests: test_ns_dram
 - `wubu_ns_ec.c`  -- tests: test_ns_ec
+- `wubu_ns_effect.c`  -- tests: test_ns_background;test_session_daemon;test_ns_effect
 - `wubu_ns_fs.c`  -- tests: test_agi_play;test_wubu_zxload;test_wubu_zxreg;test_wubu_applaunch
+- `wubu_ns_guests.c`  -- tests: test_host_exec;test_guest_import;test_guests_panel
 - `wubu_ns_kernel.c`  -- tests: test_ns_kernel
-- `wubu_ns_kv.c`  -- tests: test_agi_play
-- `wubu_ns_pkg_stub.c`  -- tests: test_dos_proc;test_dos_window;test_startmenu;test_styxfs
+- `wubu_ns_kernels.c`  -- tests: test_ns_kernels
+- `wubu_ns_kv.c`  -- tests: test_agi_play;test_ns_kv
+- `wubu_ns_pkg_fallback.c`  -- tests: test_dos_proc;test_dos_window;test_startmenu_files;test_startmenu
 - `wubu_ns_session.c`  -- tests: test_ns_session
 - `wubu_ns_snap.c`  -- tests: test_ns_9p
 - `wubu_ns_steaminput.c`  -- tests: test_ns_steaminput
 - `wubu_ns_steamrt.c`  -- tests: test_ns_steamrt
 - `wubu_ns_win32.c`  -- tests: test_ns_win32
 - `wubu_ns_world.c`  -- tests: test_ns_world
+- `wubu_ns_worldspace.c`  -- tests: test_ns_worldspace
+- `wubu_ntsync.c`  -- tests: test_ntsync
 - `wubu_nvidia_fermi.c`  -- tests: test_hw_nvidia_fermi
 - `wubu_nvidia_kepler.c`  -- tests: test_hw_nvidia_kepler
 - `wubu_nvidia_maxwell.c`  -- tests: test_hw_nvidia_maxwell
@@ -510,8 +642,11 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_nvme_gen5.c`  -- tests: test_hw_nvme_gen5
 - `wubu_nvmehotplug.c`  -- tests: test_hw_nvmehotplug
 - `wubu_nvmepower.c`  -- tests: test_hw_nvmepower
+- `wubu_onboarding.c`  -- tests: test_wubu_onboarding;test_first_run;test_tutorial;test_greeter
 - `wubu_opencl.c`  -- tests: test_hw_opencl
+- `wubu_osd.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wubu_overclock.c`  -- tests: test_hw_overclock
+- `wubu_palette.c`  -- tests: test_wm_shadow;test_screenshot;test_gui_screenshot;test_mime
 - `wubu_panel.c`  -- tests: test_hw_panel
 - `wubu_pci.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_pcipme.c`  -- tests: test_hw_pcipme
@@ -525,10 +660,15 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_perf.c`  -- tests: test_hw_perf
 - `wubu_perfmon.c`  -- tests: test_hw_perfmon
 - `wubu_peripheral.c`  -- tests: test_hw_peripheral
+- `wubu_petdex.c`  -- tests: test_apps
 - `wubu_phy.c`  -- tests: test_hw_phy
-- `wubu_pkg.c`  -- tests: test_apps
+- `wubu_pkg.c`  -- tests: test_runtime_apps;test_wubu_pkg_resolve;test_pkgmgr
+- `wubu_pkg_ed25519.c`  -- tests: test_pkgmgr
+- `wubu_pkg_sign.c`  -- tests: test_pkgmgr
+- `wubu_pkgbuild.c`  -- tests: test_wubu_pkgbuild
 - `wubu_pkgmgr.c`  -- tests: test_pkgmgr
 - `wubu_pkgmgr_db.c`  -- tests: test_pkgmgr
+- `wubu_pkgmgr_fetch.c`  -- tests: test_pkgmgr
 - `wubu_pkgmgr_install.c`  -- tests: test_pkgmgr
 - `wubu_pkgmgr_manifest.c`  -- tests: test_pkgmgr
 - `wubu_pkgmgr_pkg.c`  -- tests: test_pkgmgr
@@ -539,28 +679,30 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_pm.c`  -- tests: test_hw_pm
 - `wubu_pmicaudio.c`  -- tests: test_hw_pmicaudio
 - `wubu_porttiming.c`  -- tests: test_hw_porttiming
+- `wubu_posix.c`  -- tests: test_wubutime;test_wubutime
 - `wubu_power.c`  -- tests: test_hw_power
 - `wubu_powergate.c`  -- tests: test_hw_powergate
 - `wubu_powervr.c`  -- tests: test_hw_powervr
 - `wubu_pressure_vessel.c`  -- tests: test_pressure_vessel
 - `wubu_probe.c`  -- tests: test_hw_probe
-- `wubu_proton.c`  -- tests: test_apps;test_proton;test_launch;test_gamelib
+- `wubu_proton.c`  -- tests: test_runtime_apps;test_proton;test_launch;test_gamelib
 - `wubu_proton2.c`  -- tests: test_proton2
 - `wubu_proton2_device.c`  -- tests: test_proton2
 - `wubu_proton2_gamescope.c`  -- tests: test_proton2
 - `wubu_proton2_gpu.c`  -- tests: test_proton2
 - `wubu_proton2_launch.c`  -- tests: test_proton2
-- `wubu_proton_api.c`  -- tests: test_apps;test_proton;test_launch;test_gamelib
-- `wubu_proton_config.c`  -- tests: test_gamelib
-- `wubu_proton_dll.c`  -- tests: test_apps;test_proton;test_launch;test_gamelib
-- `wubu_proton_dxvk.c`  -- tests: test_apps;test_proton;test_launch;test_gamelib
-- `wubu_proton_exec.c`  -- tests: test_gamelib
-- `wubu_proton_pe.c`  -- tests: test_apps;test_proton;test_launch
-- `wubu_proton_util.c`  -- tests: test_gamelib
+- `wubu_proton_api.c`  -- tests: test_runtime_apps;test_proton;test_launch;test_gamelib
+- `wubu_proton_config.c`  -- tests: test_gamelib;test_hosted_pe
+- `wubu_proton_dll.c`  -- tests: test_runtime_apps;test_proton;test_launch;test_gamelib
+- `wubu_proton_dxvk.c`  -- tests: test_runtime_apps;test_proton;test_launch;test_gamelib
+- `wubu_proton_exec.c`  -- tests: test_gamelib;test_hosted_pe
+- `wubu_proton_pe.c`  -- tests: test_runtime_apps;test_proton;test_launch
+- `wubu_proton_util.c`  -- tests: test_gamelib;test_hosted_pe
 - `wubu_psr.c`  -- tests: test_hw_psr
 - `wubu_psych.c`  -- tests: test_psych;test_bonzi_study;test_tandem
 - `wubu_ptp.c`  -- tests: test_hw_ptp
 - `wubu_ptp_sync.c`  -- tests: test_hw_ptp_sync
+- `wubu_pwcrypt.c`  -- tests: test_pwcrypt;test_account;test_first_run;test_greeter
 - `wubu_qos.c`  -- tests: test_hw_qos
 - `wubu_quadro.c`  -- tests: test_hw_quadro
 - `wubu_radeon_5000.c`  -- tests: test_hw_radeon_5000
@@ -569,12 +711,15 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_raid.c`  -- tests: test_hw_raid
 - `wubu_raid5.c`  -- tests: test_hw_raid5
 - `wubu_raidcache.c`  -- tests: test_hw_raidcache
-- `wubu_ramdisk.c`  -- tests: test_ramdisk;test_proton2;test_ns_bridge;test_ns_9p
-- `wubu_ramdisk_format.c`  -- tests: test_ramdisk;test_proton2;test_ns_bridge;test_ns_9p
+- `wubu_ramdisk.c`  -- tests: test_guest_import;test_guests_panel;test_ramdisk;test_proton2
+- `wubu_ramdisk_format.c`  -- tests: test_guest_import;test_guests_panel;test_ramdisk;test_proton2
 - `wubu_rdma.c`  -- tests: test_hw_rdma
-- `wubu_recovery.c`  -- tests: test_recovery
+- `wubu_recovery.c`  -- tests: test_recovery;test_atom
+- `wubu_redsea.c`  -- tests: test_wubu_redsea
 - `wubu_rendernode.c`  -- tests: test_hw_rendernode
 - `wubu_renoir.c`  -- tests: test_hw_renoir
+- `wubu_revolver.c`  -- tests: test_revolver;test_startmenu_files;test_startmenu;test_era_apps
+- `wubu_rim.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wubu_riscv_interp.c`  -- tests: test_drivers;test_isa_driver;test_mir_opt;test_gauntlet
 - `wubu_rtc.c`  -- tests: test_rtc;test_hw_rtc
 - `wubu_runtime.c`  -- tests: test_runtime
@@ -582,60 +727,77 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_rv64.c`  -- tests: test_jit_regression;test_drivers;test_isa_driver;test_mir_opt
 - `wubu_samplerate.c`  -- tests: test_hw_samplerate
 - `wubu_sata.c`  -- tests: test_hw_sata
+- `wubu_screensaver.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wubu_screenshot.c`  -- tests: test_gui_screenshot;test_screenshot_clipboard
 - `wubu_screenshot_draw.c`  -- tests: test_gui_screenshot;test_screenshot_clipboard
 - `wubu_screenshot_png.c`  -- tests: test_gui_screenshot;test_screenshot_clipboard
+- `wubu_sdr.c`  -- tests: test_wubu_boot_attest_relay;test_wubu_sdr;test_wubu_sdr_relay;test_wubu_sdr_session
+- `wubu_sdr_relay.c`  -- tests: test_wubu_boot_attest_relay;test_wubu_sdr_relay
+- `wubu_sdr_session.c`  -- tests: test_wubu_sdr_session
 - `wubu_secmon.c`  -- tests: test_wubu;test_syscall;test_launch;test_exec_games
 - `wubu_secmon_selftest.c`  -- tests: test_secmon
 - `wubu_securekey.c`  -- tests: test_hw_securekey
 - `wubu_selfimprove.c`  -- tests: test_bytropix_verifier
 - `wubu_sensor.c`  -- tests: test_hw_sensor
 - `wubu_session.c`  -- tests: test_launch;test_wm;test_ui;test_a11y
-- `wubu_session_boot.c`  -- tests: test_wubu_applaunch;test_wubu_selfbuild;test_session_boot;test_ns_background
+- `wubu_session_boot.c`  -- tests: test_wubu_applaunch;test_wubu_selfbuild;test_session_boot;test_wubu_onboarding
 - `wubu_session_daemon.c`  -- tests: test_session_daemon;test_session_mgr
 - `wubu_session_mgr.c`  -- tests: test_session_mgr
 - `wubu_settings.c`  -- tests: test_mime;test_trash;test_gamelib;test_wm
-- `wubu_settings_defaults.c`  -- tests: test_wm;test_ui;test_a11y;test_deploy
-- `wubu_settings_io.c`  -- tests: test_wm;test_ui;test_a11y;test_deploy
-- `wubu_sha256.c`  -- tests: test_wubu_zxreg;test_wubu_applaunch;test_wubu_selfbuild;test_sha256
+- `wubu_settings_defaults.c`  -- tests: test_wm;test_ui;test_a11y;test_guests_panel
+- `wubu_settings_io.c`  -- tests: test_wm;test_ui;test_a11y;test_guests_panel
+- `wubu_sha256.c`  -- tests: test_wubu_zxreg;test_wubu_applaunch;test_wubu_selfbuild;test_wubu_install
 - `wubu_shell.c`  -- tests: test_shell
 - `wubu_shell_complete.c`  -- tests: test_shell
 - `wubu_shell_exec.c`  -- tests: test_shell
+- `wubu_shell_greeter.c`  -- tests: test_first_run;test_greeter
 - `wubu_shell_history.c`  -- tests: test_shell
+- `wubu_slime.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wubu_smart.c`  -- tests: test_hw_smart
 - `wubu_smc.c`  -- tests: test_hw_smc
 - `wubu_smr.c`  -- tests: test_hw_smr
-- `wubu_snapshot.c`  -- tests: test_snapshot;test_ns_9p
-- `wubu_snapshot_copy.c`  -- tests: test_snapshot;test_ns_9p
-- `wubu_snapshot_diff.c`  -- tests: test_snapshot
-- `wubu_snapshot_fs.c`  -- tests: test_snapshot;test_ns_9p
-- `wubu_snapshot_gc.c`  -- tests: test_snapshot
-- `wubu_snapshot_tag.c`  -- tests: test_snapshot
-- `wubu_snapshot_xport.c`  -- tests: test_snapshot
+- `wubu_snapshot.c`  -- tests: test_snapshot;test_system;test_ns_9p
+- `wubu_snapshot_copy.c`  -- tests: test_snapshot;test_system;test_ns_9p
+- `wubu_snapshot_diff.c`  -- tests: test_snapshot;test_system
+- `wubu_snapshot_fs.c`  -- tests: test_snapshot;test_system;test_ns_9p
+- `wubu_snapshot_gc.c`  -- tests: test_snapshot;test_system
+- `wubu_snapshot_tag.c`  -- tests: test_snapshot;test_system
+- `wubu_snapshot_xport.c`  -- tests: test_snapshot;test_system
 - `wubu_sound.c`  -- tests: test_cp_sound;test_cp_hardware;test_controlpanel;test_cp_dnt
-- `wubu_spawn.c`  -- tests: test_network;test_oci;test_holyd;test_holyc_agi
+- `wubu_spawn.c`  -- tests: test_network;test_oci;test_holyd;test_holyd_agi
 - `wubu_spdif.c`  -- tests: test_hw_spdif
 - `wubu_spdifrx.c`  -- tests: test_hw_spdifrx
 - `wubu_spdifstatus.c`  -- tests: test_hw_spdifstatus
 - `wubu_spdiftx.c`  -- tests: test_hw_spdiftx
-- `wubu_steaminput.c`  -- tests: test_steaminput;test_ns_steaminput
+- `wubu_spell_resolve.c`  -- tests: test_spell_scan;test_spell_resolve
+- `wubu_spell_scan.c`  -- tests: test_spell_scan
+- `wubu_spellbook.c`  -- tests: test_spellbook
+- `wubu_spellmod.c`  -- tests: test_spellmod;test_spell_scan;test_spell_resolve;test_spellmod_fuzz
+- `wubu_spring.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `wubu_steaminput.c`  -- tests: test_evdev;test_steaminput;test_ns_steaminput
 - `wubu_steamrt.c`  -- tests: test_steamrt;test_ns_steamrt
 - `wubu_storage.c`  -- tests: test_hw_storage
 - `wubu_storagesched.c`  -- tests: test_hw_storagesched
 - `wubu_svc_socket.c`  -- tests: test_svc_socket
+- `wubu_swarm.c`  -- tests: test_wubu_swarm
+- `wubu_swarm_wire.c`  -- tests: test_wubu_swarm
 - `wubu_switchdev.c`  -- tests: test_hw_switchdev
 - `wubu_syscall.c`  -- tests: test_syscall
 - `wubu_syscall_vbe.c`  -- tests: test_syscall
+- `wubu_system.c`  -- tests: test_system
 - `wubu_test_stubs.c`  -- tests: test_drv_install;test_hw_pci;test_hw_pci;test_hw_accel
-- `wubu_theme.c`  -- tests: test_screenshot;test_gui_screenshot;test_mime;test_trash
+- `wubu_theme.c`  -- tests: test_wm_shadow;test_screenshot;test_gui_screenshot;test_mime
 - `wubu_thermal.c`  -- tests: test_hw_thermal
+- `wubu_thermal_read.c`  -- tests: test_hosted_hw;test_wm;test_ui;test_a11y
 - `wubu_thermalthrottle.c`  -- tests: test_hw_thermalthrottle
 - `wubu_touch.c`  -- tests: test_hw_touch
 - `wubu_tpm.c`  -- tests: test_hw_tpm
 - `wubu_trace.c`  -- tests: test_bytropix_verifier
+- `wubu_track.c`  -- tests: test_wubu_track
 - `wubu_trash.c`  -- tests: test_trash;test_wm;test_ui;test_a11y
 - `wubu_trim.c`  -- tests: test_hw_trim
 - `wubu_tutor.c`  -- tests: test_tutor
+- `wubu_tutorial.c`  -- tests: test_tutorial
 - `wubu_txn.c`  -- tests: test_txn
 - `wubu_uac.c`  -- tests: test_hw_uac
 - `wubu_uas.c`  -- tests: test_hw_uas
@@ -643,14 +805,31 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_ui.c`  -- tests: test_ui
 - `wubu_usb4.c`  -- tests: test_hw_usb4
 - `wubu_usbf.c`  -- tests: test_hw_usbf
-- `wubu_uuid.c`  -- tests: test_holyc_agi
+- `wubu_uuid.c`  -- tests: test_holyd_agi;test_uuid;test_era_apps
 - `wubu_vblank.c`  -- tests: test_hw_vblank
 - `wubu_vc4.c`  -- tests: test_hw_vc4
 - `wubu_vc6.c`  -- tests: test_hw_vc6
 - `wubu_vega.c`  -- tests: test_hw_vega
 - `wubu_verifier_bytropix.c`  -- tests: test_bytropix_verifier
+- `wubu_vga.c`  -- tests: test_wubu_vga
 - `wubu_video.c`  -- tests: test_hw_video
 - `wubu_virt.c`  -- tests: test_hw_virt
+- `wubu_vk_effect.c`  -- tests: test_vk_effect
+- `wubu_vkd3d.c`  -- tests: test_vkd3d;test_vkd3d_device;test_vkd3d_live_pipeline;test_vkd3d_live_binding
+- `wubu_vkd3d_cmd.c`  -- tests: test_vkd3d_cmd;test_vkd3d_device;test_vkd3d_live_pipeline;test_vkd3d_live_binding
+- `wubu_vkd3d_descset.c`  -- tests: test_vkd3d_descset;test_vkd3d_live_binding;test_vkd3d_live_texture;test_vkd3d_live_uav
+- `wubu_vkd3d_device.c`  -- tests: test_vkd3d_device
+- `wubu_vkd3d_fence.c`  -- tests: test_vkd3d_fence
+- `wubu_vkd3d_framebuffer.c`  -- tests: test_vkd3d_framebuffer;test_vkd3d_live_render;test_vkd3d_live_pipeline;test_vkd3d_live_binding
+- `wubu_vkd3d_heap.c`  -- tests: test_vkd3d_heap
+- `wubu_vkd3d_memory.c`  -- tests: test_vkd3d_memory;test_vkd3d_live_render;test_vkd3d_live_pipeline;test_vkd3d_live_binding
+- `wubu_vkd3d_msaa.c`  -- tests: test_vkd3d_msaa;test_vkd3d_live_msaa;test_vkd3d_live_present
+- `wubu_vkd3d_physdev.c`  -- tests: test_vkd3d_physdev;test_vkd3d_vkdev;test_vkd3d_live;test_vkd3d_live_render
+- `wubu_vkd3d_precache.c`  -- tests: test_vkd3d_precache
+- `wubu_vkd3d_pso.c`  -- tests: test_vkd3d_pso;test_vkd3d_device;test_vkd3d_live_pipeline;test_vkd3d_live_binding
+- `wubu_vkd3d_renderpass.c`  -- tests: test_vkd3d_renderpass;test_vkd3d_live_render;test_vkd3d_live_pipeline;test_vkd3d_live_binding
+- `wubu_vkd3d_swapchain.c`  -- tests: test_vkd3d_swapchain;test_vkd3d_live_present
+- `wubu_vkd3d_vkdev.c`  -- tests: test_vkd3d_vkdev;test_vkd3d_live;test_vkd3d_live_render;test_vkd3d_live_pipeline
 - `wubu_vlanaudio.c`  -- tests: test_hw_vlanaudio
 - `wubu_volcanic_islands.c`  -- tests: test_hw_volcanic_islands
 - `wubu_voltagectl.c`  -- tests: test_hw_voltagectl
@@ -658,21 +837,23 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_vpuencode.c`  -- tests: test_hw_vpuencode
 - `wubu_vram.c`  -- tests: test_hw_vram
 - `wubu_vrr.c`  -- tests: test_hw_vrr
-- `wubu_vulkan14.c`  -- tests: test_hw_vulkan14
-- `wubu_wallpaper.c`  -- tests: test_wm;test_ui;test_a11y;test_wallpaper
+- `wubu_vulkan14.c`  -- tests: test_vulkan;test_hw_vulkan14
+- `wubu_vulkan_cmd.c`  -- tests: test_vk_effect
+- `wubu_vulkan_compute.c`  -- tests: test_vk_effect
+- `wubu_vulkan_loader.c`  -- tests: test_vk_effect
+- `wubu_vulkan_util.c`  -- tests: test_vk_effect
+- `wubu_walkthrough.c`  -- tests: test_first_run
+- `wubu_wallpaper.c`  -- tests: test_wm;test_ui;test_a11y;test_image_ffmpeg
 - `wubu_wasm.c`  -- tests: test_minic_cg;test_jit_regression;test_drivers;test_isa_driver
 - `wubu_waveosc.c`  -- tests: test_synth
-- `wubu_wayland_stub.c`  -- tests: test_gui_screenshot
+- `wubu_wayland_fallback.c`  -- tests: test_gui_screenshot
+- `wubu_wemu_bridge.c`  -- tests: test_wemu_busybox;test_wemu_protect
 - `wubu_wifi7.c`  -- tests: test_hw_wifi7
 - `wubu_wifi_reg.c`  -- tests: test_hw_wifi_reg
 - `wubu_wifiutil.c`  -- tests: test_hw_wifiutil
 - `wubu_win32k.c`  -- tests: test_win32k;test_ns_win32
 - `wubu_wine_env.c`  -- tests: test_wubu;test_syscall;test_launch;test_exec_games
-- `wubu_wm.c`  -- tests: test_screenshot;test_wubu_wm
-- `wubu_wm_desktop.c`  -- tests: test_screenshot;test_wubu_wm
-- `wubu_wm_input.c`  -- tests: test_screenshot;test_wubu_wm
-- `wubu_wm_render.c`  -- tests: test_screenshot;test_wubu_wm
-- `wubu_world.c`  -- tests: test_world;test_ns_world
+- `wubu_world.c`  -- tests: test_hosted_hw;test_world;test_ns_world;test_ns_worldspace
 - `wubu_writeback.c`  -- tests: test_hw_writeback
 - `wubu_x86.c`  -- tests: test_minic_cg;test_jit_regression;test_drivers;test_isa_driver
 - `wubu_xdg_autostart.c`  -- tests: test_wubu_applaunch;test_wubu_selfbuild;test_xdg_autostart;test_session_boot
@@ -688,21 +869,385 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_zxload.c`  -- tests: test_wubu_zxload;test_wubu_zxreg;test_wubu_applaunch;test_wubu_selfbuild
 - `wubu_zxreg.c`  -- tests: test_wubu_zxreg;test_wubu_applaunch;test_wubu_selfbuild
 - `wubucontainer.c`  -- tests: test_container_registry
-- `wubucontainer_registry.c`  -- tests: test_container_registry;test_ns_bridge;test_ns_9p
+- `wubucontainer_registry.c`  -- tests: test_container_registry;test_exec_games;test_ns_bridge;test_ns_9p
+- `wubudriver.c`  -- tests: test_kernel_bridge;test_kernel_bridge
+- `wubuglott_artic.c`  -- tests: test_glott_artic
+- `wubuglott_decimator.c`  -- tests: test_glott_speak;test_glott_decimator;test_glott_voice
+- `wubuglott_geom.c`  -- tests: test_glott_geom
+- `wubuglott_glottis.c`  -- tests: test_glott_speak;test_glott_voice;test_glottis
+- `wubuglott_network.c`  -- tests: test_glott_speak;test_glott_voice;test_glott_network
+- `wubuglott_voice.c`  -- tests: test_glott_speak;test_glott_voice
+- `wubukcore.c`  -- tests: test_kernel_bridge;test_kernel_bridge
+- `wubukernel_pmm.c`  -- tests: test_kernel_bridge;test_kernel_bridge
+- `wubutime.c`  -- tests: test_wubutime;test_wubutime
 - `x86_regalloc.c`  -- tests: test_jit_regression;test_drivers;test_isa_driver;test_mir_opt
 - `zip_extract.c`  -- tests: test_zip_extract
 
 ## VENDORED / unproven modules (no test-target recipe)
 
+- `CMakeCCompilerId.c`
+- `SDL.c`
+- `SDL_DirectFB_WM.c`
+- `SDL_DirectFB_dyn.c`
+- `SDL_DirectFB_events.c`
+- `SDL_DirectFB_modes.c`
+- `SDL_DirectFB_mouse.c`
+- `SDL_DirectFB_opengl.c`
+- `SDL_DirectFB_render.c`
+- `SDL_DirectFB_shape.c`
+- `SDL_DirectFB_video.c`
+- `SDL_DirectFB_vulkan.c`
+- `SDL_DirectFB_window.c`
+- `SDL_RLEaccel.c`
+- `SDL_aaudio.c`
+- `SDL_alsa_audio.c`
+- `SDL_android.c`
+- `SDL_android_main.c`
+- `SDL_androidaudio.c`
+- `SDL_androidclipboard.c`
+- `SDL_androidevents.c`
+- `SDL_androidgl.c`
+- `SDL_androidkeyboard.c`
+- `SDL_androidmessagebox.c`
+- `SDL_androidmouse.c`
+- `SDL_androidsensor.c`
+- `SDL_androidtouch.c`
+- `SDL_androidvideo.c`
+- `SDL_androidvulkan.c`
+- `SDL_androidwindow.c`
+- `SDL_artsaudio.c`
+- `SDL_assert.c`
+- `SDL_atomic.c`
+- `SDL_audio.c`
+- `SDL_audiocvt.c`
+- `SDL_audiodev.c`
+- `SDL_audiotypecvt.c`
+- `SDL_blendfillrect.c`
+- `SDL_blendline.c`
+- `SDL_blendpoint.c`
+- `SDL_blit.c`
+- `SDL_blit_0.c`
+- `SDL_blit_1.c`
+- `SDL_blit_A.c`
+- `SDL_blit_N.c`
+- `SDL_blit_auto.c`
+- `SDL_blit_copy.c`
+- `SDL_blit_slow.c`
+- `SDL_bmp.c`
+- `SDL_bsdjoystick.c`
+- `SDL_clipboard.c`
+- `SDL_clipboardevents.c`
+- `SDL_cpuinfo.c`
+- `SDL_crc16.c`
+- `SDL_crc32.c`
+- `SDL_d3dmath.c`
+- `SDL_dataqueue.c`
+- `SDL_dbus.c`
+- `SDL_dinputhaptic.c`
+- `SDL_dinputjoystick.c`
+- `SDL_directsound.c`
+- `SDL_diskaudio.c`
+- `SDL_displayevents.c`
+- `SDL_drawline.c`
+- `SDL_drawpoint.c`
+- `SDL_dropevents.c`
+- `SDL_dspaudio.c`
+- `SDL_dummy_main.c`
+- `SDL_dummyaudio.c`
+- `SDL_dummysensor.c`
+- `SDL_dynapi.c`
+- `SDL_egl.c`
+- `SDL_emscriptenaudio.c`
+- `SDL_emscriptenevents.c`
+- `SDL_emscriptenframebuffer.c`
+- `SDL_emscriptenmouse.c`
+- `SDL_emscriptenopengles.c`
+- `SDL_emscriptenvideo.c`
+- `SDL_error.c`
+- `SDL_esdaudio.c`
+- `SDL_evdev.c`
+- `SDL_evdev_capabilities.c`
+- `SDL_evdev_kbd.c`
+- `SDL_evdev_kbd_freebsd.c`
+- `SDL_events.c`
+- `SDL_fcitx.c`
+- `SDL_fillrect.c`
+- `SDL_fsaudio.c`
+- `SDL_gamecontroller.c`
+- `SDL_gdk_main.c`
+- `SDL_gesture.c`
+- `SDL_getenv.c`
+- `SDL_guid.c`
+- `SDL_haptic.c`
+- `SDL_hid.c`
+- `SDL_hidapi.c`
+- `SDL_hidapi_combined.c`
+- `SDL_hidapi_gamecube.c`
+- `SDL_hidapi_luna.c`
+- `SDL_hidapi_ps3.c`
+- `SDL_hidapi_ps4.c`
+- `SDL_hidapi_ps5.c`
+- `SDL_hidapi_rumble.c`
+- `SDL_hidapi_shield.c`
+- `SDL_hidapi_stadia.c`
+- `SDL_hidapi_steam.c`
+- `SDL_hidapi_steamdeck.c`
+- `SDL_hidapi_switch.c`
+- `SDL_hidapi_wii.c`
+- `SDL_hidapi_xbox360.c`
+- `SDL_hidapi_xbox360w.c`
+- `SDL_hidapi_xboxone.c`
+- `SDL_hidapijoystick.c`
+- `SDL_hints.c`
+- `SDL_ibus.c`
+- `SDL_iconv.c`
+- `SDL_ime.c`
+- `SDL_immdevice.c`
+- `SDL_iokitjoystick.c`
+- `SDL_jackaudio.c`
+- `SDL_joystick.c`
+- `SDL_keyboard.c`
+- `SDL_keysym_to_scancode.c`
+- `SDL_kmsdrmdyn.c`
+- `SDL_kmsdrmevents.c`
+- `SDL_kmsdrmmouse.c`
+- `SDL_kmsdrmopengles.c`
+- `SDL_kmsdrmvideo.c`
+- `SDL_kmsdrmvulkan.c`
+- `SDL_list.c`
+- `SDL_locale.c`
+- `SDL_log.c`
+- `SDL_malloc.c`
+- `SDL_mixer.c`
+- `SDL_mouse.c`
+- `SDL_mslibc.c`
+- `SDL_n3ds_main.c`
+- `SDL_n3dsaudio.c`
+- `SDL_n3dsevents.c`
+- `SDL_n3dsframebuffer.c`
+- `SDL_n3dssensor.c`
+- `SDL_n3dsswkb.c`
+- `SDL_n3dstouch.c`
+- `SDL_n3dsvideo.c`
+- `SDL_nacl_main.c`
+- `SDL_naclaudio.c`
+- `SDL_naclevents.c`
+- `SDL_naclglue.c`
+- `SDL_naclopengles.c`
+- `SDL_naclvideo.c`
+- `SDL_naclwindow.c`
+- `SDL_nasaudio.c`
+- `SDL_netbsdaudio.c`
+- `SDL_nullevents.c`
+- `SDL_nullframebuffer.c`
+- `SDL_nullvideo.c`
+- `SDL_offscreenevents.c`
+- `SDL_offscreenframebuffer.c`
+- `SDL_offscreenopengles.c`
+- `SDL_offscreenvideo.c`
+- `SDL_offscreenwindow.c`
+- `SDL_openslES.c`
+- `SDL_os2.c`
+- `SDL_os2audio.c`
+- `SDL_os2dive.c`
+- `SDL_os2joystick.c`
+- `SDL_os2messagebox.c`
+- `SDL_os2mouse.c`
+- `SDL_os2util.c`
+- `SDL_os2video.c`
+- `SDL_os2vman.c`
+- `SDL_pandora.c`
+- `SDL_pandora_events.c`
+- `SDL_paudio.c`
+- `SDL_pipewire.c`
+- `SDL_pixels.c`
+- `SDL_poll.c`
+- `SDL_power.c`
+- `SDL_ps2_main.c`
+- `SDL_ps2audio.c`
+- `SDL_ps2video.c`
+- `SDL_psp_main.c`
+- `SDL_pspaudio.c`
+- `SDL_pspevents.c`
+- `SDL_pspgl.c`
+- `SDL_pspmouse.c`
+- `SDL_pspvideo.c`
+- `SDL_pulseaudio.c`
+- `SDL_qsa_audio.c`
+- `SDL_qsort.c`
+- `SDL_quit.c`
+- `SDL_rawinputjoystick.c`
+- `SDL_rect.c`
+- `SDL_render.c`
+- `SDL_render_d3d.c`
+- `SDL_render_d3d11.c`
+- `SDL_render_d3d12.c`
+- `SDL_render_gl.c`
+- `SDL_render_gles.c`
+- `SDL_render_gles2.c`
+- `SDL_render_ps2.c`
+- `SDL_render_psp.c`
+- `SDL_render_sw.c`
+- `SDL_render_vita_gxm.c`
+- `SDL_render_vita_gxm_memory.c`
+- `SDL_render_vita_gxm_tools.c`
+- `SDL_riscosevents.c`
+- `SDL_riscosframebuffer.c`
+- `SDL_riscosmessagebox.c`
+- `SDL_riscosmodes.c`
+- `SDL_riscosmouse.c`
+- `SDL_riscosvideo.c`
+- `SDL_riscoswindow.c`
+- `SDL_rotate.c`
+- `SDL_rpievents.c`
+- `SDL_rpimouse.c`
+- `SDL_rpiopengles.c`
+- `SDL_rpivideo.c`
+- `SDL_rwops.c`
+- `SDL_rwopsromfs.c`
+- `SDL_sandbox.c`
+- `SDL_scancode_tables.c`
+- `SDL_sensor.c`
+- `SDL_shaders_d3d.c`
+- `SDL_shaders_d3d11.c`
+- `SDL_shaders_d3d12.c`
+- `SDL_shaders_gl.c`
+- `SDL_shaders_gles2.c`
+- `SDL_shape.c`
+- `SDL_sndioaudio.c`
+- `SDL_spinlock.c`
+- `SDL_stdlib.c`
+- `SDL_steam_virtual_gamepad.c`
+- `SDL_steamcontroller.c`
+- `SDL_stretch.c`
+- `SDL_string.c`
+- `SDL_strtokr.c`
+- `SDL_sunaudio.c`
+- `SDL_surface.c`
+- `SDL_syscond.c`
+- `SDL_syscond_cv.c`
+- `SDL_sysfilesystem.c`
+- `SDL_syshaptic.c`
+- `SDL_sysjoystick.c`
+- `SDL_sysloadso.c`
+- `SDL_syslocale.c`
+- `SDL_sysmutex.c`
+- `SDL_syspower.c`
+- `SDL_syssem.c`
+- `SDL_systhread.c`
+- `SDL_systimer.c`
+- `SDL_systls.c`
+- `SDL_sysurl.c`
+- `SDL_thread.c`
+- `SDL_threadprio.c`
+- `SDL_timer.c`
+- `SDL_touch.c`
+- `SDL_triangle.c`
+- `SDL_udev.c`
+- `SDL_uikit_main.c`
+- `SDL_url.c`
+- `SDL_utils.c`
+- `SDL_video.c`
+- `SDL_virtualjoystick.c`
+- `SDL_vitaaudio.c`
+- `SDL_vitaframebuffer.c`
+- `SDL_vitagl_pvr.c`
+- `SDL_vitagles.c`
+- `SDL_vitagles_pvr.c`
+- `SDL_vitakeyboard.c`
+- `SDL_vitamessagebox.c`
+- `SDL_vitamouse.c`
+- `SDL_vitasensor.c`
+- `SDL_vitatouch.c`
+- `SDL_vitavideo.c`
+- `SDL_vivanteopengles.c`
+- `SDL_vivanteplatform.c`
+- `SDL_vivantevideo.c`
+- `SDL_vivantevulkan.c`
+- `SDL_vulkan_utils.c`
+- `SDL_wasapi.c`
+- `SDL_wasapi_win32.c`
+- `SDL_wave.c`
+- `SDL_waylandclipboard.c`
+- `SDL_waylanddatamanager.c`
+- `SDL_waylanddyn.c`
+- `SDL_waylandevents.c`
+- `SDL_waylandkeyboard.c`
+- `SDL_waylandmessagebox.c`
+- `SDL_waylandmouse.c`
+- `SDL_waylandopengles.c`
+- `SDL_waylandshmbuffer.c`
+- `SDL_waylandtouch.c`
+- `SDL_waylandvideo.c`
+- `SDL_waylandvulkan.c`
+- `SDL_waylandwindow.c`
+- `SDL_windowevents.c`
+- `SDL_windows.c`
+- `SDL_windows_gaming_input.c`
+- `SDL_windows_main.c`
+- `SDL_windowsclipboard.c`
+- `SDL_windowsevents.c`
+- `SDL_windowsframebuffer.c`
+- `SDL_windowshaptic.c`
+- `SDL_windowsjoystick.c`
+- `SDL_windowskeyboard.c`
+- `SDL_windowsmessagebox.c`
+- `SDL_windowsmodes.c`
+- `SDL_windowsmouse.c`
+- `SDL_windowsopengl.c`
+- `SDL_windowsopengles.c`
+- `SDL_windowssensor.c`
+- `SDL_windowsshape.c`
+- `SDL_windowsvideo.c`
+- `SDL_windowsvulkan.c`
+- `SDL_windowswindow.c`
+- `SDL_winmm.c`
+- `SDL_wscons_kbd.c`
+- `SDL_wscons_mouse.c`
+- `SDL_x11clipboard.c`
+- `SDL_x11dyn.c`
+- `SDL_x11events.c`
+- `SDL_x11framebuffer.c`
+- `SDL_x11keyboard.c`
+- `SDL_x11messagebox.c`
+- `SDL_x11modes.c`
+- `SDL_x11mouse.c`
+- `SDL_x11opengl.c`
+- `SDL_x11opengles.c`
+- `SDL_x11shape.c`
+- `SDL_x11touch.c`
+- `SDL_x11video.c`
+- `SDL_x11vulkan.c`
+- `SDL_x11window.c`
+- `SDL_x11xfixes.c`
+- `SDL_x11xinput2.c`
+- `SDL_xinput.c`
+- `SDL_xinputhaptic.c`
+- `SDL_xinputjoystick.c`
+- `SDL_yuv.c`
+- `SDL_yuv_sw.c`
+- `a11y.c`
+- `a11yannounce.c`
+- `a11ytree.c`
+- `accelerometer.c`
+- `accept_wua.c`
+- `action_configparser.c`
+- `agent.c`
 - `agent_gauntlet.c`
+- `agent_main.c`
+- `aislot.c`
 - `amoeba_lifecycle.c`
 - `api_server.c`
 - `app_explorer.c`
+- `assemble.c`
+- `ast.c`
 - `attn2_dump.c`
 - `attn2_probe.c`
-- `bear_cudnn.c`
-- `bear_cudnn_cublas.c`
-- `bear_cudnn_cuda.c`
+- `autocomp.c`
+- `autoindent.c`
+- `autosave.c`
+- `b64.c`
+- `badabi_plugin.c`
 - `bear_env.c`
 - `bear_env_npole.c`
 - `bear_nn_ckpt.c`
@@ -711,26 +1256,45 @@ the kernel/driver build or nowhere in the test recipes).
 - `bear_ppo_loss.c`
 - `bear_ppo_trainer.c`
 - `bear_ppo_traj.c`
-- `bear_train.c`
 - `bear_train_chained.c`
 - `bear_train_curriculum.c`
-- `bear_vulkan_soft.c`
 - `bench.c`
 - `bench_512k.c`
 - `bench_512k_comprehension.c`
 - `bench_512k_full.c`
+- `bench_conv3.c`
 - `bench_e2e.c`
 - `bench_gemm.c`
+- `bench_old.c`
 - `bench_supremacy.c`
 - `bench_thread.c`
+- `binarize.c`
+- `bisect_pool2.c`
+- `bisect_pool_conv.c`
+- `bit.c`
+- `bitw.c`
+- `bkmk.c`
+- `block.c`
 - `bonzi.c`
+- `buffer.c`
 - `build_vocab_clusters.c`
 - `bytropix_server.c`
 - `calc_test_support.c`
+- `canon.c`
 - `canvas_standalone.c`
+- `caption.c`
 - `cartpole8_verify.c`
+- `cell_csv.c`
+- `cell_eval.c`
+- `cell_io.c`
+- `cell_model.c`
+- `cell_read.c`
+- `cfb.c`
+- `cfb_write.c`
 - `cfg_diff.c`
 - `cfg_scan.c`
+- `charsetgen.c`
+- `chart.c`
 - `check_actual_dims.c`
 - `check_alignment.c`
 - `check_blob.c`
@@ -787,7 +1351,12 @@ the kernel/driver build or nowhere in the test recipes).
 - `check_typesizes.c`
 - `check_weights.c`
 - `check_weights2.c`
+- `cite.c`
+- `codefold.c`
+- `col.c`
 - `comfy.c`
+- `command.c`
+- `common.c`
 - `compare_dequant.c`
 - `compare_iq1m_dequant.c`
 - `compare_layer0.c`
@@ -798,18 +1367,50 @@ the kernel/driver build or nowhere in the test recipes).
 - `compare_quant_matmul_vs_sgemm.c`
 - `compare_weights.c`
 - `compare_weights_two_paths.c`
+- `complete.c`
+- `components.c`
+- `controller.c`
+- `controller_type.c`
+- `conv_bridge.c`
+- `conv_feats.c`
+- `conv_gemm.c`
+- `conv_map.c`
+- `convnet.c`
+- `convnet3.c`
+- `convnet3_cbam.c`
 - `cpio_extract.c`
+- `crc.c`
+- `crdt.c`
+- `crnn.c`
+- `crnn_doc_demo.c`
+- `crnn_img_train.c`
+- `crnn_lex_train.c`
+- `crnn_ocr_train.c`
+- `crnn_photo_demo.c`
+- `crnn_reload.c`
+- `crnn_roundtrip.c`
+- `crnn_train.c`
+- `crnn_transcribe.c`
+- `crnn_transcribe_pre.c`
+- `crnn_warp_train.c`
 - `cross_probe.c`
+- `csv.c`
+- `ctc.c`
+- `ctc_gradcheck.c`
 - `curriculum_train.c`
+- `daemon_panel.c`
+- `datefin.c`
 - `dbg_gguf.c`
 - `debug_beta_layout.c`
 - `debug_ce.c`
 - `debug_check.c`
+- `debug_clap.c`
 - `debug_iq2s.c`
 - `debug_moe.c`
 - `debug_moe_layer0.c`
 - `debug_q4k_block.c`
 - `debug_train_check.c`
+- `deflate.c`
 - `delta_sparsity.c`
 - `demo_capture.c`
 - `dequant_check.c`
@@ -817,12 +1418,27 @@ the kernel/driver build or nowhere in the test recipes).
 - `dequant_iq2_xxs.c`
 - `dequant_ref.c`
 - `dequant_verify.c`
+- `desktop.c`
+- `dft.c`
 - `diag_forward.c`
+- `dialog.c`
+- `diff.c`
 - `diff_models.c`
 - `direct_compare.c`
-- `daemon_panel.c`
-- `desktop.c`
-- `service_mgr.c`
+- `doc.c`
+- `doc_bin.c`
+- `doc_cache.c`
+- `doc_md.c`
+- `doc_rtf.c`
+- `doccmd_core.c`
+- `doccmd_wave1.c`
+- `doccmd_wave2.c`
+- `docflat.c`
+- `docfmt.c`
+- `docmodel.c`
+- `docs.c`
+- `docx_document.c`
+- `draw.c`
 - `dump_all_dims.c`
 - `dump_all_weights.c`
 - `dump_diag.c`
@@ -876,13 +1492,53 @@ the kernel/driver build or nowhere in the test recipes).
 - `dump_weight_ref.c`
 - `dump_weights_debug.c`
 - `dump_weights_l0.c`
+- `dyslexia.c`
+- `e_atan2.c`
+- `e_exp.c`
+- `e_fmod.c`
+- `e_log.c`
+- `e_log10.c`
+- `e_pow.c`
+- `e_rem_pio2.c`
+- `e_sqrt.c`
+- `edid-parse.c`
+- `edit.c`
 - `edr_dash.c`
+- `emnist_eval.c`
+- `emnist_infer.c`
+- `emnist_infer_conv.c`
+- `emnist_train.c`
+- `emnist_train_conv.c`
+- `emnist_train_conv3.c`
+- `emnist_train_fast.c`
 - `empty_prompt.c`
+- `encode.c`
+- `entry.c`
 - `eps_bias.c`
+- `epub.c`
+- `eqnum.c`
+- `eval.c`
+- `exp.c`
 - `exp2poly_probe.c`
+- `exp_png.c`
+- `extract.c`
 - `extract_and_map.c`
+- `featprobe.c`
 - `final_means.c`
 - `find_special_tokens.c`
+- `findbar.c`
+- `fireworks.c`
+- `fixed.c`
+- `fixedcode.c`
+- `fmtpaint.c`
+- `focus.c`
+- `font8x8.c`
+- `font_subset.c`
+- `fontbank.c`
+- `fontcpgrep.c`
+- `fontdir.c`
+- `form.c`
+- `fuzzy.c`
 - `fw_acpi.c`
 - `fw_acpiload.c`
 - `fw_agi.c`
@@ -907,6 +1563,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `fw_pci.c`
 - `fw_pcires.c`
 - `fw_pe.c`
+- `fw_rsa.c`
 - `fw_rt.c`
 - `fw_secureboot.c`
 - `fw_sha256.c`
@@ -917,31 +1574,70 @@ the kernel/driver build or nowhere in the test recipes).
 - `fw_tpmlog.c`
 - `fw_xhci.c`
 - `gaad_nesting_llm.c`
+- `gauntlet.c`
 - `gauntlet_run.c`
+- `gen_audio_channel_conversion.c`
+- `gen_audio_resampler_filter.c`
 - `gen_fixture_btl3_lora.c`
 - `gen_fixture_safetensors.c`
 - `gen_fixture_safetensors_model.c`
 - `gen_noise.c`
+- `gen_pgmpage.c`
+- `gen_realpage.c`
 - `gen_ref_logits.c`
 - `gen_text.c`
 - `gen_text_gemma4.c`
 - `gen_text_mtp.c`
+- `geniconv.c`
 - `get_ref_hidden.c`
 - `ggml_check.c`
 - `gguf_reader.c`
+- `gl.c`
+- `goldplace.c`
+- `gotoline.c`
+- `gpu_blas_stub.c`
 - `gpu_matmul_check.c`
+- `gradcheck_conv3.c`
+- `gradcheck_conv3_bisect.c`
+- `gradcheck_conv3_med.c`
+- `gradcheck_inorm.c`
+- `gradcheck_med.c`
+- `gradcheck_pool.c`
+- `gradcheck_pool_valid.c`
+- `gradcheck_real.c`
 - `gradient_check.c`
+- `gru.c`
+- `gru_gpu.c`
+- `gru_layout.c`
+- `guest_exit42.c`
+- `guest_exit_group.c`
+- `guest_fault.c`
+- `guest_getpid.c`
+- `guest_uname.c`
+- `guest_write.c`
+- `happy.c`
+- `harness_argparser.c`
+- `hash.c`
 - `hashmind_data.c`
 - `hashmind_model.c`
+- `heading.c`
 - `hello.c`
-- `hosted_pe.c`
+- `hid.c`
+- `history.c`
+- `hive.c`
+- `hosted_agent_channel.c`
 - `hosted_render.c`
 - `hosted_run.c`
-- `hosted_styxfs.c`
 - `hosted_wayland.c`
 - `hosted_wayland_input.c`
 - `hosted_wayland_shm.c`
 - `hosted_wayland_surface.c`
+- `huffman.c`
+- `imKStoUCS.c`
+- `image.c`
+- `image2doc.c`
+- `img2doc.c`
+- `imgops.c`
 - `infer_moe.c`
 - `infer_moe_lazy.c`
 - `infer_poincare.c`
@@ -950,6 +1646,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `infer_unified.c`
 - `infer_vision.c`
 - `infer_vision_text.c`
+- `inflate.c`
 - `inspect_iq2s.c`
 - `inspect_model.c`
 - `inspect_model_types.c`
@@ -957,12 +1654,38 @@ the kernel/driver build or nowhere in the test recipes).
 - `interrupt_pic.c`
 - `jit_audit.c`
 - `jit_gap_analysis.c`
+- `json.c`
+- `k_cos.c`
+- `k_rem_pio2.c`
+- `k_sin.c`
+- `k_tan.c`
+- `keyboard.c`
 - `kv_paged_attention.c`
 - `l1_probe.c`
+- `lang.c`
+- `lapi.c`
 - `latent_means.c`
 - `latent_structure.c`
+- `latin1.c`
+- `lauxlib.c`
 - `layer_analysis.c`
 - `layer_cos_sim.c`
+- `layout.c`
+- `lbaselib.c`
+- `lcode.c`
+- `lcorolib.c`
+- `lctype.c`
+- `ldblib.c`
+- `ldebug.c`
+- `ldo.c`
+- `ldump.c`
+- `legacy_doc_write.c`
+- `legacy_ppt_write.c`
+- `legacy_xls_write.c`
+- `lens.c`
+- `lex.c`
+- `lexer.c`
+- `lexicon.c`
 - `lfm2_attn.c`
 - `lfm2_conv.c`
 - `lfm2_ffn.c`
@@ -973,22 +1696,118 @@ the kernel/driver build or nowhere in the test recipes).
 - `lfm2_logits.c`
 - `lfm2_logits_for.c`
 - `lfm2_math.c`
-- `libc.c`
+- `lfunc.c`
+- `lgc.c`
+- `limitcode.c`
+- `linit.c`
+- `linux_process.c`
+- `liolib.c`
 - `list_tensors.c`
+- `llex.c`
+- `lmathlib.c`
+- `lmem.c`
+- `load_async.c`
 - `load_model_layer.c`
 - `loader.c`
+- `loadlib.c`
+- `lobject.c`
+- `logic.c`
 - `logit_probe.c`
+- `lookup.c`
+- `lopcodes.c`
+- `loslib.c`
+- `lparser.c`
+- `lstate.c`
+- `lstring.c`
+- `lstrlib.c`
+- `ltable.c`
+- `ltablib.c`
+- `ltests.c`
+- `ltm.c`
+- `lua.c`
+- `lundump.c`
+- `lutf8lib.c`
+- `lvm.c`
+- `lz77.c`
+- `lzio.c`
+- `macro.c`
+- `main.c`
+- `math.c`
+- `mdpreview.c`
 - `merge_gguf.c`
 - `metal_main.c`
+- `minimap.c`
+- `mischelper.c`
+- `mixer.c`
+- `mk_burn.c`
+- `mk_podcast.c`
+- `mk_smb_ytpmv.c`
+- `mk_srt.c`
+- `mk_tts_podcast.c`
+- `mk_ytp.c`
+- `mk_ytpmv.c`
+- `mk_ytpmv_bigmac.c`
+- `mk_ytpmv_bigmac2.c`
+- `mk_ytpmv_ffmpeg.c`
+- `mk_ytpmv_sampler.c`
 - `mkesp.c`
 - `mkpe.c`
+- `mksb.c`
+- `mlp.c`
+- `mlp_gradcheck.c`
+- `mlp_smoke.c`
+- `mlp_train_feats.c`
+- `model.c`
+- `model_epub.c`
+- `model_from_json.c`
+- `model_io.c`
+- `model_json.c`
+- `model_odt.c`
+- `model_rtf.c`
 - `moondream_cli.c`
+- `multicursor.c`
 - `multiteach_selftest.c`
+- `nesttab.c`
+- `note_controller.c`
+- `ocl_gru.c`
+- `ocrcorpus.c`
+- `ocringest.c`
+- `ocrserve.c`
+- `ocrwatch.c`
+- `odf_body.c`
+- `odf_flat.c`
+- `odf_pkg.c`
+- `odf_pres.c`
+- `odf_sheet.c`
+- `odf_text.c`
+- `odttf.c`
+- `onelua.c`
+- `os2cp.c`
+- `os2iconv.c`
 - `out_block_types.c`
 - `outbias.c`
 - `outblock_trace.c`
+- `package.c`
+- `page_compose.c`
+- `palette.c`
 - `param_map.c`
+- `parsehelper.c`
+- `parser.c`
+- `pasteplain.c`
+- `pdf_extract.c`
+- `pdf_text.c`
+- `pdf_write.c`
+- `pdfextract.c`
+- `pdfform.c`
+- `pdfsearch.c`
+- `pkgmgr.c`
+- `plugin.c`
 - `plugin_onnx.c`
+- `png.c`
+- `png_encode.c`
+- `power_menu.c`
+- `ppt_bin.c`
+- `pptx_write.c`
 - `pre_out_dump.c`
 - `primary-selection-private.c`
 - `probe_posstable.c`
@@ -998,36 +1817,82 @@ the kernel/driver build or nowhere in the test recipes).
 - `prune_gguf_experts.c`
 - `ps2.c`
 - `qlearner.c`
+- `qr.c`
 - `quantized_dot_generic.c`
 - `quantized_matmul.c`
 - `quantized_matmul_fixed.c`
 - `quants.c`
 - `quick_compare.c`
+- `rast.c`
+- `read_epub.c`
+- `read_html.c`
+- `read_rtf.c`
+- `reader.c`
+- `recognize.c`
 - `record_solved.c`
+- `rectangles.c`
+- `redact.c`
 - `ref_forward.c`
+- `registry.c`
+- `rels_path.c`
 - `repro_grow.c`
 - `rng_match.c`
+- `rnn.c`
+- `rnn_dx.c`
 - `rolling_hash.c`
 - `rsgd.c`
+- `rtf.c`
 - `run_bos.c`
 - `run_bos_comparison.c`
+- `run_dialog.c`
 - `run_ref_bos.c`
+- `rwhelper.c`
+- `s_atan.c`
+- `s_copysign.c`
+- `s_cos.c`
+- `s_fabs.c`
+- `s_floor.c`
+- `s_scalbn.c`
+- `s_sin.c`
+- `s_tan.c`
 - `safetensors_reader.c`
 - `safetensors_writer.c`
+- `sample_plugin.c`
+- `sandbox.c`
 - `scan_expert_offsets.c`
 - `scan_weights.c`
+- `scope.c`
+- `screen.c`
+- `script.c`
 - `sd_eps_probe.c`
 - `sd_gemm_probe.c`
 - `sd_gemm_probe2.c`
+- `search.c`
+- `settings.c`
 - `sha256.c`
+- `shape.c`
+- `shot.c`
+- `show_io.c`
+- `show_model.c`
+- `show_read.c`
+- `sig.c`
 - `simplehash.c`
+- `smoke.c`
+- `snippet.c`
+- `spell.c`
+- `spell_seed.c`
 - `spot.c`
 - `ssm_layer0_dump.c`
 - `ssm_verify.c`
 - `stage_debug.c`
 - `stage_trace.c`
 - `standalone_hosted_shim.c`
-- `styxfs_host.c`
+- `stat.c`
+- `style.c`
+- `stylebank.c`
+- `sut_configparser.c`
+- `sync.c`
+- `sys2utf8.c`
 - `t_decode.c`
 - `t_deq_compare.c`
 - `t_ffn_res.c`
@@ -1039,6 +1904,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `t_offsets.c`
 - `t_q8cmp.c`
 - `t_qkv_nan.c`
+- `table_styles.c`
 - `tailslayer-trefi-probe.c`
 - `tailslayer.c`
 - `tandem.c`
@@ -1046,42 +1912,78 @@ the kernel/driver build or nowhere in the test recipes).
 - `td2.c`
 - `temb_probe.c`
 - `temb_rms.c`
+- `test.c`
 - `test_256k.c`
 - `test_256k_chunked.c`
 - `test_256k_context.c`
 - `test_256k_forward.c`
+- `test_3d_camera.c`
+- `test_3d_edit.c`
+- `test_3d_overlay.c`
 - `test_4kv.c`
 - `test_512k_budget.c`
+- `test_a11y.c`
+- `test_a11y_tables.c`
+- `test_a11yannounce.c`
+- `test_a11ytree.c`
+- `test_aaf_export.c`
 - `test_adapter.c`
 - `test_adaptive_hotpath.c`
 - `test_affinity.c`
+- `test_agent.c`
+- `test_agent_cgi.c`
+- `test_agent_verbs.c`
 - `test_agentic_kv.c`
 - `test_agentic_os_mem.c`
 - `test_agi_os_integration.c`
+- `test_ai_mix.c`
+- `test_aislot.c`
 - `test_album_benchmark.c`
 - `test_align.c`
 - `test_ambig.c`
 - `test_amoeba.c`
 - `test_amoeba_shrink.c`
+- `test_analysis.c`
+- `test_anim.c`
+- `test_anim2.c`
 - `test_arena.c`
+- `test_arrange_ai.c`
+- `test_assets.c`
+- `test_atmos.c`
+- `test_atom.c`
 - `test_attn_gate.c`
 - `test_attn_kernels.c`
 - `test_attn_tune.c`
 - `test_attnres.c`
+- `test_audio_color.c`
+- `test_audio_to_midi.c`
+- `test_autocomp.c`
+- `test_autoindent.c`
+- `test_autoreframe.c`
+- `test_autosave.c`
+- `test_avx.c`
 - `test_awq.c`
 - `test_ax.c`
 - `test_axi.c`
 - `test_backprop.c`
 - `test_backward.c`
+- `test_base.c`
 - `test_bear_mlp.c`
+- `test_beat_grid.c`
 - `test_bf16_gemv.c`
+- `test_bg_render.c`
 - `test_bi.c`
+- `test_biquad4.c`
+- `test_biquad_cascade.c`
+- `test_bkmk.c`
+- `test_bleep.c`
 - `test_blueprint.c`
 - `test_bonzi.c`
 - `test_bonzi2.c`
 - `test_bridge.c`
 - `test_bridge2.c`
 - `test_btl3_lora.c`
+- `test_bvh.c`
 - `test_bwd_gqa.c`
 - `test_bwd_gqa_debug.c`
 - `test_bwd_gqa_fix_eps.c`
@@ -1095,39 +1997,87 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_canvas.c`
 - `test_capacity_wall.c`
 - `test_capgate.c`
+- `test_caption.c`
+- `test_captions.c`
 - `test_capzero.c`
 - `test_cartpole_env.c`
 - `test_causal_symbolic.c`
+- `test_cell_cycle.c`
+- `test_cell_edit.c`
+- `test_cell_kbd.c`
+- `test_cell_merge.c`
+- `test_cell_read.c`
+- `test_cgi_agi.c`
+- `test_cgiexport.c`
 - `test_chained_reward.c`
+- `test_char2d.c`
+- `test_chart.c`
 - `test_chat_template.c`
 - `test_check.c`
+- `test_chord_ai.c`
+- `test_chromakey.c`
 - `test_chunked_prefill.c`
 - `test_chunked_ssm.c`
 - `test_chunked_ssm_error.c`
 - `test_chunked_vs_seq.c`
+- `test_cite.c`
+- `test_cjk_fallback.c`
 - `test_cla.c`
+- `test_clap.c`
+- `test_clap_plugin.c`
+- `test_clip_edit.c`
+- `test_cloud.c`
+- `test_cloud_collab.c`
 - `test_codec.c`
+- `test_codefold.c`
+- `test_col.c`
 - `test_col_dequant.c`
+- `test_cold_start.c`
 - `test_colonel_effect.c`
 - `test_colony.c`
+- `test_color_grading.c`
+- `test_columns.c`
+- `test_command.c`
+- `test_comp_simd.c`
+- `test_complete.c`
+- `test_composition.c`
+- `test_compositor.c`
+- `test_compositor_pro.c`
 - `test_compress.c`
 - `test_compress2.c`
+- `test_conformance.c`
 - `test_continual.c`
 - `test_continuous_batching.c`
 - `test_contracts.c`
 - `test_conv.c`
+- `test_conv_model.c`
+- `test_convert.c`
+- `test_convnet.c`
+- `test_convnet3.c`
+- `test_convnet3_im2col.c`
+- `test_core.c`
 - `test_cpu_timing.c`
+- `test_cpuid.c`
+- `test_crdt.c`
 - `test_credit_dbstate.c`
+- `test_crnn_transcribe.c`
+- `test_crnn_transcribe_full.c`
 - `test_cross_attn.c`
 - `test_cross_exec.c`
+- `test_csv.c`
 - `test_ctx_manage.c`
 - `test_cuda_graph.c`
 - `test_cuda_kernels.c`
+- `test_cutout.c`
+- `test_datamosh.c`
 - `test_db_cross.c`
 - `test_debt.c`
 - `test_decode_path.c`
 - `test_decoder_paths.c`
 - `test_dedup.c`
+- `test_deflate.c`
+- `test_deflate_roundtrip.c`
+- `test_delivery.c`
 - `test_delta_net.c`
 - `test_deltanet.c`
 - `test_dense_ffn.c`
@@ -1135,15 +2085,34 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_dequant.c`
 - `test_diag.c`
 - `test_diagnosis.c`
+- `test_dialog.c`
 - `test_disagg_prefill_decode.c`
 - `test_dn2.c`
+- `test_doc_cache.c`
+- `test_doccmd.c`
+- `test_docfmt.c`
+- `test_docfmt2.c`
+- `test_docx_cell_merge.c`
+- `test_draw.c`
+- `test_drop.c`
+- `test_drum_machine.c`
+- `test_drum_rack.c`
+- `test_drum_timing.c`
 - `test_dsa.c`
+- `test_dsp_simd_timing.c`
 - `test_dsv4.c`
 - `test_dsv4_layer.c`
+- `test_duck.c`
+- `test_dvd_author.c`
+- `test_dvd_vm.c`
+- `test_dynamics_adv.c`
+- `test_dyslexia.c`
 - `test_eagle.c`
 - `test_early_exit.c`
 - `test_ecosystem.c`
 - `test_ecs.c`
+- `test_edit.c`
+- `test_editor.c`
 - `test_ee.c`
 - `test_emb_parity.c`
 - `test_enc_fs.c`
@@ -1154,26 +2123,59 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_english_prompt.c`
 - `test_env_reward.c`
 - `test_epcap.c`
+- `test_epub.c`
+- `test_epub_model_roundtrip.c`
+- `test_eqnum.c`
 - `test_eval.c`
 - `test_eval_qat.c`
 - `test_events.c`
 - `test_evict2026.c`
 - `test_evict2026b.c`
 - `test_evict2026c.c`
+- `test_exceptions.c`
+- `test_exp.c`
+- `test_exp_png.c`
 - `test_expert_choice.c`
 - `test_expert_dequant.c`
+- `test_export.c`
+- `test_export_e2e.c`
+- `test_export_mv.c`
+- `test_export_queue.c`
+- `test_expression.c`
+- `test_expressions.c`
+- `test_extract.c`
 - `test_f32_all.c`
 - `test_f32_fallback.c`
 - `test_f32_proj.c`
 - `test_fake_body.c`
 - `test_fast_attn.c`
 - `test_fast_attn_q8.c`
+- `test_fb1_timing.c`
+- `test_fc_timing.c`
+- `test_fcpxml.c`
 - `test_ff.c`
+- `test_ffmpeg_filters.c`
+- `test_fidelity_matrix.c`
+- `test_find.c`
+- `test_findbar.c`
 - `test_flash_prefill.c`
 - `test_flashdecode.c`
+- `test_flat_epub.c`
+- `test_float_wrap.c`
+- `test_fm_timing.c`
 - `test_fmt.c`
+- `test_fmtpaint.c`
+- `test_focus.c`
+- `test_fold.c`
 - `test_fold_sincos8.c`
 - `test_foldmath.c`
+- `test_font.c`
+- `test_font_subset.c`
+- `test_fontbank.c`
+- `test_foreign.c`
+- `test_form.c`
+- `test_formant.c`
+- `test_formula.c`
 - `test_fp4_dequant.c`
 - `test_fp8.c`
 - `test_freeenergy.c`
@@ -1185,11 +2187,17 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_fused_vs_old.c`
 - `test_fuzz.c`
 - `test_fuzz2.c`
+- `test_fuzzy.c`
+- `test_fw_rsa.c`
 - `test_fwd_simple.c`
+- `test_g1.c`
+- `test_g2_fm_timing.c`
+- `test_g3_fm_timing.c`
 - `test_gaad.c`
 - `test_gaad_update.c`
 - `test_gauntlet.c`
 - `test_gdn_chunk.c`
+- `test_gemm_nt.c`
 - `test_gemma4.c`
 - `test_gemv_dispatch.c`
 - `test_gemv_equivalence.c`
@@ -1200,9 +2208,12 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_gguf_dequant.c`
 - `test_gguf_load.c`
 - `test_gguf_tq.c`
+- `test_gltf.c`
+- `test_gotoline.c`
 - `test_gptq.c`
 - `test_gpu.c`
 - `test_gpu_attn.c`
+- `test_gpu_blas.c`
 - `test_gpu_dequant.c`
 - `test_gpu_dequant2.c`
 - `test_gpu_dequant3.c`
@@ -1213,15 +2224,25 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_gpu_output_proj.c`
 - `test_gpu_poincare.c`
 - `test_gqa_only.c`
+- `test_grabbag.c`
+- `test_grad_chain.c`
+- `test_granular.c`
 - `test_gravity.c`
 - `test_grow.c`
 - `test_grow_free.c`
+- `test_gru_asan.c`
+- `test_gru_cmp.c`
+- `test_gru_gpu.c`
 - `test_gyrate.c`
 - `test_h3_norm.c`
 - `test_harness.c`
 - `test_harness_file.c`
+- `test_hash.c`
 - `test_hashrouter.c`
+- `test_hdr_preview.c`
+- `test_heading.c`
 - `test_hh.c`
+- `test_history.c`
 - `test_hive_merge.c`
 - `test_holo_opt.c`
 - `test_hopfield.c`
@@ -1229,11 +2250,15 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_hopfield3.c`
 - `test_hopfield4.c`
 - `test_host_dequant.c`
+- `test_hpss.c`
 - `test_hugepage.c`
 - `test_hybrid.c`
 - `test_hyper.c`
 - `test_hyperbolic_output_proj.c`
+- `test_imageops.c`
+- `test_imgops.c`
 - `test_indexing.c`
+- `test_inflate.c`
 - `test_ingest_all.c`
 - `test_integrate.c`
 - `test_iq1m.c`
@@ -1241,10 +2266,14 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_iq2_dequant.c`
 - `test_iq2_xxs_dot.c`
 - `test_iq_dot.c`
+- `test_isa.c`
+- `test_kaleidoscope.c`
+- `test_karplus.c`
 - `test_kat_decode_bank.c`
 - `test_kda.c`
 - `test_kereq.c`
 - `test_kernel_dispatch.c`
+- `test_keys.c`
 - `test_kivi_roundtrip.c`
 - `test_knockover_reset.c`
 - `test_knockover_standalone.c`
@@ -1274,43 +2303,81 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_kvfs.c`
 - `test_kvquant.c`
 - `test_kvvq.c`
+- `test_ladder.c`
+- `test_lang.c`
 - `test_latentmoe.c`
+- `test_latin1.c`
+- `test_launchpad_mk2.c`
 - `test_layer_debug.c`
 - `test_layer_parity.c`
 - `test_layer_skip.c`
+- `test_layout.c`
+- `test_legacy_pdf.c`
+- `test_lex_fold.c`
+- `test_lex_multi.c`
 - `test_lfm.c`
 - `test_lfm2_load_gguf.c`
+- `test_light2d.c`
 - `test_linattn.c`
 - `test_linattn2.c`
 - `test_lineage.c`
 - `test_linear_attn.c`
+- `test_linked_tracks.c`
 - `test_lm_infinite.c`
 - `test_lmcache.c`
+- `test_load_async.c`
+- `test_lock_atomics.c`
 - `test_lookahead.c`
 - `test_loopguard_planediv.c`
 - `test_lora.c`
+- `test_lottie.c`
+- `test_loudness_meter.c`
 - `test_lruk.c`
+- `test_machine.c`
+- `test_macro.c`
+- `test_macro_rack.c`
+- `test_mask_node.c`
 - `test_masked_ce.c`
+- `test_master_adv.c`
+- `test_mastering_pro.c`
+- `test_math.c`
+- `test_matte_fx.c`
+- `test_md.c`
+- `test_mdpreview.c`
 - `test_medusa.c`
 - `test_mega.c`
 - `test_megakernel.c`
+- `test_melody_ai.c`
+- `test_melody_follow.c`
+- `test_mesh.c`
+- `test_mesh_warp.c`
 - `test_metacog.c`
 - `test_metadiag.c`
 - `test_metagame2.c`
 - `test_metagame2_resource.c`
 - `test_metagame_coord.c`
+- `test_metal_compositor.c`
 - `test_mhc.c`
-- `test_mingru.c`
+- `test_midi_generators.c`
+- `test_midi_remote.c`
+- `test_midi_scale.c`
+- `test_minimap.c`
 - `test_misc_gaps.c`
 - `test_mix.c`
+- `test_mix_simd.c`
 - `test_mla.c`
+- `test_mlp.c`
 - `test_mmrope.c`
 - `test_mobius_backward.c`
 - `test_mobius_linear.c`
+- `test_mod.c`
+- `test_mod_matrix.c`
 - `test_model.c`
 - `test_model_adapter.c`
 - `test_model_config.c`
 - `test_model_hwaccel.c`
+- `test_model_io.c`
+- `test_model_io_roundtrip.c`
 - `test_model_moe.c`
 - `test_moe.c`
 - `test_moe2.c`
@@ -1324,10 +2391,15 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_moondream.c`
 - `test_more_cores.c`
 - `test_more_spec.c`
+- `test_motion.c`
+- `test_motion_blur.c`
+- `test_mpe.c`
 - `test_mtp_draft.c`
 - `test_mtp_load.c`
 - `test_multiconsensus.c`
+- `test_multicursor.c`
 - `test_multimodal.c`
+- `test_mv.c`
 - `test_mxfp4.c`
 - `test_nan_logit.c`
 - `test_nan_trace.c`
@@ -1336,14 +2408,21 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_nested_moe_router_backward.c`
 - `test_nested_ssm.c`
 - `test_nested_ssm_backward.c`
+- `test_nesttab.c`
 - `test_neurom.c`
 - `test_nf4.c`
 - `test_nf4_debug.c`
 - `test_nf4_dequant.c`
 - `test_nf4_exact.c`
+- `test_nfc.c`
 - `test_ngram.c`
 - `test_no_moe.c`
+- `test_null_object.c`
 - `test_numerical_audit.c`
+- `test_ocr_realpage.c`
+- `test_odf.c`
+- `test_odttf.c`
+- `test_ofx.c`
 - `test_one_layer.c`
 - `test_one_ssm_backward.c`
 - `test_ops.c`
@@ -1352,17 +2431,37 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_orch.c`
 - `test_output_proj.c`
 - `test_paged_kv.c`
+- `test_paging.c`
+- `test_palette.c`
 - `test_parallel_scan.c`
 - `test_parallel_spec.c`
+- `test_particle_gpu.c`
 - `test_passk.c`
+- `test_pasteplain.c`
 - `test_patch_embed.c`
 - `test_pd_serve.c`
 - `test_pd_split.c`
+- `test_pdc.c`
+- `test_pdf_geometry.c`
+- `test_pdf_i18n.c`
+- `test_pdfextract.c`
+- `test_pdfform.c`
+- `test_pdfua.c`
+- `test_perf.c`
+- `test_perf_export.c`
+- `test_perf_freeze.c`
+- `test_perfclip.c`
 - `test_pga_backward.c`
+- `test_phaser.c`
 - `test_physics.c`
 - `test_pim.c`
 - `test_pim2.c`
+- `test_pitch_correct.c`
+- `test_pkgmgr.c`
 - `test_plateau.c`
+- `test_plugin_abi.c`
+- `test_png.c`
+- `test_podcast.c`
 - `test_poincare_gqa.c`
 - `test_poincare_kv_cache.c`
 - `test_poincare_router_backward.c`
@@ -1371,9 +2470,12 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_polarquant_benchmark.c`
 - `test_polarquant_cache.c`
 - `test_polarquant_scale.c`
-- `test_policy_forward.c`
 - `test_pool.c`
 - `test_pos_embd.c`
+- `test_pptx_app_roundtrip.c`
+- `test_pptx_deck_cycle.c`
+- `test_pptx_multi.c`
+- `test_pptx_roundtrip.c`
 - `test_precision_plan.c`
 - `test_pref.c`
 - `test_pref2.c`
@@ -1382,7 +2484,9 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_priority.c`
 - `test_priority_store.c`
 - `test_probe_qwen.c`
+- `test_procedural.c`
 - `test_proj_accuracy.c`
+- `test_project_templates.c`
 - `test_prover2.c`
 - `test_q2q3_dequant.c`
 - `test_q2q3_dequant2.c`
@@ -1392,16 +2496,22 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_q5q6.c`
 - `test_q8.c`
 - `test_q8k_pqv.c`
+- `test_qr.c`
 - `test_quant_selector.c`
 - `test_quantized_matmul.c`
 - `test_qwen35.c`
 - `test_qwen35_forward.c`
+- `test_rast.c`
+- `test_reader.c`
+- `test_readers.c`
 - `test_real_load.c`
+- `test_realtime_preview.c`
 - `test_recency.c`
+- `test_redact.c`
 - `test_regression.c`
 - `test_repetition.c`
 - `test_resources.c`
-- `test_revolver.c`
+- `test_restoration.c`
 - `test_ring_attn.c`
 - `test_rollout.c`
 - `test_roofline.c`
@@ -1414,18 +2524,36 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_router_stability.c`
 - `test_rsgd.c`
 - `test_rsi.c`
+- `test_rtf.c`
+- `test_rtf_json.c`
+- `test_run_toggle.c`
 - `test_runtime_dims.c`
 - `test_safetensors.c`
+- `test_sampler_inst.c`
+- `test_sandbox.c`
+- `test_sat_simd.c`
 - `test_scalable_model.c`
 - `test_scale_to_fit.c`
 - `test_scheduler.c`
+- `test_scope.c`
+- `test_score.c`
+- `test_screen_record.c`
+- `test_script.c`
 - `test_seed.c`
 - `test_self_cascade.c`
 - `test_selfimprove.c`
 - `test_serve.c`
 - `test_serve2.c`
+- `test_session_view.c`
+- `test_settings.c`
+- `test_shadowbin.c`
+- `test_shape.c`
+- `test_shell_ui.c`
 - `test_shexp.c`
 - `test_shexp_gate.c`
+- `test_shld.c`
+- `test_shortcut_conformance.c`
+- `test_sig.c`
 - `test_siglip.c`
 - `test_siglip_parity.c`
 - `test_skill_train.c`
@@ -1433,29 +2561,56 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_skillcell.c`
 - `test_smoothquant.c`
 - `test_smt_check.c`
+- `test_snippet.c`
 - `test_soa.c`
+- `test_sonogram.c`
 - `test_sparse_attn.c`
+- `test_spatial_audio.c`
 - `test_spec_cascade.c`
 - `test_spec_decode.c`
 - `test_spec_tuner.c`
 - `test_spec_variants.c`
+- `test_spectral_edit.c`
+- `test_spectral_fx.c`
+- `test_spell.c`
 - `test_splitk.c`
 - `test_ssd_moe.c`
 - `test_ssd_moe_real.c`
+- `test_sse2.c`
 - `test_ssm_carry.c`
 - `test_ssm_l0.c`
 - `test_ssm_precision.c`
 - `test_ssm_scan.c`
 - `test_st_bridge.c`
+- `test_stabilize2.c`
+- `test_stem_split.c`
 - `test_step_bench.c`
+- `test_stereo.c`
 - `test_stream_kv.c`
+- `test_string.c`
+- `test_stt_caption.c`
+- `test_stylebank.c`
+- `test_subtitle_translate.c`
+- `test_surround_mix.c`
+- `test_svg_import.c`
+- `test_synth_timing.c`
 - `test_sys2026.c`
 - `test_sys_tune.c`
+- `test_table_styles.c`
 - `test_tandem_gamebud.c`
+- `test_tbl_styles_e2e.c`
+- `test_tempo_detect.c`
 - `test_tensor_store.c`
 - `test_ternary.c`
+- `test_text_animator.c`
+- `test_text_based_edit.c`
+- `test_text_edit.c`
 - `test_text_fwd.c`
+- `test_theme.c`
 - `test_thread_spec.c`
+- `test_thumbnail.c`
+- `test_time_sig.c`
+- `test_toc.c`
 - `test_tok.c`
 - `test_tok_debug.c`
 - `test_tok_hf.c`
@@ -1464,24 +2619,56 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_tokenizer.c`
 - `test_tokenizer_simple.c`
 - `test_toolreg.c`
+- `test_track_folder.c`
 - `test_traj_grpo.c`
 - `test_traj_sft.c`
 - `test_trajcell.c`
+- `test_transcript.c`
+- `test_transform.c`
+- `test_transitions_pro.c`
+- `test_treeview.c`
 - `test_tst.c`
 - `test_ttc.c`
+- `test_tts.c`
 - `test_ubus.c`
+- `test_ui.c`
+- `test_ui_gfx.c`
 - `test_user_sim.c`
 - `test_userfs.c`
+- `test_usermode.c`
 - `test_uuid.c`
+- `test_vars.c`
 - `test_vec_dot_types.c`
 - `test_vecsearch.c`
+- `test_vfx.c`
+- `test_vgm.c`
+- `test_video.c`
+- `test_video_edit.c`
+- `test_video_fx_pro.c`
+- `test_video_tools.c`
+- `test_view.c`
+- `test_view_cell.c`
+- `test_view_docfile.c`
+- `test_view_editor.c`
+- `test_view_ocr_doc.c`
 - `test_vision.c`
 - `test_vision_real.c`
 - `test_vm_init.c`
+- `test_vocal_synth.c`
+- `test_voice_isolate.c`
+- `test_voice_polish.c`
 - `test_vulkan.c`
+- `test_wah.c`
+- `test_warp.c`
+- `test_watermark.c`
+- `test_wavcache.c`
+- `test_wavetable.c`
 - `test_width.c`
 - `test_wm_kv.c`
+- `test_word_lists.c`
+- `test_workspace.c`
 - `test_worldmodel_agentauth.c`
+- `test_wubu3d.c`
 - `test_wubu_alignment.c`
 - `test_wubu_arch.c`
 - `test_wubu_kernel.c`
@@ -1490,10 +2677,84 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_wubu_save.c`
 - `test_wubu_train.c`
 - `test_wubu_wubu.c`
+- `test_wubuanimation.c`
+- `test_wububasic.c`
+- `test_wubuconnector.c`
+- `test_wubudiff.c`
+- `test_wubudoc.c`
+- `test_wubudropcap.c`
+- `test_wubuedit.c`
+- `test_wubuencrypt.c`
+- `test_wubufilter.c`
+- `test_wubufont.c`
+- `test_wubufreeze.c`
+- `test_wubugallery.c`
+- `test_wubugoalseek.c`
+- `test_wubugrammar.c`
+- `test_wubugridline.c`
+- `test_wubuhyperlink.c`
+- `test_wubuicon.c`
+- `test_wubuindex.c`
+- `test_wubumailexport.c`
+- `test_wubumailmerge.c`
+- `test_wubumasterdoc.c`
+- `test_wubumasterslide.c`
+- `test_wubunote_ctrl.c`
+- `test_wubunotebookbar.c`
+- `test_wubuocr.c`
+- `test_wubuocr_recognize.c`
+- `test_wubupad_bridge.c`
+- `test_wubupivot.c`
+- `test_wubuqr.c`
+- `test_wuburuler.c`
+- `test_wubuscenario.c`
+- `test_wubusidebar.c`
+- `test_wubusmartart.c`
+- `test_wubusolver.c`
+- `test_wubusort.c`
+- `test_wubusubtotal.c`
+- `test_wubusvg.c`
+- `test_wubusvg_agent.c`
+- `test_wubuthesaurus.c`
+- `test_wubutransition.c`
+- `test_wubutui.c`
+- `test_wubuview.c`
+- `test_wubuview_ctrl.c`
+- `test_wubuxml_parser.c`
+- `test_wubuzip.c`
+- `test_wuos_toolbar.c`
+- `test_x87.c`
+- `test_xlsample.c`
+- `test_xlsx.c`
+- `test_xps.c`
 - `test_yarn.c`
+- `test_yin.c`
+- `test_youtube_upload.c`
+- `test_ytp.c`
+- `test_ytp_combo.c`
+- `test_ytp_fx.c`
+- `test_ytp_glitch.c`
+- `test_ytp_remaining.c`
+- `test_ytp_video_fx.c`
+- `test_ytpmv_composite.c`
+- `test_ytpmv_darkarts.c`
+- `test_ytpmv_library.c`
+- `test_ytpmv_lipsync.c`
+- `test_ytpmv_machine.c`
+- `test_ytpmv_multi.c`
+- `test_ytpmv_prod.c`
+- `test_ytpmv_renderer.c`
+- `test_ytpmv_sync.c`
+- `test_ytpmv_vfx.c`
 - `test_zero_layers.c`
+- `test_zoning.c`
+- `testharness.c`
+- `testquit.c`
+- `text.c`
 - `thread_pool.c`
 - `tile_manager.c`
+- `toast.c`
+- `toc.c`
 - `tok_decode.c`
 - `tok_encode.c`
 - `tok_ids.c`
@@ -1501,29 +2762,54 @@ the kernel/driver build or nowhere in the test recipes).
 - `tok_probe.c`
 - `tokenize_corpus.c`
 - `tokenizer.c`
+- `touch.c`
 - `trace_nan.c`
 - `train.c`
 - `train_backprop.c`
 - `train_cartpole_gaad.c`
 - `train_cartpole_gaad_v2.c`
 - `train_cartpole_gaad_video.c`
+- `train_conv3_clean.c`
 - `train_curriculum.c`
 - `train_gaad_cartpole.c`
 - `train_gpu.c`
 - `train_integrated.c`
+- `train_mt.c`
+- `train_persample.c`
 - `train_real.c`
 - `train_stub.c`
+- `trainer.c`
+- `trainer_cli.c`
+- `transform.c`
+- `treeview.c`
 - `ts_convert.c`
 - `tvar.c`
 - `txt2img_sd.c`
+- `ui.c`
+- `ui_atom.c`
+- `ui_find.c`
+- `ui_gfx.c`
+- `ui_headless.c`
+- `ui_macro.c`
+- `ui_theme.c`
+- `ui_tty.c`
 - `unet_corr.c`
 - `unet_eps_dump.c`
 - `unet_mag.c`
+- `unicode.c`
 - `vae64.c`
 - `vae_conv_probe.c`
 - `vae_mid_probe.c`
 - `vae_pattern.c`
 - `vae_sanity.c`
+- `value.c`
+- `value_util.c`
+- `variator_common.c`
+- `variator_exhaustive.c`
+- `variator_random.c`
+- `variators.c`
+- `vars.c`
+- `vbe_shim.c`
 - `verify_cartpole8.c`
 - `verify_dequant.c`
 - `verify_emb.c`
@@ -1536,6 +2822,20 @@ the kernel/driver build or nowhere in the test recipes).
 - `verify_q5k.c`
 - `verify_raw_dequant.c`
 - `verify_weights.c`
+- `video.c`
+- `view_cell.c`
+- `view_compare.c`
+- `view_doc.c`
+- `view_doc_render.c`
+- `view_editor.c`
+- `view_editor_keys.c`
+- `view_editor_render.c`
+- `view_editor_textops.c`
+- `view_ocr.c`
+- `view_settings.c`
+- `view_slide.c`
+- `viewshot.c`
+- `vsl_exec_engine.c`
 - `vsl_nt_alpc.c`
 - `vsl_nt_atoms.c`
 - `vsl_nt_enclave.c`
@@ -1556,8 +2856,355 @@ the kernel/driver build or nowhere in the test recipes).
 - `vsl_nt_vmem.c`
 - `vsl_nt_wnf.c`
 - `vsl_nt_worker.c`
+- `vsl_prot.c`
 - `vsl_syscall_nt.c`
+- `vws_cli.c`
+- `vws_selftest.c`
+- `watermark.c`
+- `wb_3d_camera.c`
+- `wb_3d_edit.c`
+- `wb_3d_overlay.c`
+- `wb_aaf_export.c`
+- `wb_agent.c`
+- `wb_agi.c`
+- `wb_ai_mix.c`
+- `wb_analysis.c`
+- `wb_anim.c`
+- `wb_arpeggiator.c`
+- `wb_arrange_ai.c`
+- `wb_asset_dl.c`
+- `wb_assets.c`
+- `wb_assets_ddc.c`
+- `wb_assets_gltf.c`
+- `wb_assets_manifest.c`
+- `wb_atmos.c`
+- `wb_audio_color.c`
+- `wb_audio_fx.c`
+- `wb_audio_mix.c`
+- `wb_audio_mixer.c`
+- `wb_audio_mux.c`
+- `wb_audio_reactive.c`
+- `wb_audio_reactive_node.c`
+- `wb_audio_to_midi.c`
+- `wb_auto_captions.c`
+- `wb_automation.c`
+- `wb_autoreframe.c`
+- `wb_avatar.c`
+- `wb_avatar_anim.c`
+- `wb_avatar_bones.c`
+- `wb_avatar_gltf.c`
+- `wb_avatar_identity.c`
+- `wb_backend.c`
+- `wb_bass_boost.c`
+- `wb_beat_grid.c`
+- `wb_beat_slicer.c`
+- `wb_beat_sync.c`
+- `wb_bg_render.c`
+- `wb_biquad_cascade_simd.c`
+- `wb_bitcrush.c`
+- `wb_bleep.c`
+- `wb_bvh.c`
+- `wb_camera.c`
+- `wb_captions.c`
+- `wb_capture.c`
+- `wb_cgi.c`
+- `wb_cgi_bands.c`
+- `wb_cgi_react.c`
+- `wb_cgiexport.c`
+- `wb_char2d.c`
+- `wb_character.c`
+- `wb_character_demo.c`
+- `wb_chord_ai.c`
+- `wb_chord_detect.c`
+- `wb_chorus.c`
+- `wb_chroma_key.c`
+- `wb_chromakey.c`
+- `wb_chromakey_engine.c`
+- `wb_clap.c`
+- `wb_clip_edit.c`
+- `wb_cloud.c`
+- `wb_cloud_collab.c`
+- `wb_cmd.c`
+- `wb_color_grading.c`
+- `wb_comp.c`
+- `wb_comp_simd.c`
+- `wb_comping.c`
+- `wb_composite_ext.c`
+- `wb_composition.c`
+- `wb_compositor.c`
+- `wb_compositor_encode.c`
+- `wb_compositor_pro.c`
+- `wb_conv.c`
+- `wb_conv_reverb.c`
+- `wb_core.c`
+- `wb_csg.c`
+- `wb_dark_arts.c`
+- `wb_datamosh.c`
+- `wb_daw.c`
+- `wb_deep_fry.c`
+- `wb_deesser.c`
+- `wb_delay.c`
+- `wb_delivery.c`
+- `wb_dist.c`
+- `wb_drum_machine.c`
+- `wb_drum_rack.c`
+- `wb_drum_simd.c`
+- `wb_drums.c`
+- `wb_dsp.c`
+- `wb_duck.c`
+- `wb_dvd_author.c`
+- `wb_dynamic_eq.c`
+- `wb_dynamics_adv.c`
+- `wb_ecs.c`
+- `wb_edit.c`
+- `wb_edit_serialize.c`
+- `wb_edit_undo.c`
+- `wb_env.c`
+- `wb_eq.c`
+- `wb_exciter.c`
+- `wb_exp.c`
+- `wb_export_job.c`
+- `wb_export_queue.c`
+- `wb_expression.c`
+- `wb_expressions.c`
+- `wb_ffmpeg_filters.c`
+- `wb_fft.c`
+- `wb_filter.c`
+- `wb_fm.c`
+- `wb_fm_g2.c`
+- `wb_fm_g3.c`
+- `wb_formant.c`
+- `wb_freeze.c`
+- `wb_ftz.c`
+- `wb_fuzz.c`
+- `wb_gate.c`
+- `wb_geo_demo.c`
+- `wb_gif_export.c`
+- `wb_gltf.c`
+- `wb_gpu_buffer.c`
+- `wb_gpu_dev.c`
+- `wb_gpu_exec.c`
+- `wb_gpu_pass.c`
+- `wb_gpu_shader.c`
+- `wb_gpu_texture.c`
+- `wb_granular.c`
+- `wb_graphio.c`
+- `wb_hdr_preview.c`
+- `wb_host.c`
+- `wb_hpss.c`
+- `wb_import.c`
+- `wb_input.c`
+- `wb_json.c`
+- `wb_kaleidoscope.c`
+- `wb_karplus.c`
+- `wb_keyframes.c`
+- `wb_keys.c`
+- `wb_ladder.c`
+- `wb_lfo_sidechain.c`
+- `wb_light2d.c`
+- `wb_limiter.c`
+- `wb_linked_tracks.c`
+- `wb_lottie.c`
+- `wb_lua_host.c`
+- `wb_lufs.c`
+- `wb_lut.c`
+- `wb_lut_node.c`
+- `wb_lyric_video.c`
+- `wb_macro_rack.c`
+- `wb_mask_node.c`
+- `wb_master_adv.c`
+- `wb_mastering_chain.c`
+- `wb_mastering_pro.c`
+- `wb_matte_fx.c`
+- `wb_melody_ai.c`
+- `wb_melody_follow.c`
+- `wb_meme_sounds.c`
+- `wb_mesh.c`
+- `wb_mesh_warp.c`
+- `wb_midi_chordgen.c`
+- `wb_midi_coremidi.c`
+- `wb_midi_generators.c`
+- `wb_midi_humanize.c`
+- `wb_midi_note_to_freq_stub.c`
+- `wb_midi_remote.c`
+- `wb_midi_scale.c`
+- `wb_midifx.c`
+- `wb_mix_simd.c`
+- `wb_mod.c`
+- `wb_mod_matrix.c`
+- `wb_mode.c`
+- `wb_motion_blur.c`
+- `wb_motion_overlay.c`
+- `wb_motion_track.c`
+- `wb_mpe.c`
+- `wb_multiband.c`
+- `wb_multicam.c`
+- `wb_net_aoi.c`
+- `wb_net_client.c`
+- `wb_net_loopback.c`
+- `wb_net_server.c`
+- `wb_noise_gate.c`
+- `wb_null_object.c`
+- `wb_ofx.c`
+- `wb_ofx_plugin_builtin.c`
+- `wb_osc.c`
+- `wb_parallel_comp.c`
+- `wb_param_track.c`
+- `wb_particle.c`
+- `wb_particle_gpu.c`
+- `wb_pattern.c`
+- `wb_pdc.c`
+- `wb_perf.c`
+- `wb_perfclip.c`
+- `wb_phaser.c`
+- `wb_phoneme_seg.c`
+- `wb_physics_bind.c`
+- `wb_physics_body.c`
+- `wb_physics_world.c`
+- `wb_pitch_bend.c`
+- `wb_pitch_correct.c`
+- `wb_podcast.c`
+- `wb_precision.c`
+- `wb_prod_project.c`
+- `wb_project.c`
+- `wb_project_templates.c`
+- `wb_proxy.c`
+- `wb_quantize.c`
+- `wb_rast.c`
+- `wb_reaction.c`
+- `wb_realtime_preview.c`
+- `wb_recorder.c`
+- `wb_render.c`
+- `wb_restoration.c`
+- `wb_restore.c`
+- `wb_reverb.c`
+- `wb_sampler.c`
+- `wb_sampler_inst.c`
+- `wb_sat_simd.c`
+- `wb_saturation.c`
+- `wb_scene_detect.c`
+- `wb_scenedesc.c`
+- `wb_score.c`
+- `wb_screen_record.c`
+- `wb_script.c`
+- `wb_sdl_preview.c`
+- `wb_selftest.c`
+- `wb_session.c`
+- `wb_session_file.c`
+- `wb_session_view.c`
+- `wb_sf2.c`
+- `wb_sfx.c`
+- `wb_shadowbin.c`
+- `wb_shape_node.c`
+- `wb_sidechain.c`
+- `wb_smf.c`
+- `wb_sonogram.c`
+- `wb_space_bind.c`
+- `wb_spatial.c`
+- `wb_spatial_audio.c`
+- `wb_spawn.c`
+- `wb_spectral_edit.c`
+- `wb_spectral_fx.c`
+- `wb_spectrum.c`
+- `wb_speed_ramp.c`
+- `wb_stabilize.c`
+- `wb_stabilize2.c`
+- `wb_stem_export.c`
+- `wb_stem_split.c`
+- `wb_stereo.c`
+- `wb_stereo_image.c`
+- `wb_stt_caption.c`
+- `wb_stutter.c`
+- `wb_subtitle_translate.c`
+- `wb_surround.c`
+- `wb_svg_import.c`
+- `wb_synth.c`
+- `wb_synth_simd.c`
+- `wb_tape_stop.c`
+- `wb_tempo_detect.c`
+- `wb_text_animate.c`
+- `wb_text_animator.c`
+- `wb_text_based_edit.c`
+- `wb_text_edit.c`
+- `wb_text_templates.c`
+- `wb_tga.c`
+- `wb_tiles.c`
+- `wb_time_sig.c`
+- `wb_timestretch.c`
+- `wb_track_folder.c`
+- `wb_transcript.c`
+- `wb_transient_shaper.c`
+- `wb_transitions.c`
+- `wb_transitions_pro.c`
+- `wb_transport.c`
+- `wb_true_peak.c`
+- `wb_tts.c`
+- `wb_tuner.c`
+- `wb_ui_font.c`
+- `wb_undo.c`
+- `wb_unit.c`
+- `wb_unit_clap.c`
+- `wb_util.c`
+- `wb_vca.c`
+- `wb_vfx.c`
+- `wb_vfx_node.c`
+- `wb_vgm.c`
+- `wb_vhs_effect.c`
+- `wb_video.c`
+- `wb_video_edit.c`
+- `wb_video_fx_pro.c`
+- `wb_video_node.c`
+- `wb_vocal_remove.c`
+- `wb_vocal_synth.c`
+- `wb_voice_isolate.c`
+- `wb_voice_polish.c`
+- `wb_vst3_editor.c`
+- `wb_wah.c`
+- `wb_warp.c`
+- `wb_wav.c`
+- `wb_wavcache.c`
+- `wb_wavetable.c`
+- `wb_waveview.c`
+- `wb_workspace.c`
+- `wb_worldspace.c`
+- `wb_yin.c`
+- `wb_youtube_upload.c`
+- `wb_ytp.c`
+- `wb_ytp_combo.c`
+- `wb_ytp_director.c`
+- `wb_ytp_fx.c`
+- `wb_ytp_glitch.c`
+- `wb_ytp_remaining.c`
+- `wb_ytp_video_fx.c`
+- `wb_ytpmv.c`
+- `wb_ytpmv_composite.c`
+- `wb_ytpmv_engine.c`
+- `wb_ytpmv_library.c`
+- `wb_ytpmv_lipsync.c`
+- `wb_ytpmv_machine.c`
+- `wb_ytpmv_multi.c`
+- `wb_ytpmv_prod.c`
+- `wb_ytpmv_renderer.c`
+- `wb_ytpmv_sync.c`
+- `wb_ytpmv_vfx.c`
+- `wb_ytpmv_vfx_pipeline.c`
+- `wemu_cpu.c`
+- `wemu_decode.c`
+- `wemu_elf.c`
+- `wemu_exception.c`
+- `wemu_exec.c`
+- `wemu_machine.c`
+- `wemu_mem.c`
+- `wemu_sse.c`
+- `wemu_string.c`
+- `wemu_x87.c`
 - `wibu_mips_interp.c`
+- `windows_process.c`
+- `windows_screenshot.c`
+- `woff.c`
+- `word_doc.c`
+- `word_spell.c`
+- `word_table.c`
 - `wstats.c`
 - `wubre.c`
 - `wubre_bre.c`
@@ -1568,6 +3215,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubre_simd.c`
 - `wubu.c`
 - `wubu1_block_bridge.c`
+- `wubu3d.c`
 - `wubu_4kv.c`
 - `wubu_acpi.c`
 - `wubu_acq.c`
@@ -1587,7 +3235,6 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_amoeba.c`
 - `wubu_anomaly.c`
 - `wubu_apic.c`
-- `wubu_archd_loop.c`
 - `wubu_arena.c`
 - `wubu_as.c`
 - `wubu_attn_gate.c`
@@ -1607,7 +3254,6 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_bo.c`
 - `wubu_bonzi2.c`
 - `wubu_boot.c`
-- `wubu_bottle_serialize.c`
 - `wubu_bridge.c`
 - `wubu_bridge2.c`
 - `wubu_cache_advice.c`
@@ -1668,7 +3314,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_early_exit.c`
 - `wubu_ecosystem.c`
 - `wubu_ecs.c`
-- `wubu_edr.c`
+- `wubu_edid_dump.c`
 - `wubu_enc_fs.c`
 - `wubu_enc_h3.c`
 - `wubu_encoder.c`
@@ -1737,8 +3383,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_hybrid.c`
 - `wubu_hyper.c`
 - `wubu_hyperbolic_output_proj.c`
-- `wubu_image_names.c`
 - `wubu_imgenc.c`
+- `wubu_inject.c`
 - `wubu_integrate.c`
 - `wubu_invariant.c`
 - `wubu_iommu.c`
@@ -1836,6 +3482,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_nest.c`
 - `wubu_nested_ssm.c`
 - `wubu_nested_ssm_backward.c`
+- `wubu_netstack.c`
 - `wubu_neurom.c`
 - `wubu_nf4.c`
 - `wubu_ngram.c`
@@ -1857,6 +3504,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_pdf.c`
 - `wubu_pim.c`
 - `wubu_pim2.c`
+- `wubu_pkg_ed25519_gate.c`
 - `wubu_planediv.c`
 - `wubu_plateau.c`
 - `wubu_plugin.c`
@@ -1903,6 +3551,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_router_physics.c`
 - `wubu_rsi.c`
 - `wubu_runcompare.c`
+- `wubu_runline.c`
 - `wubu_runtime_dims.c`
 - `wubu_safekern.c`
 - `wubu_safetensors_model.c`
@@ -1941,6 +3590,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_spec_tuner.c`
 - `wubu_spec_variants.c`
 - `wubu_specdec.c`
+- `wubu_spell_cli.c`
 - `wubu_ssd_moe.c`
 - `wubu_ssm.c`
 - `wubu_ssm_chunked.c`
@@ -1956,7 +3606,6 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_synth.c`
 - `wubu_sys2026.c`
 - `wubu_sys_tune.c`
-- `wubu_system.c`
 - `wubu_tandem.c`
 - `wubu_taskbd.c`
 - `wubu_tensor_store.c`
@@ -1990,6 +3639,9 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_vecsearch.c`
 - `wubu_verifier.c`
 - `wubu_verify.c`
+- `wubu_virtio_blk.c`
+- `wubu_virtio_net.c`
+- `wubu_virtqueue.c`
 - `wubu_vision.c`
 - `wubu_vision_encoder.c`
 - `wubu_vision_moondream.c`
@@ -1997,22 +3649,73 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_vsl.c`
 - `wubu_vsl_gpu.c`
 - `wubu_vsl_vulkan.c`
-- `wubu_vulkan_cmd.c`
-- `wubu_vulkan_compute.c`
-- `wubu_vulkan_loader.c`
 - `wubu_vulkan_swapchain.c`
-- `wubu_vulkan_util.c`
 - `wubu_wdt.c`
 - `wubu_weight.c`
-- `wubu_welcome.c`
 - `wubu_width.c`
 - `wubu_win.c`
 - `wubu_wm_kv.c`
 - `wubu_worldmodel.c`
 - `wubu_xhci.c`
 - `wubu_yarn.c`
+- `wubuanimation.c`
+- `wububase.c`
+- `wububasic.c`
+- `wubuconnector.c`
+- `wubudiff.c`
+- `wubudoc.c`
+- `wubudropcap.c`
+- `wubuencrypt.c`
+- `wubufilter.c`
+- `wubufont.c`
+- `wubufreeze.c`
 - `wubufx.c`
 - `wubufx_apps.c`
+- `wubugallery.c`
+- `wubugoalseek.c`
+- `wubugrammar.c`
 - `wubugrep.c`
+- `wubugridline.c`
+- `wubuhyperlink.c`
+- `wubuicon.c`
+- `wubuindex.c`
+- `wubumailexport.c`
+- `wubumailmerge.c`
+- `wubumasterdoc.c`
+- `wubumasterslide.c`
+- `wubunotebookbar.c`
+- `wubuocr.c`
+- `wubuoffice.c`
+- `wubupad_bridge.c`
+- `wubupad_edit.c`
+- `wubupivot.c`
+- `wubupng.c`
+- `wubuqr.c`
+- `wuburender.c`
+- `wuburuler.c`
+- `wubuscenario.c`
+- `wubusidebar.c`
+- `wubusmartart.c`
+- `wubusolver.c`
+- `wubusort.c`
+- `wubusubtotal.c`
+- `wubusvg.c`
+- `wubuthesaurus.c`
+- `wubutransition.c`
+- `wuos_file.c`
+- `wuos_font.c`
+- `wuos_frame.c`
+- `wuos_motion.c`
+- `wuos_shell_a11y.c`
+- `wuos_shell_events.c`
+- `wuos_toolbar.c`
 - `xdg-shell-client-protocol.c`
 - `xdg-shell-server-protocol.c`
+- `xls_biff.c`
+- `xml.c`
+- `xps.c`
+- `yuv_rgb_lsx.c`
+- `yuv_rgb_sse.c`
+- `yuv_rgb_std.c`
+- `zip.c`
+- `zoning.c`
