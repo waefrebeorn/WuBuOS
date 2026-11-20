@@ -11,10 +11,16 @@
  *   4. DXVK configuration
  *   5. Running Windows .exe through Wine inside the container
  *
+ * This module orchestrates an ALREADY bootstrapped Arch root: it does not
+ * run pacstrap or install Wine/DXVK itself. Bootstrap is owned by
+ * wubu_arch_bootstrap() / wubu_rd_bootstrap_disk() via the arch daemon;
+ * starting with an empty root gives an empty container, not a working
+ * Proton install.
+ *
  * Flow:
  *   wubu_proton_start()
- *     → wubu_rd_boot() mounts Arch root
- *     → pacstrap installs wine, dxvk, vulkan, pipewire
+ *     → wubu_rd_create(WUBU_RD_RAM) + wubu_rd_boot() (mount root/image)
+ *     → expects a bootstrapped root with Wine/DXVK (caller's responsibility)
  *     → wubu_ct_create() creates container
  *     → GPU bind mounts (/dev/dri, /dev/nvidia*)
  *     → HID bind mounts (/dev/input, /dev/hidraw, /dev/bus/usb)
@@ -113,7 +119,8 @@ int wubu_proton_start(WubuProtonManager *mgr) {
         return -1;
     }
 
-    /* Create container */
+    /* Create container. This module expects a pre-bootstrapped root; it
+     * never runs pacstrap itself (owned by wubu_arch_bootstrap/archd). */
     const char *root = wubu_rd_root_path(mgr->ramdisk);
     mgr->container = wubu_ct_create("proton", root, CT_PROTON);
     if (!mgr->container) {
