@@ -294,6 +294,14 @@ int main(void) {
       vsl_munmap(bumped, 4096) == 0 && g_vsl.n_mmaps == maps0,
       "hinted mappings unmap cleanly");
 
+    /* mprotect length overflow must not wrap past the arena end. */
+    T(vsl_syscall(VSL_SYS_MPROTECT, 0x400000, 4096, 3, 0, 0, 0) == 0,
+      "mprotect still accepts the ELF-image RELRO region");
+    T(vsl_syscall(VSL_SYS_MPROTECT, VSL_USER_BASE, UINT64_MAX, 3, 0, 0, 0) == -12,
+      "mprotect with a wrapping length returns ENOMEM");
+    T(vsl_syscall(VSL_SYS_MPROTECT, VSL_USER_BASE, VSL_USER_SIZE, 3, 0, 0, 0) == 0,
+      "mprotect of the whole arena remains valid");
+
     /* -- File Operations -- */
     printf("\n[File Operations]\n");
     int fd = vsl_open("/tmp/test.txt", 0x241, 0644);

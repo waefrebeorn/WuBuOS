@@ -39,7 +39,15 @@ int64_t vsl_sys_mprotect(uint64_t addr, uint64_t len, uint64_t prot,
     if (!g_vsl.active) return -1;
     if (addr & 0xfff) return -22;                    /* EINVAL: unaligned */
     if (len == 0) return 0;
-    uint64_t end = addr + ((len + 0xfff) & ~0xfffull);
+    /* Round only AFTER proving len is inside the arena: len near
+     * UINT64_MAX wrapped the rounded length and the end pointer, letting
+     * mprotect "succeed" outside the guest arena. */
+    if (len > VSL_USER_SIZE) return -12;             /* ENOMEM */
+    if (addr < 0x1000 || addr >= VSL_USER_BASE + VSL_USER_SIZE)
+        return -12;
+    uint64_t rounded = (len + 0xfff) & ~0xfffull;
+    if (rounded > VSL_USER_BASE + VSL_USER_SIZE - addr) return -12;
+    uint64_t end = addr + rounded;
     /* Accept the low ELF-image region (statics load at 0x400000, below
      * the bump arena) as well as the arena itself: glibc mprotects the
      * ELF's GNU_RELRO segment right after startup. */
