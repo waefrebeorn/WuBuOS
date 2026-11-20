@@ -24,9 +24,9 @@ fi
 
 echo "[gate] mbedTLS: $(grep -m1 MBEDTLS_VERSION_STRING "$MB/include/mbedtls/version.h" | cut -d'"' -f2)"
 
-# Seven ephemeral Ed25519 keypairs: signer/anchor, wrong, old admin, new
-# admin, two quorum members, and the revocation target.
-for n in sign wrong admin new q1 q2 target; do
+# Eight ephemeral Ed25519 keypairs: signer/anchor, wrong, old admin, new admin,
+# two quorum/escrow members, revocation target, and the post-recovery admin.
+for n in sign wrong admin new q1 q2 target rec; do
     openssl genpkey -algorithm ED25519 -out "$TMP/$n.pem" 2>/dev/null
 done
 seed_hex() {
@@ -42,12 +42,14 @@ new_seed=$(seed_hex "$TMP/new.pem");     new_pub=$(pub_hex "$TMP/new.pem")
 q1_seed=$(seed_hex "$TMP/q1.pem");       q1_pub=$(pub_hex "$TMP/q1.pem")
 q2_seed=$(seed_hex "$TMP/q2.pem");       q2_pub=$(pub_hex "$TMP/q2.pem")
 target=$(pub_hex "$TMP/target.pem")
+rec_seed=$(seed_hex "$TMP/rec.pem");     rec_pub=$(pub_hex "$TMP/rec.pem")
 for v in "$sign_seed" "$sign_pub" "$wrong_seed" "$wrong_pub" \
          "$admin_seed" "$admin_pub" "$new_seed" "$new_pub" \
-         "$q1_seed" "$q1_pub" "$q2_seed" "$q2_pub" "$target"; do
+         "$q1_seed" "$q1_pub" "$q2_seed" "$q2_pub" "$target" \
+         "$rec_seed" "$rec_pub"; do
     [ "${#v}" -eq 64 ] || { echo "failed to extract 32-byte key material" >&2; exit 2; }
 done
-echo "[gate] generated 7 ephemeral Ed25519 keypairs (no key material in repo)"
+echo "[gate] generated 8 ephemeral Ed25519 keypairs (no key material in repo)"
 
 mkdir -p "$TMP/src"
 printf 'Key policy gate payload\n' > "$TMP/src/payload.txt"
@@ -86,7 +88,8 @@ export LD_LIBRARY_PATH="$MB/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_
 ARGS=(record "$DB" "$TMP/gate.wubu" "$TMP/src" \
       "$sign_seed" "$sign_pub" "$wrong_seed" "$wrong_pub" \
       "$admin_seed" "$admin_pub" "$new_seed" "$new_pub" \
-      "$q1_seed" "$q1_pub" "$q2_seed" "$q2_pub" "$target")
+      "$q1_seed" "$q1_pub" "$q2_seed" "$q2_pub" "$target" \
+      "$rec_seed" "$rec_pub")
 
 echo "[gate] === record phase (fresh DB) ==="
 "$TMP/probe" "${ARGS[@]}"

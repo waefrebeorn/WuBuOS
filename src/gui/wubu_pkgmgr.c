@@ -116,6 +116,17 @@ static const char SCHEMA_SQL[] =
     "CREATE TABLE IF NOT EXISTS pkg_quorum_keys ("
     "  pubkey_hex TEXT PRIMARY KEY,"
     "  seq INTEGER NOT NULL"
+    ");"
+    /* Bounded M-of-N escrow admin set for lost-admin recovery. All rows are
+     * public; seeds never enter the DB. M is always >= 2. */
+    "CREATE TABLE IF NOT EXISTS pkg_escrow ("
+    "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+    "  m INTEGER NOT NULL,"
+    "  n INTEGER NOT NULL"
+    ");"
+    "CREATE TABLE IF NOT EXISTS pkg_escrow_keys ("
+    "  pubkey_hex TEXT PRIMARY KEY,"
+    "  seq INTEGER NOT NULL"
     ");";
 
 /* -- Initialize ---------------------------------------------------- */
@@ -244,7 +255,10 @@ static bool expiry_reload(void) {
                     "ORDER BY pubkey_hex", cb_load_expiry, NULL) == 0;
 }
 
-bool wubu_pkgmgr_anchor_set_expiry(const char *pubkey_hex, int64_t expires_at) {
+/* Raw writer. INTERNAL-ONLY negative-control surface: the public API exposes
+ * only wubu_pkgmgr_anchor_set_expiry_authorized(), which authenticates before
+ * calling this. Never call this from product code. */
+bool wubu_pkgmgr_anchor_set_expiry_raw(const char *pubkey_hex, int64_t expires_at) {
     if (!revoked_key_valid(pubkey_hex) || !g_pkgmgr.db || expires_at < 0)
         return false;
     sqlite3_stmt *stmt = NULL;
@@ -369,6 +383,38 @@ static bool authorize_command(const char *op, const char *pubkey_hex,
     if (!sig_hex_to_bytes(sig_hex, sig)) return false; /* unsigned/malformed */
     return wubu_pkg_verify_command(cmd, g_pkgmgr.admin_pubkey, sig,
                                    err, sizeof(err));
+}
+
+/* -- Authenticated trust-anchor expiry --------------------------------
+ * Domain-separated, admin-signed command. No DB write occurs until the
+ * signature is verified; the raw writer is internal-only and is never
+ * reachable from the public surface without this gate. */
+bool wubu_pkgmgr_anchor_expiry_command_string(const char *pubkey_hex,
+                                               int64_t expires_at,
+                                               char *out, size_t outsz) {
+    if (!out || outsz < 16 || !revoked_key_valid(pubkey_hex) || expires_at < 0)
+        return false;
+    int n = snprintf(out, outsz, "%s\n%s\n%lld",
+                     WUBU_PKG_EXPIRY_DOMAIN, pubkey_hex,
+                     (long long)expires_at);
+    return n > 0 && (size_t)n < outsz;
+}
+
+bool wubu_pkgmgr_anchor_set_expiry_authorized(const char *pubkey_hex,
+                                               int64_t expires_at,
+                                               const char *sig_hex) {
+    if (!revoked_key_valid(pubkey_hex) || expires_at < 0) return false;
+    if (!g_pkgmgr.admin_pubkey[0]) return false;     /* no bootstrap: fail closed */
+    char cmd[256];
+    uint8_t sig[64];
+    char err[256];
+    if (!wubu_pkgmgr_anchor_expiry_command_string(pubkey_hex, expires_at,
+                                                  cmd, sizeof(cmd)))
+        return false;
+    if (!sig_hex_to_bytes(sig_hex, sig)) return false; /* unsigned/malformed */
+    if (!wubu_pkg_verify_command(cmd, g_pkgmgr.admin_pubkey, sig,
+                                 err, sizeof(err))) return false;
+    return wubu_pkgmgr_anchor_set_expiry_raw(pubkey_hex, expires_at);
 }
 
 /* -- Supported admin-key rotation / recovery ------------------------
@@ -515,6 +561,173 @@ bool wubu_pkgmgr_key_quorum_status(int *out_m, int *out_n) {
     return g_pkgmgr.quorum_m > 0 && g_pkgmgr.quorum_n >= g_pkgmgr.quorum_m;
 }
 
+/* -- Bounded escrow admin set: lost-admin recovery -------------------
+ * ONE owner. Config and member keys are authoritative in pkg_escrow /
+ * pkg_escrow_keys; the bounded cache is rebuilt on init. Configuration is
+ * signed by the CURRENT admin; recovery is signed by M DISTINCT escrow
+ * members and never needs the (possibly lost) current admin key. Both use
+ * the existing wubu_pkg_verify_command leaf -- no second crypto path. */
+static int cb_load_escrow(void *data, int argc, char **argv, char **col) {
+    (void)data; (void)col;
+    if (argc < 2 || !argv[0] || !argv[1]) return 0;
+    int m = atoi(argv[0]), n = atoi(argv[1]);
+    if (m < 2 || n < m || n > WUBU_PKGMGR_MAX_ESCROW_KEYS) return 0;
+    g_pkgmgr.escrow_m = m;
+    g_pkgmgr.escrow_n = n;
+    return 0;
+}
+
+static int cb_load_escrow_key(void *data, int argc, char **argv, char **col) {
+    (void)data; (void)col;
+    if (argc < 1 || !argv[0] || !revoked_key_valid(argv[0])) return 0;
+    if (g_pkgmgr.escrow_nkeys >= WUBU_PKGMGR_MAX_ESCROW_KEYS) return 0;
+    snprintf(g_pkgmgr.escrow_keys[g_pkgmgr.escrow_nkeys], 65, "%s", argv[0]);
+    g_pkgmgr.escrow_nkeys++;
+    return 0;
+}
+
+static bool escrow_reload(void) {
+    g_pkgmgr.escrow_m = 0;
+    g_pkgmgr.escrow_n = 0;
+    g_pkgmgr.escrow_nkeys = 0;
+    if (!g_pkgmgr.db) return false;
+    db_query("SELECT m, n FROM pkg_escrow WHERE id = 1", cb_load_escrow, NULL);
+    db_query("SELECT pubkey_hex FROM pkg_escrow_keys ORDER BY seq",
+             cb_load_escrow_key, NULL);
+    return true;
+}
+
+bool wubu_pkgmgr_escrow_command_string(int m, int n, const char *const *keys,
+                                        char *out, size_t outsz) {
+    if (!out || outsz < 16 || !keys) return false;
+    if (m < 2 || n < m || n > WUBU_PKGMGR_MAX_ESCROW_KEYS) return false;
+    for (int i = 0; i < n; i++) {
+        if (!revoked_key_valid(keys[i])) return false;
+        for (int j = i + 1; j < n; j++)
+            if (strcmp(keys[i], keys[j]) == 0) return false;  /* no dup members */
+    }
+    int off = snprintf(out, outsz, "%s\n%d\n%d",
+                       WUBU_PKG_ESCROW_DOMAIN, m, n);
+    if (off < 0 || (size_t)off >= outsz) return false;
+    for (int i = 0; i < n; i++) {
+        int k = snprintf(out + off, outsz - (size_t)off, "\n%s", keys[i]);
+        if (k < 0 || (size_t)k >= outsz - (size_t)off) return false;
+        off += k;
+    }
+    return true;
+}
+
+bool wubu_pkgmgr_escrow_configure(int m, int n, const char *const *keys,
+                                  const char *sig_hex) {
+    char cmd[1024];
+    uint8_t sig[64];
+    char err[256];
+    if (!wubu_pkgmgr_escrow_command_string(m, n, keys, cmd, sizeof(cmd)))
+        return false;
+    if (!g_pkgmgr.admin_pubkey[0]) return false;   /* no bootstrap: fail closed */
+    if (!sig_hex_to_bytes(sig_hex, sig)) return false;
+    if (!wubu_pkg_verify_command(cmd, g_pkgmgr.admin_pubkey, sig,
+                                 err, sizeof(err))) return false;
+    if (!g_pkgmgr.db) return false;
+
+    /* All-or-nothing config replace in ONE transaction. */
+    if (db_exec("BEGIN IMMEDIATE") != 0) return false;
+    bool ok = (db_exec("DELETE FROM pkg_escrow") == 0 &&
+               db_exec("DELETE FROM pkg_escrow_keys") == 0);
+    sqlite3_stmt *stmt = NULL;
+    if (ok && sqlite3_prepare_v2(g_pkgmgr.db,
+            "INSERT INTO pkg_escrow (id, m, n) VALUES (1, ?1, ?2)",
+            -1, &stmt, NULL) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, m);
+        sqlite3_bind_int(stmt, 2, n);
+        ok = sqlite3_step(stmt) == SQLITE_DONE;
+        sqlite3_finalize(stmt);
+        stmt = NULL;
+    } else {
+        if (stmt) sqlite3_finalize(stmt);
+        ok = false;
+    }
+    for (int i = 0; i < n && ok; i++) {
+        stmt = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "INSERT INTO pkg_escrow_keys (pubkey_hex, seq) VALUES (?1, ?2)",
+                -1, &stmt, NULL) != SQLITE_OK) { ok = false; break; }
+        sqlite3_bind_text(stmt, 1, keys[i], -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt, 2, i);
+        ok = sqlite3_step(stmt) == SQLITE_DONE;
+        sqlite3_finalize(stmt);
+    }
+    if (ok) ok = (db_exec("COMMIT") == 0);
+    if (!ok) { db_exec("ROLLBACK"); return false; }
+    return escrow_reload();
+}
+
+bool wubu_pkgmgr_escrow_status(int *out_m, int *out_n) {
+    if (out_m) *out_m = g_pkgmgr.escrow_m;
+    if (out_n) *out_n = g_pkgmgr.escrow_n;
+    return g_pkgmgr.escrow_m >= 2 &&
+           g_pkgmgr.escrow_n >= g_pkgmgr.escrow_m &&
+           g_pkgmgr.escrow_nkeys >= g_pkgmgr.escrow_m;
+}
+
+bool wubu_pkgmgr_escrow_recovery_command_string(const char *new_pubkey_hex,
+                                                char *out, size_t outsz) {
+    if (!out || outsz < 16 || !revoked_key_valid(new_pubkey_hex)) return false;
+    int n = snprintf(out, outsz, "%s\n%s",
+                     WUBU_PKG_ESCROW_RECOVERY_DOMAIN, new_pubkey_hex);
+    return n > 0 && (size_t)n < outsz;
+}
+
+bool wubu_pkgmgr_key_admin_recover(const char *new_pubkey_hex,
+                                   const char *const *sigs, size_t n_sigs) {
+    if (!revoked_key_valid(new_pubkey_hex) || !g_pkgmgr.db) return false;
+    if (g_pkgmgr.escrow_m < 2 || g_pkgmgr.escrow_n < g_pkgmgr.escrow_m ||
+        g_pkgmgr.escrow_nkeys < g_pkgmgr.escrow_m) return false;
+    if (!sigs || n_sigs < (size_t)g_pkgmgr.escrow_m) return false;
+
+    char cmd[256];
+    if (!wubu_pkgmgr_escrow_recovery_command_string(new_pubkey_hex,
+                                                    cmd, sizeof(cmd)))
+        return false;
+
+    /* Count DISTINCT configured escrow members that sign this exact command.
+     * No DB access happens until the quorum is satisfied. */
+    bool matched[WUBU_PKGMGR_MAX_ESCROW_KEYS] = {0};
+    int distinct = 0;
+    for (size_t s = 0; s < n_sigs; s++) {
+        uint8_t sig[64];
+        if (!sig_hex_to_bytes(sigs[s], sig)) continue;   /* malformed ignored */
+        for (int k = 0; k < g_pkgmgr.escrow_nkeys; k++) {
+            if (matched[k]) continue;
+            char e[256];
+            if (wubu_pkg_verify_command(cmd, g_pkgmgr.escrow_keys[k], sig,
+                                        e, sizeof(e))) {
+                matched[k] = true;
+                if (++distinct >= g_pkgmgr.escrow_m) break;
+            }
+        }
+        if (distinct >= g_pkgmgr.escrow_m) break;
+    }
+    if (distinct < g_pkgmgr.escrow_m) return false;
+
+    /* Quorum satisfied: install the new admin key in ONE transaction. */
+    if (db_exec("BEGIN IMMEDIATE") != 0) return false;
+    sqlite3_stmt *stmt = NULL;
+    bool ok = false;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "UPDATE pkg_admin_key SET pubkey_hex = ?1, bootstrapped_at = ?2 "
+            "WHERE id = 1", -1, &stmt, NULL) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, new_pubkey_hex, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(stmt, 2, (sqlite3_int64)time(NULL));
+        ok = sqlite3_step(stmt) == SQLITE_DONE;
+        ok = ok && sqlite3_changes(g_pkgmgr.db) == 1;
+        sqlite3_finalize(stmt);
+    }
+    if (ok) ok = (db_exec("COMMIT") == 0);
+    if (!ok) { db_exec("ROLLBACK"); return false; }
+    return admin_reload();
+}
+
 bool wubu_pkgmgr_key_revoke_authorized(const char *pubkey_hex, const char *sig_hex) {
     if (!revoked_key_valid(pubkey_hex)) return false;
     if (!authorize_command("revoke", pubkey_hex, sig_hex)) return false;
@@ -635,37 +848,30 @@ static bool feed_apply(const uint8_t *data, size_t sz, size_t *out_applied,
     return true;
 }
 
-/* Original single-admin-signature importer (unchanged semantics). */
-bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
-                                 size_t *out_applied, char *err, size_t errsz) {
-    if (out_applied) *out_applied = 0;
-    feed_seterr(err, errsz, "");
-    uint8_t *data = NULL; size_t sz = 0;
-    if (!feed_read(feed_path, &data, &sz, err, errsz)) return false;
-    uint8_t sig[64];
-    if (!g_pkgmgr.admin_pubkey[0]) {
-        free(data); feed_seterr(err, errsz, "no admin key bootstrapped"); return false;
-    }
-    if (!sig_hex_to_bytes(sig_hex, sig)) {
-        free(data); feed_seterr(err, errsz, "missing or malformed signature"); return false;
-    }
-    bool ok = wubu_pkg_verify_bytes(data, sz, WUBU_PKG_REVOCATION_FEED_DOMAIN,
-                                    g_pkgmgr.admin_pubkey, sig, err, errsz);
-    if (ok) ok = feed_apply(data, sz, out_applied, err, errsz);
-    free(data);
-    return ok;
-}
-
 /* Quorum authentication: count DISTINCT configured member keys that produce
- * a valid signature over the exact feed bytes. No DB read/write here. */
+ * a valid signature over the exact feed bytes. This is the ONE global feed
+ * authentication policy. If no explicit quorum is configured, the default
+ * policy is 1-of-1 of the bootstrapped admin key, so the legacy single-sig
+ * importer still works in 1-admin deployments -- but it can NEVER override
+ * an explicitly configured M-of-N policy (no bypass). No DB read/write here. */
 static bool feed_verify_quorum(const uint8_t *data, size_t sz,
                                const char *const *sigs, size_t n_sigs,
                                char *err, size_t errsz) {
-    if (g_pkgmgr.quorum_m < 1 || g_pkgmgr.quorum_n < g_pkgmgr.quorum_m ||
-        g_pkgmgr.quorum_nkeys < g_pkgmgr.quorum_n) {
-        feed_seterr(err, errsz, "no usable quorum policy configured"); return false;
+    int m = g_pkgmgr.quorum_m;
+    int nkeys = g_pkgmgr.quorum_nkeys;
+    const char *keys[WUBU_PKGMGR_MAX_QUORUM_KEYS];
+
+    if (m >= 1 && g_pkgmgr.quorum_n >= m && nkeys >= g_pkgmgr.quorum_n) {
+        for (int i = 0; i < nkeys; i++) keys[i] = g_pkgmgr.quorum_keys[i];
+    } else if (g_pkgmgr.admin_pubkey[0]) {
+        /* Implicit default: 1-of-1 admin (backward compatible). */
+        m = 1;
+        nkeys = 1;
+        keys[0] = g_pkgmgr.admin_pubkey;
+    } else {
+        feed_seterr(err, errsz, "no usable quorum policy or admin key"); return false;
     }
-    if (!sigs || n_sigs < (size_t)g_pkgmgr.quorum_m) {
+    if (!sigs || n_sigs < (size_t)m) {
         feed_seterr(err, errsz, "too few quorum signatures"); return false;
     }
     bool matched[WUBU_PKGMGR_MAX_QUORUM_KEYS] = {0};
@@ -673,21 +879,38 @@ static bool feed_verify_quorum(const uint8_t *data, size_t sz,
     for (size_t s = 0; s < n_sigs; s++) {
         uint8_t sig[64];
         if (!sig_hex_to_bytes(sigs[s], sig)) continue;   /* malformed ignored */
-        for (int k = 0; k < g_pkgmgr.quorum_nkeys; k++) {
+        for (int k = 0; k < nkeys; k++) {
             if (matched[k]) continue;
             char e[256];
             if (wubu_pkg_verify_bytes(data, sz, WUBU_PKG_REVOCATION_FEED_DOMAIN,
-                                      g_pkgmgr.quorum_keys[k], sig, e, sizeof(e))) {
+                                      keys[k], sig, e, sizeof(e))) {
                 matched[k] = true;
-                if (++distinct >= g_pkgmgr.quorum_m) break;
+                if (++distinct >= m) break;
             }
         }
-        if (distinct >= g_pkgmgr.quorum_m) break;
+        if (distinct >= m) break;
     }
-    if (distinct < g_pkgmgr.quorum_m) {
+    if (distinct < m) {
         feed_seterr(err, errsz, "M-of-N quorum not satisfied"); return false;
     }
     return true;
+}
+
+/* Legacy single-signature importer, now a thin wrapper over the SAME global
+ * quorum verifier above. With an explicit 2-of-2 policy, one signature is
+ * refused; with no policy the implicit 1-of-1 admin default applies. There
+ * is no separate admin-only verification path to bypass the policy. */
+bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
+                                 size_t *out_applied, char *err, size_t errsz) {
+    if (out_applied) *out_applied = 0;
+    feed_seterr(err, errsz, "");
+    uint8_t *data = NULL; size_t sz = 0;
+    if (!feed_read(feed_path, &data, &sz, err, errsz)) return false;
+    const char *sigs[1] = { sig_hex };
+    bool ok = feed_verify_quorum(data, sz, sigs, 1, err, errsz);
+    if (ok) ok = feed_apply(data, sz, out_applied, err, errsz);
+    free(data);
+    return ok;
 }
 
 bool wubu_pkgmgr_key_feed_import_quorum(const char *feed_path,
@@ -751,7 +974,7 @@ bool wubu_pkgmgr_init(const wubu_pkgmgr_config_t *config) {
     /* Trust-anchor expiry and the M-of-N quorum table are security inputs
      * too: a failed reload must fail init closed, never silently default
      * to "everything is valid / one signature is enough". */
-    if (!expiry_reload() || !quorum_reload()) {
+    if (!expiry_reload() || !quorum_reload() || !escrow_reload()) {
         sqlite3_close(g_pkgmgr.db);
         g_pkgmgr.db = NULL;
         return false;

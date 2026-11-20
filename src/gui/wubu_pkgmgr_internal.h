@@ -46,6 +46,11 @@ typedef struct {
     int quorum_m, quorum_n;
     char quorum_keys[WUBU_PKGMGR_MAX_QUORUM_KEYS][65];
     int quorum_nkeys;
+    /* Lost-admin recovery: bounded M-of-N escrow admin set (authoritative
+     * rows in pkg_escrow / pkg_escrow_keys, reloaded on init). */
+    int escrow_m, escrow_n;
+    char escrow_keys[WUBU_PKGMGR_MAX_ESCROW_KEYS][65];
+    int escrow_nkeys;
     /* Non-NULL only while wubu_pkgmgr_txn_commit() is replaying items.
      * install/remove/upgrade call pkgmgr_backup_capture() through this pointer
      * so the active item records the pre-mutation snapshot. */
@@ -54,6 +59,13 @@ typedef struct {
 } wubu_pkgmgr_state_t;
 
 extern wubu_pkgmgr_state_t g_pkgmgr;
+
+/* Raw, UNAUTHENTICATED expiry writer. NOT part of the public API in
+ * wubu_pkgmgr.h -- declared here ONLY so differential-gate harnesses can
+ * reproduce the pre-change behavior as a negative control. Product code
+ * must use wubu_pkgmgr_anchor_set_expiry_authorized(). */
+bool wubu_pkgmgr_anchor_set_expiry_raw(const char *pubkey_hex,
+                                       int64_t expires_at);
 
 /* -- .wubu container format header (private, shared by pkg module) -- */
 #pragma pack(push, 1)

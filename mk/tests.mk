@@ -97,6 +97,12 @@ test_pkg_revoke_feed:
 test_pkg_key_policy:
 	bash tools/pkg_key_policy_gate.sh
 
+# Opt-in CLI-level differential gate: signed expiry, global feed quorum and
+# escrow lost-admin recovery through the public operator CLI (mbedTLS root
+# required; not in the default tier).
+test_pkg_key_recovery:
+	bash tools/pkg_key_recovery_gate.sh
+
 test_oci:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT)/wubu_crc32.c \
 		-I$(RT) -I$(KERNEL) -I$(RT)/oci \

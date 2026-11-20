@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_POS 8
+#define MAX_POS 16
 
 static void usage(const char *name) {
     fprintf(stderr,
@@ -32,17 +32,24 @@ static void usage(const char *name) {
         "       %s [--db DIR] unrevoke <key_hex> --sig <sig_hex>\n"
         "       %s [--db DIR] list\n"
         "       %s [--db DIR] rotate <new_admin_pub_hex> --sig <sig_hex>\n"
-        "       %s [--db DIR] set-expiry <key_hex> <unix_epoch>\n"
+        "       %s [--db DIR] set-expiry <key_hex> <unix_epoch> --sig <sig_hex>\n"
         "       %s [--db DIR] quorum-config <M> <key_hex>... --sig <sig_hex>\n"
         "       %s [--db DIR] quorum-status\n"
         "       %s [--db DIR] feed-quorum <feed_file> --sigs <s1,s2,...>\n"
+        "       %s [--db DIR] escrow-config <M> <key_hex>... --sig <sig_hex>\n"
+        "       %s [--db DIR] escrow-status\n"
+        "       %s [--db DIR] expiry-status <key_hex>\n"
+        "       %s [--db DIR] recover <new_admin_hex> --sigs <s1,s2,...>\n"
         "       %s sign <revoke|unrevoke> <key_hex> --seed <seed_hex>\n"
         "       %s sign-feed <feed_file> --seed <seed_hex>\n"
         "       %s sign-rotate <new_admin_pub_hex> --seed <seed_hex>\n"
+        "       %s sign-expiry <key_hex> <unix_epoch> --seed <seed_hex>\n"
         "       %s sign-quorum <M> <key_hex>... --seed <seed_hex>\n"
+        "       %s sign-escrow <M> <key_hex>... --seed <seed_hex>\n"
+        "       %s sign-recover <new_admin_pub_hex> --seed <seed_hex>\n"
         "       %s [--db DIR] feed <feed_file> --sig <sig_hex>\n",
-        name, name, name, name, name, name, name, name, name,
-        name, name, name, name, name);
+        name, name, name, name, name, name, name, name, name, name,
+        name, name, name, name, name, name, name, name, name, name, name);
 }
 
 static const char *opt_value(int argc, char **argv, const char *flag) {
@@ -197,6 +204,69 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    /* sign-expiry: domain-separated admin command for an expiry change. */
+    if (strcmp(cmd, "sign-expiry") == 0) {
+        if (np < 3 || !seed) { usage(argv[0]); return 2; }
+        int64_t exp = strtoll(pos[2], NULL, 10);
+        char command[256];
+        if (!wubu_pkgmgr_anchor_expiry_command_string(pos[1], exp,
+                                                      command, sizeof(command))) {
+            fprintf(stderr, "ctl: cannot build expiry command\n");
+            return 2;
+        }
+        uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN];
+        char err[256], hex[2 * WUBU_PKG_SIGNATURE_LEN + 1];
+        if (!wubu_pkg_sign_command(command, seed, out_sig, err, sizeof(err))) {
+            fprintf(stderr, "ctl: sign-expiry failed: %s\n", err);
+            return 1;
+        }
+        bytes_to_hex(out_sig, WUBU_PKG_SIGNATURE_LEN, hex);
+        printf("%s\n", hex);
+        return 0;
+    }
+
+    /* sign-escrow: sign an escrow configuration command with a seed. */
+    if (strcmp(cmd, "sign-escrow") == 0) {
+        if (np < 4 || !seed) { usage(argv[0]); return 2; }
+        int m = atoi(pos[1]);
+        int n = np - 2;
+        const char *keys[MAX_POS];
+        for (int i = 0; i < n; i++) keys[i] = pos[2 + i];
+        char command[1024];
+        if (!wubu_pkgmgr_escrow_command_string(m, n, keys, command, sizeof(command))) {
+            fprintf(stderr, "ctl: cannot build escrow command\n");
+            return 2;
+        }
+        uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN];
+        char err[256], hex[2 * WUBU_PKG_SIGNATURE_LEN + 1];
+        if (!wubu_pkg_sign_command(command, seed, out_sig, err, sizeof(err))) {
+            fprintf(stderr, "ctl: sign-escrow failed: %s\n", err);
+            return 1;
+        }
+        bytes_to_hex(out_sig, WUBU_PKG_SIGNATURE_LEN, hex);
+        printf("%s\n", hex);
+        return 0;
+    }
+
+    /* sign-recover: sign a lost-admin recovery command with an escrow seed. */
+    if (strcmp(cmd, "sign-recover") == 0) {
+        if (np < 2 || !seed) { usage(argv[0]); return 2; }
+        char command[256];
+        if (!wubu_pkgmgr_escrow_recovery_command_string(pos[1], command, sizeof(command))) {
+            fprintf(stderr, "ctl: cannot build recovery command\n");
+            return 2;
+        }
+        uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN];
+        char err[256], hex[2 * WUBU_PKG_SIGNATURE_LEN + 1];
+        if (!wubu_pkg_sign_command(command, seed, out_sig, err, sizeof(err))) {
+            fprintf(stderr, "ctl: sign-recover failed: %s\n", err);
+            return 1;
+        }
+        bytes_to_hex(out_sig, WUBU_PKG_SIGNATURE_LEN, hex);
+        printf("%s\n", hex);
+        return 0;
+    }
+
     if (!init_db(db)) {
         fprintf(stderr, "ctl: cannot open pkgmgr DB under %s\n", db);
         return 1;
@@ -228,7 +298,7 @@ int main(int argc, char **argv) {
         rc = ok ? 0 : 1;
     } else if (strcmp(cmd, "set-expiry") == 0 && np >= 3) {
         int64_t exp = strtoll(pos[2], NULL, 10);
-        bool ok = wubu_pkgmgr_anchor_set_expiry(pos[1], exp);
+        bool ok = wubu_pkgmgr_anchor_set_expiry_authorized(pos[1], exp, sig);
         printf("%s set-expiry %s %lld\n", ok ? "OK" : "REFUSED", pos[1],
                (long long)exp);
         rc = ok ? 0 : 1;
@@ -262,6 +332,37 @@ int main(int argc, char **argv) {
         printf("%s feed-quorum %s applied %zu\n", ok ? "OK" : "REFUSED",
                pos[1], applied);
         rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "escrow-config") == 0 && np >= 3) {
+        int m = atoi(pos[1]);
+        int n = np - 2;
+        const char *keys[MAX_POS];
+        for (int i = 0; i < n; i++) keys[i] = pos[2 + i];
+        bool ok = wubu_pkgmgr_escrow_configure(m, n, keys, sig);
+        printf("%s escrow-config %d-of-%d\n", ok ? "OK" : "REFUSED", m, n);
+        rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "escrow-status") == 0) {
+        int m = 0, n = 0;
+        bool set = wubu_pkgmgr_escrow_status(&m, &n);
+        printf("ESCROW %d %d %s\n", m, n, set ? "SET" : "UNSET");
+    } else if (strcmp(cmd, "recover") == 0 && np >= 2) {
+        const char *sigs[MAX_POS];
+        size_t ns = 0;
+        const char *raw = opt_value(argc, argv, "--sigs");
+        char buf[4096];
+        if (raw && *raw && strlen(raw) < sizeof(buf)) {
+            snprintf(buf, sizeof(buf), "%s", raw);
+            char *tok = strtok(buf, ",");
+            while (tok && ns < MAX_POS) { sigs[ns++] = tok; tok = strtok(NULL, ","); }
+        }
+        bool ok = wubu_pkgmgr_key_admin_recover(pos[1], sigs, ns);
+        printf("%s recover %s\n", ok ? "OK" : "REFUSED", pos[1]);
+        rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "expiry-status") == 0 && np >= 2) {
+        int64_t exp = 0;
+        if (wubu_pkgmgr_anchor_expiry(pos[1], &exp))
+            printf("EXPIRY %s %lld\n", pos[1], (long long)exp);
+        else
+            printf("NOEXPIRY %s\n", pos[1]);
     } else if (strcmp(cmd, "list") == 0) {
         char keys[WUBU_PKGMGR_MAX_REVOKED_KEYS][65];
         int n = wubu_pkgmgr_key_revoked_list(keys, WUBU_PKGMGR_MAX_REVOKED_KEYS);

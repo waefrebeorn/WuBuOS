@@ -283,10 +283,15 @@ int wubu_pkgmgr_key_revoked_count(void);
 #define WUBU_PKGMGR_FEED_MAX_BYTES  (64u * 1024u)
 #define WUBU_PKGMGR_FEED_MAX_ENTRIES 64u
 
-/* Import a signed revocation feed.  sig_hex is 128 lowercase hex chars
- * (Ed25519 signature over the exact feed bytes).  Returns false -- with
- * no DB change -- for unsigned/wrong-key/tampered feeds, malformed lines,
- * duplicate/conflicting entries, bad key hex, and oversized feeds.
+/* Import a signed revocation feed.  This is a single-signature convenience
+ * wrapper, NOT a bypass: it feeds its one signature into the SAME global
+ * M-of-N verifier used by wubu_pkgmgr_key_feed_import_quorum().  With an
+ * explicit M-of-N policy configured (e.g. 2-of-2) a single signature is
+ * refused; with no explicit policy the default is 1-of-1 of the bootstrapped
+ * admin key.  There is no separate admin-only verification path.
+ * sig_hex is 128 lowercase hex chars.  Returns false -- with no DB change --
+ * for unsigned/wrong-key/tampered feeds, malformed lines, duplicate/conflicting
+ * entries, bad key hex, oversized feeds, and any unmet quorum policy.
  * Re-applying an already-applied feed is a no-op.  On success *out_applied
  * receives the number of entries in the feed. */
 bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
@@ -317,8 +322,25 @@ int wubu_pkgmgr_key_revoked_list(char out[][65], int max);
  * a bounded in-process cache is reloaded by wubu_pkgmgr_init(). */
 #define WUBU_PKGMGR_MAX_ANCHOR_EXPIRIES 64
 
-/* Install/clear expiry for a canonical 64-hex anchor key (0 clears). */
-bool wubu_pkgmgr_anchor_set_expiry(const char *pubkey_hex, int64_t expires_at);
+/* Install/clear expiry for a canonical 64-hex anchor key (0 clears).
+ *
+ * SECURITY: setting expiry is an operator decision.  The ONLY public mutator
+ * is authenticated: wubu_pkgmgr_anchor_set_expiry_authorized() verifies an
+ * admin Ed25519 signature over the domain-separated command below BEFORE
+ * any DB write.  The raw writer is internal-only (see wubu_pkgmgr_internal.h)
+ * and exists solely so differential gates can show the pre-change, unsigned
+ * behavior; it is deliberately absent from this public surface. */
+#define WUBU_PKG_EXPIRY_DOMAIN "WUBU-PKG-EXPIRY-v1"
+
+/* Build the exact signed command: WUBU-PKG-EXPIRY-v1\n<key>\n<epoch>. */
+bool wubu_pkgmgr_anchor_expiry_command_string(const char *pubkey_hex,
+                                               int64_t expires_at,
+                                               char *out, size_t outsz);
+/* Authenticated expiry mutation. sig_hex is 128 lowercase hex chars; a
+ * missing/wrong-key/tampered signature refuses with NO database change. */
+bool wubu_pkgmgr_anchor_set_expiry_authorized(const char *pubkey_hex,
+                                               int64_t expires_at,
+                                               const char *sig_hex);
 /* True if the key has expiry metadata; *out_expires_at receives it. */
 bool wubu_pkgmgr_anchor_expiry(const char *pubkey_hex, int64_t *out_expires_at);
 /* True only for a key whose expiry is set and already in the past. */
@@ -344,8 +366,9 @@ bool wubu_pkgmgr_key_admin_rotate(const char *new_pubkey_hex, const char *sig_he
  * keys (1 <= M <= N <= WUBU_PKGMGR_MAX_QUORUM_KEYS).  Configuration is itself
  * signed by the current admin key.  Feed import verifies M distinct member
  * signatures over the EXACT feed bytes BEFORE any DB read/write, then applies
- * every entry in one transaction (all-or-nothing).  The original single-sig
- * wubu_pkgmgr_key_feed_import() stays valid for M=1 style deployments. */
+ * every entry in one transaction (all-or-nothing).  This is the ONE global
+ * feed-authentication policy: the legacy single-signature importer above is
+ * a wrapper over this verifier and cannot bypass it. */
 #define WUBU_PKGMGR_MAX_QUORUM_KEYS 8
 #define WUBU_PKG_QUORUM_DOMAIN "WUBU-PKG-QUORUM-v1"
 
@@ -357,6 +380,40 @@ bool wubu_pkgmgr_key_quorum_status(int *out_m, int *out_n);
 bool wubu_pkgmgr_key_feed_import_quorum(const char *feed_path,
                                         const char *const *sigs, size_t n_sigs,
                                         size_t *out_applied, char *err, size_t errsz);
+
+/* ============================================================
+ * Supported lost-admin recovery via bounded escrow set
+ * ============================================================
+ * The current admin key can authorize normal rotation, but if it is LOST
+ * there must be a recovery path that does not need it.  An admin-signed
+ * configuration installs a bounded escrow set of M-of-N public keys
+ * (2 <= M <= N <= WUBU_PKGMGR_MAX_ESCROW_KEYS).  Recovery verifies M DISTINCT
+ * escrow signatures over the domain-separated command below and, only on
+ * success, atomically replaces the admin key with the new one.  The old admin
+ * key loses all authority immediately; no re-bootstrap path exists.
+ * All keys are public hex; no secret material is stored in the DB. */
+#define WUBU_PKGMGR_MAX_ESCROW_KEYS 8
+#define WUBU_PKG_ESCROW_DOMAIN "WUBU-PKG-ESCROW-v1"
+#define WUBU_PKG_ESCROW_RECOVERY_DOMAIN "WUBU-PKG-ESCROW-RECOVERY-v1"
+
+/* Escrow configuration command (signed by CURRENT admin):
+ *   WUBU-PKG-ESCROW-v1\n<M>\n<N>\n<key1>\n...\n<keyN> */
+bool wubu_pkgmgr_escrow_command_string(int m, int n, const char *const *keys,
+                                        char *out, size_t outsz);
+/* Install/replace the escrow set. M must be >= 2 (multi-party recovery). */
+bool wubu_pkgmgr_escrow_configure(int m, int n, const char *const *keys,
+                                  const char *sig_hex);
+bool wubu_pkgmgr_escrow_status(int *out_m, int *out_n);
+
+/* Recovery command (signed by each escrow member):
+ *   WUBU-PKG-ESCROW-RECOVERY-v1\n<new_admin_pubkey_hex> */
+bool wubu_pkgmgr_escrow_recovery_command_string(const char *new_pubkey_hex,
+                                                char *out, size_t outsz);
+/* Install a new admin key from M distinct escrow signatures. Verification is
+ * BEFORE any DB write; the admin-key row is replaced in one transaction and
+ * reloaded before this call returns true. */
+bool wubu_pkgmgr_key_admin_recover(const char *new_pubkey_hex,
+                                   const char *const *sigs, size_t n_sigs);
 
 /* Search packages */
 int wubu_pkgmgr_search(const char* query, wubu_pkg_repo_entry_t* out, int max);
