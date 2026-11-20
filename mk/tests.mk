@@ -30,6 +30,25 @@ test_oci_tls:
 test_pkg_ed25519:
 	bash tools/pkg_ed25519_gate.sh
 
+# Same package gate through the opt-in OpenSSL native backend (needs the
+# OpenSSL dev headers + libcrypto; policy checks and all tamper/negative
+# controls run unchanged around the native core).
+test_pkg_ed25519_native:
+	WUBU_EDDSA_NATIVE=1 bash tools/pkg_ed25519_gate.sh
+
+# Focused native/ladder/fail-closed-fallback differential: OpenSSL-generated
+# keys, cross-sign/verify, OpenSSL CLI interoperability, policy provenance and
+# every tamper/forgery case.  Needs the mbedTLS dev root and OpenSSL 3.
+test_ed25519_native:
+	bash tools/ed25519_native_gate.sh
+
+# Reproducible, SHA-256-pinned dev root for every opt-in crypto gate above.
+# Keeps CI independent of any developer's ~/.hermes/cache/scratch directory.
+mbedtls-devroot:
+	bash tools/fetch_mbedtls_devroot.sh
+
+.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native
+
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds
 # the hardened ladder and the verbatim legacy double-and-add side by side and

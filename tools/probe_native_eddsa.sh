@@ -33,15 +33,19 @@ fi
 # 3) OpenSSL 3 EVP_PKEY_ED25519: present on the HOST only.
 if [ -f /usr/include/openssl/evp.h ] && openssl list -public-key-algorithms 2>/dev/null | grep -qi 'ED25519'; then
     echo "openssl EVP:      AVAILABLE on host ($(openssl version)) -- ED25519 in EVP_PKEY list"
-    echo "                  NOTE: host-only libcrypto; cannot be linked by the in-OS"
-    echo "                  package-signer, and replacing the verifier would drop the"
-    echo "                  small-subgroup / non-canonical-S policy checks in"
-    echo "                  wubu_pkg_sign_verify_ed25519()."
+    echo "                  Usable for OPT-IN host/tooling builds: define"
+    echo "                  WUBU_HAVE_OPENSSL_EDDSA and link -lcrypto. The shipped"
+    echo "                  in-OS signer still uses the hardened ladder, and the"
+    echo "                  small-subgroup / non-canonical-S policy checks remain"
+    echo "                  OUTSIDE OpenSSL in wubu_pkg_sign_verify_ed25519()."
 else
     echo "openssl EVP:      not available"
 fi
 
-echo "DECISION: no native primitive is adopt-able for the shipped in-OS signing"
-echo "          path -> harden the in-repo scalar multiplication with a fixed-"
-echo "          schedule ladder + constant-time conditional selection."
+echo "DECISION: no libsodium/mbedTLS native primitive is adopt-able; OpenSSL 3"
+echo "          EVP_PKEY_ED25519 IS adopt-able behind the opt-in"
+echo "          WUBU_HAVE_OPENSSL_EDDSA macro for host builds that link"
+echo "          libcrypto. Default and in-OS builds keep the in-repo fixed-"
+echo "          schedule ladder (a53ce60). Both paths are cross-checked by"
+echo "          tools/ed25519_native_gate.sh; policy checks are shared."
 echo "=== end survey ==="

@@ -6,7 +6,8 @@
 # key material is ever written into the repository.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-: "${WUBU_MBEDTLS_ROOT:?set WUBU_MBEDTLS_ROOT to an extracted mbedTLS dev root}"
+WUBU_MBEDTLS_ROOT="$("$ROOT/tools/mbedtls_devroot.sh")"
+export WUBU_MBEDTLS_ROOT
 MB="$WUBU_MBEDTLS_ROOT/usr"
 for f in "$MB/include/mbedtls/sha512.h" "$MB/include/mbedtls/bignum.h" \
          "$MB/lib/x86_64-linux-gnu/libmbedcrypto.a"; do
@@ -43,6 +44,19 @@ printf 'Ed25519 gate payload\n' > "$TMP/src/payload.txt"
 
 # Legacy tree emits many unrelated format/unused warnings; keep gate output readable.
 CFLAGS="-w -O1 -g -std=c11 -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L -DWUBU_HAVE_MBEDTLS -DWUBU_NO_LIBM"
+# WUBU_EDDSA_NATIVE=1 selects the opt-in OpenSSL EVP_PKEY_ED25519 core.  The
+# policy checks and every tamper/negative-control case below stay identical.
+NATIVE_FLAG=""
+NATIVE_LINK=""
+if [ "${WUBU_EDDSA_NATIVE:-0}" = "1" ]; then
+    [ -f /usr/include/openssl/evp.h ] && ls /usr/lib/*/libcrypto.so >/dev/null 2>&1 \
+        || { echo "[gate] native backend needs OpenSSL dev headers + libcrypto.so" >&2; exit 2; }
+    NATIVE_FLAG="-DWUBU_HAVE_OPENSSL_EDDSA"
+    NATIVE_LINK="-lcrypto"
+    echo "[gate] backend: OpenSSL EVP_PKEY_ED25519 (opt-in native)"
+else
+    echo "[gate] backend: in-repo hardened Montgomery ladder (default)"
+fi
 INCLUDES="-I$ROOT -I$ROOT/include -I$ROOT/src -I$ROOT/src/gui -I$ROOT/src/runtime -I$ROOT/src/kernel -I$MB/include"
 SRCS="$ROOT/src/runtime/wubu_crc32.c \
  $ROOT/src/gui/wubu_pkgmgr.c $ROOT/src/gui/wubu_pkgmgr_verify.c $ROOT/src/gui/wubu_pkg_sign.c $ROOT/src/gui/wubu_pkg_ed25519.c \
@@ -63,10 +77,10 @@ SRCS="$ROOT/src/runtime/wubu_crc32.c \
 
 echo "[gate] compiling mbedTLS-enabled pkgmgr harness"
 # shellcheck disable=SC2086
-gcc $CFLAGS $INCLUDES -include "$ROOT/src/runtime/wubu_gnu_compat.h" $SRCS \
+gcc $CFLAGS $NATIVE_FLAG $INCLUDES -include "$ROOT/src/runtime/wubu_gnu_compat.h" $SRCS \
     -o "$TMP/probe" \
     -L"$MB/lib/x86_64-linux-gnu" -lmbedtls -lmbedx509 -lmbedcrypto \
-    -Wl,-rpath,"$MB/lib/x86_64-linux-gnu" -lsqlite3 -lzstd -lm
+    -Wl,-rpath,"$MB/lib/x86_64-linux-gnu" -lsqlite3 -lzstd -lm $NATIVE_LINK
 
 echo "[gate] running differential checks: record process (persist revocation)"
 mkdir -p "$TMP/db"

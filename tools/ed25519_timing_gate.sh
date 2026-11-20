@@ -12,7 +12,8 @@
 # ephemeral and generated in-process; no key material is written to the repo.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-: "${WUBU_MBEDTLS_ROOT:?set WUBU_MBEDTLS_ROOT to an extracted mbedTLS dev root}"
+WUBU_MBEDTLS_ROOT="$("$ROOT/tools/mbedtls_devroot.sh")"
+export WUBU_MBEDTLS_ROOT
 MB="$WUBU_MBEDTLS_ROOT/usr"
 for f in "$MB/include/mbedtls/sha512.h" "$MB/include/mbedtls/bignum.h" \
          "$MB/lib/x86_64-linux-gnu/libmbedcrypto.a"; do

@@ -10,7 +10,8 @@
 # pkgmgr DB so the fresh-process `check` phase proves DB persistence.
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-: "${WUBU_MBEDTLS_ROOT:?set WUBU_MBEDTLS_ROOT to an extracted mbedTLS dev root}"
+WUBU_MBEDTLS_ROOT="$("$ROOT/tools/mbedtls_devroot.sh")" || exit 2
+export WUBU_MBEDTLS_ROOT
 MB="$WUBU_MBEDTLS_ROOT/usr"
 [ -f "$MB/include/mbedtls/version.h" ] || { echo "missing mbedTLS headers" >&2; exit 2; }
 command -v openssl >/dev/null && command -v xxd >/dev/null && command -v zstd >/dev/null

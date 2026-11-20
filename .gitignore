@@ -36,6 +36,9 @@ tools/peephole_superopt/peephole_superopt
 # Generated data
 data/
 
+# Repo-local fetched dev roots (make mbedtls-devroot); reproducible, never committed
+.cache/
+
 # Editor files
 *.swp
 *~

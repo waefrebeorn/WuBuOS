@@ -90,6 +90,28 @@ make test_secureboot  # Secure Boot enrollment + enforcement
 make test_rsa         # real RSA-2048 firmware signature enforcement
 ```
 
+### Opt-in crypto gates and the mbedTLS dev root
+
+The Ed25519 package-signature, TLS and revocation gates need mbedTLS dev
+headers and libs, which are not installed system-wide on CI. Fetch a pinned,
+SHA-256-verified copy into the repository cache once:
+
+```bash
+make mbedtls-devroot          # -> <repo>/.cache/mbedtls-devroot (gitignored)
+make test_pkg_ed25519         # hardened in-repo ladder backend
+make test_pkg_ed25519_native  # opt-in OpenSSL EVP_PKEY_ED25519 backend
+make test_ed25519_native      # native vs ladder vs fail-closed differential
+make test_ed25519_timing      # statistical constant-time differential
+```
+
+`tools/mbedtls_devroot.sh` resolves the root for every gate: it uses
+`WUBU_MBEDTLS_ROOT` when explicitly set, otherwise the repo-local cache. No
+gate depends on `~/.hermes/cache/scratch`. The native backend is a build-time
+opt-in (`WUBU_HAVE_OPENSSL_EDDSA` + `-lcrypto`); default builds, including the
+shipped signer, are unchanged and keep the hardened ladder. Policy checks
+(non-canonical S, small-subgroup A) run on both backends, and an unavailable
+OpenSSL fails closed onto the ladder.
+
 ## 7. Honest state (2026-11-11)
 
 - **5,067** C/H files, **750,001** lines of C in `src/`, **512** test targets.

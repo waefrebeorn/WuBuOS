@@ -13,6 +13,9 @@
 #ifdef WUBU_HAVE_MBEDTLS
 #include <mbedtls/sha512.h>
 #include <mbedtls/bignum.h>
+#ifdef WUBU_HAVE_OPENSSL_EDDSA
+#include <openssl/evp.h>
+#endif
 
 /* -- Ed25519 (RFC 8032) over mbedTLS SHA-512 + bignum -------------- */
 
@@ -390,6 +393,75 @@ static int scalar_mul_add(mbedtls_mpi *S, const mbedtls_mpi *k,
     return rc;
 }
 
+/* -- Opt-in native EdDSA backend (OpenSSL 3 EVP_PKEY_ED25519) -----------
+ * WUBU_HAVE_OPENSSL_EDDSA is a BUILD-TIME opt-in.  When set, the sign/verify
+ * entry points below use OpenSSL's RFC 8032 primitive for the group math.
+ * The message passed to both backends is the SAME canonical 32-byte digest
+ * from wubu_pkg_sign_digest(): plain Ed25519 with M == digest, so signatures
+ * are byte-for-byte interchangeable with the in-repo ladder.
+ *
+ * Policy is NOT delegated: non-canonical S and small-subgroup A are rejected
+ * by wubu_pkg_sign_verify_ed25519() before the native verifier is called, on
+ * both backends.  If OpenSSL cannot initialise (or WUBU_EDDSA_FORCE_LADDER is
+ * defined to simulate that), both helpers return -1 and the caller falls
+ * closed onto the hardened Montgomery ladder -- never onto a weaker path.
+ */
+#ifdef WUBU_HAVE_OPENSSL_EDDSA
+static unsigned wubu_openssl_native_ops = 0;
+
+unsigned wubu_pkg_ed25519_native_ops(void) { return wubu_openssl_native_ops; }
+
+/* 1 = signed/verified natively, 0 = native ran and rejected, -1 = unavailable. */
+static int wubu_openssl_ed25519_sign(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
+                                     const uint8_t seed[32],
+                                     uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN]) {
+#ifdef WUBU_EDDSA_FORCE_LADDER
+    (void)digest; (void)seed; (void)out_sig;
+    return -1;
+#else
+    EVP_PKEY *pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL, seed, 32);
+    if (!pkey) return -1;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if (!ctx) { EVP_PKEY_free(pkey); return -1; }
+    size_t siglen = WUBU_PKG_SIGNATURE_LEN;  /* one-shot: input = buffer capacity */
+    int result = -1;
+    if (EVP_DigestSignInit(ctx, NULL, NULL, NULL, pkey) == 1 &&
+        EVP_DigestSign(ctx, out_sig, &siglen, digest, WUBU_PKG_SIGN_DIGEST_LEN) == 1 &&
+        siglen == WUBU_PKG_SIGNATURE_LEN) {
+        result = 1;
+        ++wubu_openssl_native_ops;
+    }
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return result;
+#endif
+}
+
+static int wubu_openssl_ed25519_verify(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
+                                       const uint8_t pub[32],
+                                       const uint8_t sig[WUBU_PKG_SIGNATURE_LEN]) {
+#ifdef WUBU_EDDSA_FORCE_LADDER
+    (void)digest; (void)pub; (void)sig;
+    return -1;
+#else
+    EVP_PKEY *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, pub, 32);
+    if (!pkey) return -1;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if (!ctx) { EVP_PKEY_free(pkey); return -1; }
+    int result = 0;  /* 0 = native verifier ran and rejected */
+    if (EVP_DigestVerifyInit(ctx, NULL, NULL, NULL, pkey) == 1 &&
+        EVP_DigestVerify(ctx, sig, WUBU_PKG_SIGNATURE_LEN,
+                         digest, WUBU_PKG_SIGN_DIGEST_LEN) == 1) {
+        result = 1;
+        ++wubu_openssl_native_ops;
+    }
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return result;
+#endif
+}
+#endif /* WUBU_HAVE_OPENSSL_EDDSA */
+
 bool wubu_pkg_sign_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
                            const char *seed_hex,
                            uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
@@ -399,6 +471,12 @@ bool wubu_pkg_sign_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
     if (hex_to_32(seed_hex, seed) != 0 || !digest || !out_sig) {
         wubu_pkg_sign_set_err(err, errsz, "Ed25519 sign needs a 32-byte seed hex (64 chars)"); return false;
     }
+
+#ifdef WUBU_HAVE_OPENSSL_EDDSA
+    /* Native path signs the same canonical digest.  -1 (unavailable) or 0
+     * (native failed) both fail closed onto the hardened ladder below. */
+    if (wubu_openssl_ed25519_sign(digest, seed, out_sig) == 1) return true;
+#endif
 
     uint8_t h[64], rh[64], kh[64], renc[32], aenc[32];
     sha512_one(seed, 32, h);
@@ -480,6 +558,18 @@ bool wubu_pkg_sign_verify_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN]
             goto cleanup;
         }
     }
+    /* Policy above is shared by both backends and is never delegated to
+     * OpenSSL.  Only the core [S]B == R + [k]A check is backend-specific. */
+#ifdef WUBU_HAVE_OPENSSL_EDDSA
+    {
+        int nv = wubu_openssl_ed25519_verify(digest, pub, sig);
+        if (nv >= 0) {  /* 1 = verified, 0 = rejected; -1 = unavailable -> ladder */
+            ok = nv;
+            if (!ok) wubu_pkg_sign_set_err(err, errsz, "Ed25519 signature does not verify");
+            goto cleanup;
+        }
+    }
+#endif
     TRY(hash_challenge(sig, pub, digest, kh));
     TRY(scalar_from_le(&k, kh, 64));
     TRY(ge_base(&B));

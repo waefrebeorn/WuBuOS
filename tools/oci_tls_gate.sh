@@ -4,7 +4,8 @@
 # (headers under usr/include, libs under usr/lib/x86_64-linux-gnu).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-: "${WUBU_MBEDTLS_ROOT:?set WUBU_MBEDTLS_ROOT to an extracted mbedTLS dev root}"
+WUBU_MBEDTLS_ROOT="$("$ROOT/tools/mbedtls_devroot.sh")"
+export WUBU_MBEDTLS_ROOT
 MB="$WUBU_MBEDTLS_ROOT/usr"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
