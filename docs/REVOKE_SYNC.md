@@ -66,6 +66,25 @@ signature, unreachable endpoint, bad signature, tampered feed, and a stale or
 replayed signed generation.  HTTPS succeeds only when the server certificate
 chains to the CA in `WUBU_CA_BUNDLE` and its DNS name matches the URL host.
 
+## Control Panel widget and scheduled loop
+
+The **Revocation Sync** applet in the Control Panel is the GUI face of this
+leaf (`src/gui/wubu_pkgmgr_sync_panel.c`, registered through
+`controlpanel.c`). It shows the committed `trusted_sync_url`, lets the user
+type a new URL and press Enter (or click **Save**), persists it through
+`wubu_settings_mut()` + `wubu_settings_save()`, and runs one bounded signed
+sync on **Sync Now**. Every action goes through the importer above; the widget
+contains no crypto or DB code of its own.
+
+The same applet carries a **bounded scheduled loop**: **Auto** off by default
+(no daemon), an interval in seconds configured with the `+`/`-` buttons, and a
+tick from `desktop_tick()` that performs at most one fetch per interval. Both
+flags persist in the settings store as `sync_auto_enabled` and
+`sync_interval_secs`. The loop re-reads trust from settings on every attempt,
+so a rotated feed URL is picked up on the next tick; refusals advance the
+deadline and leave the DB untouched (fail-closed). The clock is injectable for
+deterministic gates.
+
 ## Gate
 
 `make test_pkg_revoke_sync` runs `tools/pkg_revoke_sync_gate.sh`: ephemeral
@@ -75,3 +94,10 @@ N+1 applied, HTTPS trusted-CA success with untrusted-CA and wrong-host
 refusals, GUI settings save/load read-path survival, tampered/wrong-key/
 unsigned/oversize/redirect/untrusted/TLS/unreachable refusals, and a
 pre-change negative control.  It is also part of `make test_optin_crypto`.
+
+`make test_sync_panel` runs `tools/sync_panel_gate.sh`: a hosted GUI test
+(`src/gui/test_sync_panel.c`) drives the real applet key/mouse callbacks to
+save a loopback trusted URL, trigger Sync Now (keys revoked and persisted
+across a fresh DB load), refuse a bad-scheme URL and a bad-signature feed with
+no DB change, then enable the scheduled loop and apply a rotated signed feed
+after the configured interval.  It is also part of `make test_optin_crypto`.

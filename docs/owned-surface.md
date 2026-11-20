@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 3704
-- OWNED (appear in a test target recipe): 870
-- VENDORED / unproven (no test-target recipe reference): 2834
+- product source modules: 3715
+- OWNED (appear in a test target recipe): 872
+- VENDORED / unproven (no test-target recipe reference): 2843
 
 ## OWNED modules (tested)
 
@@ -78,6 +78,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `fat32_name.c`  -- tests: test_fat32
 - `fs_persist_fuzz.c`  -- tests: test_fs_persist_fuzz
 - `getting_started.c`  -- tests: test_first_run
+- `guest_dyn.c`  -- tests: test_wemu_protect
 - `guests_panel.c`  -- tests: test_guests_panel
 - `gui_blend.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
 - `gui_blur.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
@@ -194,7 +195,6 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_thermal_read.c`  -- tests: test_thermal_read
 - `test_win32_core.c`  -- tests: test_win32_core
 - `test_worldsim.c`  -- tests: test_worldsim
-- `test_wubu_audio_backend.c`  -- tests: test_audio_backend
 - `test_wubu_crc32.c`  -- tests: test_crc32
 - `test_wubu_gui_metrics.c`  -- tests: test_gui_metrics
 - `test_wubu_sound.c`  -- tests: test_wubu_sound
@@ -674,6 +674,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_pkgmgr_pkg.c`  -- tests: test_pkgmgr
 - `wubu_pkgmgr_remote.c`  -- tests: test_pkgmgr
 - `wubu_pkgmgr_resolve.c`  -- tests: test_pkgmgr
+- `wubu_pkgmgr_revoke_feed.c`  -- tests: test_pkgmgr
+- `wubu_pkgmgr_revoke_sync.c`  -- tests: test_pkgmgr
 - `wubu_pkgmgr_txn.c`  -- tests: test_pkgmgr
 - `wubu_pkgmgr_verify.c`  -- tests: test_pkgmgr
 - `wubu_pm.c`  -- tests: test_hw_pm
@@ -1609,6 +1611,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `gru.c`
 - `gru_gpu.c`
 - `gru_layout.c`
+- `guest_dynsym.c`
 - `guest_exit42.c`
 - `guest_exit_group.c`
 - `guest_fault.c`
@@ -2056,6 +2059,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_convnet3.c`
 - `test_convnet3_im2col.c`
 - `test_core.c`
+- `test_cpl.c`
 - `test_cpu_timing.c`
 - `test_cpuid.c`
 - `test_crdt.c`
@@ -2150,6 +2154,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_fake_body.c`
 - `test_fast_attn.c`
 - `test_fast_attn_q8.c`
+- `test_faults.c`
 - `test_fb1_timing.c`
 - `test_fc_timing.c`
 - `test_fcpxml.c`
@@ -2255,6 +2260,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_hybrid.c`
 - `test_hyper.c`
 - `test_hyperbolic_output_proj.c`
+- `test_idt.c`
 - `test_imageops.c`
 - `test_imgops.c`
 - `test_indexing.c`
@@ -2267,6 +2273,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_iq2_xxs_dot.c`
 - `test_iq_dot.c`
 - `test_isa.c`
+- `test_isa_atomic_fence.c`
 - `test_kaleidoscope.c`
 - `test_karplus.c`
 - `test_kat_decode_bank.c`
@@ -2483,6 +2490,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_prefix_reuse.c`
 - `test_priority.c`
 - `test_priority_store.c`
+- `test_priv.c`
 - `test_probe_qwen.c`
 - `test_procedural.c`
 - `test_proj_accuracy.c`
@@ -2540,6 +2548,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_screen_record.c`
 - `test_script.c`
 - `test_seed.c`
+- `test_segments.c`
 - `test_self_cascade.c`
 - `test_selfimprove.c`
 - `test_serve.c`
@@ -2593,6 +2602,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_subtitle_translate.c`
 - `test_surround_mix.c`
 - `test_svg_import.c`
+- `test_sync_panel.c`
 - `test_synth_timing.c`
 - `test_sys2026.c`
 - `test_sys_tune.c`
@@ -3505,6 +3515,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_pim.c`
 - `wubu_pim2.c`
 - `wubu_pkg_ed25519_gate.c`
+- `wubu_pkgmgr_sync_panel.c`
 - `wubu_planediv.c`
 - `wubu_plateau.c`
 - `wubu_plugin.c`

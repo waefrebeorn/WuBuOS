@@ -112,6 +112,8 @@ int wubu_settings_save(void) {
     fprintf(f, "%*s\"version\": ", 2, ""); json_write_uint(f, g_settings.version); fprintf(f, ",\n");
     fprintf(f, "%*s\"last_modified\": ", 2, ""); json_write_ulong(f, g_settings.last_modified); fprintf(f, ",\n");
     fprintf(f, "%*s\"trusted_sync_url\": ", 2, ""); json_write_string(f, g_settings.trusted_sync_url); fprintf(f, ",\n");
+    fprintf(f, "%*s\"sync_auto_enabled\": ", 2, ""); json_write_bool(f, g_settings.sync_auto_enabled); fprintf(f, ",\n");
+    fprintf(f, "%*s\"sync_interval_secs\": ", 2, ""); json_write_int(f, g_settings.sync_interval_secs); fprintf(f, ",\n");
     fprintf(f, "%*s\"theme\": {\n", 2, ""); save_theme(f, &g_settings.theme, 4); fprintf(f, "\n%*s},\n", 2, "");
     fprintf(f, "%*s\"fonts\": {\n", 2, ""); save_fonts(f, &g_settings.fonts, 4); fprintf(f, "\n%*s},\n", 2, "");
     fprintf(f, "%*s\"keyboard\": {\n", 2, ""); save_keyboard(f, &g_settings.keyboard, 4); fprintf(f, "\n%*s},\n", 2, "");
@@ -230,6 +232,13 @@ int wubu_settings_load(void) {
         if ((v = json_find(root, "last_modified")) && v->type == JSON_TYPE_NUMBER) g_settings.last_modified = v->int_value;
         if ((v = json_find(root, "trusted_sync_url")) && v->type == JSON_TYPE_STRING)
             strncpy(g_settings.trusted_sync_url, v->str_value, sizeof(g_settings.trusted_sync_url) - 1);
+        if ((v = json_find(root, "sync_auto_enabled")) && v->type == JSON_TYPE_BOOL)
+            g_settings.sync_auto_enabled = v->bool_value;
+        if ((v = json_find(root, "sync_interval_secs")) && v->type == JSON_TYPE_NUMBER) {
+            g_settings.sync_interval_secs = v->int_value;
+            if (g_settings.sync_interval_secs < 0) g_settings.sync_interval_secs = 0;
+            if (g_settings.sync_interval_secs > 86400) g_settings.sync_interval_secs = 86400;
+        }
         if ((v = json_find(root, "theme"))) load_theme(v, &g_settings.theme);
         if ((v = json_find(root, "fonts"))) load_fonts(v, &g_settings.fonts);
         if ((v = json_find(root, "keyboard"))) load_keyboard(v, &g_settings.keyboard);

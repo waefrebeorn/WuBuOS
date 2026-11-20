@@ -20,6 +20,12 @@
 #include <stdio.h>
 #include <string.h>
 
+/* The sync applet is optional at link time: targets that compile this manager
+ * without the sync leaf simply do not show the applet (weak reference), so no
+ * GUI test target gains a hard dependency on HTTPS/mbedTLS. The hosted build
+ * links wubu_pkgmgr_sync_panel.o and gets the real control. */
+extern CpApplet cp_create_pkg_sync_applet(void) __attribute__((weak));
+
 ControlPanel g_controlpanel;
 
 /* CP1: init the manager + register the applets. */
@@ -36,6 +42,8 @@ void controlpanel_init(void)
     applets[n++] = cp_create_sound_applet();
     applets[n++] = cp_create_theme_applet();
     applets[n++] = cp_create_hardware_applet();
+    if (cp_create_pkg_sync_applet && n < CP_MAX_APPLETS)
+        applets[n++] = cp_create_pkg_sync_applet();
 
     for (int i = 0; i < n && i < CP_MAX_APPLETS; i++) {
         g_controlpanel.applets[i] = applets[i];

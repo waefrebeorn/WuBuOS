@@ -32,6 +32,7 @@ typedef enum {
     CP_APPLET_PROGRAMS    = 6,  /* Add/Remove Programs */
     CP_APPLET_SYSTEM      = 7,  /* System properties */
     CP_APPLET_HARDWARE    = 8,  /* the machine the AGI perceives */
+    CP_APPLET_PKG_SYNC    = 9,  /* signed revocation-feed sync control */
 } CpAppletId;
 
 typedef struct CpApplet CpApplet;

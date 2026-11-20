@@ -277,6 +277,11 @@ void desktop_tick(void) {
     /* Process daemon events */
     daemon_panel_tick();
 
+    /* Bounded scheduled revocation sync (OFF by default, one attempt/tick).
+     * Weak so GUI test targets that omit the sync leaf still link. */
+    extern int cp_pkg_sync_tick(void) __attribute__((weak));
+    if (cp_pkg_sync_tick) cp_pkg_sync_tick();
+
     /* Reap zombie host processes */
     for (int i = 0; i < g_launched_count; i++) {
         if (g_launched[i].pid > 0) {

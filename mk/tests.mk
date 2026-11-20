@@ -105,6 +105,12 @@ test_pkg_revoke_sync:
 
 .PHONY: test_pkg_revoke_sync
 
+# Opt-in hosted GUI differential gate for the Control Panel sync widget and
+# its bounded scheduled loop (loopback HTTP + ephemeral signed feeds).
+test_sync_panel:
+	bash tools/sync_panel_gate.sh
+.PHONY: test_sync_panel
+
 # Opt-in differential gate for trust-anchor expiry, admin rotation/recovery
 # and M-of-N feed-apply quorum (mbedTLS root required; not in default tier).
 test_pkg_key_policy:

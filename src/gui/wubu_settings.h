@@ -137,6 +137,8 @@ typedef struct {
     A11ySettings    a11y;
     PrivacySettings privacy;
     char trusted_sync_url[WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX]; /* GUI-configured trusted sync URLs */
+    bool sync_auto_enabled;          /* scheduled revocation sync: OFF by default */
+    int  sync_interval_secs;         /* seconds between scheduled syncs (0 = disabled) */
     uint32_t version;                /* Config schema version */
     uint64_t last_modified;          /* Unix timestamp */
 } WubuSettings;
