@@ -73,6 +73,11 @@ test_pkg_key_revoke:
 test_pkg_revoke_feed:
 	bash tools/pkg_revoke_feed_gate.sh
 
+# Opt-in differential gate for trust-anchor expiry, admin rotation/recovery
+# and M-of-N feed-apply quorum (mbedTLS root required; not in default tier).
+test_pkg_key_policy:
+	bash tools/pkg_key_policy_gate.sh
+
 test_oci:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT)/wubu_crc32.c \
 		-I$(RT) -I$(KERNEL) -I$(RT)/oci \

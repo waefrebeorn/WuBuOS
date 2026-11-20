@@ -307,6 +307,57 @@ bool wubu_pkgmgr_key_unrevoke_authorized(const char *pubkey_hex, const char *sig
 /* Enumerate revoked keys (canonical lowercase hex) into out[i][65]. */
 int wubu_pkgmgr_key_revoked_list(char out[][65], int max);
 
+/* ============================================================
+ * Trust-anchor expiry metadata
+ * ============================================================
+ * An Ed25519 repo trust anchor may carry an absolute expiry (Unix epoch
+ * seconds).  expires_at == 0 means "no expiry" so legacy anchors stay valid.
+ * wubu_pkgmgr_verify_against_repos() SKIPS expired anchors and fails closed
+ * when no usable anchor remains.  Authoritative rows live in the pkgmgr DB;
+ * a bounded in-process cache is reloaded by wubu_pkgmgr_init(). */
+#define WUBU_PKGMGR_MAX_ANCHOR_EXPIRIES 64
+
+/* Install/clear expiry for a canonical 64-hex anchor key (0 clears). */
+bool wubu_pkgmgr_anchor_set_expiry(const char *pubkey_hex, int64_t expires_at);
+/* True if the key has expiry metadata; *out_expires_at receives it. */
+bool wubu_pkgmgr_anchor_expiry(const char *pubkey_hex, int64_t *out_expires_at);
+/* True only for a key whose expiry is set and already in the past. */
+bool wubu_pkgmgr_anchor_is_expired(const char *pubkey_hex);
+
+/* ============================================================
+ * Supported admin-key rotation / recovery
+ * ============================================================
+ * TOFU bootstrap is one-time and has no re-bootstrap path.  Rotation is
+ * signed by the CURRENT admin key over exactly:
+ *     WUBU-PKG-ADMIN-ROTATION-v1\n<new_admin_pubkey_hex>
+ * Verification happens BEFORE the single-row update; the new key replaces
+ * the old atomically, and the old key loses all authority immediately. */
+#define WUBU_PKG_ADMIN_ROTATION_DOMAIN "WUBU-PKG-ADMIN-ROTATION-v1"
+bool wubu_pkgmgr_key_rotate_command_string(const char *new_pubkey_hex,
+                                            char *out, size_t outsz);
+bool wubu_pkgmgr_key_admin_rotate(const char *new_pubkey_hex, const char *sig_hex);
+
+/* ============================================================
+ * M-of-N quorum policy for feed apply
+ * ============================================================
+ * Bounded policy table: M required valid signatures from N distinct member
+ * keys (1 <= M <= N <= WUBU_PKGMGR_MAX_QUORUM_KEYS).  Configuration is itself
+ * signed by the current admin key.  Feed import verifies M distinct member
+ * signatures over the EXACT feed bytes BEFORE any DB read/write, then applies
+ * every entry in one transaction (all-or-nothing).  The original single-sig
+ * wubu_pkgmgr_key_feed_import() stays valid for M=1 style deployments. */
+#define WUBU_PKGMGR_MAX_QUORUM_KEYS 8
+#define WUBU_PKG_QUORUM_DOMAIN "WUBU-PKG-QUORUM-v1"
+
+bool wubu_pkgmgr_key_quorum_command_string(int m, int n, const char *const *keys,
+                                            char *out, size_t outsz);
+bool wubu_pkgmgr_key_quorum_configure(int m, int n, const char *const *keys,
+                                      const char *sig_hex);
+bool wubu_pkgmgr_key_quorum_status(int *out_m, int *out_n);
+bool wubu_pkgmgr_key_feed_import_quorum(const char *feed_path,
+                                        const char *const *sigs, size_t n_sigs,
+                                        size_t *out_applied, char *err, size_t errsz);
+
 /* Search packages */
 int wubu_pkgmgr_search(const char* query, wubu_pkg_repo_entry_t* out, int max);
 /* Get package info from repo */

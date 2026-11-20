@@ -99,6 +99,23 @@ static const char SCHEMA_SQL[] =
     "  id INTEGER PRIMARY KEY CHECK (id = 1),"
     "  pubkey_hex TEXT NOT NULL,"
     "  bootstrapped_at INTEGER DEFAULT 0"
+    ");"
+    /* Trust-anchor expiry metadata (public keys only, no secret material).
+     * expires_at == 0 means the anchor never expires. */
+    "CREATE TABLE IF NOT EXISTS anchor_expiry ("
+    "  pubkey_hex TEXT PRIMARY KEY,"
+    "  expires_at INTEGER NOT NULL DEFAULT 0"
+    ");"
+    /* Bounded M-of-N feed-apply policy: one config row (m, n) and its N
+     * member public keys. All rows are public; seeds never enter the DB. */
+    "CREATE TABLE IF NOT EXISTS pkg_quorum ("
+    "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+    "  m INTEGER NOT NULL,"
+    "  n INTEGER NOT NULL"
+    ");"
+    "CREATE TABLE IF NOT EXISTS pkg_quorum_keys ("
+    "  pubkey_hex TEXT PRIMARY KEY,"
+    "  seq INTEGER NOT NULL"
     ");";
 
 /* -- Initialize ---------------------------------------------------- */
@@ -205,6 +222,72 @@ bool wubu_pkgmgr_key_is_revoked(const char *pubkey_hex) {
 
 int wubu_pkgmgr_key_revoked_count(void) { return g_pkgmgr.n_revoked_keys; }
 
+/* -- Trust-anchor expiry: ONE owner (this facade) -------------------
+ * Authoritative state is the anchor_expiry table; the bounded cache is
+ * rebuilt on init, exactly like revocations. No crypto lives here. */
+static int cb_load_expiry(void *data, int argc, char **argv, char **col) {
+    (void)data; (void)col;
+    if (argc < 2 || !argv[0] || !revoked_key_valid(argv[0])) return 0;
+    if (g_pkgmgr.n_expiries >= WUBU_PKGMGR_MAX_ANCHOR_EXPIRIES) return 0;
+    int64_t exp = strtoll(argv[1], NULL, 10);
+    if (exp < 0) exp = 0;
+    snprintf(g_pkgmgr.expiry_keys[g_pkgmgr.n_expiries], 65, "%s", argv[0]);
+    g_pkgmgr.expiry_at[g_pkgmgr.n_expiries] = exp;
+    g_pkgmgr.n_expiries++;
+    return 0;
+}
+
+static bool expiry_reload(void) {
+    g_pkgmgr.n_expiries = 0;
+    if (!g_pkgmgr.db) return false;
+    return db_query("SELECT pubkey_hex, expires_at FROM anchor_expiry "
+                    "ORDER BY pubkey_hex", cb_load_expiry, NULL) == 0;
+}
+
+bool wubu_pkgmgr_anchor_set_expiry(const char *pubkey_hex, int64_t expires_at) {
+    if (!revoked_key_valid(pubkey_hex) || !g_pkgmgr.db || expires_at < 0)
+        return false;
+    sqlite3_stmt *stmt = NULL;
+    if (expires_at == 0) {
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "DELETE FROM anchor_expiry WHERE pubkey_hex = ?1",
+                -1, &stmt, NULL) != SQLITE_OK) {
+            if (stmt) sqlite3_finalize(stmt);
+            return false;
+        }
+    } else {
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "INSERT OR REPLACE INTO anchor_expiry (pubkey_hex, expires_at) "
+                "VALUES (?1, ?2)", -1, &stmt, NULL) != SQLITE_OK) {
+            if (stmt) sqlite3_finalize(stmt);
+            return false;
+        }
+        sqlite3_bind_int64(stmt, 2, (sqlite3_int64)expires_at);
+    }
+    sqlite3_bind_text(stmt, 1, pubkey_hex, -1, SQLITE_TRANSIENT);
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok && expiry_reload();
+}
+
+bool wubu_pkgmgr_anchor_expiry(const char *pubkey_hex, int64_t *out_expires_at) {
+    if (!revoked_key_valid(pubkey_hex)) return false;
+    for (int i = 0; i < g_pkgmgr.n_expiries; i++) {
+        if (strcmp(g_pkgmgr.expiry_keys[i], pubkey_hex) == 0) {
+            if (out_expires_at) *out_expires_at = g_pkgmgr.expiry_at[i];
+            return true;
+        }
+    }
+    return false;
+}
+
+bool wubu_pkgmgr_anchor_is_expired(const char *pubkey_hex) {
+    int64_t exp = 0;
+    if (!wubu_pkgmgr_anchor_expiry(pubkey_hex, &exp)) return false; /* no metadata */
+    if (exp == 0) return false;                                    /* never expires */
+    return (int64_t)time(NULL) >= exp;
+}
+
 /* -- Authorized operator surface ------------------------------------
  * Policy owner: this facade.  Crypto stays in wubu_pkg_ed25519.c; the CLI
  * (tools/wubu_pkg_key_ctl) is a thin argument parser over these calls. */
@@ -288,6 +371,150 @@ static bool authorize_command(const char *op, const char *pubkey_hex,
                                    err, sizeof(err));
 }
 
+/* -- Supported admin-key rotation / recovery ------------------------
+ * Signed by the CURRENT admin key; verification is BEFORE the single-row
+ * UPDATE.  Reusing wubu_pkg_verify_command means no second crypto path. */
+bool wubu_pkgmgr_key_rotate_command_string(const char *new_pubkey_hex,
+                                            char *out, size_t outsz) {
+    if (!out || outsz < 16 || !revoked_key_valid(new_pubkey_hex)) return false;
+    int n = snprintf(out, outsz, "%s\n%s",
+                     WUBU_PKG_ADMIN_ROTATION_DOMAIN, new_pubkey_hex);
+    return n > 0 && (size_t)n < outsz;
+}
+
+bool wubu_pkgmgr_key_admin_rotate(const char *new_pubkey_hex, const char *sig_hex) {
+    if (!revoked_key_valid(new_pubkey_hex) || !g_pkgmgr.db) return false;
+    if (!g_pkgmgr.admin_pubkey[0]) return false;     /* no bootstrap: fail closed */
+    char cmd[256];
+    uint8_t sig[64];
+    char err[256];
+    if (!wubu_pkgmgr_key_rotate_command_string(new_pubkey_hex, cmd, sizeof(cmd)))
+        return false;
+    if (!sig_hex_to_bytes(sig_hex, sig)) return false;   /* unsigned/malformed */
+    if (!wubu_pkg_verify_command(cmd, g_pkgmgr.admin_pubkey, sig,
+                                 err, sizeof(err))) return false;
+
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "UPDATE pkg_admin_key SET pubkey_hex = ?1, bootstrapped_at = ?2 "
+            "WHERE id = 1", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, new_pubkey_hex, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 2, (sqlite3_int64)time(NULL));
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    int changed = sqlite3_changes(g_pkgmgr.db);
+    sqlite3_finalize(stmt);
+    if (!ok || changed != 1) return false;   /* no row => no silent success */
+    return admin_reload();
+}
+
+/* -- Bounded M-of-N quorum policy -----------------------------------
+ * ONE owner. Config and member keys are authoritative in the DB; the cache
+ * below is rebuilt on init. Configuration is admin-signed; feed apply uses
+ * wubu_pkg_verify_bytes (the same Ed25519 leaf) for each member signature. */
+static int cb_load_quorum(void *data, int argc, char **argv, char **col) {
+    (void)data; (void)col;
+    if (argc < 2 || !argv[0] || !argv[1]) return 0;
+    int m = atoi(argv[0]), n = atoi(argv[1]);
+    if (m < 1 || n < m || n > WUBU_PKGMGR_MAX_QUORUM_KEYS) return 0;
+    g_pkgmgr.quorum_m = m;
+    g_pkgmgr.quorum_n = n;
+    return 0;
+}
+
+static int cb_load_quorum_key(void *data, int argc, char **argv, char **col) {
+    (void)data; (void)col;
+    if (argc < 1 || !argv[0] || !revoked_key_valid(argv[0])) return 0;
+    if (g_pkgmgr.quorum_nkeys >= WUBU_PKGMGR_MAX_QUORUM_KEYS) return 0;
+    snprintf(g_pkgmgr.quorum_keys[g_pkgmgr.quorum_nkeys], 65, "%s", argv[0]);
+    g_pkgmgr.quorum_nkeys++;
+    return 0;
+}
+
+static bool quorum_reload(void) {
+    g_pkgmgr.quorum_m = 0;
+    g_pkgmgr.quorum_n = 0;
+    g_pkgmgr.quorum_nkeys = 0;
+    if (!g_pkgmgr.db) return false;
+    db_query("SELECT m, n FROM pkg_quorum WHERE id = 1", cb_load_quorum, NULL);
+    db_query("SELECT pubkey_hex FROM pkg_quorum_keys ORDER BY seq",
+             cb_load_quorum_key, NULL);
+    return true;
+}
+
+bool wubu_pkgmgr_key_quorum_command_string(int m, int n, const char *const *keys,
+                                            char *out, size_t outsz) {
+    if (!out || outsz < 16 || !keys) return false;
+    if (m < 1 || n < m || n > WUBU_PKGMGR_MAX_QUORUM_KEYS) return false;
+    for (int i = 0; i < n; i++) {
+        if (!revoked_key_valid(keys[i])) return false;
+        for (int j = i + 1; j < n; j++)
+            if (strcmp(keys[i], keys[j]) == 0) return false;  /* no dup members */
+    }
+    int off = snprintf(out, outsz, "%s\n%d\n%d",
+                       WUBU_PKG_QUORUM_DOMAIN, m, n);
+    if (off < 0 || (size_t)off >= outsz) return false;
+    for (int i = 0; i < n; i++) {
+        int k = snprintf(out + off, outsz - (size_t)off, "\n%s", keys[i]);
+        if (k < 0 || (size_t)k >= outsz - (size_t)off) return false;
+        off += k;
+    }
+    return true;
+}
+
+bool wubu_pkgmgr_key_quorum_configure(int m, int n, const char *const *keys,
+                                      const char *sig_hex) {
+    char cmd[1024];
+    uint8_t sig[64];
+    char err[256];
+    if (!wubu_pkgmgr_key_quorum_command_string(m, n, keys, cmd, sizeof(cmd)))
+        return false;
+    if (!g_pkgmgr.admin_pubkey[0]) return false;
+    if (!sig_hex_to_bytes(sig_hex, sig)) return false;
+    if (!wubu_pkg_verify_command(cmd, g_pkgmgr.admin_pubkey, sig,
+                                 err, sizeof(err))) return false;
+    if (!g_pkgmgr.db) return false;
+
+    /* All-or-nothing config replace: config row and member keys in ONE txn. */
+    if (db_exec("BEGIN IMMEDIATE") != 0) return false;
+    bool ok = (db_exec("DELETE FROM pkg_quorum") == 0 &&
+               db_exec("DELETE FROM pkg_quorum_keys") == 0);
+    sqlite3_stmt *stmt = NULL;
+    if (ok && sqlite3_prepare_v2(g_pkgmgr.db,
+            "INSERT INTO pkg_quorum (id, m, n) VALUES (1, ?1, ?2)",
+            -1, &stmt, NULL) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, m);
+        sqlite3_bind_int(stmt, 2, n);
+        ok = sqlite3_step(stmt) == SQLITE_DONE;
+        sqlite3_finalize(stmt);
+        stmt = NULL;
+    } else {
+        if (stmt) sqlite3_finalize(stmt);
+        ok = false;
+    }
+    for (int i = 0; i < n && ok; i++) {
+        stmt = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "INSERT INTO pkg_quorum_keys (pubkey_hex, seq) VALUES (?1, ?2)",
+                -1, &stmt, NULL) != SQLITE_OK) { ok = false; break; }
+        sqlite3_bind_text(stmt, 1, keys[i], -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt, 2, i);
+        ok = sqlite3_step(stmt) == SQLITE_DONE;
+        sqlite3_finalize(stmt);
+    }
+    if (ok) ok = (db_exec("COMMIT") == 0);
+    if (!ok) { db_exec("ROLLBACK"); return false; }
+    return quorum_reload();
+}
+
+bool wubu_pkgmgr_key_quorum_status(int *out_m, int *out_n) {
+    if (out_m) *out_m = g_pkgmgr.quorum_m;
+    if (out_n) *out_n = g_pkgmgr.quorum_n;
+    return g_pkgmgr.quorum_m > 0 && g_pkgmgr.quorum_n >= g_pkgmgr.quorum_m;
+}
+
 bool wubu_pkgmgr_key_revoke_authorized(const char *pubkey_hex, const char *sig_hex) {
     if (!revoked_key_valid(pubkey_hex)) return false;
     if (!authorize_command("revoke", pubkey_hex, sig_hex)) return false;
@@ -318,18 +545,26 @@ static void feed_seterr(char *err, size_t errsz, const char *msg) {
     }
 }
 
-bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
-                                 size_t *out_applied, char *err, size_t errsz) {
-    if (out_applied) *out_applied = 0;
-    feed_seterr(err, errsz, "");
-    if (!feed_path || !*feed_path) {
-        feed_seterr(err, errsz, "no feed path"); return false;
-    }
-
-    /* 1. Exact, bounded file bytes. */
+/* -- Authenticated revocation-feed import ---------------------------
+ * Security order is deliberate:
+ *   1. read the EXACT feed bytes (bounded);
+ *   2. authenticate -- single admin signature OR M-of-N quorum -- over a
+ *      domain-separated hash of those bytes; NO DB read/write yet;
+ *   3. parse the bytes strictly into entries;
+ *   4. apply every entry inside ONE SQLite transaction, rolling all back
+ *      on the first failure;
+ *   5. rebuild the in-process cache exactly once after a successful commit.
+ * Steps 2 and 3 are fail closed. Both importers share steps 1/3/4/5; only
+ * the authentication in step 2 differs -- no crypto is duplicated. */
+static bool feed_read(const char *feed_path, uint8_t **out_data, size_t *out_sz,
+                      char *err, size_t errsz) {
+    *out_data = NULL; *out_sz = 0;
+    if (!feed_path || !*feed_path) { feed_seterr(err, errsz, "no feed path"); return false; }
     FILE *f = fopen(feed_path, "rb");
     if (!f) { feed_seterr(err, errsz, "cannot open feed"); return false; }
-    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); feed_seterr(err, errsz, "cannot seek feed"); return false; }
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f); feed_seterr(err, errsz, "cannot seek feed"); return false;
+    }
     long szl = ftell(f);
     if (szl < 0 || (size_t)szl > WUBU_PKGMGR_FEED_MAX_BYTES) {
         fclose(f); feed_seterr(err, errsz, "feed exceeds byte limit"); return false;
@@ -342,31 +577,20 @@ bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
         fclose(f); free(data); feed_seterr(err, errsz, "short feed read"); return false;
     }
     fclose(f);
+    *out_data = data; *out_sz = sz;
+    return true;
+}
 
-    /* 2. Authenticate BEFORE any DB read/write.  Reuses the Ed25519 leaf. */
-    uint8_t sig[64];
-    if (!g_pkgmgr.admin_pubkey[0]) {
-        free(data); feed_seterr(err, errsz, "no admin key bootstrapped"); return false;
-    }
-    if (!sig_hex_to_bytes(sig_hex, sig)) {
-        free(data); feed_seterr(err, errsz, "missing or malformed signature"); return false;
-    }
-    if (!wubu_pkg_verify_bytes(data, sz, WUBU_PKG_REVOCATION_FEED_DOMAIN,
-                               g_pkgmgr.admin_pubkey, sig, err, errsz)) {
-        free(data); return false;   /* unsigned / wrong-key / tampered */
-    }
-
-    /* 3. Strict parse, also before any DB mutation. */
+/* Steps 3/4/5: strict parse + all-or-nothing apply. Caller owns `data`. */
+static bool feed_apply(const uint8_t *data, size_t sz, size_t *out_applied,
+                       char *err, size_t errsz) {
     wubu_revoke_feed_entry_t entries[WUBU_PKGMGR_FEED_MAX_ENTRIES];
     size_t n = 0;
     if (!wubu_pkg_revoke_feed_parse(data, sz, entries,
-                                    WUBU_PKGMGR_FEED_MAX_ENTRIES, &n, err, errsz)) {
-        free(data); return false;
-    }
-    free(data);
+                                    WUBU_PKGMGR_FEED_MAX_ENTRIES, &n, err, errsz))
+        return false;
 
-    /* 4a. Preflight the resulting cache size so a valid feed can never
-     *     silently overflow the bounded in-process revocation cache. */
+    /* Preflight the cache size so a valid feed cannot overflow it. */
     size_t final_count = (size_t)g_pkgmgr.n_revoked_keys;
     for (size_t i = 0; i < n; i++) {
         bool cur = wubu_pkgmgr_key_is_revoked(entries[i].key);
@@ -378,7 +602,6 @@ bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
     }
     if (!g_pkgmgr.db) { feed_seterr(err, errsz, "no package DB"); return false; }
 
-    /* 4b. Atomic apply: one transaction, all-or-nothing. */
     if (db_exec("BEGIN IMMEDIATE") != 0) {
         feed_seterr(err, errsz, "cannot begin feed transaction"); return false;
     }
@@ -404,14 +627,80 @@ bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
         feed_seterr(err, errsz, "feed apply failed; all entries rolled back");
         return false;
     }
-
-    /* 5. Cache is authoritative from the committed rows. */
     if (!keyrev_reload()) {
         feed_seterr(err, errsz, "committed but cache reload failed");
         return false;
     }
     if (out_applied) *out_applied = n;
     return true;
+}
+
+/* Original single-admin-signature importer (unchanged semantics). */
+bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
+                                 size_t *out_applied, char *err, size_t errsz) {
+    if (out_applied) *out_applied = 0;
+    feed_seterr(err, errsz, "");
+    uint8_t *data = NULL; size_t sz = 0;
+    if (!feed_read(feed_path, &data, &sz, err, errsz)) return false;
+    uint8_t sig[64];
+    if (!g_pkgmgr.admin_pubkey[0]) {
+        free(data); feed_seterr(err, errsz, "no admin key bootstrapped"); return false;
+    }
+    if (!sig_hex_to_bytes(sig_hex, sig)) {
+        free(data); feed_seterr(err, errsz, "missing or malformed signature"); return false;
+    }
+    bool ok = wubu_pkg_verify_bytes(data, sz, WUBU_PKG_REVOCATION_FEED_DOMAIN,
+                                    g_pkgmgr.admin_pubkey, sig, err, errsz);
+    if (ok) ok = feed_apply(data, sz, out_applied, err, errsz);
+    free(data);
+    return ok;
+}
+
+/* Quorum authentication: count DISTINCT configured member keys that produce
+ * a valid signature over the exact feed bytes. No DB read/write here. */
+static bool feed_verify_quorum(const uint8_t *data, size_t sz,
+                               const char *const *sigs, size_t n_sigs,
+                               char *err, size_t errsz) {
+    if (g_pkgmgr.quorum_m < 1 || g_pkgmgr.quorum_n < g_pkgmgr.quorum_m ||
+        g_pkgmgr.quorum_nkeys < g_pkgmgr.quorum_n) {
+        feed_seterr(err, errsz, "no usable quorum policy configured"); return false;
+    }
+    if (!sigs || n_sigs < (size_t)g_pkgmgr.quorum_m) {
+        feed_seterr(err, errsz, "too few quorum signatures"); return false;
+    }
+    bool matched[WUBU_PKGMGR_MAX_QUORUM_KEYS] = {0};
+    int distinct = 0;
+    for (size_t s = 0; s < n_sigs; s++) {
+        uint8_t sig[64];
+        if (!sig_hex_to_bytes(sigs[s], sig)) continue;   /* malformed ignored */
+        for (int k = 0; k < g_pkgmgr.quorum_nkeys; k++) {
+            if (matched[k]) continue;
+            char e[256];
+            if (wubu_pkg_verify_bytes(data, sz, WUBU_PKG_REVOCATION_FEED_DOMAIN,
+                                      g_pkgmgr.quorum_keys[k], sig, e, sizeof(e))) {
+                matched[k] = true;
+                if (++distinct >= g_pkgmgr.quorum_m) break;
+            }
+        }
+        if (distinct >= g_pkgmgr.quorum_m) break;
+    }
+    if (distinct < g_pkgmgr.quorum_m) {
+        feed_seterr(err, errsz, "M-of-N quorum not satisfied"); return false;
+    }
+    return true;
+}
+
+bool wubu_pkgmgr_key_feed_import_quorum(const char *feed_path,
+                                        const char *const *sigs, size_t n_sigs,
+                                        size_t *out_applied, char *err, size_t errsz) {
+    if (out_applied) *out_applied = 0;
+    feed_seterr(err, errsz, "");
+    uint8_t *data = NULL; size_t sz = 0;
+    if (!feed_read(feed_path, &data, &sz, err, errsz)) return false;
+    bool ok = feed_verify_quorum(data, sz, sigs, n_sigs, err, errsz);
+    if (ok) ok = feed_apply(data, sz, out_applied, err, errsz);
+    free(data);
+    return ok;
 }
 
 int wubu_pkgmgr_key_revoked_list(char out[][65], int max) {
@@ -454,6 +743,15 @@ bool wubu_pkgmgr_init(const wubu_pkgmgr_config_t *config) {
     /* The bootstrapped admin key must be authoritative before any authorized
      * path is reachable: fail initialization closed on a reload error. */
     if (!admin_reload()) {
+        sqlite3_close(g_pkgmgr.db);
+        g_pkgmgr.db = NULL;
+        return false;
+    }
+
+    /* Trust-anchor expiry and the M-of-N quorum table are security inputs
+     * too: a failed reload must fail init closed, never silently default
+     * to "everything is valid / one signature is enough". */
+    if (!expiry_reload() || !quorum_reload()) {
         sqlite3_close(g_pkgmgr.db);
         g_pkgmgr.db = NULL;
         return false;

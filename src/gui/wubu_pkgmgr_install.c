@@ -209,6 +209,14 @@ bool wubu_pkgmgr_verify_against_repos(const char *pkg_path) {
                     key, pkg_path ? pkg_path : "(null)");
             continue;
         }
+        /* Expiry is fail-closed anchor metadata: an EXPIRED anchor is
+         * skipped just like a revoked one, so a package signed only by an
+         * expired key can no longer be admitted. */
+        if (wubu_pkgmgr_anchor_is_expired(key)) {
+            fprintf(stderr, "[pkgmgr] skipping EXPIRED trust anchor '%s' for '%s'\n",
+                    key, pkg_path ? pkg_path : "(null)");
+            continue;
+        }
         usable_anchors++;
         if (wubu_pkgmgr_verify_package(pkg_path, key)) return true;
     }

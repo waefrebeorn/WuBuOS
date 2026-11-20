@@ -36,6 +36,16 @@ typedef struct {
     int n_revoked_keys;
     /* One-time bootstrapped operator Ed25519 public key ("" if none). */
     char admin_pubkey[65];
+    /* Trust-anchor expiry metadata (authoritative rows in anchor_expiry DB
+     * table, reloaded on init). expires_at == 0 means "never expires". */
+    char expiry_keys[WUBU_PKGMGR_MAX_ANCHOR_EXPIRIES][65];
+    int64_t expiry_at[WUBU_PKGMGR_MAX_ANCHOR_EXPIRIES];
+    int n_expiries;
+    /* M-of-N feed-apply quorum policy (authoritative rows in pkg_quorum /
+     * pkg_quorum_keys, reloaded on init). */
+    int quorum_m, quorum_n;
+    char quorum_keys[WUBU_PKGMGR_MAX_QUORUM_KEYS][65];
+    int quorum_nkeys;
     /* Non-NULL only while wubu_pkgmgr_txn_commit() is replaying items.
      * install/remove/upgrade call pkgmgr_backup_capture() through this pointer
      * so the active item records the pre-mutation snapshot. */

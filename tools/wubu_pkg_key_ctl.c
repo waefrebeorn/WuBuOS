@@ -31,10 +31,18 @@ static void usage(const char *name) {
         "       %s [--db DIR] revoke <key_hex> --sig <sig_hex>\n"
         "       %s [--db DIR] unrevoke <key_hex> --sig <sig_hex>\n"
         "       %s [--db DIR] list\n"
+        "       %s [--db DIR] rotate <new_admin_pub_hex> --sig <sig_hex>\n"
+        "       %s [--db DIR] set-expiry <key_hex> <unix_epoch>\n"
+        "       %s [--db DIR] quorum-config <M> <key_hex>... --sig <sig_hex>\n"
+        "       %s [--db DIR] quorum-status\n"
+        "       %s [--db DIR] feed-quorum <feed_file> --sigs <s1,s2,...>\n"
         "       %s sign <revoke|unrevoke> <key_hex> --seed <seed_hex>\n"
         "       %s sign-feed <feed_file> --seed <seed_hex>\n"
+        "       %s sign-rotate <new_admin_pub_hex> --seed <seed_hex>\n"
+        "       %s sign-quorum <M> <key_hex>... --seed <seed_hex>\n"
         "       %s [--db DIR] feed <feed_file> --sig <sig_hex>\n",
-        name, name, name, name, name, name, name);
+        name, name, name, name, name, name, name, name, name,
+        name, name, name, name, name);
 }
 
 static const char *opt_value(int argc, char **argv, const char *flag) {
@@ -48,7 +56,8 @@ static int collect_pos(int argc, char **argv, char *pos[], int max) {
     int n = 0;
     for (int i = 1; i < argc; i++) {
         if ((strcmp(argv[i], "--db") == 0 || strcmp(argv[i], "--sig") == 0 ||
-             strcmp(argv[i], "--seed") == 0) && i + 1 < argc) {
+             strcmp(argv[i], "--sigs") == 0 || strcmp(argv[i], "--seed") == 0) &&
+            i + 1 < argc) {
             i++;
             continue;
         }
@@ -146,6 +155,48 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    /* sign-rotate: sign the admin-rotation command with a seed (no DB). */
+    if (strcmp(cmd, "sign-rotate") == 0) {
+        if (np < 2 || !seed) { usage(argv[0]); return 2; }
+        char command[256];
+        if (!wubu_pkgmgr_key_rotate_command_string(pos[1], command, sizeof(command))) {
+            fprintf(stderr, "ctl: cannot build rotate command\n");
+            return 2;
+        }
+        uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN];
+        char err[256], hex[2 * WUBU_PKG_SIGNATURE_LEN + 1];
+        if (!wubu_pkg_sign_command(command, seed, out_sig, err, sizeof(err))) {
+            fprintf(stderr, "ctl: sign-rotate failed: %s\n", err);
+            return 1;
+        }
+        bytes_to_hex(out_sig, WUBU_PKG_SIGNATURE_LEN, hex);
+        printf("%s\n", hex);
+        return 0;
+    }
+
+    /* sign-quorum: sign an M-of-N configuration command with a seed. */
+    if (strcmp(cmd, "sign-quorum") == 0) {
+        if (np < 3 || !seed) { usage(argv[0]); return 2; }
+        int m = atoi(pos[1]);
+        int n = np - 2;
+        const char *keys[MAX_POS];
+        for (int i = 0; i < n; i++) keys[i] = pos[2 + i];
+        char command[1024];
+        if (!wubu_pkgmgr_key_quorum_command_string(m, n, keys, command, sizeof(command))) {
+            fprintf(stderr, "ctl: cannot build quorum command\n");
+            return 2;
+        }
+        uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN];
+        char err[256], hex[2 * WUBU_PKG_SIGNATURE_LEN + 1];
+        if (!wubu_pkg_sign_command(command, seed, out_sig, err, sizeof(err))) {
+            fprintf(stderr, "ctl: sign-quorum failed: %s\n", err);
+            return 1;
+        }
+        bytes_to_hex(out_sig, WUBU_PKG_SIGNATURE_LEN, hex);
+        printf("%s\n", hex);
+        return 0;
+    }
+
     if (!init_db(db)) {
         fprintf(stderr, "ctl: cannot open pkgmgr DB under %s\n", db);
         return 1;
@@ -170,6 +221,46 @@ int main(int argc, char **argv) {
         bool ok = wubu_pkgmgr_key_feed_import(pos[1], sig, &applied, err, sizeof(err));
         if (!ok && err[0]) fprintf(stderr, "ctl: feed: %s\n", err);
         printf("%s feed %s applied %zu\n", ok ? "OK" : "REFUSED", pos[1], applied);
+        rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "rotate") == 0 && np >= 2) {
+        bool ok = wubu_pkgmgr_key_admin_rotate(pos[1], sig);
+        printf("%s rotate %s\n", ok ? "OK" : "REFUSED", pos[1]);
+        rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "set-expiry") == 0 && np >= 3) {
+        int64_t exp = strtoll(pos[2], NULL, 10);
+        bool ok = wubu_pkgmgr_anchor_set_expiry(pos[1], exp);
+        printf("%s set-expiry %s %lld\n", ok ? "OK" : "REFUSED", pos[1],
+               (long long)exp);
+        rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "quorum-config") == 0 && np >= 2) {
+        int m = atoi(pos[1]);
+        int n = np - 2;
+        const char *keys[MAX_POS];
+        for (int i = 0; i < n; i++) keys[i] = pos[2 + i];
+        bool ok = wubu_pkgmgr_key_quorum_configure(m, n, keys, sig);
+        printf("%s quorum-config %d-of-%d\n", ok ? "OK" : "REFUSED", m, n);
+        rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "quorum-status") == 0) {
+        int m = 0, n = 0;
+        bool set = wubu_pkgmgr_key_quorum_status(&m, &n);
+        printf("QUORUM %d %d %s\n", m, n, set ? "SET" : "UNSET");
+    } else if (strcmp(cmd, "feed-quorum") == 0 && np >= 2) {
+        const char *sigs[MAX_POS];
+        size_t ns = 0;
+        const char *raw = opt_value(argc, argv, "--sigs");
+        char buf[4096];
+        if (raw && *raw && strlen(raw) < sizeof(buf)) {
+            snprintf(buf, sizeof(buf), "%s", raw);
+            char *tok = strtok(buf, ",");
+            while (tok && ns < MAX_POS) { sigs[ns++] = tok; tok = strtok(NULL, ","); }
+        }
+        size_t applied = 0;
+        char err[256];
+        bool ok = wubu_pkgmgr_key_feed_import_quorum(pos[1], sigs, ns,
+                                                    &applied, err, sizeof(err));
+        if (!ok && err[0]) fprintf(stderr, "ctl: feed-quorum: %s\n", err);
+        printf("%s feed-quorum %s applied %zu\n", ok ? "OK" : "REFUSED",
+               pos[1], applied);
         rc = ok ? 0 : 1;
     } else if (strcmp(cmd, "list") == 0) {
         char keys[WUBU_PKGMGR_MAX_REVOKED_KEYS][65];
