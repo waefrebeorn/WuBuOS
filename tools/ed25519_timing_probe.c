@@ -34,7 +34,11 @@ static uint32_t rnd32(void) {
 
 static double now_s(void) {
     struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
+    /* Process CPU time, not wall clock: a scheduler deschedule or another
+     * tenant on the box must not inflate the hardened ladder's spread.
+     * The secret-dependent work is all CPU-bound, so this still measures
+     * the scalar-multiply cost it is meant to bound. */
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 }
 
