@@ -357,19 +357,34 @@ bool wubu_pkg_sign_verify_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN]
         return false;
     }
 
-    mbedtls_mpi S, k;
-    ge B, R, A, kA, lhs, rhs;
+    mbedtls_mpi S, k, eight;
+    ge B, R, A, kA, lhs, rhs, eightA, ident;
     int rc = 0, ok = 0;
     uint8_t kh[64];
 
-    mbedtls_mpi_init(&S); mbedtls_mpi_init(&k);
+    mbedtls_mpi_init(&S); mbedtls_mpi_init(&k); mbedtls_mpi_init(&eight);
     ge_init(&B); ge_init(&R); ge_init(&A);
     ge_init(&kA); ge_init(&lhs); ge_init(&rhs);
+    ge_init(&eightA); ge_init(&ident);
 
     TRY(mbedtls_mpi_read_binary_le(&S, sig + 32, 32));
     if (mbedtls_mpi_cmp_mpi(&S, &L) >= 0) { wubu_pkg_sign_set_err(err, errsz, "non-canonical Ed25519 S"); goto cleanup; }
     TRY(ge_frombytes(&R, sig));
     TRY(ge_frombytes(&A, pub));
+    /* Reject small-subgroup public keys: [8]A must not be the identity.
+     * Without this, A=identity makes R+[k]A == R for every challenge and
+     * S=1, R=[1]B forges a signature with no secret key. */
+    TRY(mbedtls_mpi_lset(&eight, 8));
+    TRY(ge_identity(&ident));
+    TRY(ge_mul(&eightA, &A, &eight));
+    {
+        int small = ge_equal(&eightA, &ident);
+        if (small < 0) { rc = small; goto cleanup; }
+        if (small > 0) {
+            wubu_pkg_sign_set_err(err, errsz, "small-subgroup public key rejected");
+            goto cleanup;
+        }
+    }
     TRY(hash_challenge(sig, pub, digest, kh));
     TRY(scalar_from_le(&k, kh, 64));
     TRY(ge_base(&B));
@@ -384,9 +399,10 @@ bool wubu_pkg_sign_verify_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN]
     if (!ok) wubu_pkg_sign_set_err(err, errsz, "Ed25519 signature does not verify");
 
 cleanup:
-    mbedtls_mpi_free(&S); mbedtls_mpi_free(&k);
+    mbedtls_mpi_free(&S); mbedtls_mpi_free(&k); mbedtls_mpi_free(&eight);
     ge_free(&B); ge_free(&R); ge_free(&A);
     ge_free(&kA); ge_free(&lhs); ge_free(&rhs);
+    ge_free(&eightA); ge_free(&ident);
     if (rc != 0) {
         wubu_pkg_sign_set_err(err, errsz, "Ed25519 verify failed (invalid point or bignum error)");
         return false;

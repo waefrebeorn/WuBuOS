@@ -159,6 +159,36 @@ int main(int argc, char **argv) {
     fails += expect("missing trust anchor rejected", wubu_pkgmgr_verify_package(pkg, NULL), false);
     fails += expect("wrong public key rejected", wubu_pkgmgr_verify_package(pkg, wrong_pub), false);
 
+    /* 6b. Small-subgroup forgery: the identity point (y=1, x=0) makes
+     * R + [k]A == R for every challenge, so ANY signature with R=[S]B
+     * verifies without the signing key if the cofactor is not checked.
+     * The genuine signature above is exactly such an R/S pair. */
+    {
+        char small_pub[65];
+        small_pub[0] = '0'; small_pub[1] = '1';
+        memset(small_pub + 2, '0', 62);
+        small_pub[64] = '\0';
+        /* Forged signature: S=1 and R=[1]B (the RFC 8032 basepoint).
+         * With A = identity, [S]B == R == R + [k]A for any challenge. */
+        uint8_t *t = (uint8_t *)malloc(total);
+        if (!t) return 1;
+        memcpy(t, orig, total);
+        static const uint8_t base_enc[32] = {
+            0x58,0x66,0x66,0x66,0x66,0x66,0x66,0x66,
+            0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,
+            0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66,
+            0x66,0x66,0x66,0x66,0x66,0x66,0x66,0x66
+        };
+        memset(t + sig_off, 0, WUBU_PKG_SIG_SIZE);
+        memcpy(t + sig_off, base_enc, 32);
+        t[sig_off + 32] = 1;                       /* S = 1, little endian */
+        if (!spill(pkg, t, total)) return 1;
+        fails += expect("small-subgroup public key rejected",
+                        wubu_pkgmgr_verify_package(pkg, small_pub), false);
+        if (!spill(pkg, orig, total)) return 1;
+        free(t);
+    }
+
     /* 7. Restore the pristine signed package and re-verify. */
     fails += expect("pristine package still verifies", wubu_pkgmgr_verify_package(pkg, pub), true);
 
