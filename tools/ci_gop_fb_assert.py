@@ -165,7 +165,16 @@ def main():
     if rc != 0:
         print("FAIL: default kernel rebuild failed\n" + tail(out))
         return 2
-    rc, out = run(["bash", "run-agi.sh"], cwd=FW, timeout=agi_window() + 180)
+    # The default Bochs LFB path is ALSO honest device MMIO (each pixel
+    # write is an uncached device exit under TCG). On a throttled runner
+    # bonzi's 5 Hz full-frame redraw misses its heartbeat cadence even
+    # though the loop is live -- CI run 44580241915 failed on that one
+    # marker while "Bonzi Buddy loop active" and PROMOTED spans were
+    # present. Use the SAME promotion liveness oracle as gate (b);
+    # run-agi.sh still requires "Bonzi Buddy loop active" (one full MMIO
+    # frame rendered) and this gate still asserts the Bochs display.
+    rc, out = run(["bash", "run-agi.sh"], cwd=FW, timeout=agi_window() + 180,
+                  env_extra={"WUBU_AGI_LIVENESS": "promoted"})
     if rc != 0:
         for line in out.splitlines():
             if "MISSING" in line or "RESULT" in line or "ERROR MARKERS" in line:
