@@ -8,6 +8,7 @@
  */
 #include "wubudriver.h"
 #include "wubukcore.h"
+#include "wubukernel_pmm.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -79,10 +80,39 @@ int main(void)
 
     wubu_bus_shutdown();
 
+    /* The third WuBuKernel concern: PMM. The old bridge claim that this
+     * was proven here was false (the recipe compiled only heap+driver).
+     * Assert exact frames from an independent region, not just "it ran". */
+    static uint8_t pmm_bitmap[8];
+    static const wubu_pmm_region pmm_region = { .base = 0x100000, .pages = 4 };
+    static wubu_pmm pmm;
+    CHECK(wubu_pmm_init(&pmm, &pmm_region, 1, pmm_bitmap, sizeof pmm_bitmap) == 0,
+          "PMM initialises from a boot region");
+    CHECK(wubu_pmm_total(&pmm) == 4 && wubu_pmm_free_count(&pmm) == 4,
+          "PMM reports all four frames free");
+    uint64_t f0 = wubu_pmm_alloc(&pmm);
+    uint64_t f1 = wubu_pmm_alloc(&pmm);
+    CHECK(f0 == 0x100000 && f1 == 0x101000,
+          "PMM hands out distinct, exact page addresses");
+    CHECK(wubu_pmm_is_allocated(&pmm, f0) == 1 &&
+          wubu_pmm_is_allocated(&pmm, f1) == 1 &&
+          wubu_pmm_is_allocated(&pmm, 0x102000) == 0,
+          "PMM allocation bitmap matches reality");
+    CHECK(wubu_pmm_alloc(&pmm) == 0x102000 &&
+          wubu_pmm_alloc(&pmm) == 0x103000 &&
+          wubu_pmm_alloc(&pmm) == 0,
+          "PMM exhausts the pool instead of reusing frames");
+    wubu_pmm_free(&pmm, f0);
+    CHECK(wubu_pmm_is_allocated(&pmm, f0) == 0 && wubu_pmm_free_count(&pmm) == 1,
+          "PMM free returns exactly one frame");
+    wubu_pmm_free(&pmm, 0x999000); /* foreign frame: must be ignored */
+    CHECK(wubu_pmm_free_count(&pmm) == 1,
+          "PMM ignores a frame outside its regions");
+
     if (fails) {
         printf("[kernel_bridge] %d fail\n", fails);
         return 1;
     }
-    printf("[kernel_bridge] all pass (WuBuOS -> WuBuKernel driver model)\n");
+    printf("[kernel_bridge] all pass (WuBuKernel driver model, heap, PMM)\n");
     return 0;
 }
