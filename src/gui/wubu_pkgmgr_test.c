@@ -13,6 +13,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #define TEST_ASSERT(cond, msg) \
     do { \
@@ -505,6 +506,22 @@ bool test_stats(void) {
     TEST_ASSERT(wubu_pkgmgr_get_stats(&stats), "get stats");
     TEST_ASSERT(stats.installed_count >= 0, "installed count");
     TEST_ASSERT(stats.total_repos >= 1, "stats reports the configured repo");
+
+    /* A wildcard package id must not turn desktop unregister into a
+     * multi-file deletion. */
+    mkdir("/tmp/wubu_pkgmgr_test7/install", 0755);
+    mkdir("/tmp/wubu_pkgmgr_test7/install/share", 0755);
+    mkdir("/tmp/wubu_pkgmgr_test7/install/share/applications", 0755);
+    const char *decoy = "/tmp/wubu_pkgmgr_test7/install/share/applications/decoy-1.desktop";
+    FILE *df = fopen(decoy, "w");
+    TEST_ASSERT(df != NULL, "decoy desktop file created");
+    if (df) fclose(df);
+    TEST_ASSERT(!wubu_pkgmgr_unregister_desktop("decoy*"),
+                "wildcard package id refused by unregister");
+    df = fopen(decoy, "rb");
+    TEST_ASSERT(df != NULL, "unrelated desktop file survived");
+    if (df) fclose(df);
+    unlink(decoy);
     
     wubu_pkgmgr_shutdown();
     return true;

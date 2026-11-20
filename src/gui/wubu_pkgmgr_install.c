@@ -57,7 +57,7 @@ static bool safe_rel_path(const char *s) {
 
 /* Package ids become directory names (temp dir + install root).  Restrict
  * them to a conservative charset so manifest content cannot steer paths. */
-static bool valid_pkg_id(const char *id) {
+bool pkgmgr_valid_id(const char *id) {
     if (!id || !id[0]) return false;
     if (!((id[0] >= 'a' && id[0] <= 'z') || (id[0] >= 'A' && id[0] <= 'Z') ||
           (id[0] >= '0' && id[0] <= '9'))) return false;
@@ -273,7 +273,7 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
         pkg_spec = manifest->id;
     }
 
-    if (!valid_pkg_id(manifest->id)) {
+    if (!pkgmgr_valid_id(manifest->id)) {
         fprintf(stderr, "[pkgmgr] install refused: unsafe package id '%s'\n", manifest->id);
         free(manifest);
         return false;

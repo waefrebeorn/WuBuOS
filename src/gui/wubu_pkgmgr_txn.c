@@ -110,6 +110,10 @@ bool wubu_pkgmgr_register_desktop(const wubu_pkg_installed_t* pkg) {
 }
 
 bool wubu_pkgmgr_unregister_desktop(const char* pkg_id) {
+    /* pkg_id also becomes a glob pattern below. A wildcard-bearing id
+     * would delete other packages' desktop files, so use the one charset
+     * validator the install path already owns. */
+    if (!pkgmgr_valid_id(pkg_id)) return false;
     char desktop_pattern[512];
     snprintf(desktop_pattern, sizeof(desktop_pattern), "%s/share/applications/%s-*.desktop",
              g_pkgmgr.config.install_prefix, pkg_id);

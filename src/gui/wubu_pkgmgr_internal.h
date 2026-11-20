@@ -145,6 +145,9 @@ bool install_package_files(const wubu_pkg_manifest_t *manifest, const char *src_
                            const char *install_root, uint64_t *out_total_size);
 void generate_desktop_entry(const wubu_pkg_manifest_t *manifest, int entry_idx, const char *install_path);
 
+/* One owner for package-id charset validation (install + desktop unregister). */
+bool pkgmgr_valid_id(const char *id);
+
 /* -- Fetch leaf (wubu_pkgmgr_fetch.c): download + sha256 gate ------ */
 #ifdef WUBU_HAVE_MBEDTLS
 /* Crypto build: verify a package against ANY enabled, keyed repository. */
