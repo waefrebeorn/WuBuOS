@@ -61,4 +61,15 @@ bool wubu_pkg_sign_verify_package(const char *pkg_path, size_t header_len,
                                   size_t manifest_len, const char *pubkey_hex,
                                   char *err, size_t errsz);
 
+/* Sign/verify an arbitrary command string (operator revocation CLI).  The
+ * command bytes are SHA-256-hashed to the 32-byte Ed25519 message, so any
+ * length is supported.  Domain separation is the caller's responsibility
+ * (see wubu_pkgmgr_key_command_string).  Both fail closed without mbedTLS. */
+bool wubu_pkg_sign_command(const char *command, const char *seed_hex,
+                           uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz);
+bool wubu_pkg_verify_command(const char *command, const char *pubkey_hex,
+                             const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                             char *err, size_t errsz);
+
 #endif /* WUBU_PKG_SIGN_H */

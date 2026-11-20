@@ -34,6 +34,8 @@ typedef struct {
      * this bounded cache is reloaded by wubu_pkgmgr_init(). */
     char revoked_keys[WUBU_PKGMGR_MAX_REVOKED_KEYS][65];
     int n_revoked_keys;
+    /* One-time bootstrapped operator Ed25519 public key ("" if none). */
+    char admin_pubkey[65];
     /* Non-NULL only while wubu_pkgmgr_txn_commit() is replaying items.
      * install/remove/upgrade call pkgmgr_backup_capture() through this pointer
      * so the active item records the pre-mutation snapshot. */

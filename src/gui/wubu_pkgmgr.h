@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <time.h>
 
 #ifdef __cplusplus
@@ -261,6 +262,31 @@ bool wubu_pkgmgr_key_unrevoke(const char* pubkey_hex);
 bool wubu_pkgmgr_key_is_revoked(const char* pubkey_hex);
 /* Number of revoked keys currently cached. */
 int wubu_pkgmgr_key_revoked_count(void);
+
+/* --- Authorized operator surface (CLI: tools/wubu_pkg_key_ctl) ------
+ * Revocation is a security decision: it must be signed by a one-time
+ * bootstrapped admin Ed25519 key.  The exact signed command string is
+ *   WUBU-PKG-REVOCATION-v1\n<op>\n<key>
+ * where <op> is "revoke" or "unrevoke" and <key> is the canonical lowercase
+ * 64-hex target key.  Verification happens BEFORE any DB write: a missing
+ * admin key, a wrong key, an absent/tampered signature, or a tampered op/key
+ * all refuse without touching the database. */
+#define WUBU_PKG_REVOCATION_DOMAIN "WUBU-PKG-REVOCATION-v1"
+
+/* Build the exact command string used for both signing and verification. */
+bool wubu_pkgmgr_key_command_string(const char *op, const char *pubkey_hex,
+                                    char *out, size_t outsz);
+/* One-time bootstrap of the admin public key.  Bootstrapping a DIFFERENT key
+ * afterwards is refused; the same key is an idempotent no-op. */
+bool wubu_pkgmgr_key_admin_bootstrap(const char *admin_pubkey_hex);
+/* Copy the bootstrapped admin public key (hex). False if none recorded. */
+bool wubu_pkgmgr_key_admin_pubkey(char *out, size_t outsz);
+/* Authorized mutations: sig_hex is 128 lowercase hex chars (a 64-byte
+ * Ed25519 signature) over the command string above. */
+bool wubu_pkgmgr_key_revoke_authorized(const char *pubkey_hex, const char *sig_hex);
+bool wubu_pkgmgr_key_unrevoke_authorized(const char *pubkey_hex, const char *sig_hex);
+/* Enumerate revoked keys (canonical lowercase hex) into out[i][65]. */
+int wubu_pkgmgr_key_revoked_list(char out[][65], int max);
 
 /* Search packages */
 int wubu_pkgmgr_search(const char* query, wubu_pkg_repo_entry_t* out, int max);

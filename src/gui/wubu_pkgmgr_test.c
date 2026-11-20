@@ -1583,10 +1583,55 @@ bool test_txn_rollback_restores(void) {
     return true;
 }
 
+/* Authorized revocation must fail closed without a valid operator signature.
+ * This build has no mbedTLS, so verification cannot succeed; the assertions
+ * prove that unsigned/forged commands cause NO DB write and no bootstrapped
+ * admin key can be bypassed. */
+bool test_key_revocation_auth_fail_closed(void) {
+    fixture_rm("/tmp/wubu_pkgmgr_auth_test");
+
+    wubu_pkgmgr_config_t config;
+    wubu_pkgmgr_get_default_config(&config);
+    snprintf(config.db_path, sizeof(config.db_path), "/tmp/wubu_pkgmgr_auth_test");
+    snprintf(config.cache_dir, sizeof(config.cache_dir), "/tmp/wubu_pkgmgr_auth_test/cache");
+    snprintf(config.install_prefix, sizeof(config.install_prefix), "/tmp/wubu_pkgmgr_auth_test/install");
+    snprintf(config.repo_config_dir, sizeof(config.repo_config_dir), "/tmp/wubu_pkgmgr_auth_test/repos");
+    config.verify_signatures = false;
+    config.allow_untrusted = true;
+    TEST_ASSERT(wubu_pkgmgr_init(&config), "auth-test init");
+
+    const char *admin = "0000000000000000000000000000000000000000000000000000000000000001";
+    const char *target = "0000000000000000000000000000000000000000000000000000000000000002";
+    TEST_ASSERT(wubu_pkgmgr_key_admin_bootstrap(admin), "admin bootstrap");
+    char got[65];
+    TEST_ASSERT(wubu_pkgmgr_key_admin_pubkey(got, sizeof(got)) && strcmp(got, admin) == 0,
+                "admin key persisted and reloaded");
+    TEST_ASSERT(wubu_pkgmgr_key_admin_bootstrap(
+                    "0000000000000000000000000000000000000000000000000000000000000003") == false,
+                "one-time bootstrap refuses a different key");
+
+    /* Unsigned command: refused, no DB write. */
+    TEST_ASSERT(wubu_pkgmgr_key_revoke_authorized(target, NULL) == false,
+                "unsigned revoke refused");
+    TEST_ASSERT(wubu_pkgmgr_key_is_revoked(target) == false,
+                "unsigned revoke: no DB change");
+    /* Forged 128-hex signature: refused, no DB write. */
+    char fake[129];
+    memset(fake, '0', sizeof(fake)); fake[128] = '\0';
+    TEST_ASSERT(wubu_pkgmgr_key_revoke_authorized(target, fake) == false,
+                "forged-signature revoke refused");
+    TEST_ASSERT(wubu_pkgmgr_key_is_revoked(target) == false,
+                "forged revoke: no DB change");
+    TEST_ASSERT(wubu_pkgmgr_key_revoked_count() == 0, "revoked count still zero");
+
+    wubu_pkgmgr_shutdown();
+    fixture_rm("/tmp/wubu_pkgmgr_auth_test");
+    return true;
+}
+
 /* Main */
 int main(void) {
     printf("=== WuBuOS Package Manager Tests ===\n\n");
-    
     RUN_TEST(test_default_config);
     RUN_TEST(test_lifecycle);
     RUN_TEST(test_repo_management);
@@ -1606,6 +1651,7 @@ int main(void) {
     RUN_TEST(test_schema_migration);
     RUN_TEST(test_untrusted_sql_literal);
     RUN_TEST(test_txn_rollback_restores);
+    RUN_TEST(test_key_revocation_auth_fail_closed);
     
     printf("\n=== Results: %d passed, %d failed ===\n", tests_passed, tests_failed);
     return tests_failed == 0 ? 0 : 1;

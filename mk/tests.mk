@@ -30,6 +30,36 @@ test_oci_tls:
 test_pkg_ed25519:
 	bash tools/pkg_ed25519_gate.sh
 
+# Operator CLI for authorized Ed25519 key revocation. Opt-in: needs a
+# WUBU_MBEDTLS_ROOT mbedTLS dev root (the Ed25519 primitive lives there).
+pkg_key_ctl:
+	@test -n "$(WUBU_MBEDTLS_ROOT)" || { echo "pkg_key_ctl: set WUBU_MBEDTLS_ROOT to the mbedTLS dev root" >&2; exit 2; }
+	$(CC) -w -O1 -g -std=c11 -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L -DWUBU_HAVE_MBEDTLS -DWUBU_NO_LIBM \
+		-I. -Iinclude -Isrc -Isrc/gui -Isrc/runtime -Isrc/kernel -I$(WUBU_MBEDTLS_ROOT)/usr/include \
+		-include src/runtime/wubu_gnu_compat.h \
+		src/runtime/wubu_crc32.c \
+		src/gui/wubu_pkgmgr.c src/gui/wubu_pkgmgr_verify.c src/gui/wubu_pkg_sign.c src/gui/wubu_pkg_ed25519.c \
+		src/gui/wubu_pkgmgr_resolve.c src/gui/wubu_pkgmgr_manifest.c src/gui/wubu_pkgmgr_db.c \
+		src/gui/wubu_pkgmgr_pkg.c src/gui/wubu_pkgmgr_install.c src/gui/wubu_pkgmgr_txn.c \
+		src/gui/wubu_pkgmgr_remote.c src/gui/wubu_pkgmgr_fetch.c \
+		src/gui/wubu_settings.c src/gui/wubu_settings_defaults.c src/gui/wubu_settings_io.c \
+		src/gui/wubu_theme.c \
+		src/runtime/wubu_pkg.c src/runtime/wubu_json.c src/runtime/wubu_palette.c \
+		src/runtime/styx_names.c src/runtime/styx_enc.c src/runtime/styx_serve.c \
+		src/runtime/styx_parse.c src/runtime/styx_fid.c src/runtime/styxfs_vfs.c \
+		src/runtime/styxfs_callbacks.c src/runtime/styxfs_posix.c src/runtime/styxfs_path.c \
+		src/runtime/styxfs_host.c src/runtime/styxfs_util.c \
+		src/runtime/wubu_guest_root.c src/runtime/wubu_container.c \
+		src/runtime/oci/oci_http_client.c src/kernel/wubu_math.c \
+		tools/wubu_pkg_key_ctl.c -o tools/wubu_pkg_key_ctl \
+		-L$(WUBU_MBEDTLS_ROOT)/usr/lib/x86_64-linux-gnu -lmbedtls -lmbedx509 -lmbedcrypto \
+		-Wl,-rpath,$(WUBU_MBEDTLS_ROOT)/usr/lib/x86_64-linux-gnu -lsqlite3 -lzstd -lm
+
+# Opt-in differential gate for the authorized revocation CLI (mbedTLS root
+# required; deliberately NOT in the default `make test` tier).
+test_pkg_key_revoke:
+	bash tools/pkg_key_revoke_gate.sh
+
 test_oci:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT)/wubu_crc32.c \
 		-I$(RT) -I$(KERNEL) -I$(RT)/oci \

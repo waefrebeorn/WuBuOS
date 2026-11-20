@@ -6,6 +6,7 @@
  */
 #include "wubu_pkg_sign.h"
 #include "wubu_pkg_sign_internal.h"
+#include "../runtime/wubu_crypto.h"
 
 #include <string.h>
 
@@ -408,5 +409,42 @@ cleanup:
         return false;
     }
     return ok != 0;
+}
+
+/* -- Arbitrary-length command signing (revocation CLI) ---------------
+ * SHA-256 collapses the domain-separated command to the fixed 32-byte
+ * message the Ed25519 primitive above expects.  The hex digest is decoded
+ * by the same hex_to_32() used for keys/seeds, so there is one canonical
+ * byte encoding.  Domain separation stays in the policy layer. */
+static bool command_digest(const char *command,
+                           uint8_t out[WUBU_PKG_SIGN_DIGEST_LEN]) {
+    char hex[2 * WUBU_PKG_SIGN_DIGEST_LEN + 1];
+    if (!command || !out) return false;
+    wubu_sha256_digest(command, strlen(command), hex, sizeof(hex));
+    return hex_to_32(hex, out) == 0;
+}
+
+bool wubu_pkg_sign_command(const char *command, const char *seed_hex,
+                           uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!command_digest(command, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash command for signing");
+        return false;
+    }
+    return wubu_pkg_sign_ed25519(digest, seed_hex, out_sig, err, errsz);
+}
+
+bool wubu_pkg_verify_command(const char *command, const char *pubkey_hex,
+                             const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                             char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!command_digest(command, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash command for verification");
+        return false;
+    }
+    return wubu_pkg_sign_verify_ed25519(digest, pubkey_hex, sig, err, errsz);
 }
 #endif /* WUBU_HAVE_MBEDTLS */

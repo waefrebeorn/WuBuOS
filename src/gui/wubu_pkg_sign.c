@@ -134,6 +134,21 @@ bool wubu_pkg_sign_verify_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN]
     return false;
 }
 
+bool wubu_pkg_sign_command(const char *command, const char *seed_hex,
+                           uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    (void)command; (void)seed_hex; (void)out_sig;
+    wubu_pkg_sign_set_err(err, errsz, "mbedTLS not compiled in: command signing unavailable");
+    return false;
+}
+bool wubu_pkg_verify_command(const char *command, const char *pubkey_hex,
+                             const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                             char *err, size_t errsz) {
+    (void)command; (void)pubkey_hex; (void)sig;
+    wubu_pkg_sign_set_err(err, errsz, "mbedTLS not compiled in: command verification unavailable");
+    return false;
+}
+
 #endif /* !WUBU_HAVE_MBEDTLS */
 
 bool wubu_pkg_sign_verify_package(const char *pkg_path, size_t header_len,

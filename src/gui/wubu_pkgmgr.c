@@ -8,6 +8,7 @@
  */
 
 #include "wubu_pkgmgr_internal.h"
+#include "wubu_pkg_sign.h"
 
 /* -- Global State -------------------------------------------------- */
 
@@ -90,6 +91,13 @@ static const char SCHEMA_SQL[] =
     "CREATE TABLE IF NOT EXISTS revoked_keys ("
     "  pubkey_hex TEXT PRIMARY KEY,"
     "  revoked_at INTEGER DEFAULT 0"
+    ");"
+    /* One-time operator/admin Ed25519 public key.  Single row (id = 1);
+     * public key only -- the seed never enters the DB or the repository. */
+    "CREATE TABLE IF NOT EXISTS pkg_admin_key ("
+    "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+    "  pubkey_hex TEXT NOT NULL,"
+    "  bootstrapped_at INTEGER DEFAULT 0"
     ");";
 
 /* -- Initialize ---------------------------------------------------- */
@@ -196,6 +204,109 @@ bool wubu_pkgmgr_key_is_revoked(const char *pubkey_hex) {
 
 int wubu_pkgmgr_key_revoked_count(void) { return g_pkgmgr.n_revoked_keys; }
 
+/* -- Authorized operator surface ------------------------------------
+ * Policy owner: this facade.  Crypto stays in wubu_pkg_ed25519.c; the CLI
+ * (tools/wubu_pkg_key_ctl) is a thin argument parser over these calls. */
+
+bool wubu_pkgmgr_key_command_string(const char *op, const char *pubkey_hex,
+                                    char *out, size_t outsz) {
+    if (!out || outsz < 16) return false;
+    if (!revoked_key_valid(pubkey_hex)) return false;
+    if (!op || (strcmp(op, "revoke") != 0 && strcmp(op, "unrevoke") != 0))
+        return false;
+    int n = snprintf(out, outsz, "%s\n%s\n%s",
+                     WUBU_PKG_REVOCATION_DOMAIN, op, pubkey_hex);
+    return n > 0 && (size_t)n < outsz;
+}
+
+static int cb_load_admin(void *data, int argc, char **argv, char **col) {
+    (void)data; (void)col;
+    if (argc < 1 || !argv[0] || !revoked_key_valid(argv[0])) return 0;
+    snprintf(g_pkgmgr.admin_pubkey, sizeof(g_pkgmgr.admin_pubkey), "%s", argv[0]);
+    return 0;
+}
+
+static bool admin_reload(void) {
+    g_pkgmgr.admin_pubkey[0] = '\0';
+    if (!g_pkgmgr.db) return false;
+    return db_query("SELECT pubkey_hex FROM pkg_admin_key WHERE id = 1",
+                    cb_load_admin, NULL) == 0;
+}
+
+bool wubu_pkgmgr_key_admin_bootstrap(const char *admin_pubkey_hex) {
+    if (!revoked_key_valid(admin_pubkey_hex) || !g_pkgmgr.db) return false;
+    if (g_pkgmgr.admin_pubkey[0]) {
+        /* One-time: only the identical key may be re-submitted (no-op). */
+        return strcmp(g_pkgmgr.admin_pubkey, admin_pubkey_hex) == 0;
+    }
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "INSERT INTO pkg_admin_key (id, pubkey_hex, bootstrapped_at) "
+            "VALUES (1, ?1, ?2)", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, admin_pubkey_hex, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 2, (sqlite3_int64)time(NULL));
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok && admin_reload();
+}
+
+bool wubu_pkgmgr_key_admin_pubkey(char *out, size_t outsz) {
+    if (!out || outsz < 65 || !g_pkgmgr.admin_pubkey[0]) return false;
+    snprintf(out, outsz, "%s", g_pkgmgr.admin_pubkey);
+    return true;
+}
+
+/* Decode 128 lowercase hex chars into a 64-byte Ed25519 signature. */
+static bool sig_hex_to_bytes(const char *hex, uint8_t out[64]) {
+    if (!hex || !out || strlen(hex) != 128) return false;
+    static const char digits[] = "0123456789abcdef";
+    for (size_t i = 0; i < 128; i += 2) {
+        const char *p1 = strchr(digits, hex[i]);
+        const char *p2 = strchr(digits, hex[i + 1]);
+        if (!p1 || !p2) return false;
+        out[i / 2] = (uint8_t)(((p1 - digits) << 4) | (p2 - digits));
+    }
+    return true;
+}
+
+/* Verify the operator signature over the exact domain-separated command.
+ * No DB write occurs here; callers proceed only on true. */
+static bool authorize_command(const char *op, const char *pubkey_hex,
+                              const char *sig_hex) {
+    char cmd[256];
+    uint8_t sig[64];
+    char err[256];
+    if (!wubu_pkgmgr_key_command_string(op, pubkey_hex, cmd, sizeof(cmd)))
+        return false;
+    if (!g_pkgmgr.admin_pubkey[0]) return false;      /* no bootstrap: fail closed */
+    if (!sig_hex_to_bytes(sig_hex, sig)) return false; /* unsigned/malformed */
+    return wubu_pkg_verify_command(cmd, g_pkgmgr.admin_pubkey, sig,
+                                   err, sizeof(err));
+}
+
+bool wubu_pkgmgr_key_revoke_authorized(const char *pubkey_hex, const char *sig_hex) {
+    if (!revoked_key_valid(pubkey_hex)) return false;
+    if (!authorize_command("revoke", pubkey_hex, sig_hex)) return false;
+    return wubu_pkgmgr_key_revoke(pubkey_hex);
+}
+
+bool wubu_pkgmgr_key_unrevoke_authorized(const char *pubkey_hex, const char *sig_hex) {
+    if (!revoked_key_valid(pubkey_hex)) return false;
+    if (!authorize_command("unrevoke", pubkey_hex, sig_hex)) return false;
+    return wubu_pkgmgr_key_unrevoke(pubkey_hex);
+}
+
+int wubu_pkgmgr_key_revoked_list(char out[][65], int max) {
+    if (!out || max < 0) return 0;
+    int n = g_pkgmgr.n_revoked_keys < max ? g_pkgmgr.n_revoked_keys : max;
+    for (int i = 0; i < n; i++)
+        snprintf(out[i], 65, "%s", g_pkgmgr.revoked_keys[i]);
+    return n;
+}
+
 bool wubu_pkgmgr_init(const wubu_pkgmgr_config_t *config) {
     if (g_pkgmgr.initialized) return true;
     memcpy(&g_pkgmgr.config, config, sizeof(*config));
@@ -220,6 +331,14 @@ bool wubu_pkgmgr_init(const wubu_pkgmgr_config_t *config) {
     /* Authoritative revocations must load before any verify/install path is
      * reachable: a failed reload fails initialization closed. */
     if (!keyrev_reload()) {
+        sqlite3_close(g_pkgmgr.db);
+        g_pkgmgr.db = NULL;
+        return false;
+    }
+
+    /* The bootstrapped admin key must be authoritative before any authorized
+     * path is reachable: fail initialization closed on a reload error. */
+    if (!admin_reload()) {
         sqlite3_close(g_pkgmgr.db);
         g_pkgmgr.db = NULL;
         return false;
