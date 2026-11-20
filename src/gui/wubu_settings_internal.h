@@ -38,4 +38,9 @@ bool ensure_config_dir(void);
 int wubu_settings_save(void);
 int wubu_settings_load(void);
 
+/* Rebuild the bounded parsed URL list from the persisted CSV key. Called on
+ * load and immediately before save so the array can never be a stale second
+ * source of truth (wubu_settings_io.c). */
+void settings_rebuild_sync_url_list(WubuSettings *s);
+
 #endif /* WUBU_SETTINGS_INTERNAL_H */

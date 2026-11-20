@@ -1135,7 +1135,7 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 	$(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
 	$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
 	$(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.o) \
-	-o wubu_gui_shot $(HOSTED_LIBS)
+	-o wubu_gui_shot $(HOSTED_LIBS) $(HOSTED_TLS_LIBS)
 	./wubu_gui_shot
 
 # linux_product_gate: prove the Linux product boots and renders, not just
@@ -2029,7 +2029,7 @@ test_era_apps: $(EDR_RT_OBJS) $(GUI)/era_apps.o $(GUI)/wubu_theme.o $(COMP_OBJS)
 		$(RT)/wubu_ct_isolate_cgroup.o \
 		$(KERNEL)/wubu_kvfs.o $(KERNEL)/input.o $(COMP)/jit/wubu_isa_wasm.o $(COMP)/wubu_tgemm_avx512.o $(RT)/wubu_hw_sensors_fallback.o $(RT)/wubu_wine_env.o $(RT)/wubu_hw_fallback.o $(KERNEL)/wubu_math.o $(COMP)/holyd_semantic.o \
 		-no-pie \
-		-ljson-c -lsqlite3 -lzstd -lz -ldl -lvulkan -lm -lpthread -fopenmp -o $(GUI)/era_apps_test
+		-ljson-c -lsqlite3 -lzstd -lz -ldl -lvulkan -lm -lpthread -fopenmp $(HOSTED_TLS_LIBS) -o $(GUI)/era_apps_test
 	# Build the era-app demo artifacts from their committed sources
 	# (native ELF for the Linux/VSL leg, PE for the Wine/NT leg). HolyC
 	# demo is source-only (JIT-ed). Left out of git: built each run.

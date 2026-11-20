@@ -15,9 +15,13 @@ trusted_sync_url=https://keys.example.org/revoke/feed
 ```
 
 The full URL text must match exactly; there is no prefix, wildcard, or
-redirect-following.  Three additional sources feed the same bounded set:
+redirect-following. Three additional sources feed the same bounded set:
 the `WUBU_PKGMGR_SYNC_URLS` environment variable (comma-separated), the CLI
-`--trusted` flag, and the GUI settings store key `trusted_sync_url`.
+`--trusted` flag, and the GUI settings store key `trusted_sync_url`. That key
+is a **bounded comma-separated list** (`WUBU_SETTINGS_TRUSTED_SYNC_URLS_MAX`,
+16): the settings layer parses it into a fixed-capacity array on load and on
+save, and the Control Panel adds/removes entries through that list rather than
+holding a second on-disk copy.
 The settings key is persisted by `wubu_settings_save()` and read through
 `wubu_settings_trusted_sync_url()` inside `wubu_pkg_sync_config_load()`, so a
 URL configured in GUI settings works on a fresh process with no config file,
@@ -70,10 +74,12 @@ chains to the CA in `WUBU_CA_BUNDLE` and its DNS name matches the URL host.
 
 The **Revocation Sync** applet in the Control Panel is the GUI face of this
 leaf (`src/gui/wubu_pkgmgr_sync_panel.c`, registered through
-`controlpanel.c`). It shows the committed `trusted_sync_url`, lets the user
-type a new URL and press Enter (or click **Save**), persists it through
-`wubu_settings_mut()` + `wubu_settings_save()`, and runs one bounded signed
-sync on **Sync Now**. Every action goes through the importer above; the widget
+`controlpanel.c`). It shows the committed trusted URLs (a bounded list of up to 16), lets the user
+type a URL and press Enter (or click **Save**) to replace the list, or click
+**Add**/**Del** to append/remove entries, persists through `wubu_settings_mut()`
++ `wubu_settings_save()`, and runs one bounded signed sync on **Sync Now**
+(every committed URL is attempted in one bounded pass; a refusal leaves the DB
+untouched). Every action goes through the importer above; the widget
 contains no crypto or DB code of its own.
 
 The same applet carries a **bounded scheduled loop**: **Auto** off by default
@@ -100,28 +106,34 @@ refusal doubles it until the cap. A successful sync resets `fail_count` and
 the delay back to `initial`. Only scheduled attempts move this state; a manual
 **Sync Now** click does not perturb it. Reloading settings also clears it.
 `cp_pkg_sync_backoff_delay()` in `src/gui/wubu_pkgmgr_sync_panel.c` is the
-single implementation used by both the tick and the gate.
+single implementation of the base schedule used by both the tick and the gate.
+
+That base is **jittered** by default: `sync_backoff_jitter_pct` (default 20,
+bounded to 0..100) applies a symmetric `1 +/- pct` multiplier to the base
+delay. `cp_pkg_sync_backoff_delay_jittered()` is pure (base, fail count,
+jitter percent, and a basis-point sample in `[0,10000]`), clamps the result to
+`[1, max_secs]`, and is the one function the tick calls; gates inject the
+sample to assert exact lower/upper bounds. Jitter 0 reproduces the exact
+exponential schedule.
 
 ## HTTPS in the hosted build: verified negative + config gate
 
-The **default** hosted build deliberately does **not** link mbedTLS:
-`src/runtime/oci/oci_http_client.c` returns -1 for `use_tls` without
-`-DWUBU_HAVE_MBEDTLS`. Exact build evidence is a recipe with no
-`-DWUBU_HAVE_MBEDTLS` and no `-lmbedtls` on the link line (captured by
-`tools/hosted_tls_gate.sh`). Making a network-fetched dev root a hard dependency
-of every hosted build would break bare runners, so instead TLS is a
-**configuration gate**:
+The DEFAULT hosted build links mbedTLS **when a dev root is already present**
+(`WUBU_MBEDTLS_ROOT` or the repo-local `.cache/mbedtls-devroot`); detection is
+a build-time probe with no network fetch. In that state the GUI sync widget's
+`https://` path is live. Without a dev root the default stays fail-closed
+HTTP-only (`oci_http_connect` returns -1 without `WUBU_HAVE_MBEDTLS`), the
+EdDSA ladder and HTTP sync path keep working, and the widget refuses `https://`
+before opening a socket. TLS can be forced either way explicitly:
 
 ```bash
-make hosted HOSTED_TLS=1 WUBU_MBEDTLS_ROOT=<extracted mbedTLS dev root>
+make hosted HOSTED_TLS=0   # fail-closed HTTP even with a dev root present
+make hosted HOSTED_TLS=1   # requires an already-present dev root; never fetches
 ```
 
-That compiles the mbedTLS-backed HTTPS path into the hosted product and links
-`-lmbedtls -lmbedx509 -lmbedcrypto`. The widget additionally refuses an
-`https://` URL up front when built without TLS (no socket is opened) and
-reports the `HOSTED_TLS=1` requirement. `make test_hosted_tls` proves both
-states with build evidence plus a loopback TLS fixture (untrusted CA refused,
-trusted CA accepted) and is part of `test_optin_crypto`.
+`make test_hosted_tls` proves all states with exact build evidence plus a
+loopback TLS fixture (untrusted CA refused, trusted CA accepted) and is part
+of `test_optin_crypto`.
 
 ## Gate
 

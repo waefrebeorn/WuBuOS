@@ -62,7 +62,7 @@ static int try_connect(int port, const char *ca) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) return 90;
+    if (argc != 3 && argc != 4) return 90;
     int lfd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = {0};
     addr.sin_family = AF_INET; addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -81,10 +81,25 @@ int main(int argc, char **argv) {
     if (p2 == 0) _exit(serve_once(argv[1], argv[2], lfd));
     int r2 = try_connect(port, argv[1]);
     int st2; waitpid(p2, &st2, 0);
+
+    /* A DIFFERENT, valid CA must also be refused -- this is the untrusted-CA
+     * differential: VERIFY_NONE or a hardcoded bundle cannot distinguish it. */
+    int r3 = 0;
+    if (argc == 4) {
+        pid_t p3 = fork();
+        if (p3 == 0) _exit(serve_once(argv[1], argv[2], lfd));
+        r3 = try_connect(port, argv[3]);
+        int st3; waitpid(p3, &st3, 0);
+    }
     close(lfd);
 
-    printf("no-CA connect=%d (want <0), trusted-CA connect=%d (want 0)\n", r1, r2);
-    if (r1 >= 0) { fprintf(stderr, "FAIL: accepted an unauthenticated server\n"); return 1; }
+    if (argc == 4)
+        printf("no-CA connect=%d (want <0), untrusted-CA connect=%d (want <0), "
+               "trusted-CA connect=%d (want 0)\n", r1, r3, r2);
+    else
+        printf("no-CA connect=%d (want <0), trusted-CA connect=%d (want 0)\n", r1, r2);
+    if (r1 >= 0 || (argc == 4 && r3 >= 0)) {
+        fprintf(stderr, "FAIL: accepted an unauthenticated server\n"); return 1; }
     if (r2 != 0) { fprintf(stderr, "FAIL: rejected a trusted server\n"); return 2; }
     printf("TLS VERIFY GATE PASS\n");
     return 0;

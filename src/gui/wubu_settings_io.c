@@ -102,9 +102,42 @@ static void save_privacy(FILE *f, const PrivacySettings *p, int indent) {
     json_write_key(f, "auto_clear_temp", indent); json_write_bool(f, p->auto_clear_temp);
 }
 
+/* Parse the persisted CSV into the bounded array. Whitespace is trimmed,
+ * empty entries and duplicates are dropped, and the array is cleared first
+ * so a shortened CSV never leaves a stale URL behind. */
+void settings_rebuild_sync_url_list(WubuSettings *s) {
+    char buf[WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX + 1];
+    char *tok;
+    if (!s) return;
+    memset(s->trusted_sync_urls, 0, sizeof(s->trusted_sync_urls));
+    s->trusted_sync_url_count = 0;
+    snprintf(buf, sizeof(buf), "%s", s->trusted_sync_url);
+    tok = strtok(buf, ",");
+    while (tok && s->trusted_sync_url_count < (int)WUBU_SETTINGS_TRUSTED_SYNC_URLS_MAX) {
+        char *e;
+        while (*tok == ' ' || *tok == '\t') tok++;
+        e = tok + strlen(tok);
+        while (e > tok && (e[-1] == ' ' || e[-1] == '\t' ||
+                           e[-1] == '\r' || e[-1] == '\n')) *(--e) = '\0';
+        if (*tok) {
+            bool dup = false;
+            for (int i = 0; i < s->trusted_sync_url_count; i++) {
+                if (strcmp(s->trusted_sync_urls[i], tok) == 0) { dup = true; break; }
+            }
+            if (!dup) {
+                snprintf(s->trusted_sync_urls[s->trusted_sync_url_count],
+                         WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX, "%s", tok);
+                s->trusted_sync_url_count++;
+            }
+        }
+        tok = strtok(NULL, ",");
+    }
+}
+
 /* Save all settings to file */
 int wubu_settings_save(void) {
     if (!ensure_config_dir()) return -1;
+    settings_rebuild_sync_url_list(&g_settings);
     FILE *f = fopen(wubu_settings_path(), "w");
     if (!f) return -1;
     g_settings.last_modified = (uint64_t)time(NULL);
@@ -116,6 +149,7 @@ int wubu_settings_save(void) {
     fprintf(f, "%*s\"sync_interval_secs\": ", 2, ""); json_write_int(f, g_settings.sync_interval_secs); fprintf(f, ",\n");
     fprintf(f, "%*s\"sync_backoff_initial_secs\": ", 2, ""); json_write_int(f, g_settings.sync_backoff_initial_secs); fprintf(f, ",\n");
     fprintf(f, "%*s\"sync_backoff_max_secs\": ", 2, ""); json_write_int(f, g_settings.sync_backoff_max_secs); fprintf(f, ",\n");
+    fprintf(f, "%*s\"sync_backoff_jitter_pct\": ", 2, ""); json_write_int(f, g_settings.sync_backoff_jitter_pct); fprintf(f, ",\n");
     fprintf(f, "%*s\"theme\": {\n", 2, ""); save_theme(f, &g_settings.theme, 4); fprintf(f, "\n%*s},\n", 2, "");
     fprintf(f, "%*s\"fonts\": {\n", 2, ""); save_fonts(f, &g_settings.fonts, 4); fprintf(f, "\n%*s},\n", 2, "");
     fprintf(f, "%*s\"keyboard\": {\n", 2, ""); save_keyboard(f, &g_settings.keyboard, 4); fprintf(f, "\n%*s},\n", 2, "");
@@ -253,6 +287,12 @@ int wubu_settings_load(void) {
             if (g_settings.sync_backoff_max_secs < g_settings.sync_backoff_initial_secs)
                 g_settings.sync_backoff_max_secs = g_settings.sync_backoff_initial_secs;
         }
+        if ((v = json_find(root, "sync_backoff_jitter_pct")) && v->type == JSON_TYPE_NUMBER) {
+            g_settings.sync_backoff_jitter_pct = v->int_value;
+            if (g_settings.sync_backoff_jitter_pct < 0) g_settings.sync_backoff_jitter_pct = 0;
+            if (g_settings.sync_backoff_jitter_pct > 100) g_settings.sync_backoff_jitter_pct = 100;
+        }
+        settings_rebuild_sync_url_list(&g_settings);
         if ((v = json_find(root, "theme"))) load_theme(v, &g_settings.theme);
         if ((v = json_find(root, "fonts"))) load_fonts(v, &g_settings.fonts);
         if ((v = json_find(root, "keyboard"))) load_keyboard(v, &g_settings.keyboard);

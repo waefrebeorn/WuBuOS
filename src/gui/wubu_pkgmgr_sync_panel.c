@@ -29,9 +29,21 @@
 
 static PkSyncPanelState g_sync;
 static PkSyncClockFn    g_clock;
+static PkSyncJitterFn   g_jitter;
 static bool             g_busy;
+static unsigned         g_jitter_seed = 0x9E3779B9u;
 
 static int64_t sync_now_time(void) { return g_clock ? g_clock() : (int64_t)time(NULL); }
+
+void cp_pkg_sync_set_jitter_fn(PkSyncJitterFn fn) { g_jitter = fn; }
+
+/* Built-in jitter source: a cheap deterministic PRNG. No cryptography is
+ * involved -- this only de-synchronises retries, and the delay is still
+ * bounded by cp_pkg_sync_backoff_delay_jittered(). */
+static unsigned jitter_rand_bp(void) {
+    g_jitter_seed = g_jitter_seed * 1103515245u + 12345u;
+    return ((g_jitter_seed >> 8) % 10001u);
+}
 
 static void sync_seterr(char *err, size_t errsz, const char *msg) {
     if (err && errsz) {
@@ -62,8 +74,29 @@ int cp_pkg_sync_backoff_delay(int initial_secs, int max_secs, int fail_count) {
     return (int)d;
 }
 
-/* Compile-time build capability.  The default hosted build has no mbedTLS, so
- * the widget refuses https:// up front instead of opening a non-TLS socket. */
+int cp_pkg_sync_backoff_delay_jittered(int initial_secs, int max_secs,
+                                       int fail_count, int jitter_pct,
+                                       unsigned rand_bp) {
+    int base = cp_pkg_sync_backoff_delay(initial_secs, max_secs, fail_count);
+    int64_t mult, v;
+    if (max_secs < base) max_secs = base;
+    if (jitter_pct <= 0) return base;                 /* 0 == exact base */
+    if (jitter_pct > WUBU_SYNC_BACKOFF_MAX_JITTER_PCT)
+        jitter_pct = WUBU_SYNC_BACKOFF_MAX_JITTER_PCT;
+    if (rand_bp > 10000u) rand_bp = 10000u;
+    /* 1 +/- jitter_pct percent, expressed in basis points: rand_bp=0 -> (1-j),
+     * rand_bp=10000 -> (1+j), rand_bp=5000 -> 1. */
+    mult = 10000 + ((int64_t)rand_bp * 2 - 10000) * jitter_pct / 100;
+    v = (int64_t)base * mult / 10000;
+    if (v < 1) v = 1;
+    if (v > max_secs) v = max_secs;
+    return (int)v;
+}
+
+/* Build capability: a hosted build with an available mbedTLS dev root links
+ * the HTTPS path by default (HOSTED_TLS auto-detected, no fetch); a no-TLS
+ * build (HOSTED_TLS=0 or no dev root) refuses https:// up front instead of
+ * opening a non-TLS socket. */
 bool cp_pkg_sync_tls_capable(void) {
 #ifdef WUBU_HAVE_MBEDTLS
     return true;
@@ -85,11 +118,27 @@ void cp_pkg_sync_button_rects(int rects[5][4]) {
     }
 }
 
+void cp_pkg_sync_url_button_rects(int rects[2][4]) {
+    static const int xr[2] = { 206, 260 };
+    static const int yr[2] = { 76, 76 };
+    static const int wr[2] = { 48, 48 };
+    if (!rects) return;
+    for (int i = 0; i < 2; i++) {
+        rects[i][0] = xr[i];
+        rects[i][1] = yr[i];
+        rects[i][2] = wr[i];
+        rects[i][3] = 24;
+    }
+}
+
 void cp_pkg_sync_reload_from_settings(void) {
     const WubuSettings *set = wubu_settings_get();
     PkSyncPanelState *s = &g_sync;
-    snprintf(s->url, sizeof(s->url), "%s", set ? set->trusted_sync_url : "");
+    int n = wubu_settings_sync_url_count();
+    const char *first = n > 0 ? wubu_settings_sync_url_at(0) : "";
+    snprintf(s->url, sizeof(s->url), "%s", first);
     s->url_len = strlen(s->url);
+    s->active_url = 0;
     s->auto_enabled = set ? set->sync_auto_enabled : false;
     s->interval_secs = set ? set->sync_interval_secs : 0;
     if (s->interval_secs < WUBU_SYNC_MIN_INTERVAL) s->interval_secs = WUBU_SYNC_MIN_INTERVAL;
@@ -105,6 +154,12 @@ void cp_pkg_sync_reload_from_settings(void) {
         s->backoff_max_secs > WUBU_SYNC_BACKOFF_HARD_MAX)
         s->backoff_max_secs = (s->backoff_initial_secs > WUBU_SYNC_BACKOFF_DEFAULT_MAX)
                               ? s->backoff_initial_secs : WUBU_SYNC_BACKOFF_DEFAULT_MAX;
+    s->jitter_pct = set ? set->sync_backoff_jitter_pct
+                        : WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_JITTER;
+    if (s->jitter_pct < 0) s->jitter_pct = 0;
+    if (s->jitter_pct > WUBU_SYNC_BACKOFF_MAX_JITTER_PCT)
+        s->jitter_pct = WUBU_SYNC_BACKOFF_MAX_JITTER_PCT;
+    s->jitter_bp = 0;
     s->editing = false;
     s->fail_count = 0;               /* (re)load clears retry state */
     s->retry_secs = s->backoff_initial_secs;
@@ -113,21 +168,95 @@ void cp_pkg_sync_reload_from_settings(void) {
     s->last_ok = true;
 }
 
-/* Persist the edited URL AND the loop configuration through the one settings
- * object, then save. Writing a value without saving/applied through the
- * settings object would be decorative (two sources of truth). */
-static bool sync_persist(PkSyncPanelState *s, char *err, size_t errsz) {
-    WubuSettings *set = wubu_settings_mut();
-    if (!set) { sync_seterr(err, errsz, "settings unavailable"); return false; }
-    snprintf(set->trusted_sync_url, sizeof(set->trusted_sync_url), "%s", s->url);
+/* Persist only the loop/jitter configuration, leaving the bounded URL list
+ * intact (used by the Auto toggle and interval buttons). */
+static void sync_write_config(PkSyncPanelState *s, WubuSettings *set) {
     set->sync_auto_enabled = s->auto_enabled;
     set->sync_interval_secs = s->interval_secs;
     set->sync_backoff_initial_secs = s->backoff_initial_secs;
     set->sync_backoff_max_secs = s->backoff_max_secs;
+    set->sync_backoff_jitter_pct = s->jitter_pct;
+}
+
+static bool sync_persist_config(PkSyncPanelState *s, char *err, size_t errsz) {
+    WubuSettings *set = wubu_settings_mut();
+    if (!set) { sync_seterr(err, errsz, "settings unavailable"); return false; }
+    sync_write_config(s, set);
     if (wubu_settings_save() != 0) {
         sync_seterr(err, errsz, "settings save failed");
         return false;
     }
+    return true;
+}
+
+/* Persist an edit of the URL field. A typed URL REPLACES the bounded list
+ * (the legacy single-field gesture); use cp_pkg_sync_url_add() to append. */
+static bool sync_persist(PkSyncPanelState *s, char *err, size_t errsz) {
+    WubuSettings *set = wubu_settings_mut();
+    const char *u = s->url;
+    if (!set) { sync_seterr(err, errsz, "settings unavailable"); return false; }
+    sync_write_config(s, set);
+    if (wubu_settings_sync_url_set(&u, u[0] ? 1 : 0) < 0) {
+        sync_seterr(err, errsz, "settings save failed");
+        return false;
+    }
+    return true;
+}
+
+/* -- Bounded multi-URL list --------------------------------------- */
+
+int cp_pkg_sync_url_count(void) { return wubu_settings_sync_url_count(); }
+
+const char *cp_pkg_sync_url_at(int idx) { return wubu_settings_sync_url_at(idx); }
+
+bool cp_pkg_sync_url_add(const char *url, char *err, size_t errsz) {
+    const char *urls[WUBU_SYNC_PANEL_MAX_URLS];
+    PkSyncPanelState *s = &g_sync;
+    int n = wubu_settings_sync_url_count();
+    if (!url || !*url || strlen(url) >= WUBU_SYNC_PANEL_URL_MAX) {
+        sync_seterr(err, errsz, "empty or oversize sync url"); return false;
+    }
+    if (n >= (int)WUBU_SYNC_PANEL_MAX_URLS) {
+        sync_seterr(err, errsz, "sync url list is full"); return false;
+    }
+    for (int i = 0; i < n; i++) {
+        urls[i] = wubu_settings_sync_url_at(i);
+        if (strcmp(urls[i], url) == 0) {
+            sync_seterr(err, errsz, "sync url already trusted"); return false;
+        }
+    }
+    urls[n] = url;
+    if (wubu_settings_sync_url_set(urls, n + 1) < 0) {
+        sync_seterr(err, errsz, "settings save failed"); return false;
+    }
+    s->active_url = n;
+    snprintf(s->url, sizeof(s->url), "%s", url);
+    s->url_len = strlen(s->url);
+    s->editing = false;
+    snprintf(s->status, sizeof(s->status), "added trusted URL (%d total)", n + 1);
+    s->last_ok = true;
+    return true;
+}
+
+bool cp_pkg_sync_url_remove(int idx, char *err, size_t errsz) {
+    const char *urls[WUBU_SYNC_PANEL_MAX_URLS];
+    PkSyncPanelState *s = &g_sync;
+    int n = wubu_settings_sync_url_count();
+    if (idx < 0 || idx >= n) {
+        sync_seterr(err, errsz, "no such sync url"); return false;
+    }
+    for (int i = 0, j = 0; i < n; i++) {
+        if (i == idx) continue;
+        urls[j++] = wubu_settings_sync_url_at(i);
+    }
+    if (wubu_settings_sync_url_set(urls, n - 1) < 0) {
+        sync_seterr(err, errsz, "settings save failed"); return false;
+    }
+    s->active_url = 0;
+    snprintf(s->url, sizeof(s->url), "%s", n - 1 ? wubu_settings_sync_url_at(0) : "");
+    s->url_len = strlen(s->url);
+    snprintf(s->status, sizeof(s->status), "removed trusted URL (%d left)", n - 1);
+    s->last_ok = true;
     return true;
 }
 
@@ -148,43 +277,73 @@ bool cp_pkg_sync_apply_url(char *err, size_t errsz) {
 bool cp_pkg_sync_sync_now(char *err, size_t errsz) {
     PkSyncPanelState *s = &g_sync;
     wubu_pkg_sync_config_t cfg;
-    char local_err[256];
+    const char *targets[WUBU_SYNC_PANEL_MAX_URLS];
+    char local_err[256], first_err[256];
     size_t applied = 0;
-    const char *target;
-    bool ok;
+    int n, attempted = 0, refused = 0;
 
     if (g_busy) { sync_seterr(err, errsz, "sync already in progress"); return false; }
     g_busy = true;
 
-    /* Rebuild trust from the settings store on EVERY attempt. A URL edited
-     * but not applied is not in the set and is refused; a rotated feed URL
-     * applied later is picked up by the next scheduled tick. */
+    /* Rebuild trust from the settings store on EVERY attempt. An edited-but-
+     * not-applied URL is not in the set and is refused; every applied URL in
+     * the bounded list is attempted in one bounded pass. */
     wubu_pkg_sync_config_init(&cfg);
     wubu_pkg_sync_config_load(NULL, NULL, &cfg);
-    target = s->url[0] ? s->url : wubu_settings_trusted_sync_url();
-
-    local_err[0] = '\0';
-    if (!cp_pkg_sync_tls_capable() && strncmp(target, "https://", 8) == 0) {
-        /* Config gate: a no-TLS build refuses HTTPS before any network I/O. */
-        snprintf(local_err, sizeof(local_err),
-                 "https:// requires TLS; build the hosted product with HOSTED_TLS=1");
-        ok = false;
+    n = wubu_settings_sync_url_count();
+    if (n > 0) {
+        for (int i = 0; i < n; i++) targets[i] = wubu_settings_sync_url_at(i);
     } else {
-        ok = wubu_pkgmgr_key_feed_sync(target, &cfg, &applied,
-                                       local_err, sizeof(local_err));
+        targets[0] = s->url[0] ? s->url : wubu_settings_trusted_sync_url();
+        n = 1;
+    }
+    if (n > (int)WUBU_SYNC_PANEL_MAX_URLS) n = (int)WUBU_SYNC_PANEL_MAX_URLS;
+
+    local_err[0] = first_err[0] = '\0';
+    /* An uncommitted edit must never silently sync a different URL. */
+    if (s->url[0]) {
+        bool committed = false;
+        for (int i = 0; i < n; i++)
+            if (strcmp(targets[i], s->url) == 0) { committed = true; break; }
+        if (!committed) {
+            snprintf(first_err, sizeof(first_err), "sync url not in trusted sync config");
+        }
+    }
+    for (int i = 0; i < n && !first_err[0]; i++) {
+        size_t got = 0;
+        bool one;
+        attempted++;
+        local_err[0] = '\0';
+        if (!cp_pkg_sync_tls_capable() && strncmp(targets[i], "https://", 8) == 0) {
+            /* No-TLS build: refuse HTTPS before any socket is opened. */
+            snprintf(local_err, sizeof(local_err),
+                     "https:// requires TLS; build the hosted product with HOSTED_TLS=1");
+            one = false;
+        } else {
+            one = wubu_pkgmgr_key_feed_sync(targets[i], &cfg, &got,
+                                            local_err, sizeof(local_err));
+        }
+        if (one) applied += got;
+        else {
+            refused++;
+            snprintf(first_err, sizeof(first_err), "%s",
+                     local_err[0] ? local_err : "sync refused");
+        }
     }
     g_busy = false;
 
-    if (ok) {
+    if (!first_err[0] && attempted > 0) {
         s->applied_total += (int)applied;
-        snprintf(s->status, sizeof(s->status), "OK: applied %zu revocation(s)", applied);
+        snprintf(s->status, sizeof(s->status), "OK: applied %zu revocation(s) from %d URL(s)",
+                 applied, attempted);
     } else {
         snprintf(s->status, sizeof(s->status), "REFUSED: %s",
-                 local_err[0] ? local_err : "sync refused");
+                 first_err[0] ? first_err : "no trusted sync URL");
     }
-    s->last_ok = ok;
-    if (err && errsz) snprintf(err, errsz, "%s", local_err);
-    return ok;
+    s->last_ok = (first_err[0] == '\0' && attempted > 0);
+    if (err && errsz) snprintf(err, errsz, "%s", first_err);
+    (void)refused;
+    return s->last_ok;
 }
 
 int cp_pkg_sync_tick(void) {
@@ -213,10 +372,14 @@ int cp_pkg_sync_tick(void) {
         s->fail_count = 0;
         s->retry_secs = s->backoff_initial_secs;
     } else {
+        unsigned bp = g_jitter ? g_jitter() : jitter_rand_bp();
+        if (bp > 10000u) bp = 10000u;
+        s->jitter_bp = bp;
         s->fail_count++;
-        s->retry_secs = cp_pkg_sync_backoff_delay(s->backoff_initial_secs,
-                                                  s->backoff_max_secs,
-                                                  s->fail_count);
+        s->retry_secs = cp_pkg_sync_backoff_delay_jittered(s->backoff_initial_secs,
+                                                           s->backoff_max_secs,
+                                                           s->fail_count,
+                                                           s->jitter_pct, bp);
     }
     return ok ? 1 : -1;
 }
@@ -225,10 +388,10 @@ int cp_pkg_sync_test_line(char *out, size_t cap) {
     PkSyncPanelState *s = &g_sync;
     if (!out || cap == 0) return -1;
     snprintf(out, cap,
-             "url=%s auto=%d interval=%d initial=%d max=%d fails=%d retry=%d "
-             "manual=%d scheduled=%d applied=%d last_ok=%d status=%s",
-             s->url, s->auto_enabled ? 1 : 0, s->interval_secs,
-             s->backoff_initial_secs, s->backoff_max_secs,
+             "url=%s urls=%d auto=%d interval=%d initial=%d max=%d jitter=%d%% bp=%u "
+             "fails=%d retry=%d manual=%d scheduled=%d applied=%d last_ok=%d status=%s",
+             s->url, wubu_settings_sync_url_count(), s->auto_enabled ? 1 : 0, s->interval_secs,
+             s->backoff_initial_secs, s->backoff_max_secs, s->jitter_pct, s->jitter_bp,
              s->fail_count, s->retry_secs,
              s->manual_runs, s->scheduled_runs, s->applied_total,
              s->last_ok ? 1 : 0, s->status);
@@ -261,6 +424,16 @@ static void sync_render(CpApplet *applet, uint32_t *fb, int x, int y, int w, int
     vbe_fill_rect(x + rects[1][0], y + rects[1][1], rects[1][2], rects[1][3], 0xFF2F4F8Fu);
     vbe_draw_text(x + rects[1][0] + 6, y + rects[1][1] + 6, "Sync Now", 0xFFFFFFFFu, 1);
 
+    char list_lbl[64];
+    snprintf(list_lbl, sizeof(list_lbl), "URLs:%d", wubu_settings_sync_url_count());
+    vbe_draw_text(x + 206, y + 40, list_lbl, 0xFF9AD0FFu, 1);
+    int ur[2][4];
+    cp_pkg_sync_url_button_rects(ur);
+    vbe_fill_rect(x + ur[0][0], y + ur[0][1], ur[0][2], ur[0][3], 0xFF2F6F3Fu);
+    vbe_draw_text(x + ur[0][0] + 12, y + ur[0][1] + 6, "Add", 0xFFFFFFFFu, 1);
+    vbe_fill_rect(x + ur[1][0], y + ur[1][1], ur[1][2], ur[1][3], 0xFF4A4A4Au);
+    vbe_draw_text(x + ur[1][0] + 14, y + ur[1][1] + 6, "Del", 0xFFFFFFFFu, 1);
+
     vbe_fill_rect(x + rects[2][0], y + rects[2][1], rects[2][2], rects[2][3],
                   s->auto_enabled ? 0xFF2F6F3Fu : 0xFF4A4A4Au);
     char auto_lbl[48];
@@ -287,28 +460,33 @@ static bool sync_in_rect(int px, int py, const int r[4]) {
 
 static void sync_mouse(CpApplet *applet, int x, int y, int btn, int kind) {
     PkSyncPanelState *s = &g_sync;
-    int rects[5][4];
+    int rects[5][4], ur[2][4];
     char err[256];
     (void)applet;
     if (btn != 1 || kind != 1) return;   /* press only */
     cp_pkg_sync_button_rects(rects);
+    cp_pkg_sync_url_button_rects(ur);
     int ly = y - SYNC_CONTENT_Y;         /* window -> applet content coords */
     if (sync_in_rect(x, ly, rects[0])) {
         cp_pkg_sync_apply_url(err, sizeof(err));
     } else if (sync_in_rect(x, ly, rects[1])) {
         s->manual_runs++;
         cp_pkg_sync_sync_now(err, sizeof(err));
+    } else if (sync_in_rect(x, ly, ur[0])) {
+        cp_pkg_sync_url_add(s->url, err, sizeof(err));
+    } else if (sync_in_rect(x, ly, ur[1])) {
+        cp_pkg_sync_url_remove(s->active_url, err, sizeof(err));
     } else if (sync_in_rect(x, ly, rects[2])) {
         s->auto_enabled = !s->auto_enabled;
         if (s->auto_enabled) s->last_run = sync_now_time();
-        cp_pkg_sync_apply_url(err, sizeof(err));
+        sync_persist_config(s, err, sizeof(err));
     } else if (sync_in_rect(x, ly, rects[3]) || sync_in_rect(x, ly, rects[4])) {
         int step = sync_in_rect(x, ly, rects[4]) ? 1 : -1;
         s->interval_secs += step;
         if (s->interval_secs < WUBU_SYNC_MIN_INTERVAL) s->interval_secs = WUBU_SYNC_MIN_INTERVAL;
         if (s->interval_secs > WUBU_SYNC_MAX_INTERVAL) s->interval_secs = WUBU_SYNC_MAX_INTERVAL;
-        cp_pkg_sync_apply_url(err, sizeof(err));
-    } else if (sync_in_rect(x, ly, rects[0]) == false && ly >= 46 && ly < 72) {
+        sync_persist_config(s, err, sizeof(err));
+    } else if (ly >= 46 && ly < 72) {
         s->editing = true;               /* focus the URL field */
     }
 }

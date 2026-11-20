@@ -16,13 +16,18 @@
 #define WUBU_ICON_LAYOUT_MAX 64
 
 /* GUI settings store key: comma-separated trusted revocation-feed sync URLs.
- * Mirrors the bounded sync URL set in wubu_pkgmgr_revoke_sync.h. */
-#define WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX 512
+ * Mirrors the bounded sync URL set in wubu_pkgmgr_revoke_sync.h. The parsed
+ * form is a fixed-capacity array so a corrupt settings file cannot grow the
+ * set beyond the bound. */
+#define WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX       512
+#define WUBU_SETTINGS_TRUSTED_SYNC_URLS_MAX      16u
 
 /* Scheduled-sync retry backoff defaults (owned by the settings schema; the
  * sync panel aliases these so there is one source of truth). */
 #define WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_INITIAL 2
 #define WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_MAX     300
+/* Symmetric +/- jitter around the exponential delay, in percent (0..100). */
+#define WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_JITTER 20
 typedef struct {
     char name[32];      /* Icon display name (match key) */
     int  grid_x;        /* Persisted grid column */
@@ -141,11 +146,17 @@ typedef struct {
     DisplaySettings display;
     A11ySettings    a11y;
     PrivacySettings privacy;
-    char trusted_sync_url[WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX]; /* GUI-configured trusted sync URLs */
+    char trusted_sync_url[WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX]; /* persisted CSV of all trusted sync URLs */
+    /* Bounded parsed view of trusted_sync_url (rebuilt on load and save).
+     * The CSV remains the persisted form; this array is the list the GUI and
+     * gates consume, so there is no second source of truth on disk. */
+    char trusted_sync_urls[WUBU_SETTINGS_TRUSTED_SYNC_URLS_MAX][WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX];
+    int  trusted_sync_url_count;
     bool sync_auto_enabled;          /* scheduled revocation sync: OFF by default */
     int  sync_interval_secs;         /* seconds between scheduled syncs (0 = disabled) */
     int  sync_backoff_initial_secs;  /* first retry delay after a scheduled refusal */
     int  sync_backoff_max_secs;      /* retry-delay cap for scheduled sync */
+    int  sync_backoff_jitter_pct;    /* symmetric jitter around the retry delay, 0..100 */
     uint32_t version;                /* Config schema version */
     uint64_t last_modified;          /* Unix timestamp */
 } WubuSettings;
@@ -186,5 +197,15 @@ bool     wubu_settings_reduce_motion(void);        /* a11y.reduce_animations */
 const char *wubu_settings_font_family(void);       /* fonts.font_family */
 int      wubu_settings_font_size(void);            /* fonts.font_size */
 const char *wubu_settings_trusted_sync_url(void);  /* trusted_sync_url (GUI settings read path) */
+
+/* Bounded multi-URL view of the same persisted key. `count == 0` means no
+ * configured feed; entries are exact full-text URLs. */
+int         wubu_settings_sync_url_count(void);
+const char *wubu_settings_sync_url_at(int idx);
+
+/* Replace the bounded list with `n` URLs and persist the CSV key (bounded:
+ * extras are dropped, duplicates collapsed). Returns the stored count or -1
+ * on a settings-save failure. */
+int wubu_settings_sync_url_set(const char *const *urls, int n);
 
 #endif /* WUBU_SETTINGS_H */

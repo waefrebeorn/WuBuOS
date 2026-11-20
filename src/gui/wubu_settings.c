@@ -81,4 +81,37 @@ const char *wubu_settings_font_family(void) { return g_settings.fonts.font_famil
 int wubu_settings_font_size(void) { return g_settings.fonts.font_size; }
 const char *wubu_settings_trusted_sync_url(void) { return g_settings.trusted_sync_url; }
 
+int wubu_settings_sync_url_count(void) { return g_settings.trusted_sync_url_count; }
+
+const char *wubu_settings_sync_url_at(int idx) {
+    if (idx < 0 || idx >= g_settings.trusted_sync_url_count) return "";
+    return g_settings.trusted_sync_urls[idx];
+}
+
+int wubu_settings_sync_url_set(const char *const *urls, int n) {
+    char csv[WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX];
+    size_t off = 0;
+    int used = 0;
+    if (!urls) n = 0;
+    if (n < 0) n = 0;
+    if (n > (int)WUBU_SETTINGS_TRUSTED_SYNC_URLS_MAX) n = (int)WUBU_SETTINGS_TRUSTED_SYNC_URLS_MAX;
+    csv[0] = '\0';
+    for (int i = 0; i < n; i++) {
+        size_t len;
+        if (!urls[i] || !urls[i][0]) continue;
+        len = strlen(urls[i]);
+        if (len == 0 || len >= WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX) continue;
+        if (off + len + 2 > sizeof(csv)) break;   /* bounded: drop the rest */
+        if (used) csv[off++] = ',';
+        memcpy(csv + off, urls[i], len + 1);
+        off += len;
+        used++;
+    }
+    csv[off] = '\0';
+    snprintf(g_settings.trusted_sync_url, sizeof(g_settings.trusted_sync_url), "%s", csv);
+    g_settings_dirty = true;
+    if (wubu_settings_save() != 0) return -1;
+    return g_settings.trusted_sync_url_count;
+}
+
 /* EOF */

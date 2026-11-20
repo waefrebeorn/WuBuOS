@@ -39,6 +39,8 @@ static const char *env_or(const char *name, const char *fallback) {
 
 static int64_t g_fake;
 static int64_t fake_clock(void) { return g_fake; }
+static unsigned g_jit_bp;
+static unsigned fixed_jitter(void) { return g_jit_bp; }
 
 static void type_url(CpApplet *a, const char *url) {
     PkSyncPanelState *s = cp_pkg_sync_state();
@@ -94,15 +96,17 @@ int main(void) {
     const char *badsig = env_or("WUBU_SYNC_BADSIG_URL", NULL);
     const char *badscheme = env_or("WUBU_SYNC_BAD_URL", NULL);
     const char *serve  = env_or("WUBU_SYNC_SERVE_DIR", NULL);
+    const char *url2   = env_or("WUBU_SYNC_URL2", NULL);
     const char *k1     = env_or("WUBU_SYNC_KEY1", NULL);
     const char *k2     = env_or("WUBU_SYNC_KEY2", NULL);
     const char *k3     = env_or("WUBU_SYNC_KEY3", NULL);
     const char *k4     = env_or("WUBU_SYNC_KEY4", NULL);
     const char *kt     = env_or("WUBU_SYNC_TAMPER_KEY", NULL);
+    const char *k6     = env_or("WUBU_SYNC_KEY6", NULL);
     char line[1024], err[256];
 
-    if (!db || !admin || !url || !badsig || !badscheme || !serve ||
-        !k1 || !k2 || !k3 || !k4 || !kt) {
+    if (!db || !admin || !url || !badsig || !badscheme || !serve || !url2 ||
+        !k1 || !k2 || !k3 || !k4 || !kt || !k6) {
         fprintf(stderr, "test_sync_panel: missing WUBU_SYNC_* environment\n");
         return 2;
     }
@@ -211,6 +215,10 @@ int main(void) {
 
     /* Configure the schedule through the settings store, then reload the
      * widget: same surface a user (or a config file) would use. */
+    /* Jitter is a real default (20%), but the deterministic exponential
+     * schedule is asserted with jitter explicitly disabled here; the jitter
+     * bounds themselves are asserted in their own section below. */
+    wubu_settings_mut()->sync_backoff_jitter_pct = 0;
     wubu_settings_mut()->sync_backoff_initial_secs = 2;
     wubu_settings_mut()->sync_backoff_max_secs = 8;
     CHECK(wubu_settings_save() == 0, "backoff config saved to settings store");
@@ -255,6 +263,74 @@ int main(void) {
     wubu_pkgmgr_shutdown(); wubu_pkgmgr_init(&cfg);
     CHECK(wubu_pkgmgr_key_is_revoked(k4), "recovery feed key revoked by scheduled loop");
     CHECK(wubu_pkgmgr_key_revoked_count() == 4, "recovery added exactly one revocation");
+
+    /* -- Jittered backoff: exact bounds, zero-jitter identity, tick use ---- */
+    CHECK(cp_pkg_sync_backoff_delay_jittered(100, 1000, 4, 0, 0) == 800,
+          "zero jitter returns the exact base delay");
+    CHECK(cp_pkg_sync_backoff_delay_jittered(100, 1000, 4, 25, 0) == 600,
+          "jitter lower bound = base * (1 - pct)");
+    CHECK(cp_pkg_sync_backoff_delay_jittered(100, 1000, 4, 25, 5000) == 800,
+          "jitter midpoint = base");
+    CHECK(cp_pkg_sync_backoff_delay_jittered(100, 1000, 4, 25, 10000) == 1000,
+          "jitter upper bound clamps to the configured cap");
+    CHECK(cp_pkg_sync_backoff_delay_jittered(100, 1000, 4, 25, 20000) == 1000,
+          "out-of-range jitter sample clamps to the cap");
+    CHECK(cp_pkg_sync_backoff_delay_jittered(1, 100, 1, 100, 0) == 1,
+          "jitter never drops the delay below one second");
+    {
+        bool bounded = true;
+        for (unsigned bp = 0; bp <= 10000; bp += 250) {
+            int v = cp_pkg_sync_backoff_delay_jittered(100, 1000, 4, 25, bp);
+            if (v < 600 || v > 1000) { bounded = false; break; }
+        }
+        CHECK(bounded, "every jitter sample stays inside [600,1000] seconds");
+    }
+
+    wubu_settings_mut()->sync_backoff_initial_secs = 4;
+    wubu_settings_mut()->sync_backoff_max_secs = 8;
+    wubu_settings_mut()->sync_backoff_jitter_pct = 25;
+    CHECK(wubu_settings_save() == 0, "jitter config persisted to settings store");
+    CHECK(settings_persisted("sync_backoff_jitter_pct"), "jitter key present in settings.conf");
+    cp_pkg_sync_reload_from_settings();    /* adopt 4s/8s/25% before the next Save */
+    type_url(&a, badsig);                 /* persist config, load bad feed */
+    cp_pkg_sync_set_jitter_fn(fixed_jitter);
+    g_fake = 3000; cp_pkg_sync_set_clock(fake_clock);
+    cp_pkg_sync_reload_from_settings();
+    g_jit_bp = 0;
+    g_fake = 3001;
+    CHECK(cp_pkg_sync_tick() == -1, "injected lower-bound jitter tick refused");
+    CHECK(cp_pkg_sync_state()->retry_secs == 3, "tick uses lower jitter bound (4s -> 3s)");
+    g_fake = 3004;
+    cp_pkg_sync_reload_from_settings();
+    g_fake = 3008;
+    g_jit_bp = 10000;
+    CHECK(cp_pkg_sync_tick() == -1, "injected upper-bound jitter tick refused");
+    CHECK(cp_pkg_sync_state()->retry_secs == 5, "tick uses upper jitter bound (4s -> 5s)");
+    cp_pkg_sync_set_jitter_fn(NULL);
+
+    /* -- Bounded multi-URL settings: add / persist / reload / sync -------- */
+    {
+        char expected[1100];
+        type_url(&a, url);                 /* single trusted URL before adding */
+        CHECK(cp_pkg_sync_url_add(url2, err, sizeof(err)),
+              "second trusted URL added to bounded list");
+        CHECK(cp_pkg_sync_url_count() == 2, "bounded list holds two URLs");
+        snprintf(expected, sizeof(expected), "%s,%s", url, url2);
+        CHECK(strcmp(wubu_settings_get()->trusted_sync_url, expected) == 0,
+              "both URLs persisted as the settings CSV value");
+        CHECK(settings_persisted(url2), "second URL present in settings.conf");
+        wubu_settings_shutdown();
+        CHECK(wubu_settings_init() == 0, "settings reload with two URLs");
+        cp_pkg_sync_reload_from_settings();
+        CHECK(cp_pkg_sync_url_count() == 2, "two URLs survive save/load round-trip");
+        CHECK(strcmp(cp_pkg_sync_url_at(1), url2) == 0, "second URL survives at index 1");
+        CHECK(cp_pkg_sync_url_remove(0, err, sizeof(err)), "first URL removed from list");
+        CHECK(cp_pkg_sync_url_count() == 1 &&
+              strcmp(cp_pkg_sync_url_at(0), url2) == 0, "remaining URL is the second one");
+        CHECK(cp_pkg_sync_sync_now(err, sizeof(err)), "Sync Now uses the bounded URL list");
+        wubu_pkgmgr_shutdown(); wubu_pkgmgr_init(&cfg);
+        CHECK(wubu_pkgmgr_key_is_revoked(k6), "second URL revocation persisted");
+    }
 
     cp_pkg_sync_set_clock(NULL);
     if (a.cleanup) a.cleanup(&a);
