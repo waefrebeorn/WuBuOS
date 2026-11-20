@@ -39,7 +39,7 @@ int oci_http_connect(OciHttpClient *client, const char *host, int port, bool use
     client->use_tls = use_tls;
 
     /* Initialize TLS if requested and mbedTLS is available */
-#ifdef MBEDTLS_SSL_H
+#ifdef WUBU_HAVE_MBEDTLS
     client->tls_initialized = false;
     if (use_tls) {
         /* Initialize mbedTLS structures */
@@ -57,14 +57,9 @@ int oci_http_connect(OciHttpClient *client, const char *host, int port, bool use
             goto tls_fail;
         }
 
-        /* Load default trusted CA certificates (system store not available, use none) */
-        /* In production, you would load CA certs here:
-         * rc = mbedtls_x509_crt_parse_file(&client->cacert, "/etc/ssl/certs/ca-certificates.crt");
-         */
-        /* For now, we skip certificate verification (insecure but functional) */
-        mbedtls_ssl_conf_authmode(&client->conf, MBEDTLS_SSL_VERIFY_NONE);
-
-        /* Set up SSL config */
+        /* config_defaults RESETS the whole config, so authentication and
+         * the CA chain must be configured AFTER it (the old code set
+         * VERIFY_NONE before defaults and never verified anything). */
         rc = mbedtls_ssl_config_defaults(&client->conf,
                                          MBEDTLS_SSL_IS_CLIENT,
                                          MBEDTLS_SSL_TRANSPORT_STREAM,
@@ -74,10 +69,19 @@ int oci_http_connect(OciHttpClient *client, const char *host, int port, bool use
             goto tls_fail;
         }
 
+        const char *ca_bundle = getenv("WUBU_CA_BUNDLE");
+        if (!ca_bundle || !*ca_bundle)
+            ca_bundle = "/etc/ssl/certs/ca-certificates.crt";
+        rc = mbedtls_x509_crt_parse_file(&client->cacert, ca_bundle);
+        if (rc != 0 || client->cacert.raw.len == 0) {
+            fprintf(stderr, "[wubu_oci] cannot load CA bundle '%s': %d\n", ca_bundle, rc);
+            goto tls_fail;
+        }
+        mbedtls_ssl_conf_authmode(&client->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
         mbedtls_ssl_conf_rng(&client->conf, mbedtls_ctr_drbg_random, &client->ctr_drbg);
         mbedtls_ssl_conf_ca_chain(&client->conf, &client->cacert, NULL);
 
-        /* Set hostname for SNI */
+        /* Set hostname for SNI and certificate name checking */
         rc = mbedtls_ssl_set_hostname(&client->ssl, host);
         if (rc != 0) {
             fprintf(stderr, "[wubu_oci] mbedtls_ssl_set_hostname failed: %d\n", rc);
@@ -98,9 +102,20 @@ int oci_http_connect(OciHttpClient *client, const char *host, int port, bool use
         /* Perform TLS handshake */
         while ((rc = mbedtls_ssl_handshake(&client->ssl)) != 0) {
             if (rc != MBEDTLS_ERR_SSL_WANT_READ && rc != MBEDTLS_ERR_SSL_WANT_WRITE) {
-                fprintf(stderr, "[wubu_oci] mbedtls_ssl_handshake failed: %d\n", rc);
+                char eb[256]; mbedtls_strerror(rc, eb, sizeof eb);
+                uint32_t vf = mbedtls_ssl_get_verify_result(&client->ssl);
+                char vb[512]; mbedtls_x509_crt_verify_info(vb, sizeof vb, "  ! ", vf);
+                fprintf(stderr, "[wubu_oci] mbedtls_ssl_handshake failed: %d %s flags=%u %s\n",
+                        rc, eb, vf, vb);
                 goto tls_fail;
             }
+        }
+        uint32_t verify_flags = mbedtls_ssl_get_verify_result(&client->ssl);
+        if (verify_flags != 0) {
+            char buf[512];
+            mbedtls_x509_crt_verify_info(buf, sizeof buf, "  ! ", verify_flags);
+            fprintf(stderr, "[wubu_oci] TLS certificate verification FAILED: %s\n", buf);
+            goto tls_fail;
         }
 
         client->tls_initialized = true;
@@ -110,13 +125,13 @@ int oci_http_connect(OciHttpClient *client, const char *host, int port, bool use
      * For now, we support plain HTTP. HTTPS registries need a TLS library. */
     if (use_tls) {
         close(sockfd);
-        return -1; /* TLS not implemented - compile with -DMBEDTLS_SSL_H */
+        return -1; /* TLS not implemented - compile with -DWUBU_HAVE_MBEDTLS */
     }
 #endif
 
     return 0;
 
-#ifdef MBEDTLS_SSL_H
+#ifdef WUBU_HAVE_MBEDTLS
 tls_fail:
     mbedtls_ssl_free(&client->ssl);
     mbedtls_ssl_config_free(&client->conf);
@@ -132,7 +147,7 @@ tls_fail:
 
 void oci_http_close(OciHttpClient *client) {
     if (client->sockfd >= 0) {
-#ifdef MBEDTLS_SSL_H
+#ifdef WUBU_HAVE_MBEDTLS
         if (client->use_tls && client->tls_initialized) {
             mbedtls_ssl_close_notify(&client->ssl);
             mbedtls_ssl_free(&client->ssl);
@@ -152,7 +167,7 @@ int oci_http_send(OciHttpClient *client, const void *data, size_t len) {
     const char *p = (const char *)data;
     size_t sent = 0;
 
-#ifdef MBEDTLS_SSL_H
+#ifdef WUBU_HAVE_MBEDTLS
     if (client->use_tls && client->tls_initialized) {
         while (sent < len) {
             int n = mbedtls_ssl_write(&client->ssl, (const unsigned char *)(p + sent), len - sent);
@@ -179,7 +194,7 @@ int oci_http_recv(OciHttpClient *client, void *buf, size_t buf_size, size_t *out
     char *p = (char *)buf;
     size_t total = 0;
 
-#ifdef MBEDTLS_SSL_H
+#ifdef WUBU_HAVE_MBEDTLS
     if (client->use_tls && client->tls_initialized) {
         while (total < buf_size - 1) {
             int n = mbedtls_ssl_read(&client->ssl, (unsigned char *)(p + total), buf_size - 1 - total);

@@ -20,6 +20,11 @@ test_snapshot:
 		-o $(RT)/wubu_snapshot_test -lpthread
 	$(RT)/wubu_snapshot_test
 
+# Opt-in TLS verification gate (needs WUBU_MBEDTLS_ROOT with mbedTLS dev
+# headers/libs; deliberately NOT in the default `make test` tier).
+test_oci_tls:
+	bash tools/oci_tls_gate.sh
+
 test_oci:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT)/wubu_crc32.c \
 		-I$(RT) -I$(KERNEL) -I$(RT)/oci \

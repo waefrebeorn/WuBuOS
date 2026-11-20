@@ -24,7 +24,7 @@
 #include <netdb.h>
 
 /* -- mbedTLS TLS Support (optional) --------------------------------- */
-#ifdef MBEDTLS_SSL_H
+#ifdef WUBU_HAVE_MBEDTLS
 #include <mbedtls/ssl.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/ctr_drbg.h>
@@ -57,7 +57,7 @@ typedef struct OciHttpClient {
     char host[256];
     int port;
     bool use_tls;
-#ifdef MBEDTLS_SSL_H
+#ifdef WUBU_HAVE_MBEDTLS
     mbedtls_ssl_context ssl;
     mbedtls_ssl_config conf;
     mbedtls_entropy_context entropy;
