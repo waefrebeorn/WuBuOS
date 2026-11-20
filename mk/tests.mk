@@ -71,7 +71,7 @@ pkg_key_ctl:
 		-include src/runtime/wubu_gnu_compat.h \
 		src/runtime/wubu_crc32.c \
 		src/gui/wubu_pkgmgr.c src/gui/wubu_pkgmgr_verify.c src/gui/wubu_pkg_sign.c src/gui/wubu_pkg_ed25519.c \
-		src/gui/wubu_pkgmgr_revoke_feed.c \
+		src/gui/wubu_pkgmgr_revoke_feed.c src/gui/wubu_pkgmgr_revoke_sync.c \
 		src/gui/wubu_pkgmgr_resolve.c src/gui/wubu_pkgmgr_manifest.c src/gui/wubu_pkgmgr_db.c \
 		src/gui/wubu_pkgmgr_pkg.c src/gui/wubu_pkgmgr_install.c src/gui/wubu_pkgmgr_txn.c \
 		src/gui/wubu_pkgmgr_remote.c src/gui/wubu_pkgmgr_fetch.c \
@@ -97,6 +97,13 @@ test_pkg_key_revoke:
 # (mbedTLS root required; NOT in the default `make test` tier).
 test_pkg_revoke_feed:
 	bash tools/pkg_revoke_feed_gate.sh
+
+# Opt-in differential gate for signed cross-device revocation-feed sync
+# (loopback HTTP fixture + ephemeral keys; mbedTLS root required).
+test_pkg_revoke_sync:
+	bash tools/pkg_revoke_sync_gate.sh
+
+.PHONY: test_pkg_revoke_sync
 
 # Opt-in differential gate for trust-anchor expiry, admin rotation/recovery
 # and M-of-N feed-apply quorum (mbedTLS root required; not in default tier).
@@ -1493,7 +1500,7 @@ test_wubu_boot_attest_edr: src/runtime/wubu_boot_attest_edr_test.c src/runtime/w
 	./src/runtime/wubu_boot_attest_edr_test
 
 # The docs must not lie: every path the front-door docs name must exist.
-test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md docs/STUDY_LIST.md docs/ABI.md docs/DUPLICATE_SURFACE_FINDINGS.md mk/sanitize.mk tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
+test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/REVOKE_SYNC.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md docs/STUDY_LIST.md docs/ABI.md docs/DUPLICATE_SURFACE_FINDINGS.md mk/sanitize.mk tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_docs_test.c -o src/runtime/wubu_docs_test -Iinclude src/runtime/wubu_crc32.c
 	./src/runtime/wubu_docs_test
 
@@ -2877,7 +2884,7 @@ test_bear_drivers:
 test_pkgmgr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  src/runtime/wubu_crc32.c \
 		-I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) \
-		$(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_verify.c $(GUI)/wubu_pkg_sign.c $(GUI)/wubu_pkg_ed25519.c $(GUI)/wubu_pkgmgr_revoke_feed.c $(GUI)/wubu_pkgmgr_resolve.c $(GUI)/wubu_pkgmgr_manifest.c $(GUI)/wubu_pkgmgr_db.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_pkgmgr_remote.c $(GUI)/wubu_pkgmgr_fetch.c $(RT)/wubu_pkg.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_math.c \
+		$(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_verify.c $(GUI)/wubu_pkg_sign.c $(GUI)/wubu_pkg_ed25519.c $(GUI)/wubu_pkgmgr_revoke_feed.c $(GUI)/wubu_pkgmgr_revoke_sync.c $(GUI)/wubu_pkgmgr_resolve.c $(GUI)/wubu_pkgmgr_manifest.c $(GUI)/wubu_pkgmgr_db.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_pkgmgr_remote.c $(GUI)/wubu_pkgmgr_fetch.c $(RT)/wubu_pkg.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_math.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c $(RT)/wubu_container.c \
 		$(RT)/oci/oci_http_client.c \
 		$(GUI)/wubu_pkgmgr_test.c \

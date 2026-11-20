@@ -43,6 +43,7 @@ GATES=(
     test_pkg_ed25519
     test_pkg_key_revoke
     test_pkg_revoke_feed
+    test_pkg_revoke_sync
     test_pkg_key_policy
     test_pkg_key_recovery
     test_ed25519_timing

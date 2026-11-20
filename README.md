@@ -151,6 +151,7 @@ context-switch no-ops, and the stub-phrase spots are tracked openly in
 - [docs/MIND_PALACE.md](docs/MIND_PALACE.md) — the verified walk through the OS (start here)
 - [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) — the ~WuBu~ ecosystem: how every repo coheres
 - [docs/SAGA.md](docs/SAGA.md) — the project's story, told from its commit log
+- [docs/REVOKE_SYNC.md](docs/REVOKE_SYNC.md) — signed cross-device revocation-feed sync
 - [OS_BIBLE.md](OS_BIBLE.md) — the design bible (vision, architecture, principles)
 - [STATE.md](STATE.md) — current state, verified on date
 - [BATTLESHIP.md](BATTLESHIP.md) — the gap board (v23)

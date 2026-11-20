@@ -17,6 +17,7 @@
  * --db DIR selects the pkgmgr DB directory (or set WUBU_PKGMGR_DB).
  */
 #include "wubu_pkgmgr.h"
+#include "wubu_pkgmgr_revoke_sync.h"
 #include "wubu_pkg_sign.h"
 
 #include <stdio.h>
@@ -47,9 +48,11 @@ static void usage(const char *name) {
         "       %s sign-quorum <M> <key_hex>... --seed <seed_hex>\n"
         "       %s sign-escrow <M> <key_hex>... --seed <seed_hex>\n"
         "       %s sign-recover <new_admin_pub_hex> --seed <seed_hex>\n"
-        "       %s [--db DIR] feed <feed_file> --sig <sig_hex>\n",
+        "       %s [--db DIR] feed <feed_file> --sig <sig_hex>\n"
+        "       %s [--db DIR] sync <url> [--trusted <url[,url...]>]\n"
+        "       %s sign <revoke|unrevoke> <key_hex> --seed <seed_hex>\n",
         name, name, name, name, name, name, name, name, name, name,
-        name, name, name, name, name, name, name, name, name, name, name);
+        name, name, name, name, name, name, name, name, name, name, name, name);
 }
 
 static const char *opt_value(int argc, char **argv, const char *flag) {
@@ -63,7 +66,8 @@ static int collect_pos(int argc, char **argv, char *pos[], int max) {
     int n = 0;
     for (int i = 1; i < argc; i++) {
         if ((strcmp(argv[i], "--db") == 0 || strcmp(argv[i], "--sig") == 0 ||
-             strcmp(argv[i], "--sigs") == 0 || strcmp(argv[i], "--seed") == 0) &&
+             strcmp(argv[i], "--sigs") == 0 || strcmp(argv[i], "--seed") == 0 ||
+             strcmp(argv[i], "--trusted") == 0) &&
             i + 1 < argc) {
             i++;
             continue;
@@ -124,6 +128,7 @@ int main(int argc, char **argv) {
     if (!db || !*db) db = "pkgdb";
     const char *sig = opt_value(argc, argv, "--sig");
     const char *seed = opt_value(argc, argv, "--seed");
+    const char *trusted = opt_value(argc, argv, "--trusted");
 
     /* sign needs no DB: it only hashes the command and calls the crypto leaf. */
     if (strcmp(cmd, "sign") == 0) {
@@ -292,6 +297,26 @@ int main(int argc, char **argv) {
         if (!ok && err[0]) fprintf(stderr, "ctl: feed: %s\n", err);
         printf("%s feed %s applied %zu\n", ok ? "OK" : "REFUSED", pos[1], applied);
         rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "sync") == 0 && np >= 2) {
+        wubu_pkg_sync_config_t sync_cfg;
+        char cfgpath[600];
+        size_t applied = 0;
+        char err[256];
+        bool ok;
+        wubu_pkg_sync_config_init(&sync_cfg);
+        snprintf(cfgpath, sizeof(cfgpath), "%s/sync.conf", db);
+        if (wubu_pkg_sync_config_load(cfgpath, trusted, &sync_cfg) < 0) {
+            fprintf(stderr, "ctl: sync: malformed trusted sync config\n");
+            printf("REFUSED sync %s\n", pos[1]);
+            rc = 1;
+        } else {
+            ok = wubu_pkgmgr_key_feed_sync(pos[1], &sync_cfg,
+                                           &applied, err, sizeof(err));
+            if (!ok && err[0]) fprintf(stderr, "ctl: sync: %s\n", err);
+            printf("%s sync %s applied %zu\n",
+                   ok ? "OK" : "REFUSED", pos[1], applied);
+            rc = ok ? 0 : 1;
+        }
     } else if (strcmp(cmd, "rotate") == 0 && np >= 2) {
         bool ok = wubu_pkgmgr_key_admin_rotate(pos[1], sig);
         printf("%s rotate %s\n", ok ? "OK" : "REFUSED", pos[1]);
