@@ -22,10 +22,12 @@
  void wemu_cpu_set_cr3(WemuCpu *cpu, uint64_t cr3);
 --- a/src/wemu_internal.h
 +++ b/src/wemu_internal.h
-@@ -83,6 +83,11 @@
- int wemu_gpa_read(WemuCpu *cpu, uint64_t gpa, void *dst, size_t len);
+@@ -88,8 +88,13 @@
  int wemu_gpa_write(WemuCpu *cpu, uint64_t gpa, const void *src, size_t len);
- uint64_t wemu_translate(WemuCpu *cpu, uint64_t va, int *fault);
+ /* 4-level walk; is_write/is_user drive the #PF W/R and U/S error bits.
+  * Sets *fault (#PF=14, #GP=13) and cpu->fault_error on failure. */
+ uint64_t wemu_translate(WemuCpu *cpu, uint64_t va, int is_write, int is_user,
+                         int *fault);
 +/* translated read WITHOUT the data-read permission hook: instruction fetch
 + * uses this and is gated by the separate EXEC hook in wemu_decode.c. */
 +int wemu_mem_read_no_perm(WemuCpu *cpu, uint64_t va, void *dst, size_t len);
