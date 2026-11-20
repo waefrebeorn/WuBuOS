@@ -29,7 +29,7 @@ root="${WUBU_MBEDTLS_ROOT:-$ROOT/.cache/mbedtls-devroot}"
 if [ -f "$root/usr/include/mbedtls/bignum.h" ] && \
    [ -f "$root/usr/include/mbedtls/sha512.h" ] && \
    [ -f "$root/usr/lib/x86_64-linux-gnu/libmbedcrypto.a" ]; then exp_mb=1; fi
-exp_native=0; [ "$exp_ssl" = 1 ] && [ "$exp_mb" = 1 ] && exp_native=1
+exp_native=0; [ "$exp_ssl" = 1 ] && exp_native=1
 echo "[cfg] probed independently: openssl=$exp_ssl mbedtls=$exp_mb native=$exp_native"
 
 # 1. Real detection.
@@ -77,24 +77,58 @@ fi
   && ok "dev root absent: still emits a valid config header (build not blocked)" \
   || no "dev root absent: no config header emitted"
 
-# 4. Emitted CFLAGS must compile a TU against the generated header.
+# The native backend must now key off OpenSSL alone: the canonical-S and
+# small-subgroup policy is bignum-free and lives in the repo, not in the dev
+# root.  With no dev root the config must enable native, leave the ladder off,
+# and must NOT reference mbedTLS headers or libraries.
+[ "$(mkval "$TMP/nomb/native_eddsa.mk" WUBU_EDDSA_NATIVE)" = "$exp_native" ] \
+  && ok "dev root absent: native flag follows OpenSSL ($exp_native)" \
+  || no "dev root absent: native flag does not follow OpenSSL"
+if [ "$exp_native" = 1 ]; then
+    grep -q 'define WUBU_HAVE_OPENSSL_EDDSA 1' "$TMP/nomb/native_eddsa_config.h" \
+      && ok "dev root absent: native feature macro emitted" \
+      || no "dev root absent: native feature macro missing"
+    if grep -q 'define WUBU_HAVE_MBEDTLS' "$TMP/nomb/native_eddsa_config.h"; then
+        no "dev root absent: mbedTLS macro leaked into config"
+    else
+        ok "dev root absent: no mbedTLS macro in config"
+    fi
+    grep -q 'define WUBU_HAVE_EDDSA_POLICY 1' "$TMP/nomb/native_eddsa_config.h" \
+      && ok "dev root absent: bignum-free policy macro emitted" \
+      || no "dev root absent: bignum-free policy macro missing"
+    case "$(mkval "$TMP/nomb/native_eddsa.mk" WUBU_EDDSA_HOSTED_LIBS)" in
+        *-lmbedcrypto*) no "dev root absent: -lmbedcrypto still linked" ;;
+        *) ok "dev root absent: -lmbedcrypto not linked" ;;
+    esac
+fi
+
+# 4. Emitted CFLAGS must compile TUs against BOTH generated headers.  The
+# invariant is "any backend implies a policy", not "native implies mbedTLS".
 cat > "$TMP/tu.c" <<'EOF'
 #include "native_eddsa_config.h"
-#if defined(WUBU_HAVE_OPENSSL_EDDSA) && !defined(WUBU_HAVE_MBEDTLS)
-#error "native backend must never be enabled without the shared policy layer"
+#if (defined(WUBU_HAVE_OPENSSL_EDDSA) || defined(WUBU_HAVE_MBEDTLS)) && \
+    !defined(WUBU_HAVE_EDDSA_POLICY)
+#error "every crypto backend requires the shared verification policy layer"
 #endif
 int main(void) {
-    return (WUBU_EDDSA_CFG_NATIVE == 1 && WUBU_EDDSA_CFG_LADDER == 0);
+#if defined(WUBU_HAVE_OPENSSL_EDDSA) && !defined(WUBU_HAVE_MBEDTLS)
+    return (WUBU_EDDSA_CFG_NATIVE == 1 && WUBU_EDDSA_CFG_LADDER == 0 &&
+            WUBU_EDDSA_CFG_POLICY == 1) ? 0 : 1;
+#else
+    return 0;
+#endif
 }
 EOF
-CFLAGS=$(mkval "$TMP/nossl/native_eddsa.mk" WUBU_EDDSA_HOSTED_CFLAGS)
-# shellcheck disable=SC2086
-if cc $CFLAGS "$TMP/tu.c" -o "$TMP/tu" 2>"$TMP/cc.err" && "$TMP/tu"; then
-    ok "generated CFLAGS compile and respect the native=>ladder invariant"
-else
-    no "generated CFLAGS failed to compile"
-    cat "$TMP/cc.err"
-fi
+for cfg in nossl nomb; do
+    CFLAGS=$(mkval "$TMP/$cfg/native_eddsa.mk" WUBU_EDDSA_HOSTED_CFLAGS)
+    # shellcheck disable=SC2086
+    if cc $CFLAGS "$TMP/tu.c" -o "$TMP/tu-$cfg" 2>"$TMP/cc-$cfg.err" && "$TMP/tu-$cfg"; then
+        ok "generated $cfg CFLAGS compile and respect backend=>policy invariant"
+    else
+        no "generated $cfg CFLAGS failed to compile"
+        cat "$TMP/cc-$cfg.err"
+    fi
+done
 
 echo "[cfg] SUMMARY: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || { echo "[cfg] GATE FAILED"; exit 1; }

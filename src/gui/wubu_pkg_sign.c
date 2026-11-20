@@ -1,7 +1,7 @@
 /*
  * wubu_pkg_sign.c -- .wubu canonical digest + package verification owner.
- * The RFC 8032 field/scalar math lives in wubu_pkg_ed25519.c (optional
- * mbedTLS build); this file is the single owner of the signed-message
+ * The Ed25519 field/scalar math lives in wubu_pkg_ed25519.c (mbedTLS ladder
+ * or native OpenSSL).  This file is the single owner of the signed-message
  * layout and of the fail-closed package gate.
  */
 #ifdef WUBU_EDDSA_USE_BUILD_CONFIG
@@ -119,7 +119,9 @@ bool wubu_pkg_sign_digest_file(const char *pkg_path, size_t header_len,
     wubu_sha256_final(&ctx, out_digest);
     return true;
 }
-#ifndef WUBU_HAVE_MBEDTLS
+#if !defined(WUBU_HAVE_MBEDTLS) && !defined(WUBU_HAVE_OPENSSL_EDDSA)
+/* No crypto backend at all: fail-closed stubs.  When OpenSSL is present the
+ * real entry points come from wubu_pkg_ed25519.c's native-only branch. */
 
 bool wubu_pkg_sign_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
                            const char *seed_hex,
@@ -170,17 +172,17 @@ bool wubu_pkg_verify_bytes(const uint8_t *data, size_t len, const char *domain,
     return false;
 }
 
-#endif /* !WUBU_HAVE_MBEDTLS */
+#endif /* !mbedTLS && !OpenSSL */
 
 bool wubu_pkg_sign_verify_package(const char *pkg_path, size_t header_len,
                                   size_t sig_offset, size_t sig_len,
                                   size_t manifest_len, const char *pubkey_hex,
                                   char *err, size_t errsz) {
     wubu_pkg_sign_set_err(err, errsz, "");
-#ifndef WUBU_HAVE_MBEDTLS
+#if !defined(WUBU_HAVE_MBEDTLS) && !defined(WUBU_HAVE_OPENSSL_EDDSA)
     (void)pkg_path; (void)header_len; (void)sig_offset; (void)sig_len;
     (void)manifest_len;
-    wubu_pkg_sign_set_err(err, errsz, "mbedTLS not compiled in: refusing to verify");
+    wubu_pkg_sign_set_err(err, errsz, "no crypto backend compiled in: refusing to verify");
     return false;
 #else
     if (!pkg_path || !pubkey_hex || !pubkey_hex[0] ||

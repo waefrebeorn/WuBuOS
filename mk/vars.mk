@@ -32,10 +32,13 @@ FW       = src/firmware
 
 # ── Auto-detected EdDSA backend config (hosted/product build) ──────────────
 # Build-time probe: probes what is installed, NEVER fetches anything.  An
-# already-cached repo-local mbedTLS dev root enables the ladder (and, with
-# OpenSSL, the native core); an absent root yields a valid fail-closed config
-# instead of blocking `make hosted`.  Regenerated at parse time and written
-# only on change, so the generated header also drives incremental rebuilds.
+# already-cached repo-local mbedTLS dev root enables the ladder; OpenSSL
+# enables the native backend on its own (the verification policy is
+# bignum-free in src/runtime/wubu_eddsa_policy.c).  An absent dev root yields
+# a valid native-only config; absent OpenSSL AND mbedTLS yields a fail-closed
+# config instead of blocking `make hosted`.  Regenerated at parse time and
+# written only on change, so the generated header also drives incremental
+# rebuilds.
 WUBU_EDDSA_BUILD_DIR := build
 $(shell mkdir -p $(WUBU_EDDSA_BUILD_DIR) && bash tools/detect_native_eddsa.sh --out-dir $(WUBU_EDDSA_BUILD_DIR) --quiet)
 include $(WUBU_EDDSA_BUILD_DIR)/native_eddsa.mk

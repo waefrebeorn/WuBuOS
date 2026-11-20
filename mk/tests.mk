@@ -62,8 +62,14 @@ test_eddsa_build_config:
 # Runtime equivalence + tamper gate on the SAME detected config the hosted
 # product ships.  Native and ladder must agree; forgeries must be refused.
 # Member of the DEFAULT test suite; SKIPs only when no backend is compiled.
-test_eddsa_runtime:
+test_eddsa_runtime: test_eddsa_nombedtls
 	bash tools/eddsa_runtime_gate.sh
+
+# Differential gate for the native backend compiled with NO mbedTLS headers:
+# bignum-free canonical-S / small-subgroup policy, sign/verify + all forgeries,
+# and (when a dev root is supplied) agreement with the mbedTLS build's policy.
+test_eddsa_nombedtls:
+	bash tools/eddsa_nombedtls_gate.sh
 
 # Reproducible constant-time evidence artifact: source branch audit, compiled
 # instruction/branch table, and a dynamic constant-selection sweep.  Explicitly
@@ -71,7 +77,7 @@ test_eddsa_runtime:
 test_ed25519_ct_evidence:
 	bash tools/eddsa_ct_evidence.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_ed25519_ct_evidence
+.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds

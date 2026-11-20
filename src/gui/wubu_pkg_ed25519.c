@@ -1,8 +1,12 @@
 /*
- * wubu_pkg_ed25519.c -- RFC 8032 Ed25519 over mbedTLS SHA-512/bignum.
- * Private implementation leaf of wubu_pkg_sign.{c,h}; compiled only when
- * WUBU_HAVE_MBEDTLS is defined. Never use MBEDTLS_SSL_H as the feature
- * macro: it is mbedTLS's own include guard.
+ * wubu_pkg_ed25519.c -- RFC 8032 Ed25519 signing/verification leaf.
+ * Two mutually exclusive backends share the same entry points and the same
+ * canonical 32-byte digest:
+ *   WUBU_HAVE_MBEDTLS        -- SHA-512 + bignum ladder (+ optional OpenSSL).
+ *   WUBU_HAVE_OPENSSL_EDDSA  -- OpenSSL EVP Ed25519, with the bignum-free
+ *                               verification policy in wubu_eddsa_policy.c
+ *                               (used when no mbedTLS dev root is present).
+ * Never use MBEDTLS_SSL_H as the feature macro: it is mbedTLS's own guard.
  */
 #ifdef WUBU_EDDSA_USE_BUILD_CONFIG
 /* Auto-detected backend config from tools/detect_native_eddsa.sh.  Included
@@ -714,4 +718,197 @@ cleanup:
     return rc;
 }
 #endif /* WUBU_EDDSA_CT_PROBE */
-#endif /* WUBU_HAVE_MBEDTLS */
+
+#elif defined(WUBU_HAVE_OPENSSL_EDDSA)
+/* -- Native-only backend: OpenSSL EVP + bignum-free policy ---------------
+ * Compiled when OpenSSL 3 is available but NO mbedTLS dev root is installed.
+ * No mbedTLS header is included and no bignum code appears in this branch.
+ * The policy runs before the primitive on every verification, exactly as in
+ * the mbedTLS build above, so the two builds reach identical accept/reject
+ * decisions on the same digest, key and signature.
+ */
+#include <openssl/evp.h>
+#include "../runtime/wubu_eddsa_policy.h"
+
+static unsigned wubu_openssl_native_ops = 0;
+
+unsigned wubu_pkg_ed25519_native_ops(void) { return wubu_openssl_native_ops; }
+
+/* 1 = signed/verified natively, 0 = native ran and rejected, -1 = unavailable. */
+static int wubu_openssl_ed25519_sign(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
+                                     const uint8_t seed[32],
+                                     uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN]) {
+#ifdef WUBU_EDDSA_FORCE_LADDER
+    (void)digest; (void)seed; (void)out_sig;
+    return -1;  /* simulate an unavailable native backend: fail closed */
+#else
+    EVP_PKEY *pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL, seed, 32);
+    if (!pkey) return -1;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if (!ctx) { EVP_PKEY_free(pkey); return -1; }
+    size_t siglen = WUBU_PKG_SIGNATURE_LEN;  /* one-shot: input = capacity */
+    int result = -1;
+    if (EVP_DigestSignInit(ctx, NULL, NULL, NULL, pkey) == 1 &&
+        EVP_DigestSign(ctx, out_sig, &siglen, digest, WUBU_PKG_SIGN_DIGEST_LEN) == 1 &&
+        siglen == WUBU_PKG_SIGNATURE_LEN) {
+        result = 1;
+        ++wubu_openssl_native_ops;
+    }
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return result;
+#endif
+}
+
+static int wubu_openssl_ed25519_verify(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
+                                       const uint8_t pub[32],
+                                       const uint8_t sig[WUBU_PKG_SIGNATURE_LEN]) {
+#ifdef WUBU_EDDSA_FORCE_LADDER
+    (void)digest; (void)pub; (void)sig;
+    return -1;
+#else
+    EVP_PKEY *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, pub, 32);
+    if (!pkey) return -1;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if (!ctx) { EVP_PKEY_free(pkey); return -1; }
+    int result = 0;  /* 0 = native verifier ran and rejected */
+    if (EVP_DigestVerifyInit(ctx, NULL, NULL, NULL, pkey) == 1 &&
+        EVP_DigestVerify(ctx, sig, WUBU_PKG_SIGNATURE_LEN,
+                         digest, WUBU_PKG_SIGN_DIGEST_LEN) == 1) {
+        result = 1;
+        ++wubu_openssl_native_ops;
+    }
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return result;
+#endif
+}
+
+static int hex_to_32(const char *hex, uint8_t out[32]) {
+    static const char digits[] = "0123456789abcdef";
+    if (!hex || !out || strlen(hex) != 64) return -1;
+    for (size_t i = 0; i < 32; i++) {
+        char c = hex[2 * i], d = hex[2 * i + 1];
+        const char *p1 = strchr(digits, c), *p2 = strchr(digits, d);
+        if (!p1 || !p2) return -1;
+        out[i] = (uint8_t)(((p1 - digits) << 4) | (p2 - digits));
+    }
+    return 0;
+}
+
+bool wubu_pkg_sign_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
+                           const char *seed_hex,
+                           uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    uint8_t seed[32];
+    if (!digest || !out_sig || hex_to_32(seed_hex, seed) != 0) {
+        wubu_pkg_sign_set_err(err, errsz, "Ed25519 sign needs a 32-byte seed hex (64 chars)");
+        return false;
+    }
+    int r = wubu_openssl_ed25519_sign(digest, seed, out_sig);
+    if (r < 0) {
+        wubu_pkg_sign_set_err(err, errsz, "OpenSSL Ed25519 backend unavailable: refusing to sign");
+        return false;
+    }
+    return r == 1;
+}
+
+bool wubu_pkg_sign_verify_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
+                                  const char *pubkey_hex,
+                                  const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                                  char *err, size_t errsz) {
+    uint8_t pub[32];
+    if (!digest || !sig || hex_to_32(pubkey_hex, pub) != 0) {
+        wubu_pkg_sign_set_err(err, errsz, "Ed25519 verify needs a 32-byte public key hex (64 chars)");
+        return false;
+    }
+    /* Policy is never delegated to OpenSSL: non-canonical S and small-order
+     * A are refused here, before the primitive is called. */
+    if (!wubu_eddsa_policy_check(pub, sig, err, errsz)) return false;
+    int nv = wubu_openssl_ed25519_verify(digest, pub, sig);
+    if (nv < 0) {
+        wubu_pkg_sign_set_err(err, errsz, "OpenSSL Ed25519 backend unavailable: refusing to verify");
+        return false;
+    }
+    if (!nv) wubu_pkg_sign_set_err(err, errsz, "Ed25519 signature does not verify");
+    return nv == 1;
+}
+
+/* -- Arbitrary-length command signing (revocation CLI) ---------------- */
+static bool command_digest(const char *command,
+                           uint8_t out[WUBU_PKG_SIGN_DIGEST_LEN]) {
+    char hex[2 * WUBU_PKG_SIGN_DIGEST_LEN + 1];
+    if (!command || !out) return false;
+    wubu_sha256_digest(command, strlen(command), hex, sizeof(hex));
+    return hex_to_32(hex, out) == 0;
+}
+
+bool wubu_pkg_sign_command(const char *command, const char *seed_hex,
+                           uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!command_digest(command, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash command for signing");
+        return false;
+    }
+    return wubu_pkg_sign_ed25519(digest, seed_hex, out_sig, err, errsz);
+}
+
+bool wubu_pkg_verify_command(const char *command, const char *pubkey_hex,
+                             const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                             char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!command_digest(command, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash command for verification");
+        return false;
+    }
+    return wubu_pkg_sign_verify_ed25519(digest, pubkey_hex, sig, err, errsz);
+}
+
+/* -- Domain-separated hashing of arbitrary byte buffers (feed import) -- */
+static bool bytes_digest(const uint8_t *data, size_t len, const char *domain,
+                         uint8_t out[WUBU_PKG_SIGN_DIGEST_LEN]) {
+    if (!out || !domain || !domain[0] || (!data && len)) return false;
+    char hdr[128];
+    int hn = snprintf(hdr, sizeof(hdr), "%s\n%zu\n", domain, len);
+    if (hn < 0 || (size_t)hn >= sizeof(hdr)) return false;
+    wubu_SHA256_CTX ctx;
+    wubu_sha256_init(&ctx);
+    wubu_sha256_update(&ctx, hdr, (size_t)hn);
+    if (len) wubu_sha256_update(&ctx, data, len);
+    wubu_sha256_final(&ctx, out);
+    return true;
+}
+
+bool wubu_pkg_sign_bytes(const uint8_t *data, size_t len, const char *domain,
+                         const char *seed_hex,
+                         uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                         char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!bytes_digest(data, len, domain, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash bytes for signing");
+        return false;
+    }
+    return wubu_pkg_sign_ed25519(digest, seed_hex, out_sig, err, errsz);
+}
+
+bool wubu_pkg_verify_bytes(const uint8_t *data, size_t len, const char *domain,
+                           const char *pubkey_hex,
+                           const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!bytes_digest(data, len, domain, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash bytes for verification");
+        return false;
+    }
+    return wubu_pkg_sign_verify_ed25519(digest, pubkey_hex, sig, err, errsz);
+}
+
+#else
+/* Neither backend is compiled in: wubu_pkg_sign.c supplies the fail-closed
+ * stubs for the public entry points.  No crypto code is emitted here. */
+#endif /* backend selection */

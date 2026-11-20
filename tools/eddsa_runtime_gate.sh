@@ -26,8 +26,18 @@ if [ "$NATIVE" = 1 ] && [ "$LADDER" = 1 ]; then
     exit 0
 fi
 
-if [ "$LADDER" != 1 ]; then
-    echo "[rt] SKIP: no compiled EdDSA backend (mbedTLS dev root absent; no fetch attempted)"
+if [ "$NATIVE" = 1 ] && [ "$LADDER" != 1 ]; then
+    echo "[rt] shipped config: native backend only, no mbedTLS dev root"
+    echo "[rt] running bignum-free-policy runtime + forgery differential"
+    bash "$ROOT/tools/eddsa_nombedtls_gate.sh" | tee "$TMP/nomb.out" || exit 1
+    echo "[rt] NEGATIVE CONTROL (forgeries refused, no mbedTLS headers):"
+    grep -E 'no-root (non-canonical-S|small-subgroup|tampered|noncanonical-y)' "$TMP/nomb.out" || true
+    echo "[rt] PASS: native runtime gate (bignum-free policy, no mbedTLS root)"
+    exit 0
+fi
+
+if [ "$LADDER" != 1 ] && [ "$NATIVE" != 1 ]; then
+    echo "[rt] SKIP: no compiled EdDSA backend (OpenSSL and mbedTLS both absent; no fetch attempted)"
     exit 0
 fi
 

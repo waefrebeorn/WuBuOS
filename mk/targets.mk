@@ -161,7 +161,8 @@ HOSTED_LIBS = -no-pie -fopenmp -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd
 # The two signing leaves are compiled into build/hosted/ with the auto-detected
 # backend flags, so the product links the SAME backend the gates test.  Other
 # targets keep using the plain GUI objects (fail-closed, no new link deps).
-HOSTED_EDDSA_OBJS := $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_pkg_sign.o $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_pkg_ed25519.o
+HOSTED_EDDSA_OBJS := $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_pkg_sign.o $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_pkg_ed25519.o \
+                     $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_eddsa_policy.o
 HOSTED_GUI_OBJS := $(filter-out $(GUI)/wubu_pkg_sign.o $(GUI)/wubu_pkg_ed25519.o,$(GUI_OBJS)) $(HOSTED_EDDSA_OBJS)
 hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_EXTRA) $(HOSTED_GLUE) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(HOSTED_GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) $(HOSTED_LINK_ONLY) $(WUBU_EDDSA_BUILD_DIR)/native_eddsa_config.h
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) -c $(HOSTED)/hosted.c -o /tmp/hosted_main.o -Iinclude

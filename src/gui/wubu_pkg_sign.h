@@ -12,9 +12,12 @@
  * Ed25519 key in that build).  Host/tooling builds may opt into OpenSSL 3's
  * EVP_PKEY_ED25519 with WUBU_HAVE_OPENSSL_EDDSA + -lcrypto; it consumes the
  * SAME 32-byte digest and the small-subgroup / non-canonical-S policy checks
- * stay in wubu_pkg_ed25519.c on both backends.  An unavailable native backend
- * fails closed onto the hardened ladder.  With WUBU_HAVE_MBEDTLS undefined the
- * crypto entry points refuse to operate: there is no fake "verified" path.
+ * stay in the verification policy layer on both backends (mbedTLS bignum, or
+ * src/runtime/wubu_eddsa_policy.c when no mbedTLS dev root is present).  An
+ * unavailable native backend fails closed onto the hardened ladder when
+ * mbedTLS is compiled, and refuses outright when it is not.  Only when NO
+ * backend is compiled do the entry points refuse to operate: there is no fake
+ * "verified" path.
  *
  * Key encoding (no secret literals in the repo):
  *   private seed: 64 hex chars = 32-byte RFC 8032 seed

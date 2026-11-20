@@ -72,6 +72,12 @@ $(WUBU_EDDSA_BUILD_DIR)/hosted/%.o: $(GUI)/%.c $(WUBU_EDDSA_BUILD_DIR)/native_ed
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(WUBU_EDDSA_HOSTED_CFLAGS) -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -MMD -MP -c $< -o $@ -Iinclude
 
+# Bignum-free verification policy: shared by both backends, built with the
+# same auto-detected config so the product and the gates compile one source.
+$(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_eddsa_policy.o: $(RT)/wubu_eddsa_policy.c $(WUBU_EDDSA_BUILD_DIR)/native_eddsa_config.h
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(WUBU_EDDSA_HOSTED_CFLAGS) -I$(RT) -MMD -MP -c $< -o $@ -Iinclude
+
 # Special rule for wubu_ui_hosted.o
 $(GUI)/wubu_ui_hosted.o: $(GUI)/wubu_ui.c
 	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) `pkg-config --cflags wlroots vulkan gbm libdrm 2>/dev/null` -MMD -MP -c $< -o $@ -Iinclude

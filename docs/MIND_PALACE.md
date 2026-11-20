@@ -180,6 +180,26 @@ wrong fails the build.
 
 ---
 
+## Package signatures without a dev root
+
+**For:** verifying signed `.wubu` packages and operator commands on a host
+that has OpenSSL but no mbedTLS development package.
+
+- `src/gui/wubu_pkg_sign.c` owns the canonical digest and the fail-closed gate;
+  `src/gui/wubu_pkg_ed25519.c` supplies the primitive.
+- With both libraries installed the backend is native OpenSSL with the mbedTLS
+  ladder as fallback — unchanged. With OpenSSL alone the primitive is native
+  and the verification policy comes from `src/runtime/wubu_eddsa_policy.c`:
+  canonical `S < L` and small-subgroup `A` rejection using fixed-width byte
+  comparisons, no bignum library and no third-party code.
+- `tools/detect_native_eddsa.sh` decides the backend from installed software
+  only; it never downloads. The invariant is "every backend has a policy".
+- `tools/eddsa_nombedtls_gate.sh` (`make test_eddsa_nombedtls`) signs, verifies
+  and refuses every forgery class with no mbedTLS headers, and agrees with the
+  mbedTLS build when a dev root is available. Details: `docs/EDDSA_NOMBEDTLS.md`.
+
+---
+
 ## The five numbers that matter
 
 | | |

@@ -7,6 +7,11 @@
  * All three call the SAME wubu_pkg_sign_* entry points on the SAME canonical
  * 32-byte digest.  Output is machine-readable for the shell driver.
  */
+#ifdef WUBU_EDDSA_USE_BUILD_CONFIG
+/* Match the signing leaves: the build-time config decides which backend is
+ * compiled, so the NATIVE_OPS report must read the same feature macros. */
+#include "native_eddsa_config.h"
+#endif
 #include "wubu_pkg_sign.h"
 #include "wubu_pkg_sign_internal.h"
 
