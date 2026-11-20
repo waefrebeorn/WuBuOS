@@ -290,6 +290,10 @@ int main(void) {
     T(bumped > hint2, "bump allocation advances past hinted mappings");
     T(vsl_mmap(0, 0, 0x3, 0x22, -1, 0) == (uint64_t)-22,
       "zero-length mmap returns EINVAL");
+    T(vsl_mmap(0, UINT64_MAX, 0x3, 0x22, -1, 0) == (uint64_t)-12,
+      "wrapping mmap length returns ENOMEM");
+    T(vsl_mmap(UINT64_MAX, 4096, 0x3, 0x22, -1, 0) == (uint64_t)-12,
+      "wrapping mmap hint returns ENOMEM");
     T(vsl_munmap(hint1, 4096) == 0 && vsl_munmap(hint2, 4096) == 0 &&
       vsl_munmap(bumped, 4096) == 0 && g_vsl.n_mmaps == maps0,
       "hinted mappings unmap cleanly");

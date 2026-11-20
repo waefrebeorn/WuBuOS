@@ -94,8 +94,11 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
      * an ADVISORY hint, never a claim on an already-mapped range. */
     uint64_t alloc_addr = addr ? addr : proc->mmap_base;
     if (alloc_addr < VSL_USER_BASE) alloc_addr = VSL_USER_BASE;
+    /* Round a huge hint only after bounding it: addr+0xfff wrapped to 0
+     * and a huge size wrapped past arena_end, registering a bogus mapping. */
+    if (alloc_addr > arena_end - 0xfff) return (uint64_t)-12;
     alloc_addr = (alloc_addr + 0xfff) & ~0xfffull;
-    if ((uint64_t)alloc_addr + (uint64_t)size > (uint64_t)arena_end) return (uint64_t)-12;
+    if ((uint64_t)size > arena_end - alloc_addr) return (uint64_t)-12;
 
     /* Walk past any colliding registration. Leaving the hint unresolved
      * handed the SAME address to two callers; dynamic loaders then wrote
@@ -110,7 +113,7 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
         }
         if (!next) break;
         alloc_addr = next;
-        if (alloc_addr + (uint64_t)size > arena_end) return (uint64_t)-12;
+        if ((uint64_t)size > arena_end - alloc_addr) return (uint64_t)-12;
     }
 
     VSL_MMAP *mm = &g_vsl.mmaps[g_vsl.n_mmaps++];
