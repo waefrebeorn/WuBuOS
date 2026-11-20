@@ -86,12 +86,32 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
         return addr;
     }
 
+    if (!size) return (uint64_t)-22;
+
     if (g_vsl.n_mmaps >= VSL_MAX_MMAPS) return (uint64_t)-12;
 
-    /* Simple allocation: bump pointer from mmap_base */
+    /* Simple allocation: bump pointer from mmap_base; a non-zero addr is
+     * an ADVISORY hint, never a claim on an already-mapped range. */
     uint64_t alloc_addr = addr ? addr : proc->mmap_base;
     if (alloc_addr < VSL_USER_BASE) alloc_addr = VSL_USER_BASE;
+    alloc_addr = (alloc_addr + 0xfff) & ~0xfffull;
     if ((uint64_t)alloc_addr + (uint64_t)size > (uint64_t)arena_end) return (uint64_t)-12;
+
+    /* Walk past any colliding registration. Leaving the hint unresolved
+     * handed the SAME address to two callers; dynamic loaders then wrote
+     * one library's segments over another's. */
+    for (;;) {
+        uint64_t next = 0;
+        for (uint32_t i = 0; i < g_vsl.n_mmaps; i++) {
+            uint64_t s = g_vsl.mmaps[i].addr;
+            uint64_t e = s + g_vsl.mmaps[i].size;
+            if (e <= alloc_addr || s >= alloc_addr + (uint64_t)size) continue;
+            if (e > next) next = e;
+        }
+        if (!next) break;
+        alloc_addr = next;
+        if (alloc_addr + (uint64_t)size > arena_end) return (uint64_t)-12;
+    }
 
     VSL_MMAP *mm = &g_vsl.mmaps[g_vsl.n_mmaps++];
     mm->addr = alloc_addr;

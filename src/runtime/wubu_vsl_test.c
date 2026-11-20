@@ -280,6 +280,20 @@ int main(void) {
     T(vsl_munmap(fixed_at + 1, 4096) == -22, "unaligned munmap returns EINVAL");
     T(vsl_munmap(fixed_at, 0) == -22, "zero-length munmap returns EINVAL");
 
+    /* Advisory hints must not hand out a range twice. */
+    uint64_t hint1 = vsl_mmap(0, 4096, 0x3, 0x22, -1, 0);
+    uint64_t hint2 = vsl_mmap(hint1, 4096, 0x3, 0x22, -1, 0);
+    T(hint2 != hint1, "colliding advisory hint does not reuse a mapped address");
+    T(hint2 > hint1, "colliding hint resolves to a free address above it");
+    T(g_vsl.n_mmaps == maps0 + 2, "both hinted mappings are registered");
+    uint64_t bumped = vsl_mmap(0, 4096, 0x3, 0x22, -1, 0);
+    T(bumped > hint2, "bump allocation advances past hinted mappings");
+    T(vsl_mmap(0, 0, 0x3, 0x22, -1, 0) == (uint64_t)-22,
+      "zero-length mmap returns EINVAL");
+    T(vsl_munmap(hint1, 4096) == 0 && vsl_munmap(hint2, 4096) == 0 &&
+      vsl_munmap(bumped, 4096) == 0 && g_vsl.n_mmaps == maps0,
+      "hinted mappings unmap cleanly");
+
     /* -- File Operations -- */
     printf("\n[File Operations]\n");
     int fd = vsl_open("/tmp/test.txt", 0x241, 0644);
