@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 3715
-- OWNED (appear in a test target recipe): 872
-- VENDORED / unproven (no test-target recipe reference): 2843
+- product source modules: 3719
+- OWNED (appear in a test target recipe): 874
+- VENDORED / unproven (no test-target recipe reference): 2845
 
 ## OWNED modules (tested)
 
@@ -78,6 +78,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `fat32_name.c`  -- tests: test_fat32
 - `fs_persist_fuzz.c`  -- tests: test_fs_persist_fuzz
 - `getting_started.c`  -- tests: test_first_run
+- `guest_dtneeded.c`  -- tests: test_wemu_protect;test_wemu_protect
 - `guest_dyn.c`  -- tests: test_wemu_protect
 - `guests_panel.c`  -- tests: test_guests_panel
 - `gui_blend.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
@@ -195,6 +196,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_thermal_read.c`  -- tests: test_thermal_read
 - `test_win32_core.c`  -- tests: test_win32_core
 - `test_worldsim.c`  -- tests: test_worldsim
+- `test_wubu_audio_backend.c`  -- tests: test_audio_backend
 - `test_wubu_crc32.c`  -- tests: test_crc32
 - `test_wubu_gui_metrics.c`  -- tests: test_gui_metrics
 - `test_wubu_sound.c`  -- tests: test_wubu_sound
@@ -1611,6 +1613,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `gru.c`
 - `gru_gpu.c`
 - `gru_layout.c`
+- `guest_dep.c`
 - `guest_dynsym.c`
 - `guest_exit42.c`
 - `guest_exit_group.c`
@@ -2272,6 +2275,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_iq2_dequant.c`
 - `test_iq2_xxs_dot.c`
 - `test_iq_dot.c`
+- `test_iret.c`
 - `test_isa.c`
 - `test_isa_atomic_fence.c`
 - `test_kaleidoscope.c`

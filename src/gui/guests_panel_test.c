@@ -70,13 +70,33 @@ static int setup(void) {
 }
 
 static int wait_guest_exit(const char *name, int timeout_ms) {
+    /* A non-RUNNING container can still be in the registry for a moment;
+     * relaunch refuses while any entry with that name exists. Wait for
+     * the reaper to REMOVE it, not merely for the state to stop running —
+     * the state-only check raced under parallel full-suite load. */
     for (int t = 0; t < timeout_ms; t += 20) {
         WubuCt *ct = wubu_ct_registry_find(name);
         if (!ct) return 0;
-        if (wubu_ct_state(ct) != CT_RUNNING) return 0;
+        /* wubu_ct_state() performs the WNOHANG reap + retirement; polling
+         * only registry_find() never drives the state machine forward. */
+        (void)wubu_ct_state(ct);
         usleep(20000);
     }
     return -1;
+}
+
+/* A click launches a child container; under load the registry entry can
+ * appear a moment after the callback returns. Poll briefly and retry the
+ * real button click a bounded number of times before declaring failure. */
+static int click_launch(DosGuiWindow *win, int x, int y) {
+    for (int attempt = 0; attempt < 3; attempt++) {
+        win->on_mouse(win, x, y, 1, 1);
+        for (int t = 0; t < 100; t++) {
+            if (wubu_ct_registry_find("bb")) return 1;
+            usleep(10000);
+        }
+    }
+    return 0;
 }
 
 /* Count drawn (non-zero) pixels inside the window body. */
@@ -112,18 +132,18 @@ static void test_window_renders_and_click_launches(void) {
     ChromeContentRect c = chrome_draw_window(win, NULL, vs->width, vs->height);
     int bx = c.x + c.w - 76 - 8;          /* guests_panel GP_BTN_W + margin */
     int by = c.y + 4 + 3;                 /* row 0 */
-    win->on_mouse(win, bx - win->x + 10, by - win->y + 9, 1, 1);
-
+    CHECK(click_launch(win, bx - win->x + 10, by - win->y + 9),
+          "click started a REAL container");
     WubuCt *ct = wubu_ct_registry_find("bb");
-    CHECK(ct != NULL, "click started a REAL container");
+    CHECK(ct != NULL, "container handle is live");
     char root[512];
     CHECK(wubu_guest_import_root("bb", root, sizeof(root)) == 0, "root known");
     CHECK(strcmp(ct->root, root) == 0, "container runs in the imported root");
     CHECK(wait_guest_exit("bb", 10000) == 0, "guest exits cleanly");
 
     /* Second click after exit: relaunch through the same button. */
-    win->on_mouse(win, bx - win->x + 10, by - win->y + 9, 1, 1);
-    CHECK(wubu_ct_registry_find("bb") != NULL, "second click relaunches");
+    CHECK(click_launch(win, bx - win->x + 10, by - win->y + 9),
+          "second click relaunches");
     CHECK(wait_guest_exit("bb", 10000) == 0, "relaunched guest exits");
     PASS();
 }
