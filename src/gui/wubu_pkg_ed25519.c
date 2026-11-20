@@ -447,4 +447,48 @@ bool wubu_pkg_verify_command(const char *command, const char *pubkey_hex,
     }
     return wubu_pkg_sign_verify_ed25519(digest, pubkey_hex, sig, err, errsz);
 }
+
+/* -- Domain-separated hashing of arbitrary byte buffers (feed import) ----
+ * The domain and the exact byte length are folded into the SHA-256 preimage
+ * so a feed signature is bound to this protocol AND to the exact file bytes.
+ * Only the resulting 32-byte digest reaches the Ed25519 primitive above. */
+static bool bytes_digest(const uint8_t *data, size_t len, const char *domain,
+                         uint8_t out[WUBU_PKG_SIGN_DIGEST_LEN]) {
+    if (!out || !domain || !domain[0] || (!data && len)) return false;
+    char hdr[128];
+    int hn = snprintf(hdr, sizeof(hdr), "%s\n%zu\n", domain, len);
+    if (hn < 0 || (size_t)hn >= sizeof(hdr)) return false;
+    wubu_SHA256_CTX ctx;
+    wubu_sha256_init(&ctx);
+    wubu_sha256_update(&ctx, hdr, (size_t)hn);
+    if (len) wubu_sha256_update(&ctx, data, len);
+    wubu_sha256_final(&ctx, out);
+    return true;
+}
+
+bool wubu_pkg_sign_bytes(const uint8_t *data, size_t len, const char *domain,
+                         const char *seed_hex,
+                         uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                         char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!bytes_digest(data, len, domain, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash bytes for signing");
+        return false;
+    }
+    return wubu_pkg_sign_ed25519(digest, seed_hex, out_sig, err, errsz);
+}
+
+bool wubu_pkg_verify_bytes(const uint8_t *data, size_t len, const char *domain,
+                           const char *pubkey_hex,
+                           const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!bytes_digest(data, len, domain, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash bytes for verification");
+        return false;
+    }
+    return wubu_pkg_sign_verify_ed25519(digest, pubkey_hex, sig, err, errsz);
+}
 #endif /* WUBU_HAVE_MBEDTLS */

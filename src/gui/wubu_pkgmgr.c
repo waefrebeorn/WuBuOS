@@ -9,6 +9,7 @@
 
 #include "wubu_pkgmgr_internal.h"
 #include "wubu_pkg_sign.h"
+#include "wubu_pkgmgr_revoke_feed.h"
 
 /* -- Global State -------------------------------------------------- */
 
@@ -297,6 +298,120 @@ bool wubu_pkgmgr_key_unrevoke_authorized(const char *pubkey_hex, const char *sig
     if (!revoked_key_valid(pubkey_hex)) return false;
     if (!authorize_command("unrevoke", pubkey_hex, sig_hex)) return false;
     return wubu_pkgmgr_key_unrevoke(pubkey_hex);
+}
+
+/* -- Authenticated revocation-feed import ---------------------------
+ * Security order is deliberate:
+ *   1. read the EXACT feed bytes (bounded);
+ *   2. verify the admin signature over a domain-separated hash of those
+ *      bytes -- NO database read or write has happened yet;
+ *   3. parse the bytes strictly into entries;
+ *   4. apply every entry inside ONE SQLite transaction, rolling all back
+ *      on the first failure;
+ *   5. rebuild the in-process cache exactly once after a successful commit.
+ * Steps 2 and 3 are fail-closed, so an unsigned, wrong-key, tampered,
+ * malformed, duplicate/conflicting or oversized feed never reaches step 4. */
+static void feed_seterr(char *err, size_t errsz, const char *msg) {
+    if (err && errsz) {
+        strncpy(err, msg, errsz - 1);
+        err[errsz - 1] = '\0';
+    }
+}
+
+bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
+                                 size_t *out_applied, char *err, size_t errsz) {
+    if (out_applied) *out_applied = 0;
+    feed_seterr(err, errsz, "");
+    if (!feed_path || !*feed_path) {
+        feed_seterr(err, errsz, "no feed path"); return false;
+    }
+
+    /* 1. Exact, bounded file bytes. */
+    FILE *f = fopen(feed_path, "rb");
+    if (!f) { feed_seterr(err, errsz, "cannot open feed"); return false; }
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); feed_seterr(err, errsz, "cannot seek feed"); return false; }
+    long szl = ftell(f);
+    if (szl < 0 || (size_t)szl > WUBU_PKGMGR_FEED_MAX_BYTES) {
+        fclose(f); feed_seterr(err, errsz, "feed exceeds byte limit"); return false;
+    }
+    size_t sz = (size_t)szl;
+    rewind(f);
+    uint8_t *data = (uint8_t *)malloc(sz ? sz : 1);
+    if (!data) { fclose(f); feed_seterr(err, errsz, "out of memory"); return false; }
+    if (sz && fread(data, 1, sz, f) != sz) {
+        fclose(f); free(data); feed_seterr(err, errsz, "short feed read"); return false;
+    }
+    fclose(f);
+
+    /* 2. Authenticate BEFORE any DB read/write.  Reuses the Ed25519 leaf. */
+    uint8_t sig[64];
+    if (!g_pkgmgr.admin_pubkey[0]) {
+        free(data); feed_seterr(err, errsz, "no admin key bootstrapped"); return false;
+    }
+    if (!sig_hex_to_bytes(sig_hex, sig)) {
+        free(data); feed_seterr(err, errsz, "missing or malformed signature"); return false;
+    }
+    if (!wubu_pkg_verify_bytes(data, sz, WUBU_PKG_REVOCATION_FEED_DOMAIN,
+                               g_pkgmgr.admin_pubkey, sig, err, errsz)) {
+        free(data); return false;   /* unsigned / wrong-key / tampered */
+    }
+
+    /* 3. Strict parse, also before any DB mutation. */
+    wubu_revoke_feed_entry_t entries[WUBU_PKGMGR_FEED_MAX_ENTRIES];
+    size_t n = 0;
+    if (!wubu_pkg_revoke_feed_parse(data, sz, entries,
+                                    WUBU_PKGMGR_FEED_MAX_ENTRIES, &n, err, errsz)) {
+        free(data); return false;
+    }
+    free(data);
+
+    /* 4a. Preflight the resulting cache size so a valid feed can never
+     *     silently overflow the bounded in-process revocation cache. */
+    size_t final_count = (size_t)g_pkgmgr.n_revoked_keys;
+    for (size_t i = 0; i < n; i++) {
+        bool cur = wubu_pkgmgr_key_is_revoked(entries[i].key);
+        if (entries[i].op == WUBU_REVOKE_FEED_REVOKE && !cur) final_count++;
+        else if (entries[i].op == WUBU_REVOKE_FEED_UNREVOKE && cur) final_count--;
+    }
+    if (final_count > WUBU_PKGMGR_MAX_REVOKED_KEYS) {
+        feed_seterr(err, errsz, "feed would exceed revocation cache capacity"); return false;
+    }
+    if (!g_pkgmgr.db) { feed_seterr(err, errsz, "no package DB"); return false; }
+
+    /* 4b. Atomic apply: one transaction, all-or-nothing. */
+    if (db_exec("BEGIN IMMEDIATE") != 0) {
+        feed_seterr(err, errsz, "cannot begin feed transaction"); return false;
+    }
+    bool ok = true;
+    time_t now = time(NULL);
+    for (size_t i = 0; i < n && ok; i++) {
+        const char *sql = entries[i].op == WUBU_REVOKE_FEED_REVOKE
+            ? "INSERT OR IGNORE INTO revoked_keys (pubkey_hex, revoked_at) VALUES (?1, ?2)"
+            : "DELETE FROM revoked_keys WHERE pubkey_hex = ?1";
+        sqlite3_stmt *stmt = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+            ok = false; break;
+        }
+        sqlite3_bind_text(stmt, 1, entries[i].key, -1, SQLITE_TRANSIENT);
+        if (entries[i].op == WUBU_REVOKE_FEED_REVOKE)
+            sqlite3_bind_int64(stmt, 2, (sqlite3_int64)now);
+        ok = (sqlite3_step(stmt) == SQLITE_DONE);
+        sqlite3_finalize(stmt);
+    }
+    if (ok) ok = (db_exec("COMMIT") == 0);
+    if (!ok) {
+        db_exec("ROLLBACK");
+        feed_seterr(err, errsz, "feed apply failed; all entries rolled back");
+        return false;
+    }
+
+    /* 5. Cache is authoritative from the committed rows. */
+    if (!keyrev_reload()) {
+        feed_seterr(err, errsz, "committed but cache reload failed");
+        return false;
+    }
+    if (out_applied) *out_applied = n;
+    return true;
 }
 
 int wubu_pkgmgr_key_revoked_list(char out[][65], int max) {

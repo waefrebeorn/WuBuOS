@@ -72,4 +72,21 @@ bool wubu_pkg_verify_command(const char *command, const char *pubkey_hex,
                              const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
                              char *err, size_t errsz);
 
+/* Sign/verify a domain-separated SHA-256 hash of an arbitrary byte buffer
+ * (the authenticated revocation-feed importer).  The hashed preimage is
+ * exactly: domain || "\n" || decimal_byte_length || "\n" || data bytes.
+ * The distinct domain prevents a feed signature from being replayed as the
+ * single-command revocation form (and vice versa); the length field removes
+ * any boundary ambiguity.  Only the 32-byte digest is handed to the Ed25519
+ * primitive in wubu_pkg_ed25519.c -- no crypto is duplicated here.  Both
+ * fail closed when mbedTLS is not compiled in. */
+bool wubu_pkg_sign_bytes(const uint8_t *data, size_t len, const char *domain,
+                         const char *seed_hex,
+                         uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                         char *err, size_t errsz);
+bool wubu_pkg_verify_bytes(const uint8_t *data, size_t len, const char *domain,
+                           const char *pubkey_hex,
+                           const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz);
+
 #endif /* WUBU_PKG_SIGN_H */

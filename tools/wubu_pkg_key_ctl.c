@@ -31,8 +31,10 @@ static void usage(const char *name) {
         "       %s [--db DIR] revoke <key_hex> --sig <sig_hex>\n"
         "       %s [--db DIR] unrevoke <key_hex> --sig <sig_hex>\n"
         "       %s [--db DIR] list\n"
-        "       %s sign <revoke|unrevoke> <key_hex> --seed <seed_hex>\n",
-        name, name, name, name, name);
+        "       %s sign <revoke|unrevoke> <key_hex> --seed <seed_hex>\n"
+        "       %s sign-feed <feed_file> --seed <seed_hex>\n"
+        "       %s [--db DIR] feed <feed_file> --sig <sig_hex>\n",
+        name, name, name, name, name, name, name);
 }
 
 static const char *opt_value(int argc, char **argv, const char *flag) {
@@ -62,6 +64,23 @@ static void bytes_to_hex(const uint8_t *b, size_t n, char *out) {
         out[2 * i + 1] = d[b[i] & 0x0f];
     }
     out[2 * n] = '\0';
+}
+
+/* Read the EXACT feed bytes, bounded to the importer's limit. */
+static uint8_t *read_feed_bytes(const char *path, size_t *out_len) {
+    *out_len = 0;
+    FILE *f = fopen(path, "rb");
+    if (!f) return NULL;
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return NULL; }
+    long n = ftell(f);
+    if (n < 0 || (size_t)n > WUBU_PKGMGR_FEED_MAX_BYTES) { fclose(f); return NULL; }
+    rewind(f);
+    uint8_t *buf = (uint8_t *)malloc((size_t)n ? (size_t)n : 1);
+    if (!buf) { fclose(f); return NULL; }
+    if (n && fread(buf, 1, (size_t)n, f) != (size_t)n) { fclose(f); free(buf); return NULL; }
+    fclose(f);
+    *out_len = (size_t)n;
+    return buf;
 }
 
 static bool init_db(const char *dbdir) {
@@ -110,6 +129,23 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    /* sign-feed needs no DB: hash the exact feed bytes and use the leaf. */
+    if (strcmp(cmd, "sign-feed") == 0) {
+        if (np < 2 || !seed) { usage(argv[0]); return 2; }
+        size_t len = 0;
+        uint8_t *data = read_feed_bytes(pos[1], &len);
+        if (!data) { fprintf(stderr, "ctl: cannot read feed %s\n", pos[1]); return 2; }
+        uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN];
+        char err[256], hex[2 * WUBU_PKG_SIGNATURE_LEN + 1];
+        bool ok = wubu_pkg_sign_bytes(data, len, WUBU_PKG_REVOCATION_FEED_DOMAIN,
+                                      seed, out_sig, err, sizeof(err));
+        free(data);
+        if (!ok) { fprintf(stderr, "ctl: sign-feed failed: %s\n", err); return 1; }
+        bytes_to_hex(out_sig, WUBU_PKG_SIGNATURE_LEN, hex);
+        printf("%s\n", hex);
+        return 0;
+    }
+
     if (!init_db(db)) {
         fprintf(stderr, "ctl: cannot open pkgmgr DB under %s\n", db);
         return 1;
@@ -127,6 +163,13 @@ int main(int argc, char **argv) {
     } else if (strcmp(cmd, "unrevoke") == 0 && np >= 2) {
         bool ok = wubu_pkgmgr_key_unrevoke_authorized(pos[1], sig);
         printf("%s unrevoke %s\n", ok ? "OK" : "REFUSED", pos[1]);
+        rc = ok ? 0 : 1;
+    } else if (strcmp(cmd, "feed") == 0 && np >= 2) {
+        size_t applied = 0;
+        char err[256];
+        bool ok = wubu_pkgmgr_key_feed_import(pos[1], sig, &applied, err, sizeof(err));
+        if (!ok && err[0]) fprintf(stderr, "ctl: feed: %s\n", err);
+        printf("%s feed %s applied %zu\n", ok ? "OK" : "REFUSED", pos[1], applied);
         rc = ok ? 0 : 1;
     } else if (strcmp(cmd, "list") == 0) {
         char keys[WUBU_PKGMGR_MAX_REVOKED_KEYS][65];

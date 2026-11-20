@@ -39,6 +39,7 @@ pkg_key_ctl:
 		-include src/runtime/wubu_gnu_compat.h \
 		src/runtime/wubu_crc32.c \
 		src/gui/wubu_pkgmgr.c src/gui/wubu_pkgmgr_verify.c src/gui/wubu_pkg_sign.c src/gui/wubu_pkg_ed25519.c \
+		src/gui/wubu_pkgmgr_revoke_feed.c \
 		src/gui/wubu_pkgmgr_resolve.c src/gui/wubu_pkgmgr_manifest.c src/gui/wubu_pkgmgr_db.c \
 		src/gui/wubu_pkgmgr_pkg.c src/gui/wubu_pkgmgr_install.c src/gui/wubu_pkgmgr_txn.c \
 		src/gui/wubu_pkgmgr_remote.c src/gui/wubu_pkgmgr_fetch.c \
@@ -59,6 +60,11 @@ pkg_key_ctl:
 # required; deliberately NOT in the default `make test` tier).
 test_pkg_key_revoke:
 	bash tools/pkg_key_revoke_gate.sh
+
+# Opt-in differential gate for the authenticated revocation-feed import
+# (mbedTLS root required; NOT in the default `make test` tier).
+test_pkg_revoke_feed:
+	bash tools/pkg_revoke_feed_gate.sh
 
 test_oci:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT)/wubu_crc32.c \
@@ -2807,7 +2813,7 @@ test_bear_drivers:
 test_pkgmgr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  src/runtime/wubu_crc32.c \
 		-I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) \
-		$(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_verify.c $(GUI)/wubu_pkg_sign.c $(GUI)/wubu_pkg_ed25519.c $(GUI)/wubu_pkgmgr_resolve.c $(GUI)/wubu_pkgmgr_manifest.c $(GUI)/wubu_pkgmgr_db.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_pkgmgr_remote.c $(GUI)/wubu_pkgmgr_fetch.c $(RT)/wubu_pkg.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_math.c \
+		$(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_verify.c $(GUI)/wubu_pkg_sign.c $(GUI)/wubu_pkg_ed25519.c $(GUI)/wubu_pkgmgr_revoke_feed.c $(GUI)/wubu_pkgmgr_resolve.c $(GUI)/wubu_pkgmgr_manifest.c $(GUI)/wubu_pkgmgr_db.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_pkgmgr_remote.c $(GUI)/wubu_pkgmgr_fetch.c $(RT)/wubu_pkg.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_math.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c $(RT)/wubu_container.c \
 		$(RT)/oci/oci_http_client.c \
 		$(GUI)/wubu_pkgmgr_test.c \

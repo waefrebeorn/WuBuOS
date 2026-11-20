@@ -149,6 +149,23 @@ bool wubu_pkg_verify_command(const char *command, const char *pubkey_hex,
     return false;
 }
 
+bool wubu_pkg_sign_bytes(const uint8_t *data, size_t len, const char *domain,
+                         const char *seed_hex,
+                         uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                         char *err, size_t errsz) {
+    (void)data; (void)len; (void)domain; (void)seed_hex; (void)out_sig;
+    wubu_pkg_sign_set_err(err, errsz, "mbedTLS not compiled in: byte signing unavailable");
+    return false;
+}
+bool wubu_pkg_verify_bytes(const uint8_t *data, size_t len, const char *domain,
+                           const char *pubkey_hex,
+                           const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    (void)data; (void)len; (void)domain; (void)pubkey_hex; (void)sig;
+    wubu_pkg_sign_set_err(err, errsz, "mbedTLS not compiled in: byte verification unavailable");
+    return false;
+}
+
 #endif /* !WUBU_HAVE_MBEDTLS */
 
 bool wubu_pkg_sign_verify_package(const char *pkg_path, size_t header_len,

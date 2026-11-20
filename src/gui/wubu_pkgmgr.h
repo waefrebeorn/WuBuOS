@@ -273,6 +273,25 @@ int wubu_pkgmgr_key_revoked_count(void);
  * all refuse without touching the database. */
 #define WUBU_PKG_REVOCATION_DOMAIN "WUBU-PKG-REVOCATION-v1"
 
+/* Authenticated revocation-feed import.  A feed is a bounded newline-
+ * delimited JSON text file whose entries are revoke/unrevoke operations;
+ * see src/gui/wubu_pkgmgr_revoke_feed.c for the exact grammar.  The admin
+ * signature is over a domain-separated SHA-256 of the EXACT feed file bytes
+ * (distinct from the single-command domain below) and is verified before
+ * any database mutation.  Entries are then applied atomically. */
+#define WUBU_PKG_REVOCATION_FEED_DOMAIN "WUBU-PKG-REVOCATION-v1/feed"
+#define WUBU_PKGMGR_FEED_MAX_BYTES  (64u * 1024u)
+#define WUBU_PKGMGR_FEED_MAX_ENTRIES 64u
+
+/* Import a signed revocation feed.  sig_hex is 128 lowercase hex chars
+ * (Ed25519 signature over the exact feed bytes).  Returns false -- with
+ * no DB change -- for unsigned/wrong-key/tampered feeds, malformed lines,
+ * duplicate/conflicting entries, bad key hex, and oversized feeds.
+ * Re-applying an already-applied feed is a no-op.  On success *out_applied
+ * receives the number of entries in the feed. */
+bool wubu_pkgmgr_key_feed_import(const char *feed_path, const char *sig_hex,
+                                 size_t *out_applied, char *err, size_t errsz);
+
 /* Build the exact command string used for both signing and verification. */
 bool wubu_pkgmgr_key_command_string(const char *op, const char *pubkey_hex,
                                     char *out, size_t outsz);
