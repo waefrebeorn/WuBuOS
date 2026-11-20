@@ -199,6 +199,11 @@ typedef struct {
     char old_version[WUBU_PKG_MAX_VER];
     char new_version[WUBU_PKG_MAX_VER];
     bool is_dependency;
+    /* Filled by the install/remove paths during commit so rollback can undo
+     * this item.  applied_id is the TRUE id touched (manifest id for install,
+     * requested id for remove) -- the txn pkg_id may be a local .wubu path. */
+    bool backup_taken;
+    char applied_id[WUBU_PKG_MAX_NAME];
 } wubu_pkg_txn_item_t;
 
 typedef struct {

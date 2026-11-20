@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <glob.h>
 
 #define TEST_ASSERT(cond, msg) \
     do { \
@@ -880,6 +881,17 @@ static void fixture_config(wubu_pkgmgr_config_t *config, const char *base) {
     config->allow_untrusted = true;
 }
 
+/* Count generated .desktop files for an id (the entrypoint id is not carried
+ * through manifest JSON, so the exact filename is not stable -- glob it). */
+static int fixture_count_desktop(const char *prefix, const char *id) {
+    char pat[768];
+    snprintf(pat, sizeof(pat), "%s/share/applications/%s-*.desktop", prefix, id);
+    glob_t g;
+    int n = 0;
+    if (glob(pat, 0, NULL, &g) == 0) { n = (int)g.gl_pathc; globfree(&g); }
+    return n;
+}
+
 /* Happy path: install('pkg-a') downloads over real HTTP, verifies sha256,
  * installs; payload files exist at the DB-recorded paths; the files table
  * holds real hashes; verify_installed passes; tampering an installed file
@@ -1498,6 +1510,79 @@ bool test_untrusted_sql_literal(void) {
     return true;
 }
 
+/* ============================================================
+ * Differential gate: a transaction whose FIRST item completes (installs A)
+ * and whose LATER item fails must be fully undoable.  On the pre-change code
+ * rollback() was a `return false` stub, so A's files and DB row survived and
+ * this gate FAILED.  With real backup/restore it passes.
+ * ============================================================ */
+bool test_txn_rollback_restores(void) {
+    const char *BASE = "/tmp/wubu_pkgmgr_txnrb";
+    const char *SRCDIR = "/tmp/wubu_pkgmgr_txnrb_src";
+    fixture_rm(BASE); fixture_rm(SRCDIR);
+
+    wubu_pkgmgr_config_t config;
+    fixture_config(&config, BASE);
+    TEST_ASSERT(wubu_pkgmgr_init(&config), "rollback gate init");
+
+    /* Unrelated DB state that rollback must NOT clobber. */
+    TEST_ASSERT(wubu_pkgmgr_repo_add("rollback-sentinel", "http://127.0.0.1/index.json", NULL, 1),
+                "sentinel repo added");
+
+    /* Build a real local package A. */
+    char wubu[640];
+    snprintf(wubu, sizeof(wubu), "%s/A-1.0.wubu", SRCDIR);
+    TEST_ASSERT(fixture_make_pkg("A", "1.0", SRCDIR, wubu), "fixture pkg A created");
+
+    wubu_pkg_transaction_t txn;
+    TEST_ASSERT(wubu_pkgmgr_txn_begin(&txn, false), "rollback txn begin");
+    TEST_ASSERT(wubu_pkgmgr_txn_add(&txn, WUBU_PKG_TXN_INSTALL, wubu, NULL, "1.0", false),
+                "add install A");
+    /* Later item names a package that is nowhere in any repo -> install fails. */
+    TEST_ASSERT(wubu_pkgmgr_txn_add(&txn, WUBU_PKG_TXN_INSTALL,
+                                    "no-such-package-id", NULL, "1.0", false),
+                "add failing later item");
+
+    TEST_ASSERT(!wubu_pkgmgr_txn_commit(&txn), "commit fails closed on later item");
+
+    /* The completed first item really took effect. */
+    TEST_ASSERT(wubu_pkgmgr_is_installed("A"), "A installed by partial commit");
+    char root[640], p1[768], p2[768];
+    snprintf(root, sizeof(root), "%s/install/A", BASE);
+    snprintf(p1, sizeof(p1), "%s/bin/A", root);
+    snprintf(p2, sizeof(p2), "%s/share/A.txt", root);
+    struct stat st;
+    TEST_ASSERT(stat(p1, &st) == 0 && stat(p2, &st) == 0, "A payload on disk before rollback");
+    int desk_before = fixture_count_desktop(config.install_prefix, "A");
+    printf("    [gate] A desktop files before rollback: %d\n", desk_before);
+    TEST_ASSERT(desk_before > 0, "A desktop file on disk before rollback");
+
+    /* THE ROLLBACK UNDER TEST. */
+    TEST_ASSERT(wubu_pkgmgr_txn_rollback(&txn), "rollback returns true");
+
+    /* Every artifact of the completed item is gone. */
+    TEST_ASSERT(!wubu_pkgmgr_is_installed("A"), "A DB registration gone after rollback");
+    TEST_ASSERT(stat(p1, &st) != 0, "A bin payload gone after rollback");
+    TEST_ASSERT(stat(p2, &st) != 0, "A data payload gone after rollback");
+    TEST_ASSERT(stat(root, &st) != 0, "A install root gone after rollback");
+    TEST_ASSERT(fixture_count_desktop(config.install_prefix, "A") == 0,
+                "A desktop file gone after rollback");
+    TEST_ASSERT(fixture_db_count(BASE, "SELECT COUNT(*) FROM packages WHERE id='A'") == 0,
+                "packages row gone after rollback");
+    TEST_ASSERT(fixture_db_count(BASE, "SELECT COUNT(*) FROM files WHERE pkg_id='A'") == 0,
+                "files rows gone after rollback");
+    /* ...but unrelated state survives the whole-DB restore. */
+    TEST_ASSERT(fixture_db_count(BASE, "SELECT COUNT(*) FROM repos") == 1,
+                "unrelated repo row preserved by rollback");
+
+    /* Idempotent: a second rollback has nothing left to restore. */
+    TEST_ASSERT(!wubu_pkgmgr_txn_rollback(&txn), "second rollback is a no-op");
+
+    wubu_pkgmgr_shutdown();
+    fixture_rm(BASE); fixture_rm(SRCDIR);
+    return true;
+}
+
 /* Main */
 int main(void) {
     printf("=== WuBuOS Package Manager Tests ===\n\n");
@@ -1520,6 +1605,7 @@ int main(void) {
     RUN_TEST(test_local_install_layout);
     RUN_TEST(test_schema_migration);
     RUN_TEST(test_untrusted_sql_literal);
+    RUN_TEST(test_txn_rollback_restores);
     
     printf("\n=== Results: %d passed, %d failed ===\n", tests_passed, tests_failed);
     return tests_failed == 0 ? 0 : 1;

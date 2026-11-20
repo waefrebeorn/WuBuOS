@@ -352,6 +352,11 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
      * remove and verify_installed operate on the real payload. */
     char install_root[512];
     snprintf(install_root, sizeof(install_root), "%s/%s", g_pkgmgr.config.install_prefix, manifest->id);
+
+    /* Transaction backup: snapshot the PRE-install state before any payload
+     * file is copied in -- and before ensure_dir creates a fresh root, so a
+     * first-time install rolls back to NO root at all.  No-op outside commit. */
+    pkgmgr_backup_capture(manifest->id, install_root);
     ensure_dir(install_root);
 
     /* Unpack the .wubu payload into temp_dir so install_package_files() has
@@ -480,7 +485,9 @@ bool wubu_pkgmgr_remove(const char *pkg_id, bool auto_remove_deps) {
     pkgmgr_progress("remove", pkg_id, 0.5, "Removing files");
 
     /* install_path is the TRUE payload root (install copies under it), so
-     * this removes the actual installed files, not an empty directory. */
+     * this removes the actual installed files, not an empty directory.
+     * Snapshot it FIRST so a rollback can put it back. */
+    pkgmgr_backup_capture(pkg_id, pkg.install_path);
     remove_tree(pkg.install_path);
 
     char desktop_pattern[512];
@@ -540,6 +547,10 @@ bool wubu_pkgmgr_upgrade(const char *pkg_spec, bool dry_run) {
         return true; /* Already up to date */
     }
 
+    /* One txn item covers the whole upgrade.  Snapshot the OLD install root
+     * before remove+install mutate it; the inner calls' capture hook is a
+     * no-op for this item (first snapshot wins). */
+    pkgmgr_backup_capture(pkg_spec, installed.install_path);
     wubu_pkgmgr_remove(pkg_spec, false);
     return wubu_pkgmgr_install(pkg_spec, dry_run);
 }

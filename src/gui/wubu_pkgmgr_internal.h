@@ -34,6 +34,11 @@ typedef struct {
      * this bounded cache is reloaded by wubu_pkgmgr_init(). */
     char revoked_keys[WUBU_PKGMGR_MAX_REVOKED_KEYS][65];
     int n_revoked_keys;
+    /* Non-NULL only while wubu_pkgmgr_txn_commit() is replaying items.
+     * install/remove/upgrade call pkgmgr_backup_capture() through this pointer
+     * so the active item records the pre-mutation snapshot. */
+    wubu_pkg_transaction_t *active_txn;
+    int active_item;
 } wubu_pkgmgr_state_t;
 
 extern wubu_pkgmgr_state_t g_pkgmgr;
@@ -194,6 +199,16 @@ bool wubu_pkgmgr_txn_add(wubu_pkg_transaction_t *txn, wubu_pkg_txn_type_t type,
                           bool is_dep);
 bool wubu_pkgmgr_txn_commit(wubu_pkg_transaction_t *txn);
 bool wubu_pkgmgr_txn_rollback(wubu_pkg_transaction_t *txn);
+
+/* -- Transaction backup hook (wubu_pkgmgr_txn.c) ------------------ *
+ * Called by the install/remove/upgrade paths while a transaction is being
+ * committed.  Captures a consistent pre-mutation snapshot (whole DB via the
+ * SQLite backup API, the install tree, and generated desktop files) into
+ * <txn->rollback_dir>/item_<active_item>/.  No-op outside a commit; a second
+ * call for the same item is ignored (upgrade removes then installs under one
+ * item, and the FIRST snapshot -- before any mutation -- is the right one). */
+void pkgmgr_backup_capture(const char *pkg_id, const char *install_root);
+
 bool wubu_pkgmgr_register_desktop(const wubu_pkg_installed_t *pkg);
 bool wubu_pkgmgr_unregister_desktop(const char *pkg_id);
 bool wubu_pkgmgr_generate_desktop_files(const wubu_pkg_installed_t *pkg);

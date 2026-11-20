@@ -62,27 +62,24 @@ WuBuOS has the SCAFFOLDING and not the safety:
   * `wubu_pkgmgr_txn_add()` records install/remove/upgrade/downgrade items --
     purely in memory, lost on exit.
   * `wubu_pkgmgr_txn_commit()` replays those items through the normal install path.
-  * **`wubu_pkgmgr_txn_rollback()` was a LIE**: its body was `return true` under the
-    comment "Restore from rollback_dir", with no code -- so a caller believed the
-    system was rolled back while nothing had happened. It now FAILS CLOSED
-    (`return false`): reporting failure lets the caller surface it instead of hiding
-    behind a success that never occurred.
-  * **`wubu_pkgmgr_txn_commit()` ignored every item's return value** and returned true
-    unconditionally, so a transaction whose every item failed still reported success --
-    and with rollback also a no-op there was nothing behind it. It now stops at the
-    first failed item and returns false. A requested DOWNGRADE is reported as failure
-    rather than silently skipped, since performing nothing and saying "ok" is the same
-    class of lie in a different place.
+  * **`wubu_pkgmgr_txn_rollback()` now really restores.** While a transaction
+    commits, the install/remove/upgrade paths call `pkgmgr_backup_capture()`
+    through `g_pkgmgr.active_txn` to snapshot the pre-mutation DB (via the
+    SQLite backup API), the install tree and any generated desktop files into
+    `<rollback_dir>/item_<i>/`. `rollback()` replays completed items in REVERSE,
+    restoring each pre-state, and returns true. The old `return false` stub and
+    the earlier `return true` lie are both gone. A differential gate in
+    `test_pkgmgr` (`test_txn_rollback_restores`) fails against the old stub.
+  * **`wubu_pkgmgr_txn_commit()` stops at the first failed item** and returns false;
+    already-applied items keep their snapshots so the caller can roll them back.
+    A requested DOWNGRADE is reported as failure rather than silently skipped.
 
-Meanwhile `wubu_pkgmgr_install()` extracts the payload to `/tmp/wubu_install_<id>`
-and copies files into `install_root` directly. A failure part-way through leaves the
-already-copied files installed with no record of what was written, so neither a retry
-nor a rollback can tell what to undo. On a power cut the same holds: partial files in
-place, no journal, no pending record.
-
-So the honest state: a transaction TYPE exists and a rollback DIRECTORY is created,
-but no backup is taken, no journal is written, and the rollback entry point is a
-no-op. Nothing here actually survives a crash or undoes a partial install.
+`wubu_pkgmgr_install()` extracts the payload to `/tmp/wubu_install_<id>` and
+copies files into `install_root` directly. A power cut mid-install still leaves
+partial files in place: the snapshot is taken at the START of each transaction
+item, so rollback undoes a *reported* failure, but there is no crash journal or
+pending record to recover from after an abrupt loss of power outside a caller-
+driven rollback. That (crash recovery, not transaction undo) is the remaining gap.
 
 The guest store (hosted_fs_persist.c) is a separate and BETTER story -- see below --
 which makes this gap more visible: the tree already knows how to do temp-then-rename
