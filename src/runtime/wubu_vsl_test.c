@@ -233,7 +233,8 @@ int main(void) {
     T(mmap_addr >= VSL_USER_BASE, "mmap address in user range");
 
     T(vsl_munmap(mmap_addr, 4096) == 0, "munmap() succeeds");
-    T(vsl_munmap(mmap_addr, 4096) != 0, "double munmap fails");
+    T(vsl_munmap(mmap_addr, 4096) == 0,
+      "double munmap is a no-op success (Linux semantics)");
 
     /* MAP_FIXED: dynamic loaders map segments at their link addresses.
      * A bump allocator that ignores the flag puts them somewhere else. */
@@ -262,6 +263,22 @@ int main(void) {
       "MAP_FIXED with an unaligned address returns EINVAL");
     T(vsl_mmap(arena_end, 4096, 0x3, 0x32, -1, 0) == (uint64_t)-12,
       "MAP_FIXED outside the arena returns ENOMEM");
+
+    /* Partial munmap: loaders unmap individual pages out of a mapping. */
+    T(vsl_mmap(fixed_at, 3 * 4096, 0x3, 0x32, -1, 0) == fixed_at,
+      "three-page MAP_FIXED mapping created");
+    T(g_vsl.n_mmaps == maps0 + 1, "three-page mapping registered once");
+    T(vsl_munmap(fixed_at + 4096, 4096) == 0, "middle page unmaps");
+    T(g_vsl.n_mmaps == maps0 + 2,
+      "partial unmap splits the mapping into two remnants");
+    T(vsl_munmap(fixed_at, 4096) == 0 && g_vsl.n_mmaps == maps0 + 1,
+      "left remnant unmaps");
+    T(vsl_munmap(fixed_at + 2 * 4096, 4096) == 0 && g_vsl.n_mmaps == maps0,
+      "right remnant unmaps");
+    T(vsl_munmap(fixed_at, 4096) == 0,
+      "unmapping an unmapped range is a successful no-op");
+    T(vsl_munmap(fixed_at + 1, 4096) == -22, "unaligned munmap returns EINVAL");
+    T(vsl_munmap(fixed_at, 0) == -22, "zero-length munmap returns EINVAL");
 
     /* -- File Operations -- */
     printf("\n[File Operations]\n");

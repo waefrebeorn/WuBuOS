@@ -107,16 +107,46 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
 
 int vsl_munmap(uint64_t addr, size_t size) {
     if (!g_vsl.active) return -1;
+    /* Linux: len==0 and unaligned addresses are EINVAL; unmapping a
+     * range with no mappings is a successful no-op, and partial ranges
+     * trim/split the registry instead of requiring an exact match. */
+    if (!size || (addr & 0xfff)) return -22;
+    uint64_t end = addr + (((uint64_t)size + 0xfff) & ~0xfffull);
+    if (end <= addr) return -22;
+
+    uint32_t splits = 0;
     for (uint32_t i = 0; i < g_vsl.n_mmaps; i++) {
-        if (g_vsl.mmaps[i].addr == addr && g_vsl.mmaps[i].size == size) {
-            /* Remove by shifting */
-            for (uint32_t j = i; j < g_vsl.n_mmaps - 1; j++)
+        uint64_t s = g_vsl.mmaps[i].addr;
+        uint64_t e = s + g_vsl.mmaps[i].size;
+        if (e <= addr || s >= end) continue;
+        if (s < addr && e > end) splits++;
+    }
+    if ((uint64_t)g_vsl.n_mmaps + splits > VSL_MAX_MMAPS) return -12;
+
+    for (uint32_t i = 0; i < g_vsl.n_mmaps; ) {
+        VSL_MMAP *mm = &g_vsl.mmaps[i];
+        uint64_t s = mm->addr, e = s + mm->size;
+        if (e <= addr || s >= end) { i++; continue; }
+        if (s >= addr && e <= end) {
+            for (uint32_t j = i; j + 1 < g_vsl.n_mmaps; j++)
                 g_vsl.mmaps[j] = g_vsl.mmaps[j + 1];
             g_vsl.n_mmaps--;
-            return 0;
+            continue;
         }
+        int split = (s < addr && e > end);
+        int other = mm->prot, oflags = mm->flags, ofd = mm->fd;
+        uint64_t ooff = mm->offset;
+        if (s < addr) { mm->size = (size_t)(addr - s); }
+        else           { mm->addr = end; mm->size = (size_t)(e - end); }
+        if (split) {
+            VSL_MMAP *r = &g_vsl.mmaps[g_vsl.n_mmaps++];
+            r->addr = end; r->size = (size_t)(e - end);
+            r->prot = other; r->flags = oflags;
+            r->fd = ofd; r->offset = ooff;
+        }
+        i++;
     }
-    return -1;
+    return 0;
 }
 
 int64_t vsl_brk(uint64_t new_brk) {
