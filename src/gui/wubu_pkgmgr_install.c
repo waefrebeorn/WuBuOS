@@ -278,6 +278,16 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
         free(manifest);
         return false;
     }
+    /* Dependency ids are read back into SQL and resolver queries later;
+     * validate at ingest with the SAME owner, before any install side effects. */
+    for (int i = 0; i < manifest->n_depends; i++) {
+        if (!pkgmgr_valid_id(manifest->depends[i])) {
+            fprintf(stderr, "[pkgmgr] install refused: unsafe dependency id '%s'\n",
+                    manifest->depends[i]);
+            free(manifest);
+            return false;
+        }
+    }
 
 #ifdef WUBU_HAVE_MBEDTLS
     /* Fail-closed Ed25519 gate BEFORE any extraction: with the crypto build

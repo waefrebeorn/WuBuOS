@@ -522,6 +522,34 @@ bool test_stats(void) {
     TEST_ASSERT(df != NULL, "unrelated desktop file survived");
     if (df) fclose(df);
     unlink(decoy);
+
+    /* Manifest dependency ids are external data: refuse a quote-bearing
+     * id at ingest, before it can reach the deps table or resolver. */
+    mkdir("/tmp/wubu_stats_src", 0755);
+    df = fopen("/tmp/wubu_stats_src/payload.txt", "w");
+    TEST_ASSERT(df != NULL, "bad-dep source created");
+    if (df) { fputs("payload\n", df); fclose(df); }
+    wubu_pkg_manifest_t bad;
+    memset(&bad, 0, sizeof(bad));
+    snprintf(bad.id, sizeof(bad.id), "bad-dep-pkg");
+    snprintf(bad.name, sizeof(bad.name), "Bad Dep");
+    snprintf(bad.version, sizeof(bad.version), "1.0");
+    snprintf(bad.description, sizeof(bad.description), "ingest gate");
+    bad.arch = WUBU_PKG_ARCH_X86_64;
+    bad.payload_type = WUBU_PKG_PAYLOAD_DATA;
+    snprintf(bad.files[0].src, sizeof(bad.files[0].src), "payload.txt");
+    snprintf(bad.files[0].dst, sizeof(bad.files[0].dst), "payload.txt");
+    bad.files[0].mode = 0644;
+    bad.n_files = 1;
+    snprintf(bad.depends[0], sizeof(bad.depends[0]), "dep' OR '1'='1");
+    bad.n_depends = 1;
+    TEST_ASSERT(wubu_pkgmgr_create_package("/tmp/wubu_stats_src",
+                                          "/tmp/wubu_stats_bad.wubu", &bad, NULL),
+                "bad-dep package created");
+    TEST_ASSERT(!wubu_pkgmgr_install("/tmp/wubu_stats_bad.wubu", false),
+                "unsafe dependency id refused at install");
+    unlink("/tmp/wubu_stats_bad.wubu");
+    unlink("/tmp/wubu_stats_src/payload.txt");
     
     wubu_pkgmgr_shutdown();
     return true;
