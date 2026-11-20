@@ -112,7 +112,7 @@ $(RT)/vsl/%.o: $(RT)/vsl/%.c
 
 # OCI submodule objects
 $(RT)/oci/%.o: $(RT)/oci/%.c
-	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/oci -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@ -Iinclude
+	$(CC) $(CFLAGS) $(OCI_TLS_CFLAGS) -I$(RT) -I$(RT)/oci -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@ -Iinclude
 
 # Container submodule objects
 $(RT)/container/%.o: $(RT)/container/%..c

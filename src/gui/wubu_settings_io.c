@@ -114,6 +114,8 @@ int wubu_settings_save(void) {
     fprintf(f, "%*s\"trusted_sync_url\": ", 2, ""); json_write_string(f, g_settings.trusted_sync_url); fprintf(f, ",\n");
     fprintf(f, "%*s\"sync_auto_enabled\": ", 2, ""); json_write_bool(f, g_settings.sync_auto_enabled); fprintf(f, ",\n");
     fprintf(f, "%*s\"sync_interval_secs\": ", 2, ""); json_write_int(f, g_settings.sync_interval_secs); fprintf(f, ",\n");
+    fprintf(f, "%*s\"sync_backoff_initial_secs\": ", 2, ""); json_write_int(f, g_settings.sync_backoff_initial_secs); fprintf(f, ",\n");
+    fprintf(f, "%*s\"sync_backoff_max_secs\": ", 2, ""); json_write_int(f, g_settings.sync_backoff_max_secs); fprintf(f, ",\n");
     fprintf(f, "%*s\"theme\": {\n", 2, ""); save_theme(f, &g_settings.theme, 4); fprintf(f, "\n%*s},\n", 2, "");
     fprintf(f, "%*s\"fonts\": {\n", 2, ""); save_fonts(f, &g_settings.fonts, 4); fprintf(f, "\n%*s},\n", 2, "");
     fprintf(f, "%*s\"keyboard\": {\n", 2, ""); save_keyboard(f, &g_settings.keyboard, 4); fprintf(f, "\n%*s},\n", 2, "");
@@ -238,6 +240,18 @@ int wubu_settings_load(void) {
             g_settings.sync_interval_secs = v->int_value;
             if (g_settings.sync_interval_secs < 0) g_settings.sync_interval_secs = 0;
             if (g_settings.sync_interval_secs > 86400) g_settings.sync_interval_secs = 86400;
+        }
+        if ((v = json_find(root, "sync_backoff_initial_secs")) && v->type == JSON_TYPE_NUMBER) {
+            g_settings.sync_backoff_initial_secs = v->int_value;
+            if (g_settings.sync_backoff_initial_secs < 1) g_settings.sync_backoff_initial_secs = 1;
+            if (g_settings.sync_backoff_initial_secs > 86400) g_settings.sync_backoff_initial_secs = 86400;
+        }
+        if ((v = json_find(root, "sync_backoff_max_secs")) && v->type == JSON_TYPE_NUMBER) {
+            g_settings.sync_backoff_max_secs = v->int_value;
+            if (g_settings.sync_backoff_max_secs < 1) g_settings.sync_backoff_max_secs = 1;
+            if (g_settings.sync_backoff_max_secs > 86400) g_settings.sync_backoff_max_secs = 86400;
+            if (g_settings.sync_backoff_max_secs < g_settings.sync_backoff_initial_secs)
+                g_settings.sync_backoff_max_secs = g_settings.sync_backoff_initial_secs;
         }
         if ((v = json_find(root, "theme"))) load_theme(v, &g_settings.theme);
         if ((v = json_find(root, "fonts"))) load_fonts(v, &g_settings.fonts);

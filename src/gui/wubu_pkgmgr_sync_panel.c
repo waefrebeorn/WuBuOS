@@ -43,6 +43,35 @@ PkSyncPanelState *cp_pkg_sync_state(void) { return &g_sync; }
 
 void cp_pkg_sync_set_clock(PkSyncClockFn fn) { g_clock = fn; }
 
+/* Exponential-with-cap retry schedule for the scheduled loop.  Pure: gates
+ * assert this directly, and cp_pkg_sync_tick() calls the same function so the
+ * asserted schedule is the one actually used.  No allocation, no clock. */
+int cp_pkg_sync_backoff_delay(int initial_secs, int max_secs, int fail_count) {
+    int64_t d;
+    if (initial_secs < WUBU_SYNC_BACKOFF_HARD_MIN ||
+        initial_secs > WUBU_SYNC_BACKOFF_HARD_MAX)
+        initial_secs = WUBU_SYNC_BACKOFF_DEFAULT_INITIAL;
+    if (max_secs < initial_secs) max_secs = initial_secs;
+    if (max_secs > WUBU_SYNC_BACKOFF_HARD_MAX) max_secs = WUBU_SYNC_BACKOFF_HARD_MAX;
+    if (fail_count <= 1) return initial_secs;
+    d = initial_secs;
+    for (int i = 1; i < fail_count; i++) {
+        d *= 2;                       /* bounded by the loop count + cap below */
+        if (d >= max_secs) return max_secs;
+    }
+    return (int)d;
+}
+
+/* Compile-time build capability.  The default hosted build has no mbedTLS, so
+ * the widget refuses https:// up front instead of opening a non-TLS socket. */
+bool cp_pkg_sync_tls_capable(void) {
+#ifdef WUBU_HAVE_MBEDTLS
+    return true;
+#else
+    return false;
+#endif
+}
+
 void cp_pkg_sync_button_rects(int rects[5][4]) {
     static const int xr[5] = { 10, 100, 10, 100, 134 };
     static const int yr[5] = { 76, 76, 110, 110, 110 };
@@ -65,7 +94,20 @@ void cp_pkg_sync_reload_from_settings(void) {
     s->interval_secs = set ? set->sync_interval_secs : 0;
     if (s->interval_secs < WUBU_SYNC_MIN_INTERVAL) s->interval_secs = WUBU_SYNC_MIN_INTERVAL;
     if (s->interval_secs > WUBU_SYNC_MAX_INTERVAL) s->interval_secs = WUBU_SYNC_MAX_INTERVAL;
+    s->backoff_initial_secs = set ? set->sync_backoff_initial_secs
+                                  : WUBU_SYNC_BACKOFF_DEFAULT_INITIAL;
+    s->backoff_max_secs = set ? set->sync_backoff_max_secs
+                              : WUBU_SYNC_BACKOFF_DEFAULT_MAX;
+    if (s->backoff_initial_secs < WUBU_SYNC_BACKOFF_HARD_MIN ||
+        s->backoff_initial_secs > WUBU_SYNC_BACKOFF_HARD_MAX)
+        s->backoff_initial_secs = WUBU_SYNC_BACKOFF_DEFAULT_INITIAL;
+    if (s->backoff_max_secs < s->backoff_initial_secs ||
+        s->backoff_max_secs > WUBU_SYNC_BACKOFF_HARD_MAX)
+        s->backoff_max_secs = (s->backoff_initial_secs > WUBU_SYNC_BACKOFF_DEFAULT_MAX)
+                              ? s->backoff_initial_secs : WUBU_SYNC_BACKOFF_DEFAULT_MAX;
     s->editing = false;
+    s->fail_count = 0;               /* (re)load clears retry state */
+    s->retry_secs = s->backoff_initial_secs;
     s->last_run = sync_now_time();   /* loading never fires an immediate run */
     snprintf(s->status, sizeof(s->status), "trusted URL loaded from settings");
     s->last_ok = true;
@@ -80,6 +122,8 @@ static bool sync_persist(PkSyncPanelState *s, char *err, size_t errsz) {
     snprintf(set->trusted_sync_url, sizeof(set->trusted_sync_url), "%s", s->url);
     set->sync_auto_enabled = s->auto_enabled;
     set->sync_interval_secs = s->interval_secs;
+    set->sync_backoff_initial_secs = s->backoff_initial_secs;
+    set->sync_backoff_max_secs = s->backoff_max_secs;
     if (wubu_settings_save() != 0) {
         sync_seterr(err, errsz, "settings save failed");
         return false;
@@ -120,8 +164,15 @@ bool cp_pkg_sync_sync_now(char *err, size_t errsz) {
     target = s->url[0] ? s->url : wubu_settings_trusted_sync_url();
 
     local_err[0] = '\0';
-    ok = wubu_pkgmgr_key_feed_sync(target, &cfg, &applied,
-                                   local_err, sizeof(local_err));
+    if (!cp_pkg_sync_tls_capable() && strncmp(target, "https://", 8) == 0) {
+        /* Config gate: a no-TLS build refuses HTTPS before any network I/O. */
+        snprintf(local_err, sizeof(local_err),
+                 "https:// requires TLS; build the hosted product with HOSTED_TLS=1");
+        ok = false;
+    } else {
+        ok = wubu_pkgmgr_key_feed_sync(target, &cfg, &applied,
+                                       local_err, sizeof(local_err));
+    }
     g_busy = false;
 
     if (ok) {
@@ -140,24 +191,45 @@ int cp_pkg_sync_tick(void) {
     PkSyncPanelState *s = &g_sync;
     int64_t now = sync_now_time();
     char err[256];
+    int delay;
+    bool ok;
 
     if (!s->auto_enabled || s->interval_secs <= 0) return 0;
-    if (s->last_run != 0 &&
-        (now < s->last_run || now - s->last_run < s->interval_secs)) return 0;
 
-    /* One bounded attempt per tick; a refusal still advances the deadline so
-     * a bad feed cannot be hammered. No worker thread, no daemon. */
+    /* Normal cadence is the configured interval.  After a refusal the loop
+     * switches to the exponential backoff (initial -> 2x -> 4x -> cap). */
+    delay = s->fail_count > 0 ? s->retry_secs : s->interval_secs;
+    if (delay <= 0) delay = WUBU_SYNC_BACKOFF_DEFAULT_INITIAL;
+    if (s->last_run != 0 &&
+        (now < s->last_run || now - s->last_run < delay)) return 0;
+
+    /* One bounded attempt per tick.  A refusal advances the deadline and
+     * raises the backoff, so a bad feed cannot be hammered; a success resets
+     * the backoff to the configured initial delay.  No thread, no daemon. */
     s->last_run = now;
     s->scheduled_runs++;
-    return cp_pkg_sync_sync_now(err, sizeof(err)) ? 1 : -1;
+    ok = cp_pkg_sync_sync_now(err, sizeof(err));
+    if (ok) {
+        s->fail_count = 0;
+        s->retry_secs = s->backoff_initial_secs;
+    } else {
+        s->fail_count++;
+        s->retry_secs = cp_pkg_sync_backoff_delay(s->backoff_initial_secs,
+                                                  s->backoff_max_secs,
+                                                  s->fail_count);
+    }
+    return ok ? 1 : -1;
 }
 
 int cp_pkg_sync_test_line(char *out, size_t cap) {
     PkSyncPanelState *s = &g_sync;
     if (!out || cap == 0) return -1;
     snprintf(out, cap,
-             "url=%s auto=%d interval=%d manual=%d scheduled=%d applied=%d last_ok=%d status=%s",
+             "url=%s auto=%d interval=%d initial=%d max=%d fails=%d retry=%d "
+             "manual=%d scheduled=%d applied=%d last_ok=%d status=%s",
              s->url, s->auto_enabled ? 1 : 0, s->interval_secs,
+             s->backoff_initial_secs, s->backoff_max_secs,
+             s->fail_count, s->retry_secs,
              s->manual_runs, s->scheduled_runs, s->applied_total,
              s->last_ok ? 1 : 0, s->status);
     return 0;

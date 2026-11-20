@@ -170,7 +170,7 @@ hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_EXTRA) $(HOSTED_GLUE) $(HOS
 	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd_lifecycle.o \
 	$(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
 	$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
-	-o $(HOSTED_BIN) $(HOSTED_LIBS)
+	-o $(HOSTED_BIN) $(HOSTED_LIBS) $(HOSTED_TLS_LIBS)
 	@echo "✅ Hosted binary built: ./src/hosted/wubu"
 
 bear: $(BEAR_OBJS)

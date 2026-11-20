@@ -45,6 +45,7 @@ GATES=(
     test_pkg_revoke_feed
     test_pkg_revoke_sync
     test_sync_panel
+    test_hosted_tls
     test_pkg_key_policy
     test_pkg_key_recovery
     test_ed25519_timing

@@ -57,17 +57,22 @@ static void click_button(CpApplet *a, int idx) {
     a->mouse(a, r[idx][0] + 2, r[idx][1] + 2 + 32, 1, 1);
 }
 
-static void rotate_feed(const char *dir) {
+static void rotate_feed_to(const char *dir, const char *base) {
     char live[1024], livesig[1024], next[1024], nextsig[1024];
+    char tgt[256], tgtsig[260];
     snprintf(live, sizeof(live), "%s/live", dir);
     snprintf(livesig, sizeof(livesig), "%s/live.sig", dir);
     snprintf(next, sizeof(next), "%s/.next", dir);
     snprintf(nextsig, sizeof(nextsig), "%s/.nextsig", dir);
-    unlink(next); unlink(nextsig);
+    snprintf(tgt, sizeof(tgt), "%s", base);
+    snprintf(tgtsig, sizeof(tgtsig), "%s.sig", base);
     /* Rotate BOTH the feed and its detached signature sidecar. */
-    if (symlink("feed_b", next) == 0) (void)rename(next, live);
-    if (symlink("feed_b.sig", nextsig) == 0) (void)rename(nextsig, livesig);
+    unlink(next); unlink(nextsig);
+    if (symlink(tgt, next) == 0) (void)rename(next, live);
+    if (symlink(tgtsig, nextsig) == 0) (void)rename(nextsig, livesig);
 }
+
+static void rotate_feed(const char *dir) { rotate_feed_to(dir, "feed_b"); }
 
 static bool settings_persisted(const char *needle) {
     char path[1024];
@@ -92,11 +97,12 @@ int main(void) {
     const char *k1     = env_or("WUBU_SYNC_KEY1", NULL);
     const char *k2     = env_or("WUBU_SYNC_KEY2", NULL);
     const char *k3     = env_or("WUBU_SYNC_KEY3", NULL);
+    const char *k4     = env_or("WUBU_SYNC_KEY4", NULL);
     const char *kt     = env_or("WUBU_SYNC_TAMPER_KEY", NULL);
     char line[1024], err[256];
 
     if (!db || !admin || !url || !badsig || !badscheme || !serve ||
-        !k1 || !k2 || !k3 || !kt) {
+        !k1 || !k2 || !k3 || !k4 || !kt) {
         fprintf(stderr, "test_sync_panel: missing WUBU_SYNC_* environment\n");
         return 2;
     }
@@ -194,6 +200,61 @@ int main(void) {
     wubu_pkgmgr_shutdown(); wubu_pkgmgr_init(&cfg);
     CHECK(wubu_pkgmgr_key_is_revoked(k3), "rotated feed key revoked by scheduled loop");
     CHECK(wubu_pkgmgr_key_revoked_count() == 3, "scheduled sync added exactly one revocation");
+
+    /* -- Bounded retry backoff: pure schedule + loopback refusals -------- */
+    CHECK(cp_pkg_sync_backoff_delay(2, 8, 0) == 2, "backoff fail_count 0 = initial");
+    CHECK(cp_pkg_sync_backoff_delay(2, 8, 1) == 2, "backoff fail_count 1 = initial");
+    CHECK(cp_pkg_sync_backoff_delay(2, 8, 2) == 4, "backoff doubles on 2nd failure");
+    CHECK(cp_pkg_sync_backoff_delay(2, 8, 3) == 8, "backoff doubles on 3rd failure");
+    CHECK(cp_pkg_sync_backoff_delay(2, 8, 9) == 8, "backoff capped at max");
+    CHECK(cp_pkg_sync_backoff_delay(5, 3, 6) == 5, "backoff cap below initial clamps to initial");
+
+    /* Configure the schedule through the settings store, then reload the
+     * widget: same surface a user (or a config file) would use. */
+    wubu_settings_mut()->sync_backoff_initial_secs = 2;
+    wubu_settings_mut()->sync_backoff_max_secs = 8;
+    CHECK(wubu_settings_save() == 0, "backoff config saved to settings store");
+    CHECK(settings_persisted("sync_backoff_initial_secs"), "initial backoff persisted");
+    CHECK(settings_persisted("sync_backoff_max_secs"), "backoff cap persisted");
+    cp_pkg_sync_reload_from_settings();   /* adopt 2s/8s BEFORE the next Save */
+
+    /* Point the widget at a permanently-refused bad-signature loopback feed.
+     * type_url persists but does NOT reset in-memory backoff state. */
+    type_url(&a, badsig);
+    g_fake = 2000;
+    cp_pkg_sync_set_clock(fake_clock);
+    cp_pkg_sync_reload_from_settings();   /* last_run=2000, fail_count=0, retry=2 */
+    PkSyncPanelState *s = cp_pkg_sync_state();
+    CHECK(s->backoff_initial_secs == 2 && s->backoff_max_secs == 8,
+          "widget loaded configurable backoff (initial=2s, max=8s)");
+
+    g_fake = 2001; CHECK(cp_pkg_sync_tick() == -1, "1st scheduled attempt refused by bad signature");
+    CHECK(s->fail_count == 1 && s->retry_secs == 2, "backoff after 1st refusal = 2s");
+    g_fake = 2002; CHECK(cp_pkg_sync_tick() == 0, "no retry before initial 2s elapses");
+    g_fake = 2003; CHECK(cp_pkg_sync_tick() == -1, "retry after 2s refused");
+    CHECK(s->fail_count == 2 && s->retry_secs == 4, "backoff doubles to 4s");
+    g_fake = 2006; CHECK(cp_pkg_sync_tick() == 0, "no retry before 4s elapses");
+    g_fake = 2007; CHECK(cp_pkg_sync_tick() == -1, "retry after +4s refused");
+    CHECK(s->retry_secs == 8, "backoff doubles to 8s");
+    g_fake = 2014; CHECK(cp_pkg_sync_tick() == 0, "no retry before 8s cap elapses");
+    g_fake = 2015; CHECK(cp_pkg_sync_tick() == -1, "retry after +8s refused");
+    CHECK(s->retry_secs == 8, "backoff stays capped at 8s");
+    g_fake = 2022; CHECK(cp_pkg_sync_tick() == 0, "capped backoff still gates the retry");
+    g_fake = 2023; CHECK(cp_pkg_sync_tick() == -1, "capped retry after +8s refused");
+
+    /* Recovery: restore the trusted URL and rotate the loopback sidecar to
+     * the higher signed generation (seq 8, k4). Success resets backoff. */
+    type_url(&a, url);                    /* persists; backoff state untouched */
+    rotate_feed_to(serve, "feed_c");
+    g_fake = 2031;                        /* > 8s after 2023 */
+    CHECK(cp_pkg_sync_tick() == 1, "recovery tick applies higher signed generation");
+    CHECK(s->fail_count == 0 && s->retry_secs == 2, "success resets backoff to initial");
+    cp_pkg_sync_test_line(line, sizeof(line));
+    printf("  [widget] %s\n", line);
+    CHECK(strstr(line, "fails=0 retry=2") != NULL, "test line reports reset backoff state");
+    wubu_pkgmgr_shutdown(); wubu_pkgmgr_init(&cfg);
+    CHECK(wubu_pkgmgr_key_is_revoked(k4), "recovery feed key revoked by scheduled loop");
+    CHECK(wubu_pkgmgr_key_revoked_count() == 4, "recovery added exactly one revocation");
 
     cp_pkg_sync_set_clock(NULL);
     if (a.cleanup) a.cleanup(&a);

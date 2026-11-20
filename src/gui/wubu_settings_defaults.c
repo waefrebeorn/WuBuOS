@@ -140,6 +140,8 @@ void settings_apply_defaults(WubuSettings *s) {
     s->trusted_sync_url[0] = '\0';
     s->sync_auto_enabled = false;    /* no background sync daemon by default */
     s->sync_interval_secs = 0;
+    s->sync_backoff_initial_secs = WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_INITIAL;
+    s->sync_backoff_max_secs = WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_MAX;
     s->version = 1;
     s->last_modified = (uint64_t)time(NULL);
 }

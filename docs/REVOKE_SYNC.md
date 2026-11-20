@@ -81,9 +81,47 @@ The same applet carries a **bounded scheduled loop**: **Auto** off by default
 tick from `desktop_tick()` that performs at most one fetch per interval. Both
 flags persist in the settings store as `sync_auto_enabled` and
 `sync_interval_secs`. The loop re-reads trust from settings on every attempt,
-so a rotated feed URL is picked up on the next tick; refusals advance the
-deadline and leave the DB untouched (fail-closed). The clock is injectable for
-deterministic gates.
+so a rotated feed URL is picked up on the next tick; refusals leave the DB
+untouched (fail-closed). The clock is injectable for deterministic gates.
+
+### Bounded retry backoff
+
+Consecutive scheduled refusals switch the loop from its normal interval to an
+**exponential backoff with a cap**, so a failing feed cannot be hammered:
+
+```
+delay(n) = min(sync_backoff_initial_secs * 2^(n-1), sync_backoff_max_secs)
+```
+
+Both values are settings keys (persisted through the widget's Save action):
+`sync_backoff_initial_secs` (default 2) and `sync_backoff_max_secs` (default
+300, bounded to 86400). The first refusal waits `initial`; each further
+refusal doubles it until the cap. A successful sync resets `fail_count` and
+the delay back to `initial`. Only scheduled attempts move this state; a manual
+**Sync Now** click does not perturb it. Reloading settings also clears it.
+`cp_pkg_sync_backoff_delay()` in `src/gui/wubu_pkgmgr_sync_panel.c` is the
+single implementation used by both the tick and the gate.
+
+## HTTPS in the hosted build: verified negative + config gate
+
+The **default** hosted build deliberately does **not** link mbedTLS:
+`src/runtime/oci/oci_http_client.c` returns -1 for `use_tls` without
+`-DWUBU_HAVE_MBEDTLS`. Exact build evidence is a recipe with no
+`-DWUBU_HAVE_MBEDTLS` and no `-lmbedtls` on the link line (captured by
+`tools/hosted_tls_gate.sh`). Making a network-fetched dev root a hard dependency
+of every hosted build would break bare runners, so instead TLS is a
+**configuration gate**:
+
+```bash
+make hosted HOSTED_TLS=1 WUBU_MBEDTLS_ROOT=<extracted mbedTLS dev root>
+```
+
+That compiles the mbedTLS-backed HTTPS path into the hosted product and links
+`-lmbedtls -lmbedx509 -lmbedcrypto`. The widget additionally refuses an
+`https://` URL up front when built without TLS (no socket is opened) and
+reports the `HOSTED_TLS=1` requirement. `make test_hosted_tls` proves both
+states with build evidence plus a loopback TLS fixture (untrusted CA refused,
+trusted CA accepted) and is part of `test_optin_crypto`.
 
 ## Gate
 
@@ -100,4 +138,12 @@ pre-change negative control.  It is also part of `make test_optin_crypto`.
 save a loopback trusted URL, trigger Sync Now (keys revoked and persisted
 across a fresh DB load), refuse a bad-scheme URL and a bad-signature feed with
 no DB change, then enable the scheduled loop and apply a rotated signed feed
-after the configured interval.  It is also part of `make test_optin_crypto`.
+after the configured interval. It then drives repeated refusals against the
+loopback bad-signature feed to assert the exact exponential-with-cap schedule
+and a reset on the next successful recovery feed (settings keys persisted).
+It is also part of `make test_optin_crypto`.
+
+`make test_hosted_tls` runs `tools/hosted_tls_gate.sh`: exact build evidence
+for the no-TLS default hosted recipe and the `HOSTED_TLS=1` recipe, plus a
+loopback TLS fixture proving the mbedTLS-backed HTTPS path authenticates the
+server. It is also part of `make test_optin_crypto`.

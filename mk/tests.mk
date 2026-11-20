@@ -111,6 +111,13 @@ test_sync_panel:
 	bash tools/sync_panel_gate.sh
 .PHONY: test_sync_panel
 
+# Differential gate proving the default hosted build has NO TLS (HTTPS fails
+# closed) and that HOSTED_TLS=1 links the mbedTLS-backed HTTPS path, with a
+# loopback TLS fixture exercising the real transport. Opt-in: dev root needed.
+test_hosted_tls:
+	bash tools/hosted_tls_gate.sh
+.PHONY: test_hosted_tls
+
 # Opt-in differential gate for trust-anchor expiry, admin rotation/recovery
 # and M-of-N feed-apply quorum (mbedTLS root required; not in default tier).
 test_pkg_key_policy:

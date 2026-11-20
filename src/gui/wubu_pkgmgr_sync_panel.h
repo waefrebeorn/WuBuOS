@@ -20,10 +20,19 @@
 #include <stdint.h>
 
 #include "controlpanel.h"
+#include "wubu_settings.h"   /* backoff defaults live in the settings schema */
 
 #define WUBU_SYNC_PANEL_URL_MAX 512
 #define WUBU_SYNC_MIN_INTERVAL  0
 #define WUBU_SYNC_MAX_INTERVAL  86400
+
+/* Bounded retry backoff for the scheduled loop.  The first two are the
+ * configurable settings (persisted); the last two bound them so a corrupt
+ * settings file cannot turn a retry into a busy loop. */
+#define WUBU_SYNC_BACKOFF_DEFAULT_INITIAL WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_INITIAL
+#define WUBU_SYNC_BACKOFF_DEFAULT_MAX     WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_MAX
+#define WUBU_SYNC_BACKOFF_HARD_MIN        1
+#define WUBU_SYNC_BACKOFF_HARD_MAX        86400
 
 typedef int64_t (*PkSyncClockFn)(void);
 
@@ -33,6 +42,10 @@ typedef struct {
     bool   editing;        /* URL field has keyboard focus */
     bool   auto_enabled;   /* scheduled loop ON (persisted, default OFF) */
     int    interval_secs;  /* seconds between scheduled runs (persisted) */
+    int    backoff_initial_secs; /* first retry delay after a refusal (persisted) */
+    int    backoff_max_secs;     /* retry-delay cap (persisted) */
+    int    fail_count;     /* consecutive scheduled refusals (backoff state) */
+    int    retry_secs;     /* effective delay after the last refusal */
     int64_t last_run;      /* clock reading of the last scheduled attempt */
     int    manual_runs;    /* Sync Now clicks (instrumentation for gates) */
     int    scheduled_runs; /* scheduled attempts (instrumentation) */
@@ -52,6 +65,15 @@ void cp_pkg_sync_reload_from_settings(void);
 
 /* Inject the clock used by the scheduled loop (NULL restores time(NULL)). */
 void cp_pkg_sync_set_clock(PkSyncClockFn fn);
+
+/* Exponential retry delay: min(initial * 2^(fail_count-1), max), with
+ * fail_count <= 1 returning `initial`.  Pure so gates can assert the exact
+ * schedule; the tick uses the same function. */
+int cp_pkg_sync_backoff_delay(int initial_secs, int max_secs, int fail_count);
+
+/* True when this build can do TLS (WUBU_HAVE_MBEDTLS).  The widget refuses
+ * https:// URLs when false instead of attempting a no-TLS connection. */
+bool cp_pkg_sync_tls_capable(void);
 
 /* Shared button geometry, in APPLET-LOCAL coordinates, ordered:
  * [0] Save, [1] Sync Now, [2] Auto toggle, [3] interval -, [4] interval +.

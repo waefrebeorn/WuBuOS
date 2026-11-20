@@ -18,6 +18,11 @@
 /* GUI settings store key: comma-separated trusted revocation-feed sync URLs.
  * Mirrors the bounded sync URL set in wubu_pkgmgr_revoke_sync.h. */
 #define WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX 512
+
+/* Scheduled-sync retry backoff defaults (owned by the settings schema; the
+ * sync panel aliases these so there is one source of truth). */
+#define WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_INITIAL 2
+#define WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_MAX     300
 typedef struct {
     char name[32];      /* Icon display name (match key) */
     int  grid_x;        /* Persisted grid column */
@@ -139,6 +144,8 @@ typedef struct {
     char trusted_sync_url[WUBU_SETTINGS_TRUSTED_SYNC_URL_MAX]; /* GUI-configured trusted sync URLs */
     bool sync_auto_enabled;          /* scheduled revocation sync: OFF by default */
     int  sync_interval_secs;         /* seconds between scheduled syncs (0 = disabled) */
+    int  sync_backoff_initial_secs;  /* first retry delay after a scheduled refusal */
+    int  sync_backoff_max_secs;      /* retry-delay cap for scheduled sync */
     uint32_t version;                /* Config schema version */
     uint64_t last_modified;          /* Unix timestamp */
 } WubuSettings;
