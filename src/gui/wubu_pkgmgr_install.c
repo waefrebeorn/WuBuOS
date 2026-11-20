@@ -195,13 +195,26 @@ static void remove_tree(const char *path) {
 #ifdef WUBU_HAVE_MBEDTLS
 bool wubu_pkgmgr_verify_against_repos(const char *pkg_path) {
     /* A package carries no repo-origin field, so no single key can be
-     * assumed "the" owner. Every ENABLED, keyed repository is a configured
-     * trust anchor; accept if any of them verifies, reject if none does. */
+     * assumed "the" owner. Every ENABLED, keyed, NON-REVOKED repository is
+     * a configured trust anchor; accept if any of them verifies, reject if
+     * none does.  Revocations are the authoritative, DB-backed policy: a
+     * revoked key is skipped even when it is still configured as a repo
+     * anchor, and zero usable anchors fail closed. */
+    int usable_anchors = 0;
     for (int i = 0; i < g_pkgmgr.n_repos; i++) {
-        if (g_pkgmgr.repos[i].enabled && g_pkgmgr.repos[i].pubkey[0] &&
-            wubu_pkgmgr_verify_package(pkg_path, g_pkgmgr.repos[i].pubkey))
-            return true;
+        const char *key = g_pkgmgr.repos[i].pubkey;
+        if (!g_pkgmgr.repos[i].enabled || !key[0]) continue;
+        if (wubu_pkgmgr_key_is_revoked(key)) {
+            fprintf(stderr, "[pkgmgr] skipping REVOKED trust anchor '%s' for '%s'\n",
+                    key, pkg_path ? pkg_path : "(null)");
+            continue;
+        }
+        usable_anchors++;
+        if (wubu_pkgmgr_verify_package(pkg_path, key)) return true;
     }
+    if (usable_anchors == 0)
+        fprintf(stderr, "[pkgmgr] no usable (non-revoked) Ed25519 trust anchor "
+                        "configured: FAIL CLOSED\n");
     return false;
 }
 #endif

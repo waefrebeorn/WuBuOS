@@ -84,6 +84,12 @@ static const char SCHEMA_SQL[] =
     "  icon_path TEXT,"
     "  categories TEXT,"
     "  PRIMARY KEY (pkg_id, entry_idx)"
+    ");"
+    /* Authoritative Ed25519 trust-anchor revocations.  Public keys only —
+     * no private/secret material is ever stored in the DB or the repo. */
+    "CREATE TABLE IF NOT EXISTS revoked_keys ("
+    "  pubkey_hex TEXT PRIMARY KEY,"
+    "  revoked_at INTEGER DEFAULT 0"
     ");";
 
 /* -- Initialize ---------------------------------------------------- */
@@ -116,6 +122,80 @@ static bool migrate_repo_packages(void) {
     return true;
 }
 
+/* -- Trust-anchor revocation: ONE owner (this facade) --------------
+ * Authoritative state: revoked_keys rows in the pkgmgr DB.  The bounded
+ * cache below is rebuilt from those rows by keyrev_reload() on every init,
+ * so a revocation survives a process restart. */
+
+/* Canonical form matches hex_to_32() in wubu_pkg_ed25519.c: 64 lowercase
+ * hex chars.  Never silently accept a form the verifier would reject. */
+static bool revoked_key_valid(const char *hex) {
+    if (!hex || strlen(hex) != 64) return false;
+    for (size_t i = 0; i < 64; i++) {
+        char c = hex[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+    }
+    return true;
+}
+
+static int cb_load_revoked(void *data, int argc, char **argv, char **col) {
+    (void)data; (void)col;
+    if (argc < 1 || !argv[0] || !revoked_key_valid(argv[0])) return 0;
+    if (g_pkgmgr.n_revoked_keys >= WUBU_PKGMGR_MAX_REVOKED_KEYS) return 0;
+    snprintf(g_pkgmgr.revoked_keys[g_pkgmgr.n_revoked_keys], 65, "%s", argv[0]);
+    g_pkgmgr.n_revoked_keys++;
+    return 0;
+}
+
+static bool keyrev_reload(void) {
+    g_pkgmgr.n_revoked_keys = 0;
+    if (!g_pkgmgr.db) return false;
+    return db_query("SELECT pubkey_hex FROM revoked_keys ORDER BY pubkey_hex",
+                    cb_load_revoked, NULL) == 0;
+}
+
+bool wubu_pkgmgr_key_revoke(const char *pubkey_hex) {
+    if (!revoked_key_valid(pubkey_hex) || !g_pkgmgr.db) return false;
+    if (wubu_pkgmgr_key_is_revoked(pubkey_hex)) return true;   /* idempotent */
+    if (g_pkgmgr.n_revoked_keys >= WUBU_PKGMGR_MAX_REVOKED_KEYS) return false;
+
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "INSERT OR IGNORE INTO revoked_keys (pubkey_hex, revoked_at) "
+            "VALUES (?1, ?2)", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, pubkey_hex, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 2, (sqlite3_int64)time(NULL));
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok && keyrev_reload();
+}
+
+bool wubu_pkgmgr_key_unrevoke(const char *pubkey_hex) {
+    if (!revoked_key_valid(pubkey_hex) || !g_pkgmgr.db) return false;
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "DELETE FROM revoked_keys WHERE pubkey_hex = ?1", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, pubkey_hex, -1, SQLITE_TRANSIENT);
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok && keyrev_reload();
+}
+
+bool wubu_pkgmgr_key_is_revoked(const char *pubkey_hex) {
+    if (!revoked_key_valid(pubkey_hex)) return false;
+    for (int i = 0; i < g_pkgmgr.n_revoked_keys; i++)
+        if (strcmp(g_pkgmgr.revoked_keys[i], pubkey_hex) == 0) return true;
+    return false;
+}
+
+int wubu_pkgmgr_key_revoked_count(void) { return g_pkgmgr.n_revoked_keys; }
+
 bool wubu_pkgmgr_init(const wubu_pkgmgr_config_t *config) {
     if (g_pkgmgr.initialized) return true;
     memcpy(&g_pkgmgr.config, config, sizeof(*config));
@@ -136,6 +216,14 @@ bool wubu_pkgmgr_init(const wubu_pkgmgr_config_t *config) {
     char sql[256];
     snprintf(sql, sizeof(sql), "SELECT name, url, pubkey_hex, priority, enabled, last_update FROM repos");
     db_query(sql, cb_load_repos, NULL);
+
+    /* Authoritative revocations must load before any verify/install path is
+     * reachable: a failed reload fails initialization closed. */
+    if (!keyrev_reload()) {
+        sqlite3_close(g_pkgmgr.db);
+        g_pkgmgr.db = NULL;
+        return false;
+    }
 
     g_pkgmgr.initialized = true;
     return true;

@@ -20,6 +20,7 @@ echo "[gate] mbedTLS: $(grep -m1 MBEDTLS_VERSION_STRING "$MB/include/mbedtls/ver
 echo "[gate] generating ephemeral Ed25519 keypairs"
 openssl genpkey -algorithm ED25519 -out "$TMP/key.pem" 2>/dev/null
 openssl genpkey -algorithm ED25519 -out "$TMP/other.pem" 2>/dev/null
+openssl genpkey -algorithm ED25519 -out "$TMP/rot.pem" 2>/dev/null
 
 seed_hex=$(openssl pkey -in "$TMP/key.pem" -text -noout \
     | awk '/^priv:/{f=1;next} /^pub:/{f=0} f{gsub(/[ :]/,"");printf "%s",$0}')
@@ -27,9 +28,15 @@ pub_hex=$(openssl pkey -in "$TMP/key.pem" -pubout -outform DER 2>/dev/null \
     | tail -c 32 | xxd -p -c 64 | tr -d '\n')
 wrong_pub=$(openssl pkey -in "$TMP/other.pem" -pubout -outform DER 2>/dev/null \
     | tail -c 32 | xxd -p -c 64 | tr -d '\n')
+rot_seed=$(openssl pkey -in "$TMP/rot.pem" -text -noout \
+    | awk '/^priv:/{f=1;next} /^pub:/{f=0} f{gsub(/[ :]/,"");printf "%s",$0}')
+rot_pub=$(openssl pkey -in "$TMP/rot.pem" -pubout -outform DER 2>/dev/null \
+    | tail -c 32 | xxd -p -c 64 | tr -d '\n')
 [ "${#seed_hex}" -eq 64 ] && [ "${#pub_hex}" -eq 64 ] && [ "${#wrong_pub}" -eq 64 ] \
+    && [ "${#rot_seed}" -eq 64 ] && [ "${#rot_pub}" -eq 64 ] \
     || { echo "failed to extract 32-byte Ed25519 key material" >&2; exit 2; }
 echo "[gate] seed/pubkey: 32 bytes each (raw hex, never stored in repo)"
+echo "[gate] generated 3 keypairs: genuine / wrong / rotation"
 
 mkdir -p "$TMP/src"
 printf 'Ed25519 gate payload\n' > "$TMP/src/payload.txt"
@@ -60,6 +67,12 @@ gcc $CFLAGS $INCLUDES -include "$ROOT/src/runtime/wubu_gnu_compat.h" $SRCS \
     -L"$MB/lib/x86_64-linux-gnu" -lmbedtls -lmbedx509 -lmbedcrypto \
     -Wl,-rpath,"$MB/lib/x86_64-linux-gnu" -lsqlite3 -lzstd -lm
 
-echo "[gate] running differential checks"
-LD_LIBRARY_PATH="$MB/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-    "$TMP/probe" "$TMP/gate.wubu" "$TMP/src" "$seed_hex" "$pub_hex" "$wrong_pub"
+echo "[gate] running differential checks: record process (persist revocation)"
+mkdir -p "$TMP/db"
+export LD_LIBRARY_PATH="$MB/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+ARGS=(record "$TMP/db" "$TMP/gate.wubu" "$TMP/src" \
+      "$seed_hex" "$pub_hex" "$wrong_pub" "$rot_seed" "$rot_pub")
+"$TMP/probe" "${ARGS[@]}"
+echo "[gate] restarting verifier in a FRESH process against the same DB"
+ARGS[0]=check
+"$TMP/probe" "${ARGS[@]}"

@@ -30,6 +30,10 @@ typedef struct {
     void *progress_userdata;
     wubu_pkg_repo_t repos[32];
     int n_repos;
+    /* Ed25519 trust-anchor revocations: authoritative rows are in the DB;
+     * this bounded cache is reloaded by wubu_pkgmgr_init(). */
+    char revoked_keys[WUBU_PKGMGR_MAX_REVOKED_KEYS][65];
+    int n_revoked_keys;
 } wubu_pkgmgr_state_t;
 
 extern wubu_pkgmgr_state_t g_pkgmgr;

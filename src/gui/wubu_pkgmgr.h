@@ -234,6 +234,29 @@ int wubu_pkgmgr_repo_list(wubu_pkg_repo_t* out, int max);
 /* Refresh repository index */
 bool wubu_pkgmgr_repo_update(const char* name);  /* NULL = all enabled */
 
+/* ============================================================
+ * Trust-Anchor Revocation (Ed25519)
+ * ============================================================
+ * The authoritative revocation list lives in the pkgmgr SQLite DB
+ * (revoked_keys table); wubu_pkgmgr_init() reloads a bounded in-process
+ * cache from it, so a revocation persists across process restarts.  Keys
+ * use the same canonical lowercase 64-char hex form as repo pubkeys and
+ * the verifier; no secret material is ever stored here.
+ *
+ * wubu_pkgmgr_verify_against_repos() skips revoked anchors and fails closed
+ * when no usable anchor remains, so both verification and install refuse a
+ * package signed only by a revoked key. */
+#define WUBU_PKGMGR_MAX_REVOKED_KEYS 64
+
+/* Revoke an Ed25519 public key (persisted; idempotent). */
+bool wubu_pkgmgr_key_revoke(const char* pubkey_hex);
+/* Lift a revocation, e.g. after rotation to a new key (persisted). */
+bool wubu_pkgmgr_key_unrevoke(const char* pubkey_hex);
+/* True if the key is revoked in the reloaded cache. */
+bool wubu_pkgmgr_key_is_revoked(const char* pubkey_hex);
+/* Number of revoked keys currently cached. */
+int wubu_pkgmgr_key_revoked_count(void);
+
 /* Search packages */
 int wubu_pkgmgr_search(const char* query, wubu_pkg_repo_entry_t* out, int max);
 /* Get package info from repo */
