@@ -19,6 +19,7 @@
  * injects a fake I/O window + fake PCI through the core seams.
  */
 #include "wubu_virtio_net.h"
+#include "wubu_virtio_ids.h"
 #include "wubu_virtqueue.h"
 #include "wubu_pci.h"
 
@@ -218,11 +219,12 @@ wubu_virtio_net_t *wubu_virtio_net_probe(void)
     memset(devs, 0, sizeof(devs));
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
     for (int i = 0; i < n; i++) {
-        /* Legacy virtio-net: spec ID 0x1000 (0x1000 + type - 1, net
-         * type 1); some hypervisors use 0x1001. The network class
-         * disambiguates net from blk (legacy blk is class 0x01). */
-        if (devs[i].vendor == 0x1AF4u &&
-            (devs[i].device == 0x1000u || devs[i].device == 0x1001u) &&
+        /* Legacy virtio-net: canonical ID is 1AF4:1000 (from
+         * wubu_virtio_ids.h); some hypervisors use 0x1001. The network
+         * class disambiguates net from blk. */
+        if (devs[i].vendor == WUBU_VIRTIO_VENDOR_ID &&
+            (devs[i].device == WUBU_VIRTIO_NET_DEVICE_ID ||
+             devs[i].device == 0x1001u) &&
             devs[i].class_code == 0x02u) {
             wubu_virtio_net_t *nic = vnet_init(&devs[i]);
             if (nic) return nic;

@@ -4,13 +4,15 @@
  * "We are an AGI that runs on everything" — and a huge fraction of
  * everything is a VIRTUAL MACHINE: dev boxes, CI, cloud instances,
  * the hosted WuBuOS test path. virtio is the paravirtual device
- * family every VM presents (PCI vendor 0x1AF4, device = the type).
+ * family every VM presents (PCI vendor 0x1AF4, legacy device IDs
+ * 0x1000 + type - 1). The canonical IDs live in wubu_virtio_ids.h;
+ * this registry uses them so it matches the real drivers.
  *
  * The drivers (per virtio device type):
- *   - virtio-blk  (0x01): the VM's disk — the block device
- *   - virtio-net  (0x03): the VM's NIC — the link + MAC
- *   - virtio-gpu  (0x10): the VM's display — the framebuffer size
- *   - virtio-input (0x11): the VM's keyboard/mouse (via the HID feed)
+ *   - virtio-blk   (1AF4:1001): the VM's disk — the block device
+ *   - virtio-net   (1AF4:1000): the VM's NIC — the link + MAC
+ *   - virtio-gpu   (1AF4:100F): the VM's display — the framebuffer size
+ *   - virtio-input (1AF4:1010): the VM's keyboard/mouse (via the HID feed)
  *
  * The virtio model: the device has a config space (the capability
  * pointers -> the config BAR) + the virtqueue doorbells. This driver
@@ -24,16 +26,14 @@
  */
 #include "wubu_drv.h"
 #include "wubu_drv_virtio.h"
+#include "wubu_virtio_ids.h"
 
 #include <stdio.h>
 #include <string.h>
 
-/* the virtio PCI vendor + the device types */
-#define VIRTIO_VENDOR 0x1AF4
-#define VIRTIO_BLK    0x01
-#define VIRTIO_NET    0x03
-#define VIRTIO_GPU    0x10
-#define VIRTIO_INPUT  0x11
+/* The config selectors ARE the canonical legacy PCI device IDs from
+ * wubu_virtio_ids.h -- no low-byte "type" extraction (the old 0x01/0x03
+ * model never matched a real QEMU device). */
 
 /* the device status bits */
 #define VIRTIO_ACK         (1u << 0)
@@ -55,7 +55,6 @@
 typedef struct {
     volatile uint8_t *mmio;
     int   present;
-    int   type;
     int   status;          /* the negotiated status */
     uint64_t blk_sectors;
     uint8_t net_mac[6];
@@ -70,7 +69,6 @@ static wubu_virtio_t g_v;
 static int virtio_probe(wubu_drv_dev_t *dev)
 {
     if (!g_v.mmio) return -1;
-    g_v.type = dev->device & 0xFF;
     g_v.mmio[VIRTIO_STATUS] = VIRTIO_ACK | VIRTIO_DRIVER;
     g_v.mmio[VIRTIO_STATUS] |= VIRTIO_FEATURES_OK;
     g_v.mmio[VIRTIO_STATUS] |= VIRTIO_DRIVER_OK;
@@ -78,9 +76,9 @@ static int virtio_probe(wubu_drv_dev_t *dev)
     g_v.negotiated = (g_v.status & VIRTIO_DRIVER_OK) != 0;
     if (!g_v.negotiated) return -1;
 
-    /* the class config */
-    switch (g_v.type) {
-    case VIRTIO_BLK: {
+    /* the class config: select by the canonical legacy PCI device ID */
+    switch (dev->device) {
+    case WUBU_VIRTIO_BLK_DEVICE_ID: {
         uint64_t lo = (uint64_t)g_v.mmio[VIRTIO_BLK_CAP] |
                       ((uint64_t)g_v.mmio[VIRTIO_BLK_CAP+1] << 8) |
                       ((uint64_t)g_v.mmio[VIRTIO_BLK_CAP+2] << 16) |
@@ -92,11 +90,11 @@ static int virtio_probe(wubu_drv_dev_t *dev)
         g_v.blk_sectors = lo | (hi << 32);
         break;
     }
-    case VIRTIO_NET:
+    case WUBU_VIRTIO_NET_DEVICE_ID:
         for (int i = 0; i < 6; i++)
             g_v.net_mac[i] = g_v.mmio[VIRTIO_NET_MAC + i];
         break;
-    case VIRTIO_GPU:
+    case WUBU_VIRTIO_GPU_DEVICE_ID:
         g_v.gpu_w = (int)(g_v.mmio[VIRTIO_GPU_W] | (g_v.mmio[VIRTIO_GPU_W+1] << 8) |
                           (g_v.mmio[VIRTIO_GPU_W+2] << 16) | (g_v.mmio[VIRTIO_GPU_W+3] << 24));
         g_v.gpu_h = (int)(g_v.mmio[VIRTIO_GPU_H] | (g_v.mmio[VIRTIO_GPU_H+1] << 8) |
@@ -109,21 +107,21 @@ static int virtio_probe(wubu_drv_dev_t *dev)
     return 0;
 }
 
-/* the per-type ID tables (the device = the type) */
+/* the per-type ID tables -- real legacy PCI IDs, owned by wubu_virtio_ids.h */
 const wubu_drv_id_t wubu_virtio_blk_ids[] = {
-    { VIRTIO_VENDOR, VIRTIO_BLK, 0, 0 },
+    { WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_BLK_DEVICE_ID, 0, 0 },
     { 0, 0, 0, 0 },
 };
 const wubu_drv_id_t wubu_virtio_net_ids[] = {
-    { VIRTIO_VENDOR, VIRTIO_NET, 0, 0 },
+    { WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_NET_DEVICE_ID, 0, 0 },
     { 0, 0, 0, 0 },
 };
 const wubu_drv_id_t wubu_virtio_gpu_ids[] = {
-    { VIRTIO_VENDOR, VIRTIO_GPU, 0, 0 },
+    { WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_GPU_DEVICE_ID, 0, 0 },
     { 0, 0, 0, 0 },
 };
 const wubu_drv_id_t wubu_virtio_input_ids[] = {
-    { VIRTIO_VENDOR, VIRTIO_INPUT, 0, 0 },
+    { WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_INPUT_DEVICE_ID, 0, 0 },
     { 0, 0, 0, 0 },
 };
 

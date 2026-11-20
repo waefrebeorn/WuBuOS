@@ -20,6 +20,7 @@
  *   - Realtek RTL8125 2.5GbE: needs r8168-dkms (r8169 is broken)
  */
 #include "wubu_net.h"
+#include "wubu_virtio_ids.h"
 #include "../../include/wubu_pci_ids.h"  /* PCI IDs: one owner */
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
@@ -142,7 +143,7 @@ static const struct { int vendor, device; const char *driver; const char *name; 
     { 0x11AB, 0x2A08, "mvneta",     "Marvell Armada"            },
     { 0x8086, 0x2922, "e1000e",     "Intel ICH9 (SATA/eth combo)"},
     { 0x1234, 0x1111, "virtio_net", "QEMU virtio-net"           },
-    { 0x1AF4, 0x1000, "virtio_net", "Red Hat virtio-net"      },
+    { WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_NET_DEVICE_ID, "virtio_net", "Red Hat virtio-net" },
     { 0, 0, NULL, NULL },
 };
 

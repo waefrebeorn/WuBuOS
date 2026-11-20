@@ -20,6 +20,7 @@
  * build injects a fake I/O window + fake PCI through the same seams.
  */
 #include "wubu_virtio_blk.h"
+#include "wubu_virtio_ids.h"
 #include "wubu_virtqueue.h"
 #include "wubu_pci.h"
 
@@ -242,12 +243,12 @@ wubu_virtio_blk_t *wubu_virtio_blk_probe(void)
     memset(devs, 0, sizeof(devs));
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
     for (int i = 0; i < n; i++) {
-        /* Legacy virtio-blk: QEMU/virtio-spec ID is 0x1001 (0x1000 +
-         * type - 1, block type 2); some hypervisors (VirtualBox) use
-         * 0x1000. The mass-storage class disambiguates blk from net
-         * (legacy net is 0x1000 on spec-correct machines). */
-        if (devs[i].vendor == 0x1AF4u &&
-            (devs[i].device == 0x1001u || devs[i].device == 0x1000u) &&
+        /* Legacy virtio-blk: canonical ID is 1AF4:1001 (from
+         * wubu_virtio_ids.h); some hypervisors (VirtualBox) use 0x1000.
+         * The mass-storage class disambiguates blk from net. */
+        if (devs[i].vendor == WUBU_VIRTIO_VENDOR_ID &&
+            (devs[i].device == WUBU_VIRTIO_BLK_DEVICE_ID ||
+             devs[i].device == 0x1000u) &&
             devs[i].class_code == 0x01u) {
             wubu_virtio_blk_t *d = vblk_init(&devs[i]);
             if (d) return d;

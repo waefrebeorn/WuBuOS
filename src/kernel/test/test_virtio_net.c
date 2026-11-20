@@ -33,7 +33,7 @@ int wubu_pci_scan(wubu_pci_dev_t *d, int n)
     if (!fake_pci_present || n < 1) return 0;
     memset(&d[0], 0, sizeof(d[0]));
     d[0].bus = 0; d[0].dev = 4; d[0].fn = 0;
-    d[0].vendor = 0x1AF4; d[0].device = 0x1000;   /* legacy net (spec) */
+    d[0].vendor = WUBU_VIRTIO_VENDOR_ID; d[0].device = WUBU_VIRTIO_NET_DEVICE_ID;   /* legacy net (spec) */
     d[0].class_code = fake_class;
     d[0].bar0 = fake_iobase;
     return 1;
