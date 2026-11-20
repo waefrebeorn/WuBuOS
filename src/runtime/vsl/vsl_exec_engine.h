@@ -41,20 +41,25 @@
  *     entries are read from the RELOCATED in-memory arrays.  Both phases are
  *     guarded by the engine's fault handler; counts are reported in the
  *     result.  These are freestanding constructors, NOT glibc __libc_csu_init.
- * Full ELF symbol versioning (DT_VERSYM/DT_VERNEED/DT_VERDEF) is NOT modeled:
- * versioned symbols resolve by their base name only.  See the verified
- * boundary in docs/compendium/04-roadmap/os-gaps-2026-11-19.md.
+ * ELF symbol versioning (DT_VERSYM/DT_VERNEED/DT_VERDEF) is parsed from raw
+ * gABI bytes.  A versioned import is satisfied ONLY by a definition carrying
+ * the same version NAME; in the hardened mode (vsl_exec_image with all legacy
+ * flags clear) the definition must ALSO come from the DT_VERNEED vn_file, so
+ * a version required from libA cannot be satisfied by libB.  An undefined
+ * WEAK symbol with no definition binds to address 0 in hardened mode; a
+ * strong undefined symbol always fails closed.
  *
- * DT_NEEDED is supported ONLY in this bounded form: an allow-listed search
- * directory is configured with vsl_dyn_set_dep_search_dir(); each DT_NEEDED
- * soname must be a plain basename found there, must be a freestanding ET_DYN
- * guest object (no ld.so), and is mapped at its own in-window bias.  Its
- * exported dynamic symbols are merged into the bounded symbol table (first
- * definition wins), so a main image can import from it.  Counts, name
- * lengths, depth, file sizes and total mapped bytes are capped.  A missing,
- * malformed, out-of-tree or unknown dependency is a hard VSL_EXEC_ERR_RELOC;
- * nothing is ever guessed or loaded from the host system.  Loaded ET_DYN
- * images must stay within this contract.
+ * DT_NEEDED is supported ONLY in this bounded form: DT_NEEDED sonames are a
+ * plain basename found in a bounded per-image search-directory list (or the
+ * legacy process-wide allow-list via vsl_dyn_set_dep_search_dir()).  A dep
+ * must be a freestanding ET_DYN guest object (no ld.so), mapped at its own
+ * in-window bias.  Its exported dynamic symbols are merged into the bounded
+ * symbol table (strong beats weak within a version, then first wins), so a
+ * main image can import from it.  Counts, name lengths, depth, file sizes and
+ * total mapped bytes are capped.  A missing, malformed, out-of-tree or
+ * unknown dependency is a hard VSL_EXEC_ERR_RELOC; nothing is ever guessed
+ * or loaded from the host system.  Loaded ET_DYN images must stay within
+ * this contract.
  *
  * Guest link addresses MUST fall inside [VSL_USER_BASE, VSL_USER_BASE +
  * VSL_USER_SIZE): that window is the seccomp trap scope, so guest code
@@ -140,6 +145,29 @@ uint64_t vsl_dyn_ifunc_call_count(void);  /* IRELATIVE host resolver calls */
  * empty string) clears the allow-list, so any DT_NEEDED then fails closed
  * with VSL_EXEC_ERR_RELOC.  Returns 0 on success, -1 on a bad directory. */
 int vsl_dyn_set_dep_search_dir(const char *dir);
+/* A per-image, isolated execution configuration.  Unlike the process-wide
+ * vsl_dyn_set_dep_search_dir() allow-list, `dirs` belongs to ONE image (and
+ * its DT_NEEDED graph); it is copied into per-run state at entry and never
+ * mutates global state.  Both legacy flags default to 0 (hardened behavior):
+ *   legacy_version_any_file: 1 = pre-change rule that matches a version NAME
+ *     across ALL merged deps, ignoring DT_VERNEED vn_file.
+ *   legacy_weak_undef_fail: 1 = pre-change rule that fails closed for an
+ *     undefined weak symbol with no definition (instead of binding to 0).
+ * Both flags exist only so differential gates can exercise the old loader on
+ * byte-identical fixtures; hardened callers leave them 0. */
+#define VSL_IMAGE_DIRS_MAX 8u
+typedef struct {
+    const char *const *dirs;          /* NULL-terminated; NULL = no dep dirs */
+    int legacy_version_any_file;
+    int legacy_weak_undef_fail;
+} VslImageCfg;
+
+/* Hardened per-image run.  Returns the same codes as vsl_exec_elf_bytes();
+ * additionally VSL_EXEC_ERR_ARGS if the dir list exceeds VSL_IMAGE_DIRS_MAX
+ * or contains an invalid/oversized path. */
+int vsl_exec_image(const void *elf_data, size_t elf_size,
+                   const VslImageCfg *cfg, VslExecResult *out);
+
 /* Load-order view of the LAST run: soname at index idx, or NULL if absent. */
 const char *vsl_dyn_dep_name(uint32_t idx);
 /* Runtime address of a symbol exported by a loaded dependency, or 0 if the

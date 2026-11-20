@@ -506,6 +506,92 @@ static size_t build_copy_irelative_elf(uint8_t *buf) {
     return 0x1600;
 }
 
+/* Map a link-time vaddr to a file offset via the first covering PT_LOAD. */
+static int img_vaddr_to_off(const uint8_t *img, size_t n, uint64_t va,
+                            uint64_t len, uint64_t *out) {
+    uint64_t phoff; uint16_t phentsize, phnum;
+    memcpy(&phoff, img + 32, 8);
+    memcpy(&phentsize, img + 54, 2);
+    memcpy(&phnum, img + 56, 2);
+    if (phoff + (uint64_t)phnum * phentsize > n) return -1;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *ph = img + phoff + (uint64_t)i * phentsize;
+        uint32_t t; memcpy(&t, ph, 4);
+        if (t != 1) continue;                       /* PT_LOAD */
+        uint64_t o, v, fsz;
+        memcpy(&o, ph + 8, 8);  memcpy(&v, ph + 16, 8); memcpy(&fsz, ph + 32, 8);
+        if (va >= v && va - v <= fsz && len <= fsz - (va - v) &&
+            o + (va - v) <= n) { *out = o + (va - v); return 0; }
+    }
+    return -1;
+}
+
+/* Retarget one DT_VERNEED record's vn_file string on a COPY of a fixture.
+ * Both file names must already exist in .dynstr; only the 4-byte vn_file
+ * pointer is rewritten, so the DT_NEEDED sonames stay byte-identical.  The
+ * result is an ELF that requires version X from libA while only libB
+ * defines it -- the exact case vn_file enforcement must refuse. */
+static int patch_verneed_file(uint8_t *img, size_t n,
+                              const char *from, const char *to) {
+    uint64_t phoff; uint16_t phentsize, phnum;
+    memcpy(&phoff, img + 32, 8);
+    memcpy(&phentsize, img + 54, 2);
+    memcpy(&phnum, img + 56, 2);
+    if (phoff + (uint64_t)phnum * phentsize > n) return 0;
+    uint64_t doff = 0, dsz = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *ph = img + phoff + (uint64_t)i * phentsize;
+        uint32_t t; memcpy(&t, ph, 4);
+        if (t != 2) continue;                       /* PT_DYNAMIC */
+        memcpy(&doff, ph + 8, 8); memcpy(&dsz, ph + 32, 8);
+        break;
+    }
+    if (dsz < 16 || doff > n || dsz > n - doff) return 0;
+    uint64_t vneed = 0, vnum = 0, strtab = 0, strsz = 0;
+    for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
+        uint64_t tag, val;
+        memcpy(&tag, img + doff + k, 8); memcpy(&val, img + doff + k + 8, 8);
+        if (tag == 0) break;
+        if (tag == 0x6ffffffeULL) vneed = val;       /* DT_VERNEED */
+        else if (tag == 0x6fffffffULL) vnum = val;   /* DT_VERNEEDNUM */
+        else if (tag == 5) strtab = val;             /* DT_STRTAB */
+        else if (tag == 10) strsz = val;             /* DT_STRSZ */
+    }
+    if (!vneed || !strtab || !strsz || strsz > (1u << 20)) return 0;
+    uint64_t stroff;
+    if (img_vaddr_to_off(img, n, strtab, strsz, &stroff) != 0) return 0;
+    size_t tolen = strlen(to);
+    uint64_t to_off = 0;
+    int have_to = 0;
+    for (uint64_t i = 0; i + tolen + 1 <= strsz; i++) {
+        const char *s = (const char *)(img + stroff + i);
+        if (strcmp(s, to) == 0) { to_off = i; have_to = 1; break; }
+    }
+    if (!have_to || to_off > 0xffffffffULL) return 0;
+    uint64_t cur = vneed, walked = 0, limit = vnum ? vnum : 32;
+    if (limit > 32) return 0;
+    while (walked < limit) {
+        uint64_t off;
+        if (img_vaddr_to_off(img, n, cur, 16, &off) != 0) return 0;
+        uint32_t vf, next;
+        memcpy(&vf,   img + off + 4,  4);          /* Elf64_Verneed.vn_file */
+        memcpy(&next, img + off + 12, 4);
+        if (vf < strsz && memchr(img + stroff + vf, 0, (size_t)(strsz - vf))) {
+            const char *fname = (const char *)(img + stroff + vf);
+            if (strcmp(fname, from) == 0) {
+                uint32_t v = (uint32_t)to_off;
+                memcpy(img + off + 4, &v, 4);
+                return 1;
+            }
+        }
+        walked++;
+        if (next == 0) break;
+        cur += next;
+    }
+    return 0;
+}
+
+
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
     if (argc < 2) {
@@ -1131,7 +1217,172 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* (h) host syscalls still real after all runs (filter ALLOW path) */
+/* (s) DT_VERNEED vn_file enforcement differential.  The unmodified
+ *     fixture requires VSL_2 from libvslverB.so and VSL_1 from
+ *     libvslverA.so, so hardened mode still succeeds.  A copy whose
+ *     VSL_2 vn_file is retargeted at libvslverA.so (which has no VSL_2)
+ *     must fail closed; the legacy any-file rule still resolves it from
+ *     libvslverB.so -- the old-loader differential. */
+{
+    size_t n = 0;
+    snprintf(path, sizeof(path), "%s/guest_symver.elf", dir);
+    uint8_t *img = read_test_file(path, &n);
+    CHECK(img != NULL, "vn_file gate: fixture readable");
+    if (img) {
+        const char *dirs[] = { dir, NULL };
+        VslImageCfg hard = { dirs, 0, 0 };   /* enforce vn_file */
+        VslImageCfg old  = { dirs, 1, 1 };   /* pre-change rules */
+        rc = vsl_exec_image(img, n, &hard, &r);
+        uint64_t ver = 0, weakm = 0;
+        if (r.output_len >= 16) {
+            memcpy(&ver, r.output, 8);
+            memcpy(&weakm, r.output + 8, 8);
+        }
+        printf("[gate s] hardened unmodified: rc=%d exit=%d ver=0x%llx "
+               "weak=0x%llx\n", rc, r.exit_code,
+               (unsigned long long)ver, (unsigned long long)weakm);
+        CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+              "vn_file gate: legitimate version needs still run");
+        CHECK(ver == 0x4242523200000002ULL,
+              "VSL_2 still resolves from its declared libvslverB.so");
+        CHECK(weakm == 0x5745414b00000001ULL,
+              "vn_file confines VSL_1 to libvslverA.so (weak definition)");
+
+        uint8_t *bad = (uint8_t *)malloc(n);
+        CHECK(bad != NULL, "vn_file gate: control copy allocated");
+        if (bad) {
+            memcpy(bad, img, n);
+            CHECK(patch_verneed_file(bad, n, "libvslverB.so",
+                                     "libvslverA.so") == 1,
+                  "vn_file retargeted B -> A on copy (DT_NEEDED unchanged)");
+            int rc_hard = vsl_exec_image(bad, n, &hard, &r);
+            printf("[gate s] hardened wrong-file: rc=%d status=%d "
+                   "(want %d)\n", rc_hard, r.status, VSL_EXEC_ERR_RELOC);
+            CHECK(rc_hard == VSL_EXEC_ERR_RELOC,
+                  "version required from libA is NOT satisfied by libB");
+            int rc_old = vsl_exec_image(bad, n, &old, &r);
+            uint64_t over = 0;
+            if (r.output_len >= 16) memcpy(&over, r.output, 8);
+            printf("[gate s] legacy wrong-file: rc=%d exit=%d "
+                   "ver=0x%llx\n", rc_old, r.exit_code,
+                   (unsigned long long)over);
+            CHECK(rc_old == VSL_EXEC_OK && r.exit_code == 0,
+                  "old loader ignores vn_file and still succeeds");
+            CHECK(over == 0x4242523200000002ULL,
+                  "old loader satisfies VSL_2 from the wrong file");
+            CHECK(rc_hard != rc_old,
+                  "vn_file enforcement changes the outcome (differential)");
+            free(bad);
+        }
+        free(img);
+    }
+}
+
+/* (t) Weak vs strong UNDEF differential.  An undefined WEAK symbol
+ *     with no definition binds to 0 in hardened mode; the same bytes
+ *     under the legacy fail-closed rule are rejected.  The STRONG
+ *     variant must still fail closed under both rules. */
+{
+    size_t nw = 0, ns = 0;
+    const char *no_dirs[] = { NULL };
+    VslImageCfg hard = { no_dirs, 0, 0 };
+    VslImageCfg old  = { no_dirs, 0, 1 };
+    snprintf(path, sizeof(path), "%s/guest_weakundef.elf", dir);
+    uint8_t *w = read_test_file(path, &nw);
+    CHECK(w != NULL, "weak-UNDEF gate: fixture readable");
+    if (w) {
+        rc = vsl_exec_image(w, nw, &hard, &r);
+        uint64_t addr = 0xdeadbeefULL;
+        if (r.output_len >= 8) memcpy(&addr, r.output, 8);
+        printf("[gate t] weak hardened: rc=%d exit=%d out_len=%zu "
+               "addr=0x%llx\n", rc, r.exit_code, r.output_len,
+               (unsigned long long)addr);
+        CHECK(rc == VSL_EXEC_OK && r.exit_code == 0 && r.output_len == 8,
+              "missing weak definition binds to 0 and guest runs");
+        CHECK(addr == 0, "undefined weak resolved address is exactly 0");
+        int rc_old = vsl_exec_image(w, nw, &old, &r);
+        printf("[gate t] weak legacy: rc=%d status=%d (want %d)\n",
+               rc_old, r.status, VSL_EXEC_ERR_RELOC);
+        CHECK(rc_old == VSL_EXEC_ERR_RELOC,
+              "old loader fails closed on the missing weak symbol");
+        CHECK(rc != rc_old, "weak-UNDEF semantics differ from old loader");
+        free(w);
+    }
+    snprintf(path, sizeof(path), "%s/guest_strongundef.elf", dir);
+    uint8_t *simg = read_test_file(path, &ns);
+    CHECK(simg != NULL, "strong-UNDEF control: fixture readable");
+    if (simg) {
+        rc = vsl_exec_image(simg, ns, &hard, &r);
+        printf("[gate t] strong hardened: rc=%d status=%d (want %d)\n",
+               rc, r.status, VSL_EXEC_ERR_RELOC);
+        CHECK(rc == VSL_EXEC_ERR_RELOC,
+              "strong UNDEF still fails closed (no silent zero binding)");
+        free(simg);
+    }
+}
+
+/* (u) Per-image dependency search directory list.  Two dirs hold
+ *     objects with the SAME soname but different magics.  A per-image
+ *     cfg selects dirB while the process-wide allow-list stays dirA;
+ *     the legacy entry point still sees dirA -- the differential. */
+{
+    size_t n = 0;
+    char dirA[512], dirB[512];
+    snprintf(dirA, sizeof(dirA), "%s/dirA", dir);
+    snprintf(dirB, sizeof(dirB), "%s/dirB", dir);
+    const char *onlyA[] = { dirA, NULL };
+    const char *onlyB[] = { dirB, NULL };
+    const char *skips[] = { "/nonexistent-vsl-dep-dir", dirB, NULL };
+    VslImageCfg cfgA = { onlyA, 0, 0 };
+    VslImageCfg cfgB = { onlyB, 0, 0 };
+    VslImageCfg cfgSkip = { skips, 0, 0 };
+    snprintf(path, sizeof(path), "%s/guest_imgdep.elf", dir);
+    uint8_t *img = read_test_file(path, &n);
+    CHECK(img != NULL, "per-image dir gate: fixture readable");
+    if (img) {
+        CHECK(vsl_dyn_set_dep_search_dir(dirA) == 0,
+              "legacy process-wide allow-list set to dirA");
+        int rcb = vsl_exec_image(img, n, &cfgB, &r);
+        uint64_t mb = 0;
+        if (r.output_len >= 8) memcpy(&mb, r.output, 8);
+        printf("[gate u] per-image dirB: rc=%d deps=%u magic=0x%llx\n",
+               rcb, r.deps_loaded, (unsigned long long)mb);
+        CHECK(rcb == VSL_EXEC_OK && r.deps_loaded == 1,
+              "per-image list loaded the dependency from dirB");
+        CHECK(mb == 0x4449524200000002ULL,
+              "per-image dirB copy supplied vsl_imgdep_magic");
+
+        int rca = vsl_exec_elf_bytes(img, n, &r);   /* legacy loader */
+        uint64_t ma = 0;
+        if (r.output_len >= 8) memcpy(&ma, r.output, 8);
+        printf("[gate u] legacy global dirA: rc=%d deps=%u magic=0x%llx\n",
+               rca, r.deps_loaded, (unsigned long long)ma);
+        CHECK(rca == VSL_EXEC_OK && ma == 0x4449524100000001ULL,
+              "legacy global allow-list still resolves dirA");
+        CHECK(ma != mb,
+              "per-image search list differs from the process-wide list");
+        CHECK(rcb != rca || mb != ma,
+              "per-image directory selection is a real differential");
+
+        rc = vsl_exec_image(img, n, &cfgA, &r);
+        uint64_t ma2 = 0;
+        if (r.output_len >= 8) memcpy(&ma2, r.output, 8);
+        CHECK(rc == VSL_EXEC_OK && ma2 == ma,
+              "per-image run never mutated the global allow-list");
+        rc = vsl_exec_image(img, n, &cfgSkip, &r);
+        uint64_t ms = 0;
+        if (r.output_len >= 8) memcpy(&ms, r.output, 8);
+        printf("[gate u] multi-dir skip: rc=%d magic=0x%llx\n",
+               rc, (unsigned long long)ms);
+        CHECK(rc == VSL_EXEC_OK && ms == mb,
+              "empty first dir skipped; later dir in the list found dep");
+        CHECK(vsl_dyn_set_dep_search_dir(NULL) == 0,
+              "per-image dir gate: global allow-list cleared");
+        free(img);
+    }
+}
+
+/* (h) host syscalls still real after all runs (filter ALLOW path) */
     CHECK(getpid() > 0, "host getpid still works after engine runs");
 
     printf("Results: %d passed, %d failed\n", passed, failed);

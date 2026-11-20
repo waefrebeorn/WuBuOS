@@ -586,6 +586,7 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 typedef struct {
     uint16_t ndx;                          /* version index (hidden bit off) */
     char     name[EX_VER_NAME_MAX + 1];
+    char     file[EX_VER_NAME_MAX + 1];    /* DT_VERNEED vn_file (needed only) */
 } VslVerEnt;
 
 typedef struct {
@@ -618,6 +619,45 @@ typedef struct VslDynInfo {
 static char g_dep_dir[EX_DEP_PATH_MAX];
 static int  g_dep_dir_set;
 
+/* -- per-image configuration (set at the top of each run, never global) --
+ * These replace the single process-wide allow-list for callers that use
+ * vsl_exec_image().  Both legacy flags are 0 in hardened mode. */
+static char     g_run_dirs[VSL_IMAGE_DIRS_MAX][EX_DEP_PATH_MAX];
+static uint32_t g_run_dir_count;
+static int      g_run_legacy_ver_any_file;
+static int      g_run_legacy_weak_fail;
+
+/* Copy one run's configuration; no directory is ever written to a global
+ * allow-list.  Returns 0 ok, -1 on an invalid/oversized path or too many
+ * directories.  `dirs == NULL` means an empty per-image list. */
+static int ex_set_run_config(const VslImageCfg *cfg) {
+    g_run_dir_count = 0;
+    g_run_legacy_ver_any_file = 0;
+    g_run_legacy_weak_fail = 0;
+    if (!cfg) {                              /* legacy entry point */
+        g_run_legacy_ver_any_file = 1;      /* old: ignore vn_file */
+        g_run_legacy_weak_fail = 1;         /* old: weak UNDEF fails closed */
+        if (g_dep_dir_set && g_dep_dir[0]) {
+            size_t n = strlen(g_dep_dir);
+            if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
+            memcpy(g_run_dirs[0], g_dep_dir, n + 1);
+            g_run_dir_count = 1;
+        }
+        return 0;
+    }
+    g_run_legacy_ver_any_file = cfg->legacy_version_any_file ? 1 : 0;
+    g_run_legacy_weak_fail    = cfg->legacy_weak_undef_fail ? 1 : 0;
+    if (!cfg->dirs) return 0;                /* isolated image: no deps */
+    for (uint32_t i = 0; i < VSL_IMAGE_DIRS_MAX; i++) {
+        const char *d = cfg->dirs[i];
+        if (!d) return 0;                    /* NULL terminator */
+        size_t n = strlen(d);
+        if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
+        memcpy(g_run_dirs[g_run_dir_count++], d, n + 1);
+    }
+    return -1;                               /* > VSL_IMAGE_DIRS_MAX dirs */
+}
+
 typedef struct {
     char     name[EX_DEP_NAME_MAX + 1];
     uint8_t *map;                       /* mmap base, for cleanup */
@@ -627,6 +667,7 @@ typedef struct {
 typedef struct {
     char     name[EX_NAME_MAX + 1];     /* owned copy; dep bytes are freed */
     char     ver[EX_VER_NAME_MAX + 1];  /* "" = unversioned / global scope */
+    char     owner[EX_DEP_NAME_MAX + 1];/* soname of the dep that exported it */
     uint8_t  weak;                      /* STB_WEAK definition */
     uint8_t  is_default;                /* versym hidden bit clear */
     uint64_t addr;                      /* dep_bias + st_value */
@@ -671,16 +712,20 @@ static int ex_dep_rank(const VslDepSym *s) {
 }
 
 /* Look up an exported symbol.  `ver` non-NULL requires an EXACT version-name
- * match; NULL asks for the unversioned/default case and accepts any version
- * but prefers the default, strong definition.  Returns 1 and writes *addr
- * (when non-NULL) on a hit, 0 on a miss. */
-static int ex_dep_lookup_ver(const char *name, const char *ver, uint64_t *addr) {
+ * match; `file` non-NULL/non-empty additionally requires the definition to
+ * come from that DT_VERNEED vn_file (the hardened rule).  NULL asks for the
+ * unversioned/default case and accepts any version, preferring the default,
+ * strong definition.  Returns 1 and writes *addr (when non-NULL) on a hit, 0
+ * on a miss. */
+static int ex_dep_lookup_ver(const char *name, const char *ver,
+                             const char *file, uint64_t *addr) {
     if (!name || !name[0]) return 0;
     VslDepSym *best = NULL;
     for (uint32_t i = 0; i < g_dep_sym_count; i++) {
         VslDepSym *s = &g_dep_syms[i];
         if (strcmp(s->name, name) != 0) continue;
         if (ver && strcmp(s->ver, ver) != 0) continue;   /* exact version */
+        if (file && file[0] && strcmp(s->owner, file) != 0) continue;
         if (!best || ex_dep_rank(s) > ex_dep_rank(best)) best = s;
     }
     if (!best) return 0;
@@ -690,7 +735,7 @@ static int ex_dep_lookup_ver(const char *name, const char *ver, uint64_t *addr) 
 
 /* Base-name diagnostic view (used by the public accessor). */
 static int ex_dep_lookup(const char *name, uint64_t *addr) {
-    return ex_dep_lookup_ver(name, NULL, addr);
+    return ex_dep_lookup_ver(name, NULL, NULL, addr);
 }
 
 /* Determine the dynamic symbol count from DT_HASH (nchain) or DT_GNU_HASH
@@ -756,12 +801,18 @@ static int ex_symbol_count(const uint8_t *f, size_t fsz,
 }
 
 /* -- version table parsing (raw gABI bytes, bounded) -------------------- */
-static const char *ex_ver_lookup(const VslVerEnt *tab, uint32_t n, uint16_t ndx) {
+static const VslVerEnt *ex_ver_find(const VslVerEnt *tab, uint32_t n,
+                                     uint16_t ndx) {
     ndx &= (uint16_t)~EX_VERSYM_HIDDEN;
     if (ndx <= EX_VER_NDX_GLOBAL) return NULL;       /* local/global: unversioned */
     for (uint32_t i = 0; i < n; i++)
-        if (tab[i].ndx == ndx) return tab[i].name;
+        if (tab[i].ndx == ndx) return &tab[i];
     return NULL;                                     /* missing -> fail closed */
+}
+
+static const char *ex_ver_lookup(const VslVerEnt *tab, uint32_t n, uint16_t ndx) {
+    const VslVerEnt *e = ex_ver_find(tab, n, ndx);
+    return e ? e->name : NULL;
 }
 
 /* Read a NUL-terminated version name out of DT_STRTAB. */
@@ -842,12 +893,19 @@ static int ex_parse_versions(const uint8_t *f, size_t fsz,
             uint64_t off;
             if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                                 cur, 16, &off) != 0) return -1;
-            uint16_t vr, cnt; uint32_t aux, next;
+            uint16_t vr, cnt; uint32_t vn_file, aux, next;
             memcpy(&vr,  f + off,      2);
             memcpy(&cnt, f + off + 2,  2);
+            memcpy(&vn_file, f + off + 4, 4);   /* Elf64_Verneed.vn_file */
             memcpy(&aux, f + off + 8,  4);
             memcpy(&next, f + off + 12, 4);
             if (vr != 1 || cnt == 0 || cnt > EX_VER_AUX_MAX || aux == 0) return -1;
+            /* The vn_file names the dependency that supplies these version
+             * indices.  It must be a bounded, NUL-terminated string; a
+             * missing/unreadable name fails closed with the whole image. */
+            char need_file[EX_VER_NAME_MAX + 1];
+            if (ex_ver_name_at(f, stroff, di->strsz, vn_file, need_file) != 0)
+                return -1;
             uint64_t a = cur + aux;
             for (uint16_t j = 0; j < cnt; j++) {
                 uint64_t aoff;
@@ -866,6 +924,7 @@ static int ex_parse_versions(const uint8_t *f, size_t fsz,
                 e->ndx = ndx;
                 if (ex_ver_name_at(f, stroff, di->strsz, vna_name, e->name) != 0)
                     return -1;
+                memcpy(e->file, need_file, sizeof(need_file));
                 if (vna_next == 0) {
                     if ((uint16_t)(j + 1) != cnt) return -1;
                     break;
@@ -943,23 +1002,34 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     size_t room = (size_t)(strsz - st_name);
     if (!memchr(name, 0, room) || strlen(name) > EX_NAME_MAX) return -1;
     uint64_t addr = 0;
-    /* Versioned import: the index must resolve to a DT_VERNEED name and a
-     * dependency export carrying that EXACT version name.  The unversioned
-     * host table has no version definitions, so it cannot satisfy it. */
+    int found = 0;
+    /* Versioned import: the index must resolve to a DT_VERNEED entry.  In
+     * hardened mode the definition must come from BOTH the exact version
+     * name AND the vn_file named by that need, so a version required from
+     * libA cannot be satisfied by libB.  The legacy flag restores the old
+     * cross-file, name-only match. */
     if (vi > EX_VER_NDX_GLOBAL) {
-        const char *req = ex_ver_lookup(vc->needs, vc->nneeds, vi);
-        if (!req || !ex_dep_lookup_ver(name, req, &addr)) return -1;
-        *out = addr;
+        const VslVerEnt *need = ex_ver_find(vc->needs, vc->nneeds, vi);
+        if (need) {
+            const char *file = g_run_legacy_ver_any_file ? NULL : need->file;
+            found = ex_dep_lookup_ver(name, need->name, file, &addr);
+        }
+    } else {
+        found = ex_dep_lookup(name, &addr);     /* merged DT_NEEDED exports first */
+        if (!found) {
+            addr = vsl_dyn_host_symbol(name);   /* then the fixed host table */
+            found = (addr != 0);
+        }
+    }
+    if (found) { *out = addr; return 0; }
+    /* Standard ELF rule: an UNDEFINED WEAK symbol with no definition binds
+     * to 0.  A strong undefined symbol always fails closed; the legacy flag
+     * keeps the pre-change fail-closed behavior for weak symbols too. */
+    if (((st_info >> 4) == 2) && !g_run_legacy_weak_fail) {
+        *out = 0;
         return 0;
     }
-    if (ex_dep_lookup(name, &addr)) {         /* merged DT_NEEDED exports first */
-        *out = addr;
-        return 0;
-    }
-    addr = vsl_dyn_host_symbol(name);
-    if (addr == 0) return -1;                 /* unknown -> fail closed */
-    *out = addr;
-    return 0;
+    return -1;
 }
 
 /* Resolve a R_X86_64_COPY source.  A COPY copies bytes from a definition in
@@ -1346,39 +1416,45 @@ static int ex_needed_name(const uint8_t *f, size_t fsz,
     return 0;
 }
 
-/* Open a dependency ONLY from inside the allow-listed directory.  Both the
- * directory and the joined path are canonicalised with realpath(); the
- * canonical file must be a strict child of the canonical directory, so a
- * symlink or ../ cannot escape the repo/test tree. */
+/* Open a dependency ONLY from inside THIS IMAGE's configured search
+ * directories.  Each directory and joined path are canonicalised with
+ * realpath(); the canonical file must be a strict child of one canonical
+ * directory, so a symlink or ../ cannot escape the tree.  Directories are
+ * searched in order; the first confinement-passing hit wins.  No global
+ * allow-list is consulted or modified. */
 static uint8_t *ex_read_dep_file(const char *name, size_t *out_sz) {
-    if (!g_dep_dir_set || !g_dep_dir[0]) return NULL;
-    char path[EX_DEP_PATH_MAX];
-    int n = snprintf(path, sizeof(path), "%s/%s", g_dep_dir, name);
-    if (n < 0 || (size_t)n >= sizeof(path)) return NULL;
-    /* realpath(NULL) allocates a PATH_MAX-sized result; a smaller explicit
-     * buffer trips glibc fortify's __realpath_chk. */
-    char *dcanon = realpath(g_dep_dir, NULL);
-    char *pcanon = realpath(path, NULL);
-    if (!dcanon || !pcanon) { free(dcanon); free(pcanon); return NULL; }
-    size_t dl = strlen(dcanon);
-    int inside = (strncmp(pcanon, dcanon, dl) == 0 && pcanon[dl] == '/');
-    free(dcanon);
-    free(pcanon);
-    if (!inside) return NULL;
-    FILE *fp = fopen(path, "rb");
-    if (!fp) return NULL;
-    uint8_t *buf = NULL;
-    if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); return NULL; }
-    long sz = ftell(fp);
-    if (sz <= 0 || (uint64_t)sz > EX_DEP_FILE_MAX) { fclose(fp); return NULL; }
-    rewind(fp);
-    buf = malloc((size_t)sz);
-    if (!buf) { fclose(fp); return NULL; }
-    size_t got = fread(buf, 1, (size_t)sz, fp);
-    fclose(fp);
-    if (got != (size_t)sz) { free(buf); return NULL; }
-    *out_sz = got;
-    return buf;
+    if (!name || !name[0] || g_run_dir_count == 0) return NULL;
+    for (uint32_t di = 0; di < g_run_dir_count; di++) {
+        const char *dir = g_run_dirs[di];
+        char path[EX_DEP_PATH_MAX];
+        int n = snprintf(path, sizeof(path), "%s/%s", dir, name);
+        if (n < 0 || (size_t)n >= sizeof(path)) continue;
+        /* realpath(NULL) allocates a PATH_MAX-sized result; a smaller
+         * explicit buffer trips glibc fortify's __realpath_chk. */
+        char *dcanon = realpath(dir, NULL);
+        char *pcanon = realpath(path, NULL);
+        if (!dcanon || !pcanon) { free(dcanon); free(pcanon); continue; }
+        size_t dl = strlen(dcanon);
+        int inside = (strncmp(pcanon, dcanon, dl) == 0 && pcanon[dl] == '/');
+        free(dcanon);
+        free(pcanon);
+        if (!inside) continue;
+        FILE *fp = fopen(path, "rb");
+        if (!fp) continue;
+        uint8_t *buf = NULL;
+        if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); continue; }
+        long sz = ftell(fp);
+        if (sz <= 0 || (uint64_t)sz > EX_DEP_FILE_MAX) { fclose(fp); continue; }
+        rewind(fp);
+        buf = malloc((size_t)sz);
+        if (!buf) { fclose(fp); continue; }
+        size_t got = fread(buf, 1, (size_t)sz, fp);
+        fclose(fp);
+        if (got != (size_t)sz) { free(buf); continue; }
+        *out_sz = got;
+        return buf;
+    }
+    return NULL;
 }
 
 /* Map one ET_DYN image at a free bias in the VSL window.  Reuses the same
@@ -1454,13 +1530,16 @@ static int ex_map_dyn_image(const uint8_t *f, size_t fsz,
  * bounded table.  Names AND version names are COPIED (the dep file buffer is
  * freed on return); TLS, undefined, version-local and special-section symbols
  * are skipped.  A hash table is required so the symbol count is never guessed.
- * Duplicate (base name, version) definitions use strong-over-weak: a later
- * strong definition replaces an earlier weak one, otherwise link order wins.
- * Multiple versions of one base name coexist so a versioned import can pick
- * its exact match. */
+ * Duplicate (owner file, base name, version) definitions use strong-over-
+ * weak; different files keep separate entries so a DT_VERNEED vn_file can
+ * select its own file's definition.  Without a file filter, lookup prefers
+ * the strongest surviving entry and link order breaks ties.  Multiple
+ * versions of one base name coexist so a versioned import can pick its
+ * exact match. */
 static int ex_register_exports(const uint8_t *f, size_t fsz,
                                uint16_t phnum, uint16_t phentsize, uint64_t phoff,
-                               const VslDynInfo *di, uint64_t bias) {
+                               const VslDynInfo *di, uint64_t bias,
+                               const char *owner) {
     if (di->symtab == 0 || di->syment < 24)
         return di->versym ? -1 : 0;              /* version data without symtab */
     uint32_t n = 0;
@@ -1504,15 +1583,23 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
         int weak = ((st_info >> 4) == 2);              /* STB_WEAK */
         int is_default = !hidden;
         VslDepSym *dup = NULL;
+        /* Strong-over-weak is a WITHIN-FILE rule: two files may export the
+         * same (name, version), and vn_file enforcement must still see each
+         * file's own definition.  Applying it across files would delete A's
+         * weak definition just because B has a strong one, breaking a need
+         * that names A.  Lookup without a file still prefers the strongest
+         * of the surviving per-file entries. */
         for (uint32_t j = 0; j < g_dep_sym_count; j++) {
             if (strcmp(g_dep_syms[j].name, nm) == 0 &&
-                strcmp(g_dep_syms[j].ver, verp) == 0) { dup = &g_dep_syms[j]; break; }
+                strcmp(g_dep_syms[j].ver, verp) == 0 &&
+                strcmp(g_dep_syms[j].owner, owner) == 0) { dup = &g_dep_syms[j]; break; }
         }
         if (dup) {                                     /* strong replaces weak */
             if (dup->weak && !weak) {
                 dup->addr = bias + st_value;
                 dup->weak = 0;
                 dup->is_default = (uint8_t)is_default;
+                snprintf(dup->owner, sizeof(dup->owner), "%s", owner);
             }
             continue;
         }
@@ -1520,6 +1607,7 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
         VslDepSym *slot = &g_dep_syms[g_dep_sym_count++];
         snprintf(slot->name, sizeof(slot->name), "%s", nm);
         snprintf(slot->ver, sizeof(slot->ver), "%s", verp);
+        snprintf(slot->owner, sizeof(slot->owner), "%s", owner);
         slot->weak = (uint8_t)weak;
         slot->is_default = (uint8_t)is_default;
         slot->addr = bias + st_value;
@@ -1585,7 +1673,7 @@ static int ex_load_dependencies(const uint8_t *f, size_t fsz,
                                       &applied, &skipped, &resolved, 0);
         if (rr != 0 || skipped ||
             ex_register_exports(df, dsz, dphnum, dphentsize, dphoff,
-                                &ddi, dbias) != 0 ||
+                                &ddi, dbias, name) != 0 ||
             ex_load_dependencies(df, dsz, dphnum, dphentsize, dphoff,
                                  depth + 1) != 0) {
             free(df); return -1;
@@ -1630,10 +1718,15 @@ static void ex_reset_dep_state(void) {
 static void ex_unload_dependencies(void) { ex_reset_dep_state(); }
 
 /* -- the engine ------------------------------------------------------- */
-int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
-                       VslExecResult *out) {
+int vsl_exec_image(const void *elf_data, size_t elf_size,
+                   const VslImageCfg *cfg, VslExecResult *out) {
     if (!out) return VSL_EXEC_ERR_ARGS;
     memset(out, 0, sizeof(*out));
+    /* Per-image config first: the DT_NEEDED loader below consults g_run_*. */
+    if (ex_set_run_config(cfg) != 0) {
+        out->status = VSL_EXEC_ERR_ARGS;
+        return out->status;
+    }
     ex_unload_dependencies();              /* reset per-run DT_NEEDED state */
     ex_plt_reset();                        /* reset per-run lazy-PLT state */
     ex_ctors_reset();                      /* reset per-run init/fini state */
@@ -2010,6 +2103,14 @@ cleanup:
     if (rc != VSL_EXEC_OK && out->status == VSL_EXEC_OK)
         out->status = rc;
     return rc;
+}
+
+/* Legacy entry point.  It keeps the process-wide allow-list and BOTH
+ * pre-change version rules, so every pre-existing guest behaves exactly as
+ * before; hardened callers use vsl_exec_image() with a per-image config. */
+int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
+                       VslExecResult *out) {
+    return vsl_exec_image(elf_data, elf_size, NULL, out);
 }
 
 int vsl_exec_elf(const char *path, VslExecResult *out) {

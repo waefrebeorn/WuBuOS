@@ -692,7 +692,12 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_initplt.elf \
 	$(RT)/vsl/exec_guests/libvslverA.so \
 	$(RT)/vsl/exec_guests/libvslverB.so \
-	$(RT)/vsl/exec_guests/guest_symver.elf
+	$(RT)/vsl/exec_guests/guest_symver.elf \
+	$(RT)/vsl/exec_guests/guest_weakundef.elf \
+	$(RT)/vsl/exec_guests/guest_strongundef.elf \
+	$(RT)/vsl/exec_guests/dirA/libvslimgdep.so \
+	$(RT)/vsl/exec_guests/dirB/libvslimgdep.so \
+	$(RT)/vsl/exec_guests/guest_imgdep.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -778,6 +783,45 @@ $(RT)/vsl/exec_guests/guest_symver.elf: \
 		-fno-stack-protector -fno-asynchronous-unwind-tables \
 		-Wl,--build-id=none -Wl,-e,_start -Wl,--no-as-needed \
 		-L$(RT)/vsl/exec_guests -l:libvslverA.so -l:libvslverB.so $< -o $@
+
+# Hardened weak/strong-UNDEF fixtures.  ET_DYN (-shared) is required so the
+# missing symbol produces a real GLOB_DAT dynamic relocation; a static
+# ET_EXEC link would resolve it at link time.  -O0 keeps the GOT load.
+$(RT)/vsl/exec_guests/guest_weakundef.elf: $(RT)/vsl/exec_guests/guest_weakundef.c
+	$(CC) -O0 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start $< -o $@
+
+$(RT)/vsl/exec_guests/guest_strongundef.elf: \
+		$(RT)/vsl/exec_guests/guest_strongundef.c
+	$(CC) -O0 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start $< -o $@
+
+# Per-image search-directory fixtures: two objects with the SAME soname in
+# two directories, distinguished only by their exported magic.  The main
+# image is linked against the dirA copy but can be run against either.
+$(RT)/vsl/exec_guests/dirA/libvslimgdep.so: \
+		$(RT)/vsl/exec_guests/guest_imgdep_a.c
+	mkdir -p $(dir $@)
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,-N -Wl,--build-id=none -Wl,-soname,libvslimgdep.so $< -o $@
+
+$(RT)/vsl/exec_guests/dirB/libvslimgdep.so: \
+		$(RT)/vsl/exec_guests/guest_imgdep_b.c
+	mkdir -p $(dir $@)
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,-N -Wl,--build-id=none -Wl,-soname,libvslimgdep.so $< -o $@
+
+$(RT)/vsl/exec_guests/guest_imgdep.elf: \
+		$(RT)/vsl/exec_guests/guest_imgdep.c \
+		$(RT)/vsl/exec_guests/dirA/libvslimgdep.so
+	$(CC) -O0 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start -Wl,--no-as-needed \
+		-L$(RT)/vsl/exec_guests/dirA -l:libvslimgdep.so $< -o $@
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
