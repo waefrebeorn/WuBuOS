@@ -61,21 +61,32 @@ bool wubu_pkgmgr_repo_update(const char *name) {
          * body (the JSON index) in resp, null-terminated. */
         const char *body = resp;
 
-        /* Replace the repo's package index with freshly fetched entries. */
-        char del[512];
-        snprintf(del, sizeof(del), "DELETE FROM repo_packages WHERE repo_name='%s'",
-                 targets[t].name);
-        if (db_exec(del) != 0) continue;
+        /* Replace the repo's package index with freshly fetched entries.
+         * repo_name is an operator/config string -- bind it. */
+        sqlite3_stmt *del = NULL;
+        bool del_ok = false;
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "DELETE FROM repo_packages WHERE repo_name=?1", -1, &del, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(del, 1, targets[t].name, -1, SQLITE_TRANSIENT);
+            del_ok = sqlite3_step(del) == SQLITE_DONE;
+            sqlite3_finalize(del);
+        }
+        if (!del_ok) continue;
 
         int inserted = pkgmgr_parse_index(body, targets[t].name);
         if (inserted < 0) continue;
 
         /* Stamp last_update only on a successful fetch+parse. */
-        char sql[256];
-        snprintf(sql, sizeof(sql),
-                 "UPDATE repos SET last_update=strftime('%%s','now') WHERE name='%s'",
-                 targets[t].name);
-        if (db_exec(sql) != 0) continue;
+        sqlite3_stmt *ustmt = NULL;
+        bool upd_ok = false;
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "UPDATE repos SET last_update=strftime('%s','now') WHERE name=?1",
+                -1, &ustmt, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(ustmt, 1, targets[t].name, -1, SQLITE_TRANSIENT);
+            upd_ok = sqlite3_step(ustmt) == SQLITE_DONE;
+            sqlite3_finalize(ustmt);
+        }
+        if (!upd_ok) continue;
         /* Keep the in-memory repo state consistent with the DB stamp so
          * callers reading via wubu_pkgmgr_repo_list() see it immediately.
          * targets[] is a copy; update the canonical g_pkgmgr.repos entry. */
@@ -241,13 +252,26 @@ int wubu_pkgmgr_search(const char *query, wubu_pkg_repo_entry_t *out, int max) {
     if (!g_pkgmgr.initialized || !query || !out || max <= 0) return 0;
     memset(out, 0, (size_t)max * sizeof(*out));
     pkgmgr_search_ctx_t ctx = { out, max, 0 };
-    char sql[512];
-    snprintf(sql, sizeof(sql),
-        "SELECT id,name,version,description,repo_name,size_bytes,download_url,sha256 "
-        "FROM repo_packages WHERE id LIKE '%%%s%%' OR name LIKE '%%%s%%' "
-        "OR description LIKE '%%%s%%' LIMIT %d",
-        query, query, query, max);
-    if (db_query(sql, cb_search, &ctx) != 0) return 0;
+    /* Search text is external UI input: bind the LIKE patterns, never
+     * interpolate them into the SQL string. */
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "SELECT id,name,version,description,repo_name,size_bytes,download_url,sha256 "
+            "FROM repo_packages WHERE id LIKE ?1 OR name LIKE ?2 "
+            "OR description LIKE ?3 LIMIT ?4", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return 0;
+    }
+    char pattern[512];
+    snprintf(pattern, sizeof(pattern), "%%%s%%", query);
+    for (int i = 1; i <= 3; i++) sqlite3_bind_text(stmt, i, pattern, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 4, max);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *vals[8];
+        for (int i = 0; i < 8; i++) vals[i] = (const char *)sqlite3_column_text(stmt, i);
+        cb_search(&ctx, 8, (char **)vals, NULL);
+    }
+    sqlite3_finalize(stmt);
     return ctx.filled;
 }
 

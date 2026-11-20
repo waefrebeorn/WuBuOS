@@ -439,11 +439,15 @@ bool wubu_pkgmgr_remove(const char *pkg_id, bool auto_remove_deps) {
     }
 
     if (!auto_remove_deps) {
-        char sql[512];
-        snprintf(sql, sizeof(sql),
-            "SELECT COUNT(*) FROM deps WHERE dep_id='%s'", pkg_id);
+        /* pkg_id may be caller/DB supplied; bind it and read the real count. */
         int count = 0;
-        db_query(sql, NULL, &count);
+        sqlite3_stmt *ref = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "SELECT COUNT(*) FROM deps WHERE dep_id=?1", -1, &ref, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(ref, 1, pkg_id, -1, SQLITE_TRANSIENT);
+            if (sqlite3_step(ref) == SQLITE_ROW) count = sqlite3_column_int(ref, 0);
+            sqlite3_finalize(ref);
+        }
         if (count > 0) {
             fprintf(stderr, "[pkgmgr] Package is required by other packages\n");
             return false;
@@ -468,11 +472,18 @@ bool wubu_pkgmgr_remove(const char *pkg_id, bool auto_remove_deps) {
         globfree(&glob_result);
     }
 
-    char sql[256];
-    snprintf(sql, sizeof(sql), "DELETE FROM packages WHERE id='%s'", pkg_id);
-    db_exec(sql);
-    snprintf(sql, sizeof(sql), "DELETE FROM deps WHERE pkg_id='%s'", pkg_id);
-    db_exec(sql);
+    static const char *const deletes[] = {
+        "DELETE FROM packages WHERE id=?1",
+        "DELETE FROM deps WHERE pkg_id=?1"
+    };
+    for (int i = 0; i < 2; i++) {
+        sqlite3_stmt *dstmt = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db, deletes[i], -1, &dstmt, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(dstmt, 1, pkg_id, -1, SQLITE_TRANSIENT);
+            sqlite3_step(dstmt);
+            sqlite3_finalize(dstmt);
+        }
+    }
     /* Drop the file bookkeeping too, or verify_installed would keep
      * reporting a removed package as broken forever. */
     {
@@ -552,10 +563,14 @@ int wubu_pkgmgr_list_installed(wubu_pkg_installed_t *out, int max) {
 bool wubu_pkgmgr_get_installed(const char *pkg_id, wubu_pkg_installed_t *out) {
     if (!g_pkgmgr.initialized) return false;
 
-    char sql[512];
-    snprintf(sql, sizeof(sql),
-        "SELECT id, name, version, arch, install_date, size_bytes, install_path "
-        "FROM packages WHERE id='%s'", pkg_id);
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "SELECT id, name, version, arch, install_date, size_bytes, install_path "
+            "FROM packages WHERE id=?1", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, pkg_id, -1, SQLITE_TRANSIENT);
 
     char buffer[sizeof(wubu_pkg_installed_t) + sizeof(int)];
     memset(buffer, 0, sizeof(buffer));
@@ -563,9 +578,12 @@ bool wubu_pkgmgr_get_installed(const char *pkg_id, wubu_pkg_installed_t *out) {
     int *found = (int *)(buffer + sizeof(wubu_pkg_installed_t));
     *found = 0;
 
-    if (db_query(sql, cb_pkg_installed, buffer) != 0) {
-        return false;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *vals[7];
+        for (int i = 0; i < 7; i++) vals[i] = (const char *)sqlite3_column_text(stmt, i);
+        cb_pkg_installed(buffer, 7, (char **)vals, NULL);
     }
+    sqlite3_finalize(stmt);
 
     if (!*found) return false;
 

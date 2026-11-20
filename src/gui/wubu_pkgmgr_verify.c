@@ -31,16 +31,15 @@ int wubu_pkgmgr_verify_installed(char ***out_broken, int *out_n_broken) {
         const char *install_path = (const char *)sqlite3_column_text(stmt, 1);
         if (!pkg_id || !install_path) continue;
 
-        /* Query the files table for this package to get expected checksums. */
-        char fsql[512];
-        snprintf(fsql, sizeof(fsql),
-            "SELECT path, sha256 FROM files WHERE pkg_id='%s'", pkg_id);
-
+        /* pkg_id came from the packages table (populated from an untrusted
+         * package manifest) -- bind it so a quote cannot change the query. */
         sqlite3_stmt *fstmt = NULL;
-        if (sqlite3_prepare_v2(g_pkgmgr.db, fsql, -1, &fstmt, NULL) != SQLITE_OK) {
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "SELECT path, sha256 FROM files WHERE pkg_id=?1", -1, &fstmt, NULL) != SQLITE_OK) {
             if (fstmt) sqlite3_finalize(fstmt);
             continue;
         }
+        sqlite3_bind_text(fstmt, 1, pkg_id, -1, SQLITE_TRANSIENT);
 
         bool pkg_broken = false;
         while (sqlite3_step(fstmt) == SQLITE_ROW) {

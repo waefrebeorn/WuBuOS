@@ -1267,6 +1267,189 @@ bool test_schema_migration(void) {
     return true;
 }
 
+/* -- Differential SQL-injection gate ------------------------------- *
+ * Strings coming from a fetched repo config, a repo index JSON or a
+ * package manifest must be treated as DATA, never as SQL.  The negative
+ * control first proves the payload is genuinely offensive against the OLD
+ * snprintf+sqlite3_exec pattern (it really drops a table); the rest of the
+ * gate proves the hardened APIs store/query the same payload literally. */
+
+/* NEGATIVE CONTROL: reproduce the legacy db_exec() path in a scratch DB.
+ * Returns true iff the injected second statement really executed. */
+static bool sql_inj_negative_control(const char *evil, char *detail, size_t n) {
+    sqlite3 *db = NULL;
+    if (sqlite3_open(":memory:", &db) != SQLITE_OK) return false;
+    bool dropped = false;
+    if (sqlite3_exec(db, "CREATE TABLE repos (name TEXT PRIMARY KEY, enabled INTEGER DEFAULT 1);",
+                     NULL, NULL, NULL) == SQLITE_OK) {
+        char sql[512];
+        snprintf(sql, sizeof(sql), "DELETE FROM repos WHERE name='%s'", evil);
+        sqlite3_exec(db, sql, NULL, NULL, NULL);
+        sqlite3_stmt *st = NULL;
+        dropped = sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM repos", -1, &st, NULL) != SQLITE_OK;
+        if (st) sqlite3_finalize(st);
+        snprintf(detail, n, "legacy snprintf+sqlite3_exec with '%s' -> DROP executed: %s",
+                 evil, dropped ? "YES" : "NO");
+    }
+    sqlite3_close(db);
+    return dropped;
+}
+
+/* Direct-row helpers so the gate can plant quote-bearing untrusted values
+ * without using the very interpolation under test. */
+static bool sql_inj_insert_pkg(const char *base, const char *id, const char *path) {
+    char dbpath[640];
+    snprintf(dbpath, sizeof(dbpath), "%s/pkgmgr.db", base);
+    sqlite3 *db = NULL;
+    if (sqlite3_open(dbpath, &db) != SQLITE_OK) { if (db) sqlite3_close(db); return false; }
+    sqlite3_stmt *st = NULL;
+    bool ok = false;
+    if (sqlite3_prepare_v2(db,
+            "INSERT INTO packages (id, name, version, install_path, install_date) "
+            "VALUES (?1, ?2, '1.0', ?3, '2026-01-01T00:00:00Z')", -1, &st, NULL) == SQLITE_OK) {
+        sqlite3_bind_text(st, 1, id, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(st, 2, id, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(st, 3, path, -1, SQLITE_TRANSIENT);
+        ok = sqlite3_step(st) == SQLITE_DONE;
+        sqlite3_finalize(st);
+    }
+    sqlite3_close(db);
+    return ok;
+}
+
+static bool sql_inj_insert_dep(const char *base, const char *pkg_id, const char *dep_id) {
+    char dbpath[640];
+    snprintf(dbpath, sizeof(dbpath), "%s/pkgmgr.db", base);
+    sqlite3 *db = NULL;
+    if (sqlite3_open(dbpath, &db) != SQLITE_OK) { if (db) sqlite3_close(db); return false; }
+    sqlite3_stmt *st = NULL;
+    bool ok = false;
+    if (sqlite3_prepare_v2(db, "INSERT OR REPLACE INTO deps (pkg_id, dep_id, optional) "
+                               "VALUES (?1, ?2, 0)", -1, &st, NULL) == SQLITE_OK) {
+        sqlite3_bind_text(st, 1, pkg_id, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(st, 2, dep_id, -1, SQLITE_TRANSIENT);
+        ok = sqlite3_step(st) == SQLITE_DONE;
+        sqlite3_finalize(st);
+    }
+    sqlite3_close(db);
+    return ok;
+}
+
+static bool sql_inj_insert_file(const char *base, const char *pkg_id, const char *rel) {
+    char dbpath[640];
+    snprintf(dbpath, sizeof(dbpath), "%s/pkgmgr.db", base);
+    sqlite3 *db = NULL;
+    if (sqlite3_open(dbpath, &db) != SQLITE_OK) { if (db) sqlite3_close(db); return false; }
+    sqlite3_stmt *st = NULL;
+    bool ok = false;
+    if (sqlite3_prepare_v2(db, "INSERT OR REPLACE INTO files (pkg_id, path, size, sha256) "
+                               "VALUES (?1, ?2, 1, '')", -1, &st, NULL) == SQLITE_OK) {
+        sqlite3_bind_text(st, 1, pkg_id, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(st, 2, rel, -1, SQLITE_TRANSIENT);
+        ok = sqlite3_step(st) == SQLITE_DONE;
+        sqlite3_finalize(st);
+    }
+    sqlite3_close(db);
+    return ok;
+}
+
+static bool contains_str(char **v, int n, const char *s) {
+    for (int i = 0; i < n; i++) if (v && v[i] && strcmp(v[i], s) == 0) return true;
+    return false;
+}
+
+bool test_untrusted_sql_literal(void) {
+    const char *evil = "x'; DROP TABLE repos;--";
+    char nc[256];
+    TEST_ASSERT(sql_inj_negative_control(evil, nc, sizeof(nc)),
+                "negative control: old interpolation really drops repos");
+    printf("    [negative control] %s\n", nc);
+
+    const char *base = "/tmp/wubu_pkgmgr_sqlinj";
+    pid_t cp = fork();
+    if (cp == 0) { execl("/bin/rm", "rm", "-rf", base, (char*)NULL); _exit(1); }
+    waitpid(cp, NULL, 0);
+
+    wubu_pkgmgr_config_t config;
+    fixture_config(&config, base);
+    TEST_ASSERT(wubu_pkgmgr_init(&config), "sql-injection gate init");
+
+    /* (1) Repo add: quote-bearing name is stored literally, table survives. */
+    TEST_ASSERT(wubu_pkgmgr_repo_add(evil, "http://example.invalid/index.json", NULL, 5),
+                "repo_add accepts quote-bearing name");
+    TEST_ASSERT(fixture_db_count(base, "SELECT COUNT(*) FROM repos") == 1,
+                "repos table intact after repo_add");
+    char namebuf[128];
+    TEST_ASSERT(fixture_db_text(base, "SELECT name FROM repos", namebuf, sizeof(namebuf)),
+                "repo name row readable");
+    TEST_ASSERT(strcmp(namebuf, evil) == 0, "repo name stored literally");
+    wubu_pkg_repo_t repos[8];
+    int nr = wubu_pkgmgr_repo_list(repos, 8);
+    TEST_ASSERT(nr == 1 && strcmp(repos[0].name, evil) == 0, "repo_list returns literal name");
+
+    /* (2) Repo enable toggle: literal UPDATE, no stacked statement. */
+    TEST_ASSERT(wubu_pkgmgr_repo_set_enabled(evil, false), "repo_set_enabled literal name");
+    char flag[16];
+    TEST_ASSERT(fixture_db_text(base, "SELECT enabled FROM repos", flag, sizeof(flag)) &&
+                strcmp(flag, "0") == 0, "enabled=0 on exact row");
+    TEST_ASSERT(wubu_pkgmgr_repo_set_enabled(evil, true), "repo_set_enabled re-enable");
+    TEST_ASSERT(fixture_db_text(base, "SELECT enabled FROM repos", flag, sizeof(flag)) &&
+                strcmp(flag, "1") == 0, "enabled=1 on exact row");
+    TEST_ASSERT(fixture_db_count(base, "SELECT COUNT(*) FROM repos") == 1,
+                "repos table intact after enable toggles");
+
+    /* (3) Repo remove: DELETE is literal; repos+repo_packages both survive. */
+    TEST_ASSERT(wubu_pkgmgr_repo_remove(evil), "repo_remove literal name");
+    TEST_ASSERT(fixture_db_count(base, "SELECT COUNT(*) FROM repos") == 0,
+                "repos table still exists, malicious row gone");
+    TEST_ASSERT(fixture_db_count(base, "SELECT COUNT(*) FROM repo_packages") >= 0,
+                "repo_packages table intact after repo_remove");
+
+    /* (4) get_installed(): an injected OR predicate must not bypass WHERE. */
+    const char *evil_or = "x' OR '1'='1";
+    TEST_ASSERT(sql_inj_insert_pkg(base, "literal-pkg", "/nonexistent/a"), "plant benign package row");
+    TEST_ASSERT(sql_inj_insert_pkg(base, evil_or, "/nonexistent/b"), "plant quote-bearing package id");
+    wubu_pkg_installed_t inst;
+    memset(&inst, 0, sizeof(inst));
+    TEST_ASSERT(wubu_pkgmgr_get_installed(evil_or, &inst), "literal quote-bearing id found");
+    TEST_ASSERT(strcmp(inst.manifest.id, evil_or) == 0, "get_installed returns exact literal id");
+    TEST_ASSERT(!wubu_pkgmgr_get_installed("none' OR '1'='1", &inst),
+                "injected OR predicate does not return all rows");
+    TEST_ASSERT(fixture_db_count(base, "SELECT COUNT(*) FROM packages") == 2,
+                "packages table intact");
+
+    /* (5) verify_installed(): files lookup uses the literal pkg_id. */
+    TEST_ASSERT(sql_inj_insert_file(base, evil_or, "missing.bin"), "plant file row for quote-bearing id");
+    char **broken = NULL; int nbroken = -1;
+    int vrc = wubu_pkgmgr_verify_installed(&broken, &nbroken);
+    TEST_ASSERT(vrc == -1 && nbroken == 1, "verify flags only the literal broken package");
+    TEST_ASSERT(contains_str(broken, nbroken, evil_or), "broken list holds literal quote-bearing id");
+    for (int i = 0; i < nbroken; i++) free(broken[i]);
+    free(broken);
+    TEST_ASSERT(fixture_db_count(base, "SELECT COUNT(*) FROM files") == 1, "files table intact");
+
+    /* (6) resolve_deps(): a dep_id from a manifest cannot widen the query. */
+    const char *evil_dep = "dep' OR '1'='1";
+    TEST_ASSERT(sql_inj_insert_dep(base, "root-pkg", evil_dep), "plant quote-bearing dep_id");
+    TEST_ASSERT(sql_inj_insert_dep(base, "other-pkg", "legit-dep"), "plant decoy dep row");
+    const char *root = "root-pkg";
+    char **ordered = NULL; int n_ord = 0;
+    TEST_ASSERT(wubu_pkgmgr_resolve_deps(&root, 1, &ordered, &n_ord) == 0, "resolve succeeds");
+    TEST_ASSERT(n_ord == 2, "no synthetic dep from injected OR predicate");
+    TEST_ASSERT(contains_str(ordered, n_ord, root) &&
+                contains_str(ordered, n_ord, evil_dep), "dep_id returned literally");
+    TEST_ASSERT(!contains_str(ordered, n_ord, "legit-dep"), "unrelated dep not pulled in by injection");
+    for (int i = 0; i < n_ord; i++) free(ordered[i]);
+    free(ordered);
+    TEST_ASSERT(fixture_db_count(base, "SELECT COUNT(*) FROM deps") == 2, "deps table intact");
+
+    wubu_pkgmgr_shutdown();
+    pid_t rp = fork();
+    if (rp == 0) { execl("/bin/rm", "rm", "-rf", base, (char*)NULL); _exit(1); }
+    waitpid(rp, NULL, 0);
+    return true;
+}
+
 /* Main */
 int main(void) {
     printf("=== WuBuOS Package Manager Tests ===\n\n");
@@ -1288,6 +1471,7 @@ int main(void) {
     RUN_TEST(test_upgrade_numeric_versions);
     RUN_TEST(test_local_install_layout);
     RUN_TEST(test_schema_migration);
+    RUN_TEST(test_untrusted_sql_literal);
     
     printf("\n=== Results: %d passed, %d failed ===\n", tests_passed, tests_failed);
     return tests_failed == 0 ? 0 : 1;

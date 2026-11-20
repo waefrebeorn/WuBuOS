@@ -163,12 +163,22 @@ void wubu_pkgmgr_get_default_config(wubu_pkgmgr_config_t *config) {
 
 bool wubu_pkgmgr_repo_add(const char *name, const char *url, const char *pubkey_hex, int priority) {
     if (!g_pkgmgr.initialized || !name || !url) return false;
-    char sql[1024];
-    snprintf(sql, sizeof(sql),
-        "INSERT OR REPLACE INTO repos (name, url, pubkey_hex, priority, enabled) "
-        "VALUES ('%s', '%s', '%s', %d, 1)",
-        name, url, pubkey_hex ? pubkey_hex : "", priority);
-    if (db_exec(sql) != 0) return false;
+    /* name/url/pubkey are operator-supplied strings (and a repo name may
+     * originate in a fetched repo config). Bind them: never interpolate. */
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "INSERT OR REPLACE INTO repos (name, url, pubkey_hex, priority, enabled) "
+            "VALUES (?1, ?2, ?3, ?4, 1)", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, url, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, pubkey_hex ? pubkey_hex : "", -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 4, priority);
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    if (!ok) return false;
 
     /* Reload repos */
     wubu_pkgmgr_shutdown();
@@ -178,19 +188,40 @@ bool wubu_pkgmgr_repo_add(const char *name, const char *url, const char *pubkey_
 
 bool wubu_pkgmgr_repo_remove(const char *name) {
     if (!g_pkgmgr.initialized || !name) return false;
-    char sql[256];
-    snprintf(sql, sizeof(sql), "DELETE FROM repos WHERE name='%s'", name);
-    if (db_exec(sql) != 0) return false;
-    snprintf(sql, sizeof(sql), "DELETE FROM repo_packages WHERE repo_name='%s'", name);
-    db_exec(sql);
+    /* Both statements run through bound parameters: a quote-bearing repo
+     * name is deleted as a literal row, never executed as extra SQL. */
+    static const char *const deletes[] = {
+        "DELETE FROM repos WHERE name=?1",
+        "DELETE FROM repo_packages WHERE repo_name=?1"
+    };
+    for (int i = 0; i < 2; i++) {
+        sqlite3_stmt *stmt = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db, deletes[i], -1, &stmt, NULL) != SQLITE_OK) {
+            if (stmt) sqlite3_finalize(stmt);
+            if (i == 0) return false;
+            continue;
+        }
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT);
+        bool done = sqlite3_step(stmt) == SQLITE_DONE;
+        sqlite3_finalize(stmt);
+        if (i == 0 && !done) return false;
+    }
     return true;
 }
 
 bool wubu_pkgmgr_repo_set_enabled(const char *name, bool enabled) {
     if (!g_pkgmgr.initialized || !name) return false;
-    char sql[256];
-    snprintf(sql, sizeof(sql), "UPDATE repos SET enabled=%d WHERE name='%s'", enabled ? 1 : 0, name);
-    return db_exec(sql) == 0;
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db, "UPDATE repos SET enabled=?1 WHERE name=?2",
+                           -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_int(stmt, 1, enabled ? 1 : 0);
+    sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT);
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok;
 }
 
 int wubu_pkgmgr_repo_list(wubu_pkg_repo_t *out, int max) {
@@ -292,9 +323,17 @@ int wubu_pkgmgr_autoremove(bool dry_run) {
     /* Actually remove. */
     int removed = 0;
     for (int i = 0; i < n_orphans; i++) {
-        char delsql[256];
-        snprintf(delsql, sizeof(delsql), "DELETE FROM packages WHERE id='%s'", orphans[i]);
-        if (db_exec(delsql) == 0) removed++;
+        /* Orphan ids were read from the packages table (untrusted manifest
+         * content originally) -- bind them instead of interpolating. */
+        sqlite3_stmt *del = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db, "DELETE FROM packages WHERE id=?1",
+                               -1, &del, NULL) != SQLITE_OK) {
+            if (del) sqlite3_finalize(del);
+            continue;
+        }
+        sqlite3_bind_text(del, 1, orphans[i], -1, SQLITE_TRANSIENT);
+        if (sqlite3_step(del) == SQLITE_DONE) removed++;
+        sqlite3_finalize(del);
     }
 
     if (removed > 0)

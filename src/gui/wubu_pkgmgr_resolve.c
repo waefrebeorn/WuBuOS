@@ -53,15 +53,16 @@ int wubu_pkgmgr_resolve_deps(const char **pkg_ids, int n_pkgs,
     do {
         changed = false;
         for (int i = 0; i < n_total; i++) {
+            /* pkg_set[] holds caller ids AND dep_ids read from the deps
+             * table (which is filled from untrusted manifest dependencies).
+             * Bind it: interpolation here could alter the dep graph. */
             sqlite3_stmt *stmt = NULL;
-            char sql[512];
-            snprintf(sql, sizeof(sql),
-                "SELECT dep_id FROM deps WHERE pkg_id='%s'", pkg_set[i]);
-
-            if (sqlite3_prepare_v2(g_pkgmgr.db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+            if (sqlite3_prepare_v2(g_pkgmgr.db,
+                    "SELECT dep_id FROM deps WHERE pkg_id=?1", -1, &stmt, NULL) != SQLITE_OK) {
                 if (stmt) sqlite3_finalize(stmt);
                 continue;
             }
+            sqlite3_bind_text(stmt, 1, pkg_set[i], -1, SQLITE_TRANSIENT);
 
             while (sqlite3_step(stmt) == SQLITE_ROW) {
                 const char *dep_id = (const char *)sqlite3_column_text(stmt, 0);
