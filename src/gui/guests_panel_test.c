@@ -32,6 +32,9 @@ static int g_tests = 0, g_passed = 0, g_failed = 0;
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while (0)
 
 static char g_base[256], g_roots[300], g_ns[300], g_stage[300], g_tar[320];
+/* Parallel gates share /tmp/wubu-ct-<name>-styx.sock; use a per-process
+ * guest name so the full suite cannot collide on that global socket. */
+static char g_guest[32];
 
 static int run_argv(char *const argv[]) {
     pid_t pid = fork();
@@ -49,6 +52,7 @@ static int setup(void) {
     snprintf(g_ns, sizeof(g_ns), "%s/n", g_base);
     snprintf(g_stage, sizeof(g_stage), "%s/stage", g_base);
     snprintf(g_tar, sizeof(g_tar), "%s/rootfs.tar.gz", g_base);
+    snprintf(g_guest, sizeof(g_guest), "bbp%d", (int)getpid());
     setenv("WUBU_GUEST_ROOTS_DIR", g_roots, 1);
     if (mkdir(g_ns, 0755) != 0) return -1;
     if (wubu_ns_bridge_create(g_ns) != 0) return -1;
@@ -92,7 +96,7 @@ static int click_launch(DosGuiWindow *win, int x, int y) {
     for (int attempt = 0; attempt < 3; attempt++) {
         win->on_mouse(win, x, y, 1, 1);
         for (int t = 0; t < 100; t++) {
-            if (wubu_ct_registry_find("bb")) return 1;
+            if (wubu_ct_registry_find(g_guest)) return 1;
             usleep(10000);
         }
     }
@@ -113,7 +117,7 @@ static int drawn_pixels(DosGuiWindow *win) {
 
 static void test_window_renders_and_click_launches(void) {
     TEST("L8 GUI: Guests window renders; Launch click runs guest");
-    CHECK(wubu_guest_import(g_tar, "bb") == 0, "import fixture rootfs");
+    CHECK(wubu_guest_import(g_tar, g_guest) == 0, "import fixture rootfs");
 
     DosGuiWindow *win = launch_guests();
     CHECK(win != NULL, "launch_guests created a window");
@@ -134,23 +138,23 @@ static void test_window_renders_and_click_launches(void) {
     int by = c.y + 4 + 3;                 /* row 0 */
     CHECK(click_launch(win, bx - win->x + 10, by - win->y + 9),
           "click started a REAL container");
-    WubuCt *ct = wubu_ct_registry_find("bb");
+    WubuCt *ct = wubu_ct_registry_find(g_guest);
     CHECK(ct != NULL, "container handle is live");
     char root[512];
-    CHECK(wubu_guest_import_root("bb", root, sizeof(root)) == 0, "root known");
+    CHECK(wubu_guest_import_root(g_guest, root, sizeof(root)) == 0, "root known");
     CHECK(strcmp(ct->root, root) == 0, "container runs in the imported root");
-    CHECK(wait_guest_exit("bb", 10000) == 0, "guest exits cleanly");
+    CHECK(wait_guest_exit(g_guest, 10000) == 0, "guest exits cleanly");
 
     /* Second click after exit: relaunch through the same button. */
     CHECK(click_launch(win, bx - win->x + 10, by - win->y + 9),
           "second click relaunches");
-    CHECK(wait_guest_exit("bb", 10000) == 0, "relaunched guest exits");
+    CHECK(wait_guest_exit(g_guest, 10000) == 0, "relaunched guest exits");
     PASS();
 }
 
 static void test_empty_state(void) {
     TEST("L8 GUI: empty state renders honestly after remove");
-    CHECK(wubu_guest_remove("bb") == 0, "remove guest");
+    CHECK(wubu_guest_remove(g_guest) == 0, "remove guest");
     DosGuiWindow *win = launch_guests();
     CHECK(win != NULL, "window opens with zero guests");
     VBEState *vs = vbe_state();

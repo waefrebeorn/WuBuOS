@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 3719
+- product source modules: 3721
 - OWNED (appear in a test target recipe): 874
-- VENDORED / unproven (no test-target recipe reference): 2845
+- VENDORED / unproven (no test-target recipe reference): 2847
 
 ## OWNED modules (tested)
 
@@ -1619,6 +1619,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `guest_exit_group.c`
 - `guest_fault.c`
 - `guest_getpid.c`
+- `guest_initplt.c`
 - `guest_uname.c`
 - `guest_write.c`
 - `happy.c`
@@ -2641,6 +2642,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_transform.c`
 - `test_transitions_pro.c`
 - `test_treeview.c`
+- `test_tss.c`
 - `test_tst.c`
 - `test_ttc.c`
 - `test_tts.c`
