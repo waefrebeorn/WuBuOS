@@ -23,8 +23,19 @@
  * Definitions inside the image resolve to bias+st_value.  Unknown symbol
  * names, unregistered IFUNC resolvers and any other relocation type are hard
  * rejects (VSL_EXEC_ERR_RELOC / VSL_EXEC_ERR_RELOCTYPE) -- never guessed.
- * There is NO TLS model: TPOFF/DTPMOD/TLSDESC and STT_TLS symbols are all
- * rejected.  No glibc, no ld.so.
+ *
+ * BOUNDED TLS MODEL (no glibc ABI, no ld.so, no %fs/TCB): the HOST provides
+ * one fixed-size TLS block per image (VSL_TLS_BLOCK_MAX bytes; main image is
+ * seeded from VslImageCfg.tls_init, dependencies get a zeroed block).  An
+ * STT_TLS symbol's st_value is an offset into that block.  Only three TLS
+ * relocations are applied: R_X86_64_TPOFF64 writes the runtime address
+ * tls_base + S + A (the guest dereferences it directly -- the host block base
+ * plays the role of the thread pointer), R_X86_64_DTPMOD64 writes a bounded
+ * module id (1 for the main image), and R_X86_64_DTPOFF32 writes S + A as a
+ * 32-bit in-block offset.  Every offset is range-checked against the block.
+ * STT_TLS symbols are NEVER accepted by the plain-address resolver, and all
+ * other TLS models (TLSGD, TLSLD, GOTTPOFF, TPOFF32, TLSDESC, ...) plus
+ * undefined/oversized TLS symbols are hard rejects (fail closed).
  *
  * Two bounded enhancements are available as OPT-IN flags (both OFF by
  * default, so every pre-existing guest behaviour is unchanged):
@@ -78,6 +89,7 @@
 #include <stddef.h>
 
 #define VSL_EXEC_OUTPUT_MAX 65536
+#define VSL_TLS_BLOCK_MAX   256u   /* host-provided TLS bytes per image */
 
 /* Run status / engine error codes (also the function return value). */
 enum {
@@ -111,6 +123,9 @@ typedef struct {
     uint32_t relocations_skipped;/* unsupported types -> RELOCTYPE error */
     uint32_t symbols_resolved;  /* symbol-based relocations resolved from
                                  * in-image definitions + host/dep table */
+    /* Bounded TLS diagnostics (zero for static ET_EXEC / no TLS relocations) */
+    uint32_t tls_relocations;   /* TPOFF64/DTPMOD64/DTPOFF32 relocations applied */
+    uint64_t tls_base;          /* base of the host-provided TLS block (main image) */
     /* DT_NEEDED diagnostics (zero for static ET_EXEC / no dependencies) */
     uint32_t deps_loaded;       /* freestanding ET_DYN deps loaded, in order */
     /* Lazy-PLT / init-fini diagnostics (opt-in; zero by default) */
@@ -138,6 +153,11 @@ uint64_t vsl_dyn_shim_call_count(void);   /* vsl_test_shim invocations */
 uint64_t vsl_dyn_write_call_count(void);  /* host write-shim invocations */
 uint64_t vsl_dyn_ifunc_call_count(void);  /* IRELATIVE host resolver calls */
 
+/* Base of the HOST-provided TLS block used by the main image of the last
+ * run (0 before any run).  Exposed so a gate can assert the exact address a
+ * TPOFF64 relocation wrote into a guest GOT slot. */
+uint64_t vsl_tls_base(void);
+
 /* Bounded DT_NEEDED dependency loading.  Set the ONLY directory from which
  * DT_NEEDED objects may be loaded (an allow-listed path in the repo/test
  * tree).  Each soname must be a plain basename inside it; paths that escape
@@ -160,6 +180,11 @@ typedef struct {
     const char *const *dirs;          /* NULL-terminated; NULL = no dep dirs */
     int legacy_version_any_file;
     int legacy_weak_undef_fail;
+    /* Host-provided INITIAL bytes for this image's TLS block.  Copied into
+     * the block at run start (rest zeroed); NULL/len 0 = all-zero block.
+     * len > VSL_TLS_BLOCK_MAX is rejected with VSL_EXEC_ERR_ARGS. */
+    const uint8_t *tls_init;
+    size_t         tls_init_len;
 } VslImageCfg;
 
 /* Hardened per-image run.  Returns the same codes as vsl_exec_elf_bytes();

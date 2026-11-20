@@ -17,7 +17,13 @@
  * host bytes into guest memory and whose R_X86_64_IRELATIVE resolves through
  * the bounded host IFUNC table to a real function; copied bytes, resolved
  * function output and call counters are asserted, with the pre-change rule
- * as negative control.  TLS/TPOFF/DTPMOD/TLSDESC are asserted REJECTED.
+ * as negative control.
+ *
+ * TLS leg: a hand-built ET_DYN applies bounded TPOFF64/DTPMOD64/DTPOFF32
+ * relocations against a defined STT_TLS symbol and dereferences a HOST-
+ * provided TLS block.  Two runs with per-image seeds assert distinct TLS
+ * values; the pre-change RELATIVE-only rule rejects the same fixture, and
+ * non-TLS symbols / out-of-range offsets / other TLS models fail closed.
  *
  * DT_NEEDED leg: a real gcc -shared main object whose DT_NEEDED names a
  * freestanding ET_DYN dependency in the allow-listed guest directory.  The
@@ -406,6 +412,116 @@ static size_t build_dynsym_elf(uint8_t *buf) {
     u64 = 0x1110; memcpy(buf + 0x1530, &u64, 8);
     u64 = ((uint64_t)1 << 32) | 1; memcpy(buf + 0x1538, &u64, 8); /* R_64 sym1 */
     u64 = 0x10;   memcpy(buf + 0x1540, &u64, 8);
+    return 0x1600;
+}
+
+/* Hand-assemble an ET_DYN carrying a DEFINED STT_TLS symbol (st_value 0x20)
+ * and three TLS relocations against it:
+ *   [0] R_X86_64_TPOFF64  -> GOT @0x1100 = tls_base + 0x20  (TLS var address)
+ *   [1] R_X86_64_DTPMOD64 -> GOT @0x1108 = module id (1)
+ *   [2] R_X86_64_DTPOFF32 -> GOT @0x1110 = 0x20 (in-block offset)
+ * The guest dereferences the TPOFF64 address, then writes the 8-byte TLS
+ * value, the 8-byte module id and the 4-byte offset to fd 1 (20 bytes),
+ * then exit(0).  No libc, no ld.so, no %fs: the host block base is the TP.
+ * Mutations used by the gate: sym1 st_info @0x121c, st_value @0x1220,
+ * RELA[0].r_info @0x1508. */
+#define TLS_SYM_STR_OFF 1u
+#define TLS_STRSZ       12u          /* "\0vsl_tls_var\0" */
+#define TLS_SYM_VALUE   0x20u
+static size_t build_tls_elf(uint8_t *buf) {
+    memset(buf, 0, 0x1600);
+    buf[0] = 0x7f; buf[1] = 'E'; buf[2] = 'L'; buf[3] = 'F';
+    buf[4] = 2; buf[5] = 1; buf[6] = 1;
+    uint16_t u16; uint32_t u32; uint64_t u64;
+    u16 = 3;    memcpy(buf + 16, &u16, 2);        /* ET_DYN */
+    u16 = 0x3e; memcpy(buf + 18, &u16, 2);        /* EM_X86_64 */
+    u32 = 1;    memcpy(buf + 20, &u32, 4);
+    u64 = 0x1000; memcpy(buf + 24, &u64, 8);      /* e_entry */
+    u64 = 64;   memcpy(buf + 32, &u64, 8);        /* e_phoff */
+    u16 = 64;   memcpy(buf + 52, &u16, 2);
+    u16 = 56;   memcpy(buf + 54, &u16, 2);
+    u16 = 2;    memcpy(buf + 56, &u16, 2);        /* e_phnum */
+    /* phdr[0] PT_LOAD @0x1000, filesz/memsz 0x600, RWX */
+    u32 = 1;    memcpy(buf + 64,  &u32, 4);
+    u32 = 7;    memcpy(buf + 68,  &u32, 4);
+    u64 = 0x1000; memcpy(buf + 72,  &u64, 8);
+    u64 = 0x1000; memcpy(buf + 80,  &u64, 8);
+    u64 = 0x1000; memcpy(buf + 88,  &u64, 8);
+    u64 = 0x600;  memcpy(buf + 96,  &u64, 8);
+    u64 = 0x600;  memcpy(buf + 104, &u64, 8);
+    u64 = 0x1000; memcpy(buf + 112, &u64, 8);
+    /* phdr[1] PT_DYNAMIC @0x1400, 9 pairs (144 bytes) */
+    u32 = 2;    memcpy(buf + 120, &u32, 4);
+    u32 = 6;    memcpy(buf + 124, &u32, 4);
+    u64 = 0x1400; memcpy(buf + 128, &u64, 8);
+    u64 = 0x1400; memcpy(buf + 136, &u64, 8);
+    u64 = 0x1400; memcpy(buf + 144, &u64, 8);
+    u64 = 144;    memcpy(buf + 152, &u64, 8);
+    u64 = 144;    memcpy(buf + 160, &u64, 8);
+    u64 = 8;      memcpy(buf + 168, &u64, 8);
+    /* Code: load the TPOFF64 slot, deref the host TLS word, write it, then
+     * write the DTPMOD64 and DTPOFF32 slots, then exit(0).  All RIP-relative
+     * displacements are base-independent. */
+    static const uint8_t code[] = {
+        0x48,0x8d,0x35,0xf9,0x00,0x00,0x00,       /* lea 0x1100(%rip),%rsi   */
+        0x48,0x8b,0x06,                           /* mov (%rsi),%rax         */
+        0x48,0x8b,0x00,                           /* mov (%rax),%rax         */
+        0x50,                                     /* push %rax               */
+        0xb8,0x01,0x00,0x00,0x00,                 /* mov $1,%eax             */
+        0xbf,0x01,0x00,0x00,0x00,                 /* mov $1,%edi             */
+        0x48,0x89,0xe6,                           /* mov %rsp,%rsi           */
+        0xba,0x08,0x00,0x00,0x00,                 /* mov $8,%edx             */
+        0x0f,0x05,                                /* syscall                 */
+        0x58,                                     /* pop %rax                */
+        0x48,0x8d,0x35,0xde,0x00,0x00,0x00,       /* lea 0x1108(%rip),%rsi   */
+        0xb8,0x01,0x00,0x00,0x00,                 /* mov $1,%eax             */
+        0xbf,0x01,0x00,0x00,0x00,                 /* mov $1,%edi             */
+        0xba,0x08,0x00,0x00,0x00,                 /* mov $8,%edx             */
+        0x0f,0x05,                                /* syscall                 */
+        0x48,0x8d,0x35,0xce,0x00,0x00,0x00,       /* lea 0x1110(%rip),%rsi   */
+        0xb8,0x01,0x00,0x00,0x00,                 /* mov $1,%eax             */
+        0xbf,0x01,0x00,0x00,0x00,                 /* mov $1,%edi             */
+        0xba,0x04,0x00,0x00,0x00,                 /* mov $4,%edx             */
+        0x0f,0x05,                                /* syscall                 */
+        0xb8,0x3c,0x00,0x00,0x00,                 /* mov $60,%eax            */
+        0x31,0xff,                               /* xor %edi,%edi           */
+        0x0f,0x05                                /* syscall (exit 0)        */
+    };
+    memcpy(buf + 0x1000, code, sizeof(code));
+    memcpy(buf + 0x1280, "\0vsl_tls_var\0", TLS_STRSZ);
+    /* DT_HASH @0x1300: nbucket=1, nchain=2, bucket[0]=1, zeros. */
+    u32 = 1; memcpy(buf + 0x1300, &u32, 4);
+    u32 = 2; memcpy(buf + 0x1304, &u32, 4);
+    u32 = 1; memcpy(buf + 0x1308, &u32, 4);
+    /* symtab @0x1200: null + one DEFINED GLOBAL STT_TLS symbol @0x1218. */
+    {
+        uint8_t *s = buf + 0x1218;
+        u32 = TLS_SYM_STR_OFF; memcpy(s, &u32, 4);
+        s[4] = 0x16; s[5] = 0;                    /* GLOBAL | STT_TLS */
+        u16 = 1;      memcpy(s + 6, &u16, 2);     /* st_shndx = 1 (defined) */
+        u64 = TLS_SYM_VALUE; memcpy(s + 8, &u64, 8);  /* st_value = 0x20 */
+        u64 = 8;      memcpy(s + 16, &u64, 8);    /* st_size = 8 */
+    }
+    /* dynamic @0x1400 */
+    const uint64_t tags[9][2] = {
+        { 4, 0x1300 }, { 5, 0x1280 }, { 6, 0x1200 },
+        { 7, 0x1500 }, { 8, 72 },     { 9, 24 },
+        { 10, TLS_STRSZ }, { 11, 24 }, { 0, 0 }
+    };
+    for (int i = 0; i < 9; i++) {
+        memcpy(buf + 0x1400 + (uint64_t)i * 16, &tags[i][0], 8);
+        memcpy(buf + 0x1408 + (uint64_t)i * 16, &tags[i][1], 8);
+    }
+    /* Elf64_Rela @0x1500: three TLS relocations, all against sym1. */
+    const uint32_t rtypes[3] = { 18, 16, 21 };   /* TPOFF64, DTPMOD64, DTPOFF32 */
+    const uint64_t roffs[3]  = { 0x1100, 0x1108, 0x1110 };
+    for (int i = 0; i < 3; i++) {
+        uint8_t *r = buf + 0x1500 + (uint64_t)i * 24;
+        memcpy(r, &roffs[i], 8);
+        u64 = ((uint64_t)1 << 32) | rtypes[i];
+        memcpy(r + 8, &u64, 8);
+        u64 = 0; memcpy(r + 16, &u64, 8);
+    }
     return 0x1600;
 }
 
@@ -929,24 +1045,109 @@ int main(int argc, char **argv) {
               "unregistered IFUNC resolver rejected (fail closed)");
     }
 
-    /* (o) Verified negative result: there is NO TLS model.  DTPMOD64,
-     *     TPOFF64 and TLSDESC relocations are built into a real relocation
-     *     table and each must be rejected as an unsupported type. */
+    /* (o) Bounded TLS differential gate.  A hand-built ET_DYN uses TPOFF64
+     *     to dereference a host-provided TLS word and also applies DTPMOD64
+     *     and DTPOFF32.  The host seeds the block per image; two runs with
+     *     different seeds must emit different TLS values.  The faithful
+     *     pre-change rule (RELATIVE-only) rejects the same fixture. */
     {
-        static const struct { uint32_t type; const char *name; } tls[] = {
-            { 16, "DTPMOD64" }, { 18, "TPOFF64" }, { 36, "TLSDESC" }
-        };
-        for (size_t i = 0; i < sizeof(tls) / sizeof(tls[0]); i++) {
-            uint8_t img[0x1600];
-            size_t n = build_dynsym_elf(img);
-            uint64_t ri = ((uint64_t)1 << 32) | tls[i].type;
-            memcpy(img + 0x1508, &ri, 8);          /* GLOB_DAT -> TLS type */
-            rc = vsl_exec_elf_bytes(img, n, &r);
-            printf("[gate o] %s: rc=%d status=%d skipped=%u (want %d)\n",
-                   tls[i].name, rc, r.status, r.relocations_skipped,
-                   VSL_EXEC_ERR_RELOCTYPE);
-            CHECK(rc == VSL_EXEC_ERR_RELOCTYPE && r.relocations_skipped == 1,
-                  "TLS relocation rejected: no TLS model (verified negative)");
+        uint8_t img[0x1600];
+        size_t n = build_tls_elf(img);
+        const uint64_t tagA = 0x56534c54584c5431ULL; /* "VSLTXT1" */
+        const uint64_t tagB = 0x56534c54584c5432ULL; /* "VSLTXT2" */
+        uint8_t seedA[0x28] = {0}, seedB[0x28] = {0};
+        memcpy(seedA + TLS_SYM_VALUE, &tagA, 8);
+        memcpy(seedB + TLS_SYM_VALUE, &tagB, 8);
+        VslImageCfg cfgA = { NULL, 0, 0, seedA, sizeof(seedA) };
+        VslImageCfg cfgB = { NULL, 0, 0, seedB, sizeof(seedB) };
+        uint64_t outA = 0, outB = 0;
+
+        /* Negative control: the pre-change loader applied ONLY RELATIVE and
+         * rejected every other type with ERR_RELOCTYPE.  TPOFF64(18) is one. */
+        CHECK(legacy_rejects_nonrelative(img, n),
+              "negative control: pre-change loader rejects TPOFF64 fixture");
+
+        for (int pass = 0; pass < 2; pass++) {
+            rc = vsl_exec_image(img, n, pass ? &cfgB : &cfgA, &r);
+            printf("[gate o] run %d: rc=%d exit=%d out_len=%zu tls_relocs=%u "
+                   "tls_base=0x%llx host_base=0x%llx\n",
+                   pass, rc, r.exit_code, r.output_len, r.tls_relocations,
+                   (unsigned long long)r.tls_base,
+                   (unsigned long long)vsl_tls_base());
+            CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                  "TLS ET_DYN runs to exit(0)");
+            CHECK(r.output_len == 20, "TLS guest emitted 20 bytes");
+            uint64_t seen = 0, mod = 0;
+            uint32_t off = 0;
+            if (r.output_len >= 20) {
+                memcpy(&seen, r.output, 8);
+                memcpy(&mod, r.output + 8, 8);
+                memcpy(&off, r.output + 16, 4);
+            }
+            if (pass == 0) outA = seen; else outB = seen;
+            printf("[gate o] run %d: tls=0x%llx mod=%llu off=0x%x\n",
+                   pass, (unsigned long long)seen,
+                   (unsigned long long)mod, (unsigned)off);
+            CHECK(seen == (pass ? tagB : tagA),
+                  "TPOFF64 dereferenced THIS image's host TLS value");
+            CHECK(mod == 1, "DTPMOD64 wrote bounded module id 1");
+            CHECK(off == TLS_SYM_VALUE, "DTPOFF32 wrote the in-block offset");
+            CHECK(r.tls_relocations == 3, "all three TLS relocations applied");
+            CHECK(r.tls_base == vsl_tls_base() && r.tls_base != 0,
+                  "result TLS base == host-provided block address");
+        }
+        CHECK(outA != outB && outA == tagA && outB == tagB,
+              "per-image TLS values differ across two runs");
+
+        /* Fail-closed: a non-STT_TLS symbol cannot satisfy a TLS relocation. */
+        {
+            uint8_t bad[0x1600];
+            memcpy(bad, img, n);
+            bad[0x121c] = 0x12;                    /* GLOBAL|FUNC, not TLS */
+            rc = vsl_exec_elf_bytes(bad, n, &r);
+            printf("[gate o] non-STT_TLS symbol: rc=%d status=%d (want %d)\n",
+                   rc, r.status, VSL_EXEC_ERR_RELOC);
+            CHECK(rc == VSL_EXEC_ERR_RELOC,
+                  "TLS relocation on a non-STT_TLS symbol rejected (ERR_RELOC)");
+        }
+        /* Fail-closed: an STT_TLS symbol in a PLAIN relocation is refused. */
+        {
+            uint8_t bad[0x1600];
+            memcpy(bad, img, n);
+            uint64_t ri = ((uint64_t)1 << 32) | 6;  /* DTPMOD64 -> GLOB_DAT */
+            memcpy(bad + 0x1518, &ri, 8);
+            rc = vsl_exec_elf_bytes(bad, n, &r);
+            CHECK(rc == VSL_EXEC_ERR_RELOC,
+                  "STT_TLS symbol in a plain relocation rejected (ERR_RELOC)");
+        }
+        /* Fail-closed: out-of-block st_value. */
+        {
+            uint8_t bad[0x1600];
+            memcpy(bad, img, n);
+            uint64_t big = VSL_TLS_BLOCK_MAX + 1;
+            memcpy(bad + 0x1220, &big, 8);
+            rc = vsl_exec_elf_bytes(bad, n, &r);
+            printf("[gate o] oversized TLS offset: rc=%d status=%d (want %d)\n",
+                   rc, r.status, VSL_EXEC_ERR_RELOC);
+            CHECK(rc == VSL_EXEC_ERR_RELOC,
+                  "out-of-block TLS offset rejected (ERR_RELOC)");
+        }
+        /* Fail-closed: other TLS models stay unsupported (TLSGD, TLSDESC). */
+        {
+            static const uint32_t unsupported[] = { 19, 36 };
+            for (size_t i = 0; i < 2; i++) {
+                uint8_t bad[0x1600];
+                memcpy(bad, img, n);
+                uint64_t ri = ((uint64_t)1 << 32) | unsupported[i];
+                memcpy(bad + 0x1508, &ri, 8);
+                rc = vsl_exec_elf_bytes(bad, n, &r);
+                printf("[gate o] unsupported TLS type %u: rc=%d status=%d "
+                       "skipped=%u (want %d)\n",
+                       unsupported[i], rc, r.status, r.relocations_skipped,
+                       VSL_EXEC_ERR_RELOCTYPE);
+                CHECK(rc == VSL_EXEC_ERR_RELOCTYPE && r.relocations_skipped == 1,
+                      "unsupported TLS model rejected (ERR_RELOCTYPE)");
+            }
         }
     }
 
@@ -1230,8 +1431,8 @@ int main(int argc, char **argv) {
     CHECK(img != NULL, "vn_file gate: fixture readable");
     if (img) {
         const char *dirs[] = { dir, NULL };
-        VslImageCfg hard = { dirs, 0, 0 };   /* enforce vn_file */
-        VslImageCfg old  = { dirs, 1, 1 };   /* pre-change rules */
+        VslImageCfg hard = { dirs, 0, 0, NULL, 0 };   /* enforce vn_file */
+        VslImageCfg old  = { dirs, 1, 1, NULL, 0 };   /* pre-change rules */
         rc = vsl_exec_image(img, n, &hard, &r);
         uint64_t ver = 0, weakm = 0;
         if (r.output_len >= 16) {
@@ -1285,8 +1486,8 @@ int main(int argc, char **argv) {
 {
     size_t nw = 0, ns = 0;
     const char *no_dirs[] = { NULL };
-    VslImageCfg hard = { no_dirs, 0, 0 };
-    VslImageCfg old  = { no_dirs, 0, 1 };
+    VslImageCfg hard = { no_dirs, 0, 0, NULL, 0 };
+    VslImageCfg old  = { no_dirs, 0, 1, NULL, 0 };
     snprintf(path, sizeof(path), "%s/guest_weakundef.elf", dir);
     uint8_t *w = read_test_file(path, &nw);
     CHECK(w != NULL, "weak-UNDEF gate: fixture readable");
@@ -1333,9 +1534,9 @@ int main(int argc, char **argv) {
     const char *onlyA[] = { dirA, NULL };
     const char *onlyB[] = { dirB, NULL };
     const char *skips[] = { "/nonexistent-vsl-dep-dir", dirB, NULL };
-    VslImageCfg cfgA = { onlyA, 0, 0 };
-    VslImageCfg cfgB = { onlyB, 0, 0 };
-    VslImageCfg cfgSkip = { skips, 0, 0 };
+    VslImageCfg cfgA = { onlyA, 0, 0, NULL, 0 };
+    VslImageCfg cfgB = { onlyB, 0, 0, NULL, 0 };
+    VslImageCfg cfgSkip = { skips, 0, 0, NULL, 0 };
     snprintf(path, sizeof(path), "%s/guest_imgdep.elf", dir);
     uint8_t *img = read_test_file(path, &n);
     CHECK(img != NULL, "per-image dir gate: fixture readable");

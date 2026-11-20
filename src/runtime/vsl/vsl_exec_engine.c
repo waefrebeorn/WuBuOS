@@ -529,11 +529,12 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 }
 
 /* Dynamic tags / relocation types we understand.  The resolver is bounded:
- * symbol tables, string tables and relocation counts are capped, and only
- * the SIX relocation types below are applied.  Unknown symbol names and
- * unsupported types (including every TLS type) are rejected (fail closed)
- * -- never guessed.  COPY sources must be named host symbols with a declared
- * byte limit; IRELATIVE resolvers must be in the fixed IFUNC table. */
+ * symbol tables, string tables and relocation counts are capped.  The six
+ * general types below plus THREE bounded TLS types (TPOFF64/DTPMOD64/
+ * DTPOFF32) are applied; every other relocation type -- including the other
+ * TLS models -- is counted as skipped and hard-rejected (fail closed).  COPY
+ * sources must be named host symbols with a declared byte limit; IRELATIVE
+ * resolvers must be in the fixed IFUNC table. */
 #define EX_DT_NULL       0
 #define EX_DT_PLTRELSZ   2
 #define EX_DT_HASH       4
@@ -557,11 +558,18 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 #define EX_R_X86_64_JUMP_SLOT 7
 #define EX_R_X86_64_RELATIVE 8
 #define EX_R_X86_64_IRELATIVE 37
+/* Bounded TLS relocations (the ONLY TLS types we apply).  TLSGD/TLSLD/
+ * GOTTPOFF/TPOFF32/TLSDESC and every other TLS model stay unsupported. */
+#define EX_R_X86_64_DTPMOD64 16
+#define EX_R_X86_64_TPOFF64  18
+#define EX_R_X86_64_DTPOFF32 21
 
 #define EX_SYM_MAX   4096u   /* max dynamic symbols / relocations per table */
 #define EX_NAME_MAX  128u    /* max resolved symbol name length */
 #define EX_STRTAB_MAX (1u << 20)
 #define EX_COPY_MAX  256u    /* max bytes one COPY relocation may move */
+#define EX_TLS_BLOCK_MAX 256u      /* host-provided TLS bytes per image */
+#define EX_TLS_MODULE_ID 1u        /* main image module id (no ld.so/deps TLS) */
 
 /* -- bounded ELF symbol versioning -------------------------------------
  * Byte-level parse of the GNU gABI .gnu.version / .gnu.version_d /
@@ -619,6 +627,17 @@ typedef struct VslDynInfo {
 static char g_dep_dir[EX_DEP_PATH_MAX];
 static int  g_dep_dir_set;
 
+/* -- HOST-PROVIDED TLS BLOCKS ------------------------------------------
+ * One fixed-size block per image: index 0 = main image, 1..EX_DEP_MAX =
+ * DT_NEEDED dependencies.  Static, bounded host memory -- no guest-supplied
+ * sizes, no mmap, no glibc.  The main block is seeded from VslImageCfg at
+ * run start; dependency blocks are zeroed when their image is mapped. */
+static uint8_t g_tls_blocks[EX_DEP_MAX + 1][EX_TLS_BLOCK_MAX];
+static uint64_t ex_tls_base(uint32_t idx) {
+    return (uint64_t)(uintptr_t)g_tls_blocks[idx];
+}
+uint64_t vsl_tls_base(void) { return ex_tls_base(0); }
+
 /* -- per-image configuration (set at the top of each run, never global) --
  * These replace the single process-wide allow-list for callers that use
  * vsl_exec_image().  Both legacy flags are 0 in hardened mode. */
@@ -634,6 +653,12 @@ static int ex_set_run_config(const VslImageCfg *cfg) {
     g_run_dir_count = 0;
     g_run_legacy_ver_any_file = 0;
     g_run_legacy_weak_fail = 0;
+    /* Seed this image's HOST-provided TLS block (rest zeroed).  Legacy
+     * callers (cfg == NULL) get an all-zero block, preserving old behaviour. */
+    memset(g_tls_blocks[0], 0, sizeof(g_tls_blocks[0]));
+    if (cfg && cfg->tls_init_len > sizeof(g_tls_blocks[0])) return -1;
+    if (cfg && cfg->tls_init && cfg->tls_init_len)
+        memcpy(g_tls_blocks[0], cfg->tls_init, cfg->tls_init_len);
     if (!cfg) {                              /* legacy entry point */
         g_run_legacy_ver_any_file = 1;      /* old: ignore vn_file */
         g_run_legacy_weak_fail = 1;         /* old: weak UNDEF fails closed */
@@ -1090,6 +1115,43 @@ static VslIfuncResolver ex_ifunc_resolve(uint64_t link_addr) {
     return NULL;                                     /* unknown -> fail closed */
 }
 
+/* Resolve a TLS relocation's symbol index to a bounded in-block offset.
+ * The symbol MUST be STT_TLS and DEFINED (st_shndx != SHN_UNDEF / special);
+ * st_value is the offset into the host-provided TLS block and addend is
+ * folded in.  Undefined TLS symbols, non-TLS symbols, bad versions and any
+ * offset that would leave the block are hard rejects (fail closed). */
+static int ex_resolve_tls(const uint8_t *f, size_t fsz,
+                          uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                          uint64_t symtab, uint64_t syment,
+                          uint32_t symcount, uint32_t symidx,
+                          int64_t addend, const VslVerCtx *vc,
+                          uint64_t *out_off) {
+    if (symidx == 0 || symidx >= symcount || symtab == 0 || syment < 24)
+        return -1;
+    uint16_t vi = EX_VER_NDX_GLOBAL;
+    int hidden = 0;
+    if (ex_sym_version(f, vc, symidx, &vi, &hidden) != 0) return -1;
+    uint64_t so;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        symtab + (uint64_t)symidx * syment, 24, &so) != 0)
+        return -1;
+    uint8_t st_info = f[so + 4];
+    uint16_t st_shndx;
+    uint64_t st_value;
+    memcpy(&st_shndx, f + so + 6, 2);
+    memcpy(&st_value, f + so + 8, 8);
+    if ((st_info & 0x0f) != 6) return -1;               /* must be STT_TLS */
+    if (st_shndx == 0 || st_shndx >= 0xff00) return -1; /* must be a def */
+    if (vi > EX_VER_NDX_GLOBAL &&
+        !ex_ver_lookup(vc->defs, vc->ndefs, vi)) return -1;
+    if (st_value > EX_TLS_BLOCK_MAX || addend < 0 ||
+        (uint64_t)addend > EX_TLS_BLOCK_MAX) return -1;
+    uint64_t off = st_value + (uint64_t)addend;         /* no overflow: bounded */
+    if (off > EX_TLS_BLOCK_MAX - 8) return -1;          /* must hold one word */
+    *out_off = off;
+    return 0;
+}
+
 /* Apply one relocation.  Returns 0 ok, -1 malformed/unknown symbol,
  * 1 unsupported type (counted as skipped; caller rejects the whole image).
  * map_lo/map_hi is the page-aligned union of mapped PT_LOADs, so every write
@@ -1101,7 +1163,8 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
                         uint64_t strtab, uint64_t strsz, uint32_t symcount,
                         const VslVerCtx *vc,
                         uint64_t r_offset, uint64_t r_info, int64_t addend,
-                        int has_addend, int lazy_plt, uint32_t *resolved) {
+                        int has_addend, int lazy_plt, uint32_t *resolved,
+                        uint64_t tls_base, uint32_t *tls_relocs) {
     uint32_t type   = (uint32_t)(r_info & 0xffffffffu);
     uint32_t symidx = (uint32_t)(r_info >> 32);
     uint64_t dest = bias + r_offset;
@@ -1165,6 +1228,38 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
         if (symidx != 0) (*resolved)++;
         return 0;
     }
+    /* Bounded TLS: only TPOFF64 / DTPMOD64 / DTPOFF32.  STT_TLS symbols are
+     * never accepted by the plain-address resolver above; every other TLS
+     * model falls through to `default` and fails closed as unsupported. */
+    case EX_R_X86_64_TPOFF64: {
+        uint64_t off;
+        if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab, syment,
+                           symcount, symidx, addend, vc, &off) != 0) return -1;
+        if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
+        /* The host block base plays the thread-pointer role; the guest
+         * dereferences this address directly (no %fs, no glibc ABI). */
+        *where = tls_base + off;
+        (*tls_relocs)++;
+        return 0;
+    }
+    case EX_R_X86_64_DTPMOD64: {
+        uint64_t off;
+        if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab, syment,
+                           symcount, symidx, addend, vc, &off) != 0) return -1;
+        if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
+        *where = EX_TLS_MODULE_ID;                 /* bounded module id */
+        (*tls_relocs)++;
+        return 0;
+    }
+    case EX_R_X86_64_DTPOFF32: {
+        uint64_t off;
+        if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab, syment,
+                           symcount, symidx, addend, vc, &off) != 0) return -1;
+        if (dest > EX_WIN_HI - 4 || dest > map_hi - 4) return -1;
+        *(uint32_t *)(uintptr_t)dest = (uint32_t)off;
+        (*tls_relocs)++;
+        return 0;
+    }
     default:
         return 1;                                    /* unsupported -> skipped */
     }
@@ -1179,8 +1274,9 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                 uint64_t map_lo, uint64_t map_hi,
                                 uint16_t phnum, uint16_t phentsize, uint64_t phoff,
                                 uint32_t *out_applied, uint32_t *out_skipped,
-                                uint32_t *out_resolved, int lazy_plt) {
-    *out_applied = *out_skipped = *out_resolved = 0;
+                                uint32_t *out_resolved, int lazy_plt,
+                                uint64_t tls_base, uint32_t *out_tls) {
+    *out_applied = *out_skipped = *out_resolved = *out_tls = 0;
 
     /* Locate PT_DYNAMIC and read its file bytes. */
     uint64_t doff = 0, dsz = 0;
@@ -1258,7 +1354,10 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                 uint32_t ty = (uint32_t)(ri & 0xffffffffu);                   \
                 if (ty == EX_R_X86_64_64 || ty == EX_R_X86_64_GLOB_DAT ||     \
                     ty == EX_R_X86_64_JUMP_SLOT ||                           \
-                    ty == EX_R_X86_64_COPY) { need_syms = 1; break; }         \
+                    ty == EX_R_X86_64_COPY ||                                \
+                    ty == EX_R_X86_64_TPOFF64 ||                             \
+                    ty == EX_R_X86_64_DTPMOD64 ||                            \
+                    ty == EX_R_X86_64_DTPOFF32) { need_syms = 1; break; }    \
             }                                                                 \
         }                                                                     \
     } while (0)
@@ -1302,7 +1401,8 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                      symtab, syment, strtab, strsz, symcount, \
                                      &vc,                                     \
                                      ro, ri, (int64_t)ra, HAS_ADDEND,         \
-                                     lazy_plt, out_resolved);                 \
+                                     lazy_plt, out_resolved,                  \
+                                     tls_base, out_tls);                      \
                 if (vr < 0) return -1;                                       \
                 if (vr > 0) (*out_skipped)++; else (*out_applied)++;          \
             }                                                                \
@@ -1662,15 +1762,19 @@ static int ex_load_dependencies(const uint8_t *f, size_t fsz,
                              &dmap, &dbias, &dlo, &dhi) != 0) {
             free(df); return -1;
         }
+        uint32_t dep_slot = g_dep_count;
         VslDepObj *obj = &g_dep_objs[g_dep_count++];   /* record for cleanup */
         snprintf(obj->name, sizeof(obj->name), "%s", name);
         obj->map = dmap; obj->map_lo = dlo; obj->map_hi = dhi;
         snprintf(g_dep_order[g_dep_order_count++], EX_DEP_NAME_MAX + 1,
                  "%s", name);
-        uint32_t applied = 0, skipped = 0, resolved = 0;
+        /* Each dependency gets its OWN zeroed host TLS block. */
+        memset(g_tls_blocks[dep_slot + 1], 0, sizeof(g_tls_blocks[dep_slot + 1]));
+        uint32_t applied = 0, skipped = 0, resolved = 0, dtls = 0;
         int rr = ex_apply_relocations(df, dsz, dbias, dlo, dhi,
                                       dphnum, dphentsize, dphoff,
-                                      &applied, &skipped, &resolved, 0);
+                                      &applied, &skipped, &resolved, 0,
+                                      ex_tls_base(dep_slot + 1), &dtls);
         if (rr != 0 || skipped ||
             ex_register_exports(df, dsz, dphnum, dphentsize, dphoff,
                                 &ddi, dbias, name) != 0 ||
@@ -1912,9 +2016,10 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     }
 
     /* 3b. ET_DYN: apply RELATIVE / GLOB_DAT / JUMP_SLOT / 64 / COPY /
-     *     IRELATIVE relocations.  Undefined symbols resolve only from a
-     *     bounded fixed host table; unknown names, unregistered IRELATIVE
-     *     resolvers and unsupported types (TLS included) are hard rejects. */
+     *     IRELATIVE plus bounded TPOFF64 / DTPMOD64 / DTPOFF32 TLS relocations.
+     *     Undefined symbols resolve only from a bounded fixed host table;
+     *     unknown names, unregistered IRELATIVE resolvers, STT_TLS symbols in
+     *     plain relocations and all other TLS models are hard rejects. */
     if (is_dyn) {
         /* Lazy PLT needs its per-run stub page BEFORE any GOT entry is
          * rewritten to point at a stub.  ex_plt_reset() runs at run start. */
@@ -1922,17 +2027,19 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
             rc = VSL_EXEC_ERR_MAP;
             goto cleanup;
         }
-        uint32_t applied = 0, skipped = 0, resolved = 0;
+        uint32_t applied = 0, skipped = 0, resolved = 0, tls_count = 0;
         if (ex_apply_relocations(elf_data, elf_size, load_bias, lo, hi, e_phnum,
                                  e_phentsize, e_phoff,
                                  &applied, &skipped, &resolved,
-                                 g_lazy_plt) != 0) {
+                                 g_lazy_plt, ex_tls_base(0), &tls_count) != 0) {
             rc = VSL_EXEC_ERR_RELOC;
             goto cleanup;
         }
         out->relocations_applied = applied;
         out->relocations_skipped = skipped;
         out->symbols_resolved = resolved;
+        out->tls_relocations = tls_count;
+        out->tls_base = vsl_tls_base();
         out->plt_slots_bound = g_plt_count;
         /* Collect the main image's constructors LAST so dependencies'
          * initialisers run first (leaf-first); arrays are already relocated. */
