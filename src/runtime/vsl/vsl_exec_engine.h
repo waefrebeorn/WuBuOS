@@ -24,7 +24,26 @@
  * names, unregistered IFUNC resolvers and any other relocation type are hard
  * rejects (VSL_EXEC_ERR_RELOC / VSL_EXEC_ERR_RELOCTYPE) -- never guessed.
  * There is NO TLS model: TPOFF/DTPMOD/TLSDESC and STT_TLS symbols are all
- * rejected.  No glibc, no ld.so, no lazy PLT binding, no init/fini.
+ * rejected.  No glibc, no ld.so.
+ *
+ * Two bounded enhancements are available as OPT-IN flags (both OFF by
+ * default, so every pre-existing guest behaviour is unchanged):
+ *   - vsl_dyn_set_lazy_plt(1): DT_JMPREL JUMP_SLOT GOT entries are pointed at
+ *     generated per-slot stubs instead of their resolved target.  The FIRST
+ *     call through a slot enters a bounded resolver table, which verifies the
+ *     slot index, patches that GOT entry to the real target and tail-jumps
+ *     there; later calls go straight to the target.  The resolver table is
+ *     capped and only resolves names already validated by the normal bounded
+ *     symbol resolver.  No arbitrary guest code runs at resolve time.
+ *   - vsl_dyn_set_init_fini(1): DT_INIT / DT_INIT_ARRAY are invoked after
+ *     relocation and before the entry point, DT_FINI_ARRAY (reverse order) /
+ *     DT_FINI on unload, across the main image and its DT_NEEDED deps.  Array
+ *     entries are read from the RELOCATED in-memory arrays.  Both phases are
+ *     guarded by the engine's fault handler; counts are reported in the
+ *     result.  These are freestanding constructors, NOT glibc __libc_csu_init.
+ * Full ELF symbol versioning (DT_VERSYM/DT_VERNEED/DT_VERDEF) is NOT modeled:
+ * versioned symbols resolve by their base name only.  See the verified
+ * boundary in docs/compendium/04-roadmap/os-gaps-2026-11-19.md.
  *
  * DT_NEEDED is supported ONLY in this bounded form: an allow-listed search
  * directory is configured with vsl_dyn_set_dep_search_dir(); each DT_NEEDED
@@ -89,6 +108,11 @@ typedef struct {
                                  * in-image definitions + host/dep table */
     /* DT_NEEDED diagnostics (zero for static ET_EXEC / no dependencies) */
     uint32_t deps_loaded;       /* freestanding ET_DYN deps loaded, in order */
+    /* Lazy-PLT / init-fini diagnostics (opt-in; zero by default) */
+    uint32_t plt_slots_bound;   /* JUMP_SLOT GOTs given a lazy stub */
+    uint32_t plt_resolves;      /* first-call resolver invocations this run */
+    uint32_t init_called;       /* DT_INIT/INIT_ARRAY functions invoked */
+    uint32_t fini_called;       /* DT_FINI_ARRAY/FINI functions invoked */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
@@ -121,5 +145,17 @@ const char *vsl_dyn_dep_name(uint32_t idx);
 /* Runtime address of a symbol exported by a loaded dependency, or 0 if the
  * name is not in the merged (bounded) dependency symbol table. */
 uint64_t vsl_dyn_dep_symbol(const char *name);
+
+/* Opt-in bounded enhancements.  Both are OFF by default (pre-change
+ * behaviour).  Enable before a run; they persist until changed.
+ *   lazy_plt: DT_JMPREL JUMP_SLOTs point at generated stubs, bound on first
+ *     call through the bounded resolver table (see header comment).
+ *   init_fini: run DT_INIT/INIT_ARRAY before entry and DT_FINI_ARRAY/FINI on
+ *     unload, for dependencies then the main image. */
+void vsl_dyn_set_lazy_plt(int on);
+void vsl_dyn_set_init_fini(int on);
+/* Lifetime count of first-call PLT resolver invocations (for differential
+ * gates).  Per-run count is in VslExecResult.plt_resolves. */
+uint64_t vsl_dyn_plt_resolve_count(void);
 
 #endif /* WUBUOS_VSL_EXEC_ENGINE_H */

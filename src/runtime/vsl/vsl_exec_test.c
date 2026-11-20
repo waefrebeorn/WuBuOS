@@ -898,6 +898,94 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* (q) Bounded lazy first-call PLT binding + DT_INIT/DT_FINI execution.
+     *     A real gcc -shared object imports vsl_test_shim (called twice
+     *     through one JUMP_SLOT) and write (called once WITH arguments).
+     *     Each slot must resolve exactly once on its first call.
+     *     .init_array writes a marker before _start and .fini_array on unload.
+     *     Negative control: the SAME bytes with both opt-in flags OFF (the
+     *     pre-change loader behaviour) produce no markers and no resolver
+     *     count -- the new feature, not the fixture, is what is being tested.
+     *     Full symbol versioning remains a verified boundary (base name only). */
+    {
+        size_t n = 0;
+        snprintf(path, sizeof(path), "%s/guest_initplt.elf", dir);
+        uint8_t *img = read_test_file(path, &n);
+        CHECK(img != NULL, "lazy-PLT/init-fini main fixture readable");
+        if (img) {
+            uint64_t shim_before = vsl_dyn_shim_call_count();
+            uint64_t wr_before = vsl_dyn_write_call_count();
+            uint64_t resolve_before = vsl_dyn_plt_resolve_count();
+            vsl_dyn_set_lazy_plt(1);
+            vsl_dyn_set_init_fini(1);
+            rc = vsl_exec_elf_bytes(img, n, &r);
+            uint64_t a = 0, b = 0;
+            if (r.output_len >= 25) {
+                memcpy(&a, r.output + 9, 8);
+                memcpy(&b, r.output + 17, 8);
+            }
+            printf("[gate q] lazy PLT + init/fini: rc=%d exit=%d out_len=%zu "
+                   "slots=%u resolves=%u init=%u fini=%u out=\"%.*s\"\n",
+                   rc, r.exit_code, r.output_len, r.plt_slots_bound,
+                   r.plt_resolves, r.init_called, r.fini_called,
+                   (int)r.output_len, r.output);
+            CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                  "lazy-PLT/init-fini fixture runs to exit(0)");
+            CHECK(r.output_len == 34, "output: 9 init + 16 magic + 9 fini bytes");
+            CHECK(r.output_len >= 9 && memcmp(r.output, "VSL-INIT\n", 9) == 0,
+                  "init_array marker written BEFORE main runs");
+            CHECK(a == 0x56534c53484d4949ULL && b == 0x56534c53484d4949ULL,
+                  "both lazy PLT calls returned the real shim magic");
+            CHECK(r.output_len == 34 &&
+                  memcmp(r.output + 25, "VSL-FINI\n", 9) == 0,
+                  "fini_array marker written on unload");
+            CHECK(r.plt_slots_bound == 2,
+                  "both JUMP_SLOTs got lazy stubs");
+            CHECK(r.plt_resolves == 2,
+                  "each slot resolved ONCE: shim twice + write with args");
+            CHECK(vsl_dyn_plt_resolve_count() == resolve_before + 2,
+                  "lifetime resolver count advanced by exactly two");
+            CHECK(vsl_dyn_shim_call_count() == shim_before + 2,
+                  "host shim invoked twice through the bound GOT");
+            CHECK(vsl_dyn_write_call_count() == wr_before + 1,
+                  "lazy write@plt preserved fd/buf/len arguments");
+            CHECK(r.init_called == 1 && r.fini_called == 1,
+                  "one init and one fini function invoked");
+
+            /* Negative control: pre-change behaviour (flags off). */
+            vsl_dyn_set_lazy_plt(0);
+            vsl_dyn_set_init_fini(0);
+            resolve_before = vsl_dyn_plt_resolve_count();
+            rc = vsl_exec_elf_bytes(img, n, &r);
+            uint64_t a2 = 0, b2 = 0;
+            if (r.output_len >= 16) {
+                memcpy(&a2, r.output, 8);
+                memcpy(&b2, r.output + 8, 8);
+            }
+            printf("[gate q] negative control (flags off): rc=%d exit=%d "
+                   "out_len=%zu slots=%u resolves=%u init=%u fini=%u "
+                   "out=\"%.*s\"\n",
+                   rc, r.exit_code, r.output_len, r.plt_slots_bound,
+                   r.plt_resolves, r.init_called, r.fini_called,
+                   (int)r.output_len, r.output);
+            CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                  "negative control: eager guest still runs to exit(0)");
+            CHECK(r.output_len == 16, "negative control: only 16 magic bytes, no markers");
+            CHECK(r.output_len < 9 || memcmp(r.output, "VSL-INIT\n", 9) != 0,
+                  "negative control: init marker MISSING (old loader)");
+            CHECK(r.plt_slots_bound == 0 && r.plt_resolves == 0,
+                  "negative control: no stubs, no resolver calls");
+            CHECK(vsl_dyn_plt_resolve_count() == resolve_before,
+                  "negative control: lifetime resolver count unchanged");
+            CHECK(r.init_called == 0 && r.fini_called == 0,
+                  "negative control: no init/fini invoked (old loader)");
+            CHECK(a2 == 0x56534c53484d4949ULL && b2 == 0x56534c53484d4949ULL,
+                  "negative control: eager JUMP_SLOT still calls shim twice");
+
+            free(img);
+        }
+    }
+
     /* (h) host syscalls still real after all runs (filter ALLOW path) */
     CHECK(getpid() > 0, "host getpid still works after engine runs");
 

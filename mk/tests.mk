@@ -663,7 +663,8 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_dyn.elf \
 	$(RT)/vsl/exec_guests/guest_dynsym.elf \
 	$(RT)/vsl/exec_guests/libvsldep.so \
-	$(RT)/vsl/exec_guests/guest_dtneeded.elf
+	$(RT)/vsl/exec_guests/guest_dtneeded.elf \
+	$(RT)/vsl/exec_guests/guest_initplt.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -709,6 +710,15 @@ $(RT)/vsl/exec_guests/guest_dtneeded.elf: \
 		-Wl,--build-id=none -Wl,-e,_start -Wl,--no-as-needed \
 		-L$(RT)/vsl/exec_guests -l:libvsldep.so \
 		$(RT)/vsl/exec_guests/guest_dtneeded.c -o $@
+
+# Lazy-PLT + init/fini fixture.  A real gcc -shared object with one imported
+# function (called twice through the same PLT GOT slot) and .init_array /
+# .fini_array entries that write markers via raw syscalls.  NOT -N: the
+# JUMP_SLOT / array relocations must live in ordinary PT_LOADs.
+$(RT)/vsl/exec_guests/guest_initplt.elf: $(RT)/vsl/exec_guests/guest_initplt.c
+	$(CC) -O0 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start $< -o $@
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o

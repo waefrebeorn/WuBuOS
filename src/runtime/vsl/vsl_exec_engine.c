@@ -267,6 +267,240 @@ uint64_t vsl_dyn_shim_call_count(void)   { return g_dyn_shim_calls; }
 uint64_t vsl_dyn_write_call_count(void)  { return g_dyn_write_calls; }
 uint64_t vsl_dyn_ifunc_call_count(void)  { return g_dyn_ifunc_calls; }
 
+/* -- bounded lazy PLT binding -----------------------------------------
+ * When vsl_dyn_set_lazy_plt(1) is in force, a DT_JMPREL JUMP_SLOT GOT entry
+ * is NOT eagerly patched with its target.  Instead it points at a tiny
+ * generated per-slot stub in a private RWX page:
+ *
+ *     movabs $&g_plt_slot, %r11      ; 49 BB imm64
+ *     movl   $slot, (%r11)           ; 41 C7 03 imm32
+ *     movabs $vsl_plt_trampoline,%r11; 49 BB imm64
+ *     jmp    *%r11                   ; 41 FF E3
+ *
+ * The stub leaves RDI/RSI/RDX/RCX/R8/R9 (the guest's call arguments) and the
+ * return address untouched.  The trampoline saves those registers, calls the
+ * bounded C resolver, restores them and tail-jumps to the resolved target;
+ * the resolver verifies the slot index against the bounded table, patches
+ * the GOT slot to the target so later calls bypass the resolver, and returns
+ * the target.  Entries in the table were produced by the SAME bounded symbol
+ * resolver used for eager binding, so no new name lookup happens on the
+ * first call and no arbitrary guest code runs inside the resolver. */
+#define EX_PLT_MAX       64u
+#define EX_PLT_STUB_SZ   32u
+
+typedef struct {
+    uint64_t got_addr;          /* runtime address of the GOT entry */
+    uint64_t target;            /* already-resolved, bounded target address */
+} VslPltSlot;
+
+static VslPltSlot        g_plt_slots[EX_PLT_MAX];
+static uint32_t          g_plt_count;
+static uint32_t          g_plt_resolves_run;      /* first-call count, per run */
+static volatile uint32_t g_plt_slot;              /* written by generated stub */
+static uint8_t          *g_plt_stubs;
+static size_t            g_plt_stub_sz;
+static uint64_t          g_plt_resolves_total;    /* lifetime, like other counters */
+static int               g_lazy_plt;              /* opt-in, default OFF */
+
+void vsl_dyn_set_lazy_plt(int on)              { g_lazy_plt = on ? 1 : 0; }
+uint64_t vsl_dyn_plt_resolve_count(void)       { return g_plt_resolves_total; }
+
+/* Called by vsl_plt_trampoline with every argument register still holding
+ * the guest call's arguments.  Global (not static) so the naked trampoline's
+ * assembler `call` can resolve it. */
+uint64_t vsl_plt_resolve(void) {
+    uint32_t slot = g_plt_slot;
+    if (slot >= g_plt_count) return 0;           /* bogus slot -> fail closed */
+    VslPltSlot *s = &g_plt_slots[slot];
+    uint64_t target = s->target;
+    g_plt_resolves_total++;
+    g_plt_resolves_run++;
+    if (s->got_addr >= EX_WIN_LO && s->got_addr <= EX_WIN_HI - 8)
+        *(uint64_t *)(uintptr_t)s->got_addr = target;   /* bind once */
+    return target;
+}
+
+/* Host-side trampoline.  On entry RSP points at the guest return address;
+ * we preserve the six integer argument registers plus RAX (variadic AL).
+ * Seven pushes keep RSP 16-byte aligned for the call to vsl_plt_resolve
+ * (guest call Site RSP == 8 mod 16; 8 - 56 == 0 mod 16). */
+__attribute__((naked, used))
+void vsl_plt_trampoline(void) {
+    __asm__ __volatile__(
+        "pushq %%rax\n\t"
+        "pushq %%rdi\n\t"
+        "pushq %%rsi\n\t"
+        "pushq %%rdx\n\t"
+        "pushq %%rcx\n\t"
+        "pushq %%r8\n\t"
+        "pushq %%r9\n\t"
+        "call vsl_plt_resolve\n\t"
+        "movq %%rax, %%r11\n\t"
+        "popq %%r9\n\t"
+        "popq %%r8\n\t"
+        "popq %%rcx\n\t"
+        "popq %%rdx\n\t"
+        "popq %%rsi\n\t"
+        "popq %%rdi\n\t"
+        "popq %%rax\n\t"
+        "jmp *%%r11\n\t"
+        : : : "memory");
+}
+
+/* Allocate / release the per-run stub page. */
+static int ex_plt_alloc_stubs(void) {
+    g_plt_stub_sz = EX_PLT_MAX * EX_PLT_STUB_SZ;
+    g_plt_stubs = mmap(NULL, g_plt_stub_sz, PROT_READ | PROT_WRITE | PROT_EXEC,
+                       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (g_plt_stubs == MAP_FAILED) { g_plt_stubs = NULL; return -1; }
+    return 0;
+}
+static void ex_plt_release(void) {
+    if (g_plt_stubs) {
+        munmap(g_plt_stubs, g_plt_stub_sz);
+        g_plt_stubs = NULL;
+    }
+}
+static void ex_plt_reset(void) {
+    ex_plt_release();
+    memset(g_plt_slots, 0, sizeof(g_plt_slots));
+    g_plt_count = 0;
+    g_plt_resolves_run = 0;
+    g_plt_slot = 0;
+}
+static uint8_t *ex_plt_stub(uint32_t slot) {
+    uint8_t *s = g_plt_stubs + (size_t)slot * EX_PLT_STUB_SZ;
+    size_t k = 0;
+    s[k++] = 0x49; s[k++] = 0xBB;                /* movabs $&g_plt_slot,%r11 */
+    uint64_t a = (uint64_t)(uintptr_t)&g_plt_slot;
+    memcpy(s + k, &a, 8); k += 8;
+    s[k++] = 0x41; s[k++] = 0xC7; s[k++] = 0x03;  /* movl $slot,(%r11) */
+    uint32_t v = slot;
+    memcpy(s + k, &v, 4); k += 4;
+    s[k++] = 0x49; s[k++] = 0xBB;                /* movabs $trampoline,%r11 */
+    uint64_t t = (uint64_t)(uintptr_t)&vsl_plt_trampoline;
+    memcpy(s + k, &t, 8); k += 8;
+    s[k++] = 0x41; s[k++] = 0xFF; s[k++] = 0xE3;  /* jmp *%r11 */
+    while (k < EX_PLT_STUB_SZ) s[k++] = 0x90;     /* NOP pad */
+    return s;
+}
+
+/* -- bounded DT_INIT / DT_FINI execution ------------------------------
+ * Opt-in with vsl_dyn_set_init_fini(1).  DT_INIT runs first, then
+ * DT_INIT_ARRAY entries in order; on unload DT_FINI_ARRAY runs in REVERSE
+ * order, then DT_FINI.  Dependencies (loaded first) contribute their entries
+ * before the main image, so initialisation is leaf-first and finalisation is
+ * root-first.  Array entries are read from the RELOCATED in-memory arrays,
+ * which is where the engine applied their R_X86_64_RELATIVE entries.  These
+ * are freestanding functions, not glibc's __libc_csu_init. */
+#define EX_DT_INIT         12ULL
+#define EX_DT_FINI         13ULL
+#define EX_DT_INIT_ARRAY   25ULL
+#define EX_DT_FINI_ARRAY   26ULL
+#define EX_DT_INIT_ARRAYSZ 27ULL
+#define EX_DT_FINI_ARRAYSZ 28ULL
+#define EX_CTOR_MAX        64u
+
+static uint64_t g_init_fns[EX_CTOR_MAX];
+static uint32_t g_init_count;
+static uint64_t g_fini_fns[EX_CTOR_MAX];
+static uint32_t g_fini_count;
+static int      g_run_init_fini;          /* opt-in, default OFF */
+
+void vsl_dyn_set_init_fini(int on) { g_run_init_fini = on ? 1 : 0; }
+
+static void ex_ctors_reset(void) {
+    g_init_count = g_fini_count = 0;
+}
+
+/* Call guest init/fini functions with the engine's fault/SIGSYS handlers
+ * active (the guest code lives in the trap window and may issue syscalls).
+ * Returns 0 on normal completion, -1 if one of them faulted. */
+static int ex_call_ctors(const uint64_t *fns, uint32_t n, int reverse) {
+    if (!n) return 0;
+    g_ex.active = 1;
+    if (sigsetjmp(g_ex.jb, 1) == 0) {
+        if (reverse) {
+            for (uint32_t i = n; i > 0; i--)
+                ((void (*)(void))(uintptr_t)fns[i - 1])();
+        } else {
+            for (uint32_t i = 0; i < n; i++)
+                ((void (*)(void))(uintptr_t)fns[i])();
+        }
+        g_ex.active = 0;
+        return 0;
+    }
+    g_ex.active = 0;
+    return -1;                               /* g_ex.fault_addr carries si_addr */
+}
+
+/* Parse PT_DYNAMIC and collect this image's init/fini function addresses.
+ * `bias` is the runtime bias already applied to the mapping.  Returns 0 ok,
+ * -1 on a malformed dynamic section or a cap overrun (caller fails closed). */
+static int ex_collect_ctors(const uint8_t *f, size_t fsz,
+                            uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                            uint64_t bias, uint64_t map_lo, uint64_t map_hi) {
+    if (!g_run_init_fini) return 0;
+    uint64_t doff = 0, dsz = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *cur = f + phoff + (uint64_t)i * phentsize;
+        uint32_t t;
+        memcpy(&t, cur, 4);
+        if (t != 2) continue;                /* PT_DYNAMIC */
+        memcpy(&doff, cur + 8, 8);
+        memcpy(&dsz, cur + 32, 8);
+        break;
+    }
+    if (dsz == 0) return 0;                  /* no dynamic section */
+    if (doff > fsz || dsz > fsz - doff || dsz < 16) return -1;
+    uint64_t init = 0, fini = 0;
+    uint64_t ia = 0, iasz = 0, fa = 0, faz = 0;
+    const uint8_t *d = f + doff;
+    for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
+        uint64_t tag, val;
+        memcpy(&tag, d + k, 8);
+        memcpy(&val, d + k + 8, 8);
+        if (tag == 0) break;                 /* DT_NULL */
+        switch (tag) {
+        case EX_DT_INIT:         init = val;         break;
+        case EX_DT_FINI:         fini = val;         break;
+        case EX_DT_INIT_ARRAY:   ia   = val;         break;
+        case EX_DT_INIT_ARRAYSZ: iasz = val;         break;
+        case EX_DT_FINI_ARRAY:   fa   = val;         break;
+        case EX_DT_FINI_ARRAYSZ: faz  = val;         break;
+        default: break;
+        }
+    }
+    if (init && g_init_count < EX_CTOR_MAX)
+        g_init_fns[g_init_count++] = bias + init;
+    if (fini && g_fini_count < EX_CTOR_MAX)
+        g_fini_fns[g_fini_count++] = bias + fini;
+
+    if (ia && iasz) {
+        if (iasz % 8 || iasz / 8 > EX_CTOR_MAX) return -1;
+        uint64_t alo = bias + ia, ahi = alo + iasz;
+        if (alo < map_lo || ahi > map_hi || (ia & 7) || ahi < alo) return -1;
+        for (uint64_t k2 = 0; k2 < iasz / 8; k2++) {
+            uint64_t fn;
+            memcpy(&fn, (const void *)(uintptr_t)(alo + k2 * 8), 8);
+            if (fn == 0 || g_init_count >= EX_CTOR_MAX) return -1;
+            g_init_fns[g_init_count++] = fn;
+        }
+    }
+    if (fa && faz) {
+        if (faz % 8 || faz / 8 > EX_CTOR_MAX) return -1;
+        uint64_t alo = bias + fa, ahi = alo + faz;
+        if (alo < map_lo || ahi > map_hi || (fa & 7) || ahi < alo) return -1;
+        for (uint64_t k2 = 0; k2 < faz / 8; k2++) {
+            uint64_t fn;
+            memcpy(&fn, (const void *)(uintptr_t)(alo + k2 * 8), 8);
+            if (fn == 0 || g_fini_count >= EX_CTOR_MAX) return -1;
+            g_fini_fns[g_fini_count++] = fn;
+        }
+    }
+    return 0;
+}
+
 /* -- ET_DYN helpers -------------------------------------------------- */
 
 /* Translate a link-time virtual address to a raw file offset by finding the
@@ -572,7 +806,7 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
                         uint64_t symtab, uint64_t syment,
                         uint64_t strtab, uint64_t strsz, uint32_t symcount,
                         uint64_t r_offset, uint64_t r_info, int64_t addend,
-                        int has_addend, uint32_t *resolved) {
+                        int has_addend, int lazy_plt, uint32_t *resolved) {
     uint32_t type   = (uint32_t)(r_info & 0xffffffffu);
     uint32_t symidx = (uint32_t)(r_info >> 32);
     uint64_t dest = bias + r_offset;
@@ -619,7 +853,19 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
         uint64_t val = (type == EX_R_X86_64_64)
                      ? S + (has_addend ? (uint64_t)addend : *where)
                      : S;                            /* GLOB_DAT/JUMP_SLOT: S */
-        *where = val;
+        if (type == EX_R_X86_64_JUMP_SLOT && lazy_plt) {
+            /* Lazy first-call binding: the GOT points at a generated stub
+             * until the resolver binds it.  symidx==0 has no real target:
+             * fail closed instead of installing a stub that jumps to 0. */
+            if (symidx == 0 || !g_plt_stubs || g_plt_count >= EX_PLT_MAX)
+                return -1;
+            uint32_t slot = g_plt_count++;
+            g_plt_slots[slot].got_addr = dest;
+            g_plt_slots[slot].target = val;
+            *where = (uint64_t)(uintptr_t)ex_plt_stub(slot);
+        } else {
+            *where = val;
+        }
         if (symidx != 0) (*resolved)++;
         return 0;
     }
@@ -637,7 +883,7 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                 uint64_t map_lo, uint64_t map_hi,
                                 uint16_t phnum, uint16_t phentsize, uint64_t phoff,
                                 uint32_t *out_applied, uint32_t *out_skipped,
-                                uint32_t *out_resolved) {
+                                uint32_t *out_resolved, int lazy_plt) {
     *out_applied = *out_skipped = *out_resolved = 0;
 
     /* Locate PT_DYNAMIC and read its file bytes. */
@@ -745,7 +991,7 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                      map_lo, map_hi,                          \
                                      symtab, syment, strtab, strsz, symcount, \
                                      ro, ri, (int64_t)ra, HAS_ADDEND,         \
-                                     out_resolved);                          \
+                                     lazy_plt, out_resolved);                 \
                 if (vr < 0) return -1;                                       \
                 if (vr > 0) (*out_skipped)++; else (*out_applied)++;          \
             }                                                                \
@@ -1057,12 +1303,19 @@ static int ex_load_dependencies(const uint8_t *f, size_t fsz,
         uint32_t applied = 0, skipped = 0, resolved = 0;
         int rr = ex_apply_relocations(df, dsz, dbias, dlo, dhi,
                                       dphnum, dphentsize, dphoff,
-                                      &applied, &skipped, &resolved);
+                                      &applied, &skipped, &resolved, 0);
         if (rr != 0 || skipped ||
             ex_register_exports(df, dsz, dphnum, dphentsize, dphoff,
                                 &ddi, dbias) != 0 ||
             ex_load_dependencies(df, dsz, dphnum, dphentsize, dphoff,
                                  depth + 1) != 0) {
+            free(df); return -1;
+        }
+        /* Collect AFTER recursing: a dependency's own dependencies must
+         * initialise first (leaf-first).  Array pointers are read from the
+         * relocated mapping, which is still live here. */
+        if (ex_collect_ctors(df, dsz, dphnum, dphentsize, dphoff,
+                             dbias, dlo, dhi) != 0) {
             free(df); return -1;
         }
         free(df);
@@ -1103,6 +1356,8 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
     if (!out) return VSL_EXEC_ERR_ARGS;
     memset(out, 0, sizeof(*out));
     ex_unload_dependencies();              /* reset per-run DT_NEEDED state */
+    ex_plt_reset();                        /* reset per-run lazy-PLT state */
+    ex_ctors_reset();                      /* reset per-run init/fini state */
     if (!elf_data || elf_size < 64) {
         out->status = VSL_EXEC_ERR_ARGS;
         return out->status;
@@ -1289,16 +1544,31 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
      *     bounded fixed host table; unknown names, unregistered IRELATIVE
      *     resolvers and unsupported types (TLS included) are hard rejects. */
     if (is_dyn) {
+        /* Lazy PLT needs its per-run stub page BEFORE any GOT entry is
+         * rewritten to point at a stub.  ex_plt_reset() runs at run start. */
+        if (g_lazy_plt && ex_plt_alloc_stubs() != 0) {
+            rc = VSL_EXEC_ERR_MAP;
+            goto cleanup;
+        }
         uint32_t applied = 0, skipped = 0, resolved = 0;
         if (ex_apply_relocations(elf_data, elf_size, load_bias, lo, hi, e_phnum,
                                  e_phentsize, e_phoff,
-                                 &applied, &skipped, &resolved) != 0) {
+                                 &applied, &skipped, &resolved,
+                                 g_lazy_plt) != 0) {
             rc = VSL_EXEC_ERR_RELOC;
             goto cleanup;
         }
         out->relocations_applied = applied;
         out->relocations_skipped = skipped;
         out->symbols_resolved = resolved;
+        out->plt_slots_bound = g_plt_count;
+        /* Collect the main image's constructors LAST so dependencies'
+         * initialisers run first (leaf-first); arrays are already relocated. */
+        if (ex_collect_ctors(elf_data, elf_size, e_phnum, e_phentsize, e_phoff,
+                             load_bias, lo, hi) != 0) {
+            rc = VSL_EXEC_ERR_RELOC;
+            goto cleanup;
+        }
         if (skipped) { rc = VSL_EXEC_ERR_RELOCTYPE; goto cleanup; }
     }
 
@@ -1354,6 +1624,19 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         goto cleanup;
     }
 
+    /* 7b. Bounded constructors: dependency init first (already collected
+     * leaf-first), then main.  Runs on the host stack while fds are captured
+     * and the SIGSYS/fault handlers are live, so guest writes are recorded. */
+    if (g_init_count) {
+        if (ex_call_ctors(g_init_fns, g_init_count, 0) != 0) {
+            out->status = VSL_EXEC_ERR_FAULT;
+            out->fault_addr = g_ex.fault_addr;
+            rc = out->status;
+            goto cleanup;
+        }
+        out->init_called = g_init_count;
+    }
+
     /* 8. Guest stack + initial ABI image. */
     stack = mmap(NULL, EX_STACK_SIZE, PROT_READ | PROT_WRITE,
                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
@@ -1388,6 +1671,7 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
     g_ex.running = 0;
 
     out->syscalls_trapped = g_ex.trapped;
+    out->plt_resolves = g_plt_resolves_run;   /* first-call binds this run */
     if (g_ex.reason == 1) {
         out->status = VSL_EXEC_OK;
         out->exit_code = proc->exit_code;  /* set by the REAL vsl_sys_exit */
@@ -1396,6 +1680,19 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
         out->fault_addr = g_ex.fault_addr;
     }
     rc = out->status;
+
+    /* 9b. Bounded destructors on unload, while the mapping, captured fds and
+     * handlers are still live.  Reverse order: main first, then dependencies
+     * in reverse load order.  A fini fault downgrades the run to ERR_FAULT. */
+    if (rc == VSL_EXEC_OK && g_fini_count) {
+        if (ex_call_ctors(g_fini_fns, g_fini_count, 1) != 0) {
+            out->status = VSL_EXEC_ERR_FAULT;
+            out->fault_addr = g_ex.fault_addr;
+            rc = out->status;
+        } else {
+            out->fini_called = g_fini_count;
+        }
+    }
 
 cleanup:
     g_ex.active = 0;
@@ -1427,6 +1724,7 @@ cleanup:
     if (map && (uint64_t)(uintptr_t)map == lo)
         munmap(map, (size_t)(hi - lo));
     ex_release_dep_mappings();        /* keep load-order/symbol view for gate */
+    ex_plt_release();                 /* lazy-PLT stubs are per-run */
     if (stack) munmap(stack, EX_STACK_SIZE);
     if (out->status == VSL_EXEC_OK && rc != VSL_EXEC_OK)
         out->status = rc;
