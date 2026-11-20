@@ -13,6 +13,12 @@
  * symbol table; exact resolved addresses, output and call counters are
  * asserted, with differential negative controls for the pre-change engine.
  *
+ * COPY/IRELATIVE leg: a hand-built ET_DYN whose R_X86_64_COPY copies real
+ * host bytes into guest memory and whose R_X86_64_IRELATIVE resolves through
+ * the bounded host IFUNC table to a real function; copied bytes, resolved
+ * function output and call counters are asserted, with the pre-change rule
+ * as negative control.  TLS/TPOFF/DTPMOD/TLSDESC are asserted REJECTED.
+ *
  * Usage: vsl_exec_test <guest-dir>   (guests built by mk/tests.mk)
  */
 #include "../../egojar.h"
@@ -301,6 +307,103 @@ static size_t build_dynsym_elf(uint8_t *buf) {
     return 0x1600;
 }
 
+/* Hand-assemble an ET_DYN carrying one R_X86_64_COPY and one
+ * R_X86_64_IRELATIVE.  One RWX PT_LOAD 0x1000..0x1600:
+ *   0x1000 code       0x1100 COPY destination (16 bytes, zero before load)
+ *   0x1120 IFUNC GOT slot (initial word = 0x1180 = resolver link address)
+ *   0x1130 "VSL-CI-OK\n"  0x1180 resolver stub byte (never executed)
+ *   0x1200 dynsym     0x1280 dynstr     0x1300 DT_HASH
+ *   0x1400 PT_DYNAMIC 0x1500 DT_RELA (2 entries)
+ * The guest writes the 16 copied bytes, the 8 resolved bytes, the marker,
+ * then exit(0).  No libc/ld.so: every observed byte is loader work. */
+#define CI_COPY_OFF    0x1100ULL
+#define CI_FUNC_OFF    0x1120ULL
+#define CI_RESOLVER    0x1180ULL
+#define CI_COPY_SZ     16u
+#define CI_STRSZ       15u                  /* "\0vsl_copy_data\0" */
+#define CI_IFUNC_MAGIC 0x56534c49464e5543ULL /* "VSLIFUNC" */
+static size_t build_copy_irelative_elf(uint8_t *buf) {
+    memset(buf, 0, 0x1600);
+    buf[0] = 0x7f; buf[1] = 'E'; buf[2] = 'L'; buf[3] = 'F';
+    buf[4] = 2; buf[5] = 1; buf[6] = 1;
+    uint16_t u16; uint32_t u32; uint64_t u64;
+    u16 = 3;    memcpy(buf + 16, &u16, 2);        /* ET_DYN */
+    u16 = 0x3e; memcpy(buf + 18, &u16, 2);        /* EM_X86_64 */
+    u32 = 1;    memcpy(buf + 20, &u32, 4);
+    u64 = 0x1000; memcpy(buf + 24, &u64, 8);      /* e_entry */
+    u64 = 64;   memcpy(buf + 32, &u64, 8);        /* e_phoff */
+    u16 = 64;   memcpy(buf + 52, &u16, 2);
+    u16 = 56;   memcpy(buf + 54, &u16, 2);
+    u16 = 2;    memcpy(buf + 56, &u16, 2);        /* e_phnum */
+    /* phdr[0] PT_LOAD 0x1000..0x1600 RWX */
+    u32 = 1;    memcpy(buf + 64,  &u32, 4);
+    u32 = 7;    memcpy(buf + 68,  &u32, 4);
+    u64 = 0x1000; memcpy(buf + 72,  &u64, 8);
+    u64 = 0x1000; memcpy(buf + 80,  &u64, 8);
+    u64 = 0x1000; memcpy(buf + 88,  &u64, 8);
+    u64 = 0x600;  memcpy(buf + 96,  &u64, 8);
+    u64 = 0x600;  memcpy(buf + 104, &u64, 8);
+    u64 = 0x1000; memcpy(buf + 112, &u64, 8);
+    /* phdr[1] PT_DYNAMIC @0x1400, 9 pairs (144 bytes) */
+    u32 = 2;    memcpy(buf + 120, &u32, 4);
+    u32 = 6;    memcpy(buf + 124, &u32, 4);
+    u64 = 0x1400; memcpy(buf + 128, &u64, 8);
+    u64 = 0x1400; memcpy(buf + 136, &u64, 8);
+    u64 = 0x1400; memcpy(buf + 144, &u64, 8);
+    u64 = 144;    memcpy(buf + 152, &u64, 8);
+    u64 = 144;    memcpy(buf + 160, &u64, 8);
+    u64 = 8;      memcpy(buf + 168, &u64, 8);
+    /* RIP-relative displacements are link-time constants (base-independent). */
+    static const uint8_t code[] = {
+        /* write(1, 0x1100, 16): bytes copied by COPY */
+        0x48,0x8d,0x35,0xf9,0x00,0x00,0x00,
+        0xb8,0x01,0x00,0x00,0x00, 0xbf,0x01,0x00,0x00,0x00,
+        0xba,0x10,0x00,0x00,0x00, 0x0f,0x05,
+        /* write(1, 0x1120, 8): function address produced by IRELATIVE */
+        0x48,0x8d,0x35,0x01,0x01,0x00,0x00,
+        0xb8,0x01,0x00,0x00,0x00, 0xbf,0x01,0x00,0x00,0x00,
+        0xba,0x08,0x00,0x00,0x00, 0x0f,0x05,
+        /* write(1, 0x1130, 10): marker */
+        0x48,0x8d,0x35,0xf9,0x00,0x00,0x00,
+        0xb8,0x01,0x00,0x00,0x00, 0xbf,0x01,0x00,0x00,0x00,
+        0xba,0x0a,0x00,0x00,0x00, 0x0f,0x05,
+        /* exit(0) */
+        0xb8,0x3c,0x00,0x00,0x00, 0x31,0xff, 0x0f,0x05
+    };
+    memcpy(buf + 0x1000, code, sizeof(code));
+    memcpy(buf + 0x1130, "VSL-CI-OK\n", 10);
+    buf[0x1180] = 0xc3;                   /* resolver stub; never executed */
+    /* dynsym[1] @0x1218: "vsl_copy_data", SHN_UNDEF, st_size = 16 */
+    u32 = 1;           memcpy(buf + 0x1218, &u32, 4);
+    buf[0x121c] = 0x10; buf[0x121d] = 0;  /* GLOBAL, DEFAULT */
+    u16 = 0;           memcpy(buf + 0x121e, &u16, 2);
+    u64 = 0;           memcpy(buf + 0x1220, &u64, 8);
+    u64 = CI_COPY_SZ;  memcpy(buf + 0x1228, &u64, 8);
+    memcpy(buf + 0x1280, "\0vsl_copy_data\0", CI_STRSZ);
+    /* DT_HASH @0x1300: nbucket=1, nchain=2, bucket[0]=1 */
+    u32 = 1; memcpy(buf + 0x1300, &u32, 4);
+    u32 = 2; memcpy(buf + 0x1304, &u32, 4);
+    u32 = 1; memcpy(buf + 0x1308, &u32, 4);
+    const uint64_t tags[9][2] = {
+        { 4, 0x1300 }, { 5, 0x1280 }, { 6, 0x1200 },
+        { 7, 0x1500 }, { 8, 48 },     { 9, 24 },
+        { 10, CI_STRSZ }, { 11, 24 }, { 0, 0 }
+    };
+    for (int i = 0; i < 9; i++) {
+        memcpy(buf + 0x1400 + (uint64_t)i * 16, &tags[i][0], 8);
+        memcpy(buf + 0x1408 + (uint64_t)i * 16, &tags[i][1], 8);
+    }
+    /* RELA[0] @0x1500: COPY sym1 -> 0x1100.
+     * RELA[1] @0x1518: IRELATIVE (sym 0) -> 0x1120, resolver 0x1180. */
+    u64 = CI_COPY_OFF; memcpy(buf + 0x1500, &u64, 8);
+    u64 = ((uint64_t)1 << 32) | 5; memcpy(buf + 0x1508, &u64, 8);
+    u64 = 0;           memcpy(buf + 0x1510, &u64, 8);
+    u64 = CI_FUNC_OFF; memcpy(buf + 0x1518, &u64, 8);
+    u64 = 37;          memcpy(buf + 0x1520, &u64, 8);
+    u64 = CI_RESOLVER; memcpy(buf + 0x1528, &u64, 8);
+    return 0x1600;
+}
+
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
     if (argc < 2) {
@@ -560,13 +663,103 @@ int main(int argc, char **argv) {
         CHECK(rc == VSL_EXEC_ERR_RELOC, "unknown symbol rejected (ERR_RELOC)");
 
         n = build_dynsym_elf(img);
-        /* Change GLOB_DAT(6) -> R_X86_64_COPY(5), an unsupported type. */
-        uint64_t ri = 5; memcpy(img + 0x1508, &ri, 8);
+        /* COPY (5) and IRELATIVE (37) are now supported; use a genuinely
+         * unassigned type to prove unsupported relocations still fail. */
+        uint64_t ri = 250; memcpy(img + 0x1508, &ri, 8);
         rc = vsl_exec_elf_bytes(img, n, &r);
         printf("[gate m] unsupported reloc type: rc=%d status=%d skipped=%u (want %d)\n",
                rc, r.status, r.relocations_skipped, VSL_EXEC_ERR_RELOCTYPE);
         CHECK(rc == VSL_EXEC_ERR_RELOCTYPE && r.relocations_skipped == 1,
               "unsupported relocation rejected (ERR_RELOCTYPE)");
+    }
+
+    /* (n) COPY + IRELATIVE differential gate.  The pre-change rule applied
+     *     only RELATIVE, so it would reject this same image with RELOCTYPE. */
+    {
+        uint8_t img[0x1600];
+        size_t n = build_copy_irelative_elf(img);
+        CHECK(legacy_rejects_nonrelative(img, n),
+              "negative control: pre-change loader rejects COPY/IRELATIVE fixture");
+        uint64_t ifunc_before = vsl_dyn_ifunc_call_count();
+        rc = vsl_exec_elf_bytes(img, n, &r);
+        uint64_t resolved_fn = 0;
+        if (r.output_len >= 24) memcpy(&resolved_fn, r.output + 16, 8);
+        printf("[gate n] COPY+IRELATIVE: rc=%d exit=%d bias=0x%llx "
+               "applied=%u skipped=%u resolved=%u out_len=%zu "
+               "copy=\"%.*s\" func=0x%llx ifunc_calls=%llu\n",
+               rc, r.exit_code, (unsigned long long)r.load_bias,
+               r.relocations_applied, r.relocations_skipped, r.symbols_resolved,
+               r.output_len, r.output_len >= 16 ? 16 : (int)r.output_len, r.output,
+               (unsigned long long)resolved_fn,
+               (unsigned long long)(vsl_dyn_ifunc_call_count() - ifunc_before));
+        CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+              "COPY/IRELATIVE fixture runs to exit(0)");
+        CHECK(r.relocations_applied == 2 && r.relocations_skipped == 0,
+              "both COPY and IRELATIVE applied, none skipped");
+        CHECK(r.symbols_resolved == 1,
+              "COPY resolved its named host symbol (IRELATIVE is symbol-less)");
+        CHECK(r.output_len == 34, "output: 16 copied + 8 resolved + 10 marker");
+        CHECK(r.output_len == 34 &&
+              memcmp(r.output, "VSLCOPY-DATA-123", 16) == 0,
+              "R_X86_64_COPY copied the EXACT host bytes into guest memory");
+        CHECK(resolved_fn == CI_IFUNC_MAGIC,
+              "R_X86_64_IRELATIVE wrote the registered resolver's real output");
+        CHECK(r.output_len == 34 &&
+              memcmp(r.output + 24, "VSL-CI-OK\n", 10) == 0,
+              "guest executed past both relocations to the marker");
+        CHECK(vsl_dyn_ifunc_call_count() == ifunc_before + 1,
+              "IFUNC call counter proves the bounded resolver really ran");
+
+        /* Fail-closed cases: unknown COPY name, oversized COPY, resolver that
+         * is not in the bounded IFUNC table.  Each must be ERR_RELOC. */
+        n = build_copy_irelative_elf(img);
+        img[0x1281] = 'x';                         /* vsl_copy_data -> xsl_* */
+        rc = vsl_exec_elf_bytes(img, n, &r);
+        printf("[gate n] unknown COPY name: rc=%d status=%d (want %d)\n",
+               rc, r.status, VSL_EXEC_ERR_RELOC);
+        CHECK(rc == VSL_EXEC_ERR_RELOC, "unknown COPY source rejected");
+
+        n = build_copy_irelative_elf(img);
+        {
+            uint64_t big = CI_COPY_SZ + 1;
+            memcpy(img + 0x1228, &big, 8);         /* st_size > host byte limit */
+        }
+        rc = vsl_exec_elf_bytes(img, n, &r);
+        printf("[gate n] oversized COPY: rc=%d status=%d (want %d)\n",
+               rc, r.status, VSL_EXEC_ERR_RELOC);
+        CHECK(rc == VSL_EXEC_ERR_RELOC, "oversized COPY rejected (source bound)");
+
+        n = build_copy_irelative_elf(img);
+        {
+            uint64_t bad = CI_RESOLVER + 1;        /* not in IFUNC table */
+            memcpy(img + 0x1528, &bad, 8);
+        }
+        rc = vsl_exec_elf_bytes(img, n, &r);
+        printf("[gate n] unregistered IRELATIVE: rc=%d status=%d (want %d)\n",
+               rc, r.status, VSL_EXEC_ERR_RELOC);
+        CHECK(rc == VSL_EXEC_ERR_RELOC,
+              "unregistered IFUNC resolver rejected (fail closed)");
+    }
+
+    /* (o) Verified negative result: there is NO TLS model.  DTPMOD64,
+     *     TPOFF64 and TLSDESC relocations are built into a real relocation
+     *     table and each must be rejected as an unsupported type. */
+    {
+        static const struct { uint32_t type; const char *name; } tls[] = {
+            { 16, "DTPMOD64" }, { 18, "TPOFF64" }, { 36, "TLSDESC" }
+        };
+        for (size_t i = 0; i < sizeof(tls) / sizeof(tls[0]); i++) {
+            uint8_t img[0x1600];
+            size_t n = build_dynsym_elf(img);
+            uint64_t ri = ((uint64_t)1 << 32) | tls[i].type;
+            memcpy(img + 0x1508, &ri, 8);          /* GLOB_DAT -> TLS type */
+            rc = vsl_exec_elf_bytes(img, n, &r);
+            printf("[gate o] %s: rc=%d status=%d skipped=%u (want %d)\n",
+                   tls[i].name, rc, r.status, r.relocations_skipped,
+                   VSL_EXEC_ERR_RELOCTYPE);
+            CHECK(rc == VSL_EXEC_ERR_RELOCTYPE && r.relocations_skipped == 1,
+                  "TLS relocation rejected: no TLS model (verified negative)");
+        }
     }
 
     /* (h) host syscalls still real after all runs (filter ALLOW path) */

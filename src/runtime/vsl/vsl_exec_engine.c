@@ -201,7 +201,12 @@ static uint64_t ex_build_stack(uint8_t *base, size_t size, uint64_t entry) {
  * inside the image itself).  Every other name fails closed. */
 static uint64_t g_dyn_shim_calls;
 static uint64_t g_dyn_write_calls;
+static uint64_t g_dyn_ifunc_calls;
 static const char g_dyn_test_data[] = "VSL-DYNSYM-DATA\n";
+/* Read-only source bytes for the R_X86_64_COPY gate.  The matching host
+ * symbol below declares a byte limit: a guest COPY may not request more
+ * bytes than this object actually holds. */
+static const char g_dyn_copy_data[] = "VSLCOPY-DATA-123"; /* 16 bytes + NUL */
 
 /* Host write shim: the guest calls this through a JUMP_SLOT GOT entry.  It
  * issues a plain host write() (fd 1 is the engine's capture memfd during a
@@ -219,22 +224,48 @@ static uint64_t vsl_dyn_test_shim_fn(void) {
     return 0x56534c53484d4949ULL;                 /* "VSLSHMII" */
 }
 
-typedef struct { const char *name; uint64_t addr; } VslDynHostSym;
-static const VslDynHostSym g_dyn_host_syms[] = {
-    { "write",         (uint64_t)(uintptr_t)&vsl_dyn_write_shim },
-    { "vsl_test_shim", (uint64_t)(uintptr_t)&vsl_dyn_test_shim_fn },
-    { "vsl_test_data", (uint64_t)(uintptr_t)g_dyn_test_data },
+/* Bounded IFUNC resolver table.  R_X86_64_IRELATIVE never calls arbitrary
+ * guest bytes during relocation (there is no signal containment yet at that
+ * point): the relocation's link-time resolver address -- r_addend for RELA,
+ * or the initial GOT word for REL -- must match a fixed entry here, and the
+ * registered HOST function is called instead.  Anything else fails closed. */
+static uint64_t vsl_dyn_ifunc_magic_fn(void) {
+    g_dyn_ifunc_calls++;
+    return 0x56534c49464e5543ULL;                 /* "VSLIFUNC" */
+}
+typedef uint64_t (*VslIfuncResolver)(void);
+typedef struct { uint64_t link_addr; VslIfuncResolver fn; } VslIfuncEntry;
+static const VslIfuncEntry g_ifunc_table[] = {
+    { 0x1180ULL, &vsl_dyn_ifunc_magic_fn },
 };
 
-uint64_t vsl_dyn_host_symbol(const char *name) {
-    if (!name) return 0;
+typedef struct {
+    const char *name;
+    uint64_t addr;
+    uint64_t copy_sz;   /* max bytes a COPY relocation may take from addr */
+} VslDynHostSym;
+static const VslDynHostSym g_dyn_host_syms[] = {
+    { "write",         (uint64_t)(uintptr_t)&vsl_dyn_write_shim,   0 },
+    { "vsl_test_shim", (uint64_t)(uintptr_t)&vsl_dyn_test_shim_fn, 0 },
+    { "vsl_test_data", (uint64_t)(uintptr_t)g_dyn_test_data,       0 },
+    { "vsl_copy_data", (uint64_t)(uintptr_t)g_dyn_copy_data,
+                       sizeof(g_dyn_copy_data) - 1 },
+};
+
+static const VslDynHostSym *ex_host_lookup(const char *name) {
+    if (!name) return NULL;
     for (size_t i = 0; i < sizeof(g_dyn_host_syms) / sizeof(g_dyn_host_syms[0]); i++)
-        if (strcmp(name, g_dyn_host_syms[i].name) == 0)
-            return g_dyn_host_syms[i].addr;
-    return 0;
+        if (strcmp(name, g_dyn_host_syms[i].name) == 0) return &g_dyn_host_syms[i];
+    return NULL;
+}
+
+uint64_t vsl_dyn_host_symbol(const char *name) {
+    const VslDynHostSym *e = ex_host_lookup(name);
+    return e ? e->addr : 0;
 }
 uint64_t vsl_dyn_shim_call_count(void)   { return g_dyn_shim_calls; }
 uint64_t vsl_dyn_write_call_count(void)  { return g_dyn_write_calls; }
+uint64_t vsl_dyn_ifunc_call_count(void)  { return g_dyn_ifunc_calls; }
 
 /* -- ET_DYN helpers -------------------------------------------------- */
 
@@ -265,8 +296,10 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 
 /* Dynamic tags / relocation types we understand.  The resolver is bounded:
  * symbol tables, string tables and relocation counts are capped, and only
- * the four relocation types below are applied.  Unknown symbol names and
- * unsupported types are rejected (fail closed) -- never guessed. */
+ * the SIX relocation types below are applied.  Unknown symbol names and
+ * unsupported types (including every TLS type) are rejected (fail closed)
+ * -- never guessed.  COPY sources must be named host symbols with a declared
+ * byte limit; IRELATIVE resolvers must be in the fixed IFUNC table. */
 #define EX_DT_NULL       0
 #define EX_DT_PLTRELSZ   2
 #define EX_DT_HASH       4
@@ -285,13 +318,16 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 #define EX_DT_GNU_HASH   0x6ffffef5ULL
 
 #define EX_R_X86_64_64       1
+#define EX_R_X86_64_COPY     5
 #define EX_R_X86_64_GLOB_DAT 6
 #define EX_R_X86_64_JUMP_SLOT 7
 #define EX_R_X86_64_RELATIVE 8
+#define EX_R_X86_64_IRELATIVE 37
 
 #define EX_SYM_MAX   4096u   /* max dynamic symbols / relocations per table */
 #define EX_NAME_MAX  128u    /* max resolved symbol name length */
 #define EX_STRTAB_MAX (1u << 20)
+#define EX_COPY_MAX  256u    /* max bytes one COPY relocation may move */
 
 /* Determine the dynamic symbol count from DT_HASH (nchain) or DT_GNU_HASH
  * (walk the longest chain).  A hash table is REQUIRED: without one we cannot
@@ -397,10 +433,65 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     return 0;
 }
 
+/* Resolve a R_X86_64_COPY source.  A COPY copies bytes from a definition in
+ * another object into this image; here the ONLY legal source is an undefined
+ * dynsym name in the fixed host table whose entry declares a byte limit.
+ * The guest-supplied st_size must be in [1, min(limit, EX_COPY_MAX)].  This
+ * keeps the bulk memcpy both source-bound and destination-bound. */
+static int ex_resolve_copy(const uint8_t *f, size_t fsz,
+                           uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                           uint64_t symtab, uint64_t syment,
+                           uint64_t strtab, uint64_t strsz, uint32_t symcount,
+                           uint32_t symidx, uint64_t *out_addr,
+                           uint64_t *out_size) {
+    if (symidx == 0 || symidx >= symcount || symtab == 0 || syment < 24)
+        return -1;
+    uint64_t so;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        symtab + (uint64_t)symidx * syment, 24, &so) != 0)
+        return -1;
+    uint32_t st_name;
+    uint8_t st_info;
+    uint16_t st_shndx;
+    uint64_t st_size;
+    memcpy(&st_name,  f + so,      4);
+    st_info = f[so + 4];
+    memcpy(&st_shndx, f + so + 6,  2);
+    memcpy(&st_size,  f + so + 16, 8);
+    if ((st_info & 0x0f) == 6) return -1;            /* STT_TLS: no plain addr */
+    if (st_shndx != 0) return -1;                    /* source must be external */
+    if (st_size == 0 || st_size > EX_COPY_MAX) return -1;
+    if (strtab == 0 || strsz == 0 || strsz > EX_STRTAB_MAX || st_name >= strsz)
+        return -1;
+    uint64_t stroff;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff, strtab, strsz,
+                        &stroff) != 0) return -1;
+    const char *name = (const char *)(f + stroff + st_name);
+    size_t room = (size_t)(strsz - st_name);
+    if (!memchr(name, 0, room) || strlen(name) > EX_NAME_MAX) return -1;
+    const VslDynHostSym *h = ex_host_lookup(name);
+    if (!h || h->copy_sz == 0 || st_size > h->copy_sz) return -1;
+    *out_addr = h->addr;
+    *out_size = st_size;
+    return 0;
+}
+
+/* Resolve one IRELATIVE resolver.  `link_addr` is the resolver's link-time
+ * address (RELA addend, or the original GOT word for REL).  Only addresses
+ * in the fixed table are callable; no guest code is invoked. */
+static VslIfuncResolver ex_ifunc_resolve(uint64_t link_addr) {
+    for (size_t i = 0; i < sizeof(g_ifunc_table) / sizeof(g_ifunc_table[0]); i++)
+        if (g_ifunc_table[i].link_addr == link_addr) return g_ifunc_table[i].fn;
+    return NULL;                                     /* unknown -> fail closed */
+}
+
 /* Apply one relocation.  Returns 0 ok, -1 malformed/unknown symbol,
- * 1 unsupported type (counted as skipped; caller rejects the whole image). */
+ * 1 unsupported type (counted as skipped; caller rejects the whole image).
+ * map_lo/map_hi is the page-aligned union of mapped PT_LOADs, so every write
+ * (including a bulk COPY) is proven to land in mapped memory. */
 static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
                         uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                        uint64_t map_lo, uint64_t map_hi,
                         uint64_t symtab, uint64_t syment,
                         uint64_t strtab, uint64_t strsz, uint32_t symcount,
                         uint64_t r_offset, uint64_t r_info, int64_t addend,
@@ -408,15 +499,38 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
     uint32_t type   = (uint32_t)(r_info & 0xffffffffu);
     uint32_t symidx = (uint32_t)(r_info >> 32);
     uint64_t dest = bias + r_offset;
-    if (dest < EX_WIN_LO || dest + 8 > EX_WIN_HI) return -1;
+    if (dest < EX_WIN_LO || dest < map_lo) return -1;
     uint64_t *where = (uint64_t *)(uintptr_t)dest;
     switch (type) {
     case EX_R_X86_64_RELATIVE:
+        if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
         *where = has_addend ? bias + (uint64_t)addend : *where + bias;
         return 0;
+    case EX_R_X86_64_COPY: {
+        uint64_t src = 0, sz = 0;
+        if (ex_resolve_copy(f, fsz, phnum, phentsize, phoff, symtab, syment,
+                            strtab, strsz, symcount, symidx, &src, &sz) != 0)
+            return -1;
+        if (dest > EX_WIN_HI - sz || dest > map_hi - sz) return -1;
+        memcpy((void *)(uintptr_t)dest, (const void *)(uintptr_t)src,
+               (size_t)sz);
+        (*resolved)++;
+        return 0;
+    }
+    case EX_R_X86_64_IRELATIVE: {
+        if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
+        /* The resolver address is link-time (B + A).  In our bounded model
+         * the table maps it to a host function; we never call guest bytes. */
+        uint64_t link_resolver = has_addend ? (uint64_t)addend : *where;
+        VslIfuncResolver fn = ex_ifunc_resolve(link_resolver);
+        if (!fn) return -1;
+        *where = fn();
+        return 0;
+    }
     case EX_R_X86_64_64:
     case EX_R_X86_64_GLOB_DAT:
     case EX_R_X86_64_JUMP_SLOT: {
+        if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
         uint64_t S;
         if (symidx == 0) {                           /* STN_UNDEF null symbol */
             S = 0;
@@ -438,10 +552,12 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
 }
 
 /* Apply the dynamic relocations of an ET_DYN image after its PT_LOAD bytes
- * are in place.  Handles the bounded set above; every other type is counted
- * in *skipped and makes the caller reject the image (fail closed).
+ * are in place.  Handles the six supported types above; every other type is
+ * counted in *skipped and makes the caller reject the image (fail closed).
+ * map_lo/map_hi bounds every relocation write to the mapped image.
  * Returns 0 ok, -1 malformed/unknown symbol. */
 static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
+                                uint64_t map_lo, uint64_t map_hi,
                                 uint16_t phnum, uint16_t phentsize, uint64_t phoff,
                                 uint32_t *out_applied, uint32_t *out_skipped,
                                 uint32_t *out_resolved) {
@@ -512,7 +628,8 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                 memcpy(&ri, f + off + k * es + 8, 8);                         \
                 uint32_t ty = (uint32_t)(ri & 0xffffffffu);                   \
                 if (ty == EX_R_X86_64_64 || ty == EX_R_X86_64_GLOB_DAT ||     \
-                    ty == EX_R_X86_64_JUMP_SLOT) { need_syms = 1; break; }    \
+                    ty == EX_R_X86_64_JUMP_SLOT ||                           \
+                    ty == EX_R_X86_64_COPY) { need_syms = 1; break; }         \
             }                                                                 \
         }                                                                     \
     } while (0)
@@ -548,6 +665,7 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                 memcpy(&ri, rr + 8, 8);                                      \
                 if (HAS_ADDEND) memcpy(&ra, rr + 16, 8);                      \
                 int vr = ex_apply_one(f, fsz, bias, phnum, phentsize, phoff,  \
+                                     map_lo, map_hi,                          \
                                      symtab, syment, strtab, strsz, symcount, \
                                      ro, ri, (int64_t)ra, HAS_ADDEND,         \
                                      out_resolved);                          \
@@ -741,12 +859,13 @@ int vsl_exec_elf_bytes(const void *elf_data, size_t elf_size,
                    (size_t)p_filesz);
     }
 
-    /* 3b. ET_DYN: apply RELATIVE / GLOB_DAT / JUMP_SLOT / 64 relocations.
-     *     Undefined symbols resolve only from a bounded fixed host table;
-     *     unknown names and unsupported types are a hard reject. */
+    /* 3b. ET_DYN: apply RELATIVE / GLOB_DAT / JUMP_SLOT / 64 / COPY /
+     *     IRELATIVE relocations.  Undefined symbols resolve only from a
+     *     bounded fixed host table; unknown names, unregistered IRELATIVE
+     *     resolvers and unsupported types (TLS included) are hard rejects. */
     if (is_dyn) {
         uint32_t applied = 0, skipped = 0, resolved = 0;
-        if (ex_apply_relocations(elf_data, elf_size, load_bias, e_phnum,
+        if (ex_apply_relocations(elf_data, elf_size, load_bias, lo, hi, e_phnum,
                                  e_phentsize, e_phoff,
                                  &applied, &skipped, &resolved) != 0) {
             rc = VSL_EXEC_ERR_RELOC;

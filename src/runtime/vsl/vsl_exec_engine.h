@@ -12,16 +12,20 @@
  * process never dies.
  *
  * ET_DYN relocation support is deliberately BOUNDED, not a general dynamic
- * linker: R_X86_64_RELATIVE, R_X86_64_64, R_X86_64_GLOB_DAT and
- * R_X86_64_JUMP_SLOT are applied from DT_RELA/DT_REL/DT_JMPREL.  Symbol
- * tables/counts come from DT_HASH or DT_GNU_HASH and are capped.  Undefined
- * symbols resolve ONLY through a small fixed host table (see
- * vsl_dyn_host_symbol): a test syscall shim, a host write() shim and a
- * test data string.  Definitions inside the image resolve to bias+st_value.
- * Unknown symbol names and any other relocation type are hard rejects
- * (VSL_EXEC_ERR_RELOC / VSL_EXEC_ERR_RELOCTYPE) -- never guessed.  No glibc,
- * no ld.so, no DT_NEEDED, no COPY/IRELATIVE/TLS/IFUNC, no lazy PLT binding,
- * no init/fini.  Loaded ET_DYN images must stay within this contract.
+ * linker: R_X86_64_RELATIVE, R_X86_64_64, R_X86_64_GLOB_DAT,
+ * R_X86_64_JUMP_SLOT, R_X86_64_COPY and R_X86_64_IRELATIVE are applied from
+ * DT_RELA/DT_REL/DT_JMPREL.  Symbol tables/counts come from DT_HASH or
+ * DT_GNU_HASH and are capped.  Undefined symbols resolve ONLY through a small
+ * fixed host table (see vsl_dyn_host_symbol): a test syscall shim, a host
+ * write() shim and two test data strings.  COPY may only source bytes from
+ * host symbols that declare a byte limit; IRELATIVE resolvers must be listed
+ * in a fixed host IFUNC table (no arbitrary guest code runs during relocation).
+ * Definitions inside the image resolve to bias+st_value.  Unknown symbol
+ * names, unregistered IFUNC resolvers and any other relocation type are hard
+ * rejects (VSL_EXEC_ERR_RELOC / VSL_EXEC_ERR_RELOCTYPE) -- never guessed.
+ * There is NO TLS model: TPOFF/DTPMOD/TLSDESC and STT_TLS symbols are all
+ * rejected.  No glibc, no ld.so, no DT_NEEDED, no lazy PLT binding, no
+ * init/fini.  Loaded ET_DYN images must stay within this contract.
  *
  * Guest link addresses MUST fall inside [VSL_USER_BASE, VSL_USER_BASE +
  * VSL_USER_SIZE): that window is the seccomp trap scope, so guest code
@@ -91,5 +95,6 @@ int vsl_exec_elf(const char *path, VslExecResult *out);
 uint64_t vsl_dyn_host_symbol(const char *name);
 uint64_t vsl_dyn_shim_call_count(void);   /* vsl_test_shim invocations */
 uint64_t vsl_dyn_write_call_count(void);  /* host write-shim invocations */
+uint64_t vsl_dyn_ifunc_call_count(void);  /* IRELATIVE host resolver calls */
 
 #endif /* WUBUOS_VSL_EXEC_ENGINE_H */
