@@ -1,3 +1,5 @@
+# Narrow overlay: VSL mprotect permission hooks. Generated from the pinned
+# WEMU sources; apply with `patch -p1 -d build/wemu-user` (see mk/wemu_user.mk).
 --- a/include/wemu.h
 +++ b/include/wemu.h
 @@ -38,6 +38,19 @@
@@ -12,9 +14,9 @@
 +typedef int (*WemuMemPermFn)(uint64_t va, size_t len, int is_write, void *ud);
 +void wemu_set_mem_perm_hook(WemuMemPermFn fn, void *ud);
 +
-+/* Narrow instruction-fetch permission hook, consulted by the decoder before
-+ * fetching the byte at RIP. Fetch is governed by EXECUTE permission only;
-+ * NULL (the default) keeps legacy guest RAM executable. */
++/* Narrow instruction-fetch permission hook, consulted by wemu_mem_fetch.
++ * Fetch is governed by EXECUTE permission only; NULL keeps legacy RAM
++ * executable. */
 +typedef int (*WemuFetchPermFn)(uint64_t va, size_t len, void *ud);
 +void wemu_set_fetch_perm_hook(WemuFetchPermFn fn, void *ud);
  
@@ -22,29 +24,27 @@
  void wemu_cpu_set_cr3(WemuCpu *cpu, uint64_t cr3);
 --- a/src/wemu_internal.h
 +++ b/src/wemu_internal.h
-@@ -88,8 +88,13 @@
- int wemu_gpa_write(WemuCpu *cpu, uint64_t gpa, const void *src, size_t len);
- /* 4-level walk; is_write/is_user drive the #PF W/R and U/S error bits.
-  * Sets *fault (#PF=14, #GP=13) and cpu->fault_error on failure. */
+@@ -98,6 +98,11 @@
+                            int is_user, int is_fetch, int *fault);
  uint64_t wemu_translate(WemuCpu *cpu, uint64_t va, int is_write, int is_user,
                          int *fault);
 +/* translated read WITHOUT the data-read permission hook: instruction fetch
-+ * uses this and is gated by the separate EXEC hook in wemu_decode.c. */
++ * uses wemu_mem_fetch and is gated by the separate EXEC hook. */
 +int wemu_mem_read_no_perm(WemuCpu *cpu, uint64_t va, void *dst, size_t len);
-+/* decoder calls this at RIP before fetching; hook state stays owned here. */
++/* decoder/memory owner access to the fetch hook; hook state stays in mem.c. */
 +int wemu_check_fetch_perm(uint64_t va, size_t len);
+ /* Instruction-fetch read (wemu_decode.c): same walk with is_fetch=1. */
+ int wemu_mem_fetch(WemuCpu *cpu, uint64_t va, void *dst, size_t len);
  
- /* effective address for a ModRM memory operand (one owner: exec + sse) */
- uint64_t wemu_eff_addr(WemuCpu *cpu, const WemuInsn *in);
 --- a/src/wemu_mem.c
 +++ b/src/wemu_mem.c
-@@ -2,6 +2,26 @@
+@@ -2,6 +2,24 @@
   * One concern: address translation and checked memory access. */
  #include "wemu_internal.h"
  #include <stdlib.h>
 +
-+/* Optional permission hooks (declared in wemu.h). Single owners; NULL means
-+ * permissive legacy guest RAM. Installed by the WuBuOS WEMU bridge. */
++/* Optional permission hooks. Single owners; NULL means permissive legacy
++ * guest RAM. Installed by the WuBuOS WEMU bridge. */
 +static WemuMemPermFn g_mem_perm_fn;
 +static void *g_mem_perm_ud;
 +void wemu_set_mem_perm_hook(WemuMemPermFn fn, void *ud) {
@@ -57,31 +57,17 @@
 +    g_fetch_perm_fn = fn;
 +    g_fetch_perm_ud = ud;
 +}
-+/* Decoder-side access to the fetch hook: returns nonzero when the optional
-+ * EXEC hook denies `va`. Hook state stays owned in this file. */
 +int wemu_check_fetch_perm(uint64_t va, size_t len) {
 +    return g_fetch_perm_fn && g_fetch_perm_fn(va, len, g_fetch_perm_ud);
 +}
  
  int wemu_gpa_read(WemuCpu *cpu, uint64_t gpa, void *dst, size_t len) {
      if (gpa > cpu->ram_size || len > cpu->ram_size - gpa) {
-@@ -58,7 +78,10 @@
-     return 0;
- }
- 
--int wemu_mem_read(WemuCpu *cpu, uint64_t va, void *dst, size_t len) {
-+/* Core translated read. check_perm: data loads consult the READ/WRITE hook;
-+ * instruction fetch (check_perm=0) is gated by the EXEC hook in wemu_decode. */
-+static int mem_read_core(WemuCpu *cpu, uint64_t va, void *dst, size_t len,
-+                         int check_perm) {
-     uint8_t *d = dst;
-     while (len) {
-         int f;
-@@ -66,10 +89,24 @@
+@@ -133,6 +152,12 @@
          if (f) { cpu->fault = f; return -1; }
          uint64_t chunk = 0x1000 - (va & 0xfff);
          if (chunk > len) chunk = len;
-+        if (check_perm && g_mem_perm_fn &&
++        if (g_mem_perm_fn &&
 +            g_mem_perm_fn(va, (size_t)chunk, 0, g_mem_perm_ud)) {
 +            cpu->fault = 14;               /* #PF: load from a protected page */
 +            cpu->cr2 = va;
@@ -90,23 +76,26 @@
          if (wemu_gpa_read(cpu, gpa, d, (size_t)chunk) != 0) return -1;
          va += chunk; d += chunk; len -= (size_t)chunk;
      }
-     return 0;
-+}
-+
-+int wemu_mem_read(WemuCpu *cpu, uint64_t va, void *dst, size_t len) {
-+    return mem_read_core(cpu, va, dst, len, 1);
-+}
-+
-+int wemu_mem_read_no_perm(WemuCpu *cpu, uint64_t va, void *dst, size_t len) {
-+    return mem_read_core(cpu, va, dst, len, 0);
- }
- 
- int wemu_mem_write(WemuCpu *cpu, uint64_t va, const void *src, size_t len) {
-@@ -80,6 +117,11 @@
+@@ -148,6 +173,13 @@
          if (f) { cpu->fault = f; return -1; }
          uint64_t chunk = 0x1000 - (va & 0xfff);
          if (chunk > len) chunk = len;
-+        if (g_mem_perm_fn && g_mem_perm_fn(va, (size_t)chunk, 1, g_mem_perm_ud)) {
++        if (g_fetch_perm_fn &&
++            g_fetch_perm_fn(va, (size_t)chunk, g_fetch_perm_ud)) {
++            cpu->fault = 14;                  /* #PF: fetch from a no-EXEC page */
++            cpu->fault_error = 0x10;          /* I/D = 1 for instruction fetch */
++            cpu->cr2 = va;
++            return -1;
++        }
+         if (wemu_gpa_read(cpu, gpa, d, (size_t)chunk) != 0) return -1;
+         va += chunk; d += chunk; len -= (size_t)chunk;
+     }
+@@ -162,6 +194,12 @@
+         if (f) { cpu->fault = f; return -1; }
+         uint64_t chunk = 0x1000 - (va & 0xfff);
+         if (chunk > len) chunk = len;
++        if (g_mem_perm_fn &&
++            g_mem_perm_fn(va, (size_t)chunk, 1, g_mem_perm_ud)) {
 +            cpu->fault = 14;               /* #PF: store to a protected page */
 +            cpu->cr2 = va;
 +            return -1;
@@ -114,32 +103,3 @@
          if (wemu_gpa_write(cpu, gpa, s, (size_t)chunk) != 0) return -1;
          va += chunk; s += chunk; len -= (size_t)chunk;
      }
---- a/src/wemu_decode.c
-+++ b/src/wemu_decode.c
-@@ -14,8 +14,8 @@
- static int fetch(Fetch *f, int need) {
-     if (f->n - f->pos >= need) return 0;
-     int have = f->n - f->pos;
--    if (wemu_mem_read(f->cpu, f->va + f->pos, f->buf + f->pos,
--                      (size_t)(need - have)) != 0)
-+    if (wemu_mem_read_no_perm(f->cpu, f->va + f->pos, f->buf + f->pos,
-+                              (size_t)(need - have)) != 0)
-         return -1;
-     f->n = f->pos + need;
-     return 0;
-@@ -81,6 +81,15 @@
- }
- 
- int wemu_decode(WemuCpu *cpu, WemuInsn *in) {
-+    /* Narrow EXEC gate: before any byte is fetched, consult the optional
-+     * instruction-fetch hook at RIP. A VSL-managed page without PROT_EXEC
-+     * raises #PF with CR2 = RIP; legacy RAM stays executable. */
-+    if (wemu_check_fetch_perm(cpu->rip, 1)) {
-+        cpu->fault = 14;                   /* #PF: fetch from a no-exec page */
-+        cpu->cr2 = cpu->rip;
-+        in->fault = 14;
-+        return -1;
-+    }
-     Fetch f = { cpu, cpu->rip, {0}, 0, 0 };
-     in->opsize = 4;
-     in->addrsize = 8;
