@@ -71,7 +71,13 @@ int main(void)
         wubu_buddy_emotion_poll(e, 0.25f);
     CHECK(wubu_buddy_emotion_load(e) <= 1.0f, "normalised load never exceeds 1");
 
-    /* Determinism: identical inputs, identical outputs. */
+    /* Determinism: identical INPUTS, identical outputs. Live sensors are
+     * not identical inputs (the old test sampled them twice and flaked),
+     * so pin all four channels through the same overrides production uses. */
+    setenv("WUBU_BUDDY_CPU_TEMP", "55", 1);
+    setenv("WUBU_BUDDY_SSD_TEMP", "40", 1);
+    setenv("WUBU_BUDDY_LOAD", "0.25", 1);
+    setenv("WUBU_BUDDY_GPU_TEMP", "60", 1);
     wubu_buddy_emotion *a = NULL, *b = NULL;
     wubu_buddy_emotion_create(&a);
     wubu_buddy_emotion_create(&b);
@@ -79,10 +85,18 @@ int main(void)
         wubu_buddy_emotion_poll(a, 0.5f);
         wubu_buddy_emotion_poll(b, 0.5f);
     }
+    CHECK(wubu_buddy_emotion_load(a) == 0.25f,
+          "pinned load override is applied verbatim");
     CHECK(wubu_buddy_emotion_energy(a) == wubu_buddy_emotion_energy(b),
           "same sensor state -> same energy");
     CHECK(wubu_buddy_emotion_mood(a) == wubu_buddy_emotion_mood(b),
           "same sensor state -> same mood");
+
+    /* Restore the environment for any later gates in this process. */
+    unsetenv("WUBU_BUDDY_CPU_TEMP");
+    unsetenv("WUBU_BUDDY_SSD_TEMP");
+    unsetenv("WUBU_BUDDY_LOAD");
+    unsetenv("WUBU_BUDDY_GPU_TEMP");
 
     wubu_buddy_emotion_destroy(a);
     wubu_buddy_emotion_destroy(b);

@@ -14,6 +14,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <ctype.h>
+#include <stdbool.h>
 #include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
@@ -58,6 +59,25 @@ static float read_hwmon_c(const char *dir)
 
 static void scan_hwmon(struct wubu_buddy_emotion *e)
 {
+    /* Test/CI overrides: fixed sensor inputs make the affect mapping
+     * deterministic. Absent env vars use the real hwmon tree below. */
+    bool fixed_cpu = false, fixed_ssd = false;
+    const char *cpu_env = getenv("WUBU_BUDDY_CPU_TEMP");
+    if (cpu_env) {
+        char *end = NULL;
+        float v = strtof(cpu_env, &end);
+        if (end != cpu_env && v >= 0.0f && v < 200.0f) {
+            e->cpu = v; fixed_cpu = true;
+        }
+    }
+    const char *ssd_env = getenv("WUBU_BUDDY_SSD_TEMP");
+    if (ssd_env) {
+        char *end = NULL;
+        float v = strtof(ssd_env, &end);
+        if (end != ssd_env && v >= 0.0f && v < 200.0f) {
+            e->ssd = v; fixed_ssd = true;
+        }
+    }
     static const char *root = "/sys/class/hwmon";
     DIR *d = opendir(root);
     if (!d) return;
@@ -79,7 +99,7 @@ static void scan_hwmon(struct wubu_buddy_emotion *e)
         float c = read_hwmon_c(path);
         if (c < 0.0f) continue;
 
-        if (strcmp(nbuf, "coretemp") == 0) {
+        if (!fixed_cpu && strcmp(nbuf, "coretemp") == 0) {
             e->cpu = c;
             /* per-core sensors can be hotter than the package label */
             for (int i = 2; i <= 8; ++i) {
@@ -88,7 +108,7 @@ static void scan_hwmon(struct wubu_buddy_emotion *e)
                 float p = read_hwmon_c(path);
                 if (p > e->cpu) e->cpu = p;
             }
-        } else if (strcmp(nbuf, "nvme") == 0) {
+        } else if (!fixed_ssd && strcmp(nbuf, "nvme") == 0) {
             if (c > e->ssd) e->ssd = c;   /* multiple drives: take the warmest */
         }
     }
@@ -97,6 +117,15 @@ static void scan_hwmon(struct wubu_buddy_emotion *e)
 
 static void read_load(struct wubu_buddy_emotion *e)
 {
+    const char *env = getenv("WUBU_BUDDY_LOAD");
+    if (env) {
+        char *end = NULL;
+        float v = strtof(env, &end);
+        if (end != env && v >= 0.0f) {
+            e->load = v > 1.0f ? 1.0f : v;
+            return;
+        }
+    }
     FILE *fp = fopen("/proc/loadavg", "r");
     if (!fp) { e->load = 0.0f; return; }
     float l1 = 0.0f;
