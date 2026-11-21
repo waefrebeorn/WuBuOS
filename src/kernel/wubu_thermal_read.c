@@ -19,6 +19,109 @@
 #include <time.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/i2c-dev.h>
+
+/* ---- DDR5 SPD5 hub temperature over SMBus -------------------------- */
+/*
+ * HWiNFO does not read a magic sysfs node: on DDR5 it asks the SPD hub on the
+ * DIMM over SMBus.  The hub's register space lives at I2C address 0x50+slot.
+ * We do the same thing here, in C11, with i2c-dev.  No ACPI zone is ever
+ * substituted: `acpitz` is a platform sensor, not a DIMM.
+ */
+#define WUBU_SPD5_BASE_ADDR   0x50u
+#define WUBU_SPD5_SLOTS       8u
+#define WUBU_SPD5_ID         0x5118u  /* MR0/MR1: hub WITH thermal sensor */
+#define WUBU_SPD5_MR5         0x05u   /* capabilities: bit 1 = TS support */
+#define WUBU_SPD5_MR26        0x1Au   /* TS config: bit 0 = 1 means disabled */
+#define WUBU_SPD5_MR36        0x24u   /* TS resolution, bits [1:0] */
+#define WUBU_SPD5_MR49        0x31u   /* TS current temperature, low byte */
+#define WUBU_SPD5_MR50        0x32u   /* TS current temperature, high byte */
+
+/* MR36[1:0] selects 9/10/11/12-bit two's-complement temperatures.  Datasheet
+ * (S34HTS08AB) tables 101-105: right-shift by (3,2,1,0), sign bit at
+ * (0x200,0x400,0x800,0x1000), LSB in milli-Celsius (500,250,125,62.5). */
+int wubu_thermal_spd5_decode(unsigned char res, unsigned char lo,
+                             unsigned char hi)
+{
+    if (res > 3u) return -1;
+    static const unsigned char shift[4] = { 3u, 2u, 1u, 0u };
+    static const unsigned int sign[4] = { 0x200u, 0x400u, 0x800u, 0x1000u };
+    static const unsigned int milli_x2[4] = { 1000u, 500u, 250u, 125u };
+
+    unsigned int raw = ((unsigned int)hi << 8) | lo;
+    unsigned int code = (raw >> shift[res & 3u]) & ((sign[res & 3u] << 1) - 1u);
+    int negative = (code & sign[res & 3u]) != 0;
+    /* For two's complement: magnitude = 2*sign - code when negative. */
+    unsigned int mag = negative ? (sign[res & 3u] * 2u - code) : code;
+
+    long mc = (long)mag * (long)milli_x2[res & 3u] / 2L;
+    if (negative) mc = -mc;
+    int c = (int)((mc >= 0) ? ((mc + 500) / 1000)
+                            : -((-mc + 500) / 1000));
+    /* Reject readings outside the sensor's datasheet range. */
+    if (c < -40 || c > 125) return -1;
+    return c;
+}
+
+/* One byte from the hub's REGISTER space.  Do NOT use a plain DDR4 SPD dump:
+ * these registers are behind MR11/MR18 hub routing, not EEPROM page 0. */
+static int spd5_reg(int fd, unsigned char reg)
+{
+    unsigned char addr = reg, val = 0;
+    if (write(fd, &addr, 1) != 1) return -1;
+    if (read(fd, &val, 1) != 1) return -1;
+    return (int)val;
+}
+
+static int spd5_temp_on_bus(const char *path)
+{
+    int fd = open(path, O_RDWR);
+    if (fd < 0) return -1;   /* root/i2c-dev permission: fail closed, no 0 C */
+
+    int found = -1;
+    for (unsigned slot = 0; slot < WUBU_SPD5_SLOTS; slot++) {
+        if (ioctl(fd, I2C_SLAVE, WUBU_SPD5_BASE_ADDR + slot) < 0) continue;
+
+        int lo = spd5_reg(fd, 0x00), hi = spd5_reg(fd, 0x01);
+        if (lo < 0 || hi < 0) continue;
+        if ((((unsigned)hi << 8) | (unsigned)lo) != WUBU_SPD5_ID) continue;
+
+        int cap = spd5_reg(fd, WUBU_SPD5_MR5);
+        if (cap < 0 || !(cap & 0x02)) continue;       /* no TS on this hub */
+        int cfg = spd5_reg(fd, WUBU_SPD5_MR26);
+        if (cfg < 0 || (cfg & 0x01)) continue;        /* TS disabled: no data */
+        int res = spd5_reg(fd, WUBU_SPD5_MR36);
+        if (res < 0) continue;
+        int tlo = spd5_reg(fd, WUBU_SPD5_MR49);
+        int thi = spd5_reg(fd, WUBU_SPD5_MR50);
+        if (tlo < 0 || thi < 0) continue;
+
+        found = wubu_thermal_spd5_decode((unsigned char)res,
+                                        (unsigned char)tlo,
+                                        (unsigned char)thi);
+        break;
+    }
+    close(fd);
+    return found;
+}
+
+static int read_spd5_temp(void)
+{
+    DIR *d = opendir("/dev");
+    if (!d) return -1;
+    struct dirent *e;
+    int found = -1;
+    while ((e = readdir(d)) != NULL) {
+        if (strncmp(e->d_name, "i2c-", 4) != 0) continue;
+        char path[512];
+        snprintf(path, sizeof(path), "/dev/%s", e->d_name);
+        found = spd5_temp_on_bus(path);
+        if (found >= 0) break;
+    }
+    closedir(d);
+    return found;
+}
 
 /* ---- small helpers ------------------------------------------------- */
 
@@ -245,8 +348,13 @@ static int read_ram_temp(void)
     int labelled = read_ram_label_scan();
     if (labelled >= 0) return labelled;
 
-    /* 3. Embedded Controller, at an explicitly configured register offset.
-     *    This is where Windows tools get their memory temperature. */
+    /* 3. DDR5 SPD hub over SMBus -- this is what HWiNFO reads. The source is
+     *    a DIMM PCB sensor, not the DRAM cells and never an ACPI zone. */
+    int spd = read_spd5_temp();
+    if (spd >= 0) return spd;
+
+    /* 4. Embedded Controller, at an explicitly configured register offset.
+     *    This is another place vendor tools get memory-adjacent readings. */
     int ec = read_ec_temp();
     if (ec >= 0) return ec;
 

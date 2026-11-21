@@ -6,8 +6,8 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 3790
-- OWNED (appear in a test target recipe): 904
+- product source modules: 3791
+- OWNED (appear in a test target recipe): 905
 - VENDORED / unproven (no test-target recipe reference): 2886
 
 ## OWNED modules (tested)
@@ -223,6 +223,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_synth.c`  -- tests: test_synth
 - `test_tandem.c`  -- tests: test_tandem
 - `test_thermal_read.c`  -- tests: test_thermal_read
+- `test_thermal_spd5.c`  -- tests: test_thermal_spd5
 - `test_usermode_native.c`  -- tests: test_wemu_sandbox
 - `test_win32_core.c`  -- tests: test_win32_core
 - `test_worldsim.c`  -- tests: test_worldsim
@@ -458,7 +459,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_drv_net.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_nvme.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_sd.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
-- `wubu_drv_thermal.c`  -- tests: test_thermal_read;test_drv;test_machines;test_world
+- `wubu_drv_thermal.c`  -- tests: test_thermal_read;test_thermal_spd5;test_drv;test_machines
 - `wubu_drv_usb.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_virtio.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_dspgraph.c`  -- tests: test_hw_dspgraph

@@ -2691,6 +2691,12 @@ test_thermal_read:
 		$(KERNEL)/test_thermal_read.c -ldl -lm -o $(KERNEL)/test_thermal_read
 	$(KERNEL)/test_thermal_read
 
+test_thermal_spd5:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Iinclude -I$(KERNEL) -I$(RT) \
+		$(KERNEL)/wubu_thermal_read.c $(KERNEL)/wubu_drv_thermal.c \
+		$(KERNEL)/test_thermal_spd5.c -ldl -lm -o $(KERNEL)/test_thermal_spd5
+	$(KERNEL)/test_thermal_spd5
+
 test_standards:
 	python3 tools/std_audit.py --baseline tools/std_audit_baseline.json
 
@@ -6170,7 +6176,7 @@ test_jit_profile test_kvfs_route test_lfn test_libc_string test_logind test_mach
 test_ns_ec test_ns_effect test_ns_steaminput test_ns_steamrt test_ns_win32 test_ns_world test_owned_surface test_pe_exec \
 test_pe_full test_pe_globals test_pe_iat test_pe_import test_pe_load test_pe_modsym test_pe_program test_pe_reloc \
 test_pressure_vessel test_psych test_recovery test_rtc test_runtime test_session test_session_boot test_session_daemon \
-test_sha256 test_smbios test_steaminput test_steamrt test_svc_socket test_svc_super test_swap test_sync \
+test_sha256 test_smbios test_steaminput test_steamrt test_svc_socket test_svc_super test_swap test_sync test_thermal_spd5 \
 test_tandem test_theme_bridge test_theme_hid test_tutor test_vdso test_verifier test_vkd3d_live test_vkd3d_live_binding \
 test_vkd3d_live_msaa test_vkd3d_live_pipeline test_vkd3d_live_present test_vkd3d_live_render test_vkd3d_live_texture test_vkd3d_live_uav test_vmm test_vsl_mac \
 test_vsl_macho test_w9pc test_wdt test_win32k test_world test_wubu_applaunch test_wubu_bus test_wubu_daemon_client \

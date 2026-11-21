@@ -20,6 +20,11 @@
  *         exposes temperature ONLY through NVML, never through sysfs.  Falls
  *         back to hwmon amdgpu / nouveau / radeon / i915.
  *   SSD:  hwmon `nvme` temp1_input, surfaced separately.
+ *   RAM:  DDR5 SPD5 hub over SMBus/I2C (registers MR49/MR50, decoded per
+ *         MR36 resolution) -- the same source HWiNFO labels "SPD Hub
+ *         Temperature".  This is DIMM/PCB heat, not the DRAM die and never
+ *         a substituted `acpitz` zone.  Requires root/i2c-dev permission;
+ *         absence yields -1, never 0.
  *
  * HONESTY RULE
  *   An absent or unreadable sensor yields -1, NEVER 0.  Zero degrees is a
@@ -56,6 +61,13 @@ int wubu_thermal_nvme(void);
  * points the reader at any sysfs temperature file so that source can be wired
  * in without pretending the kernel already exposes it. */
 int wubu_thermal_ram(void);
+
+/* Decode one DDR5 SPD5-hub temperature reading.  `res` is MR36[1:0],
+ * `lo`/`hi` are MR49/MR50 raw bytes.  Returns whole degrees Celsius (rounded),
+ * or -1 for an unmodeled resolution.  Exposed for the vector gate; the SMBus
+ * reader in the .c file is the only caller in production. */
+int wubu_thermal_spd5_decode(unsigned char res, unsigned char lo,
+                             unsigned char hi);
 
 /* Force a re-read now, ignoring the one-second cache. */
 void wubu_thermal_refresh(void);
