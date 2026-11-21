@@ -149,6 +149,115 @@ static size_t build_dyn_elf(uint8_t *buf) {
     return 0x1400;
 }
 
+/* Emit `write(1, &ch, 1)` followed by either `ret` (init/fini) or
+ * `exit(code)` (main entry).  All bytes are inside the mapped PT_LOAD. */
+static void ex_emit_write_byte(uint8_t *dst, uint8_t ch, int exit_code) {
+    static const uint8_t pre[] = {
+        0xb8,0,0,0,0,             /* mov $ch,%eax */
+        0x50,                     /* push %rax */
+        0x48,0x89,0xe6,           /* mov %rsp,%rsi */
+        0xb8,1,0,0,0,             /* mov $1,%eax */
+        0xbf,1,0,0,0,             /* mov $1,%edi */
+        0xba,1,0,0,0,             /* mov $1,%edx */
+        0x0f,0x05                 /* syscall */
+    };
+    memcpy(dst, pre, sizeof(pre));
+    dst[1] = ch;
+    dst += sizeof(pre);
+    if (exit_code >= 0) {
+        static const uint8_t ex[] = {
+            0xb8,0x3c,0,0,0,      /* mov $60,%eax */
+            0xbf,0,0,0,0,         /* mov $code,%edi */
+            0x0f,0x05             /* syscall */
+        };
+        memcpy(dst, ex, sizeof(ex));
+        dst[6] = (uint8_t)exit_code;   /* low byte of the $code immediate */
+    } else {
+        static const uint8_t rr[] = { 0x48,0x83,0xc4,0x08, 0xc3 };
+        memcpy(dst, rr, sizeof(rr));
+    }
+}
+
+/* ET_DYN main image with PT_INTERP=/libvslinterp.so and DT_INIT/DT_FINI.
+ * Main entry writes 'M' then exit(77) -- it must NEVER be reached when the
+ * engine honours PT_INTERP (the interpreter exits 0 instead).  DT_INIT writes
+ * 'I' before transfer, DT_FINI writes 'F' on unload, through the existing
+ * init/fini owner. */
+static size_t build_interp_main_elf(uint8_t *buf) {
+    memset(buf, 0, 0x800);
+    buf[0] = 0x7f; buf[1] = 'E'; buf[2] = 'L'; buf[3] = 'F';
+    buf[4] = 2; buf[5] = 1; buf[6] = 1;
+    uint16_t u16; uint32_t u32; uint64_t u64;
+    u16 = 3;    memcpy(buf + 16, &u16, 2);        /* ET_DYN */
+    u16 = 0x3e; memcpy(buf + 18, &u16, 2);        /* x86-64 */
+    u32 = 1;    memcpy(buf + 20, &u32, 4);
+    u64 = 0x400; memcpy(buf + 24, &u64, 8);       /* e_entry */
+    u64 = 64;   memcpy(buf + 32, &u64, 8);        /* e_phoff */
+    u16 = 64;   memcpy(buf + 52, &u16, 2);
+    u16 = 56;   memcpy(buf + 54, &u16, 2);
+    u16 = 3;    memcpy(buf + 56, &u16, 2);        /* 3 phdrs */
+    /* phdr[0] PT_LOAD @0x40: whole first page, RWX */
+    u32 = 1;    memcpy(buf + 64, &u32, 4);
+    u32 = 7;    memcpy(buf + 68, &u32, 4);
+    u64 = 0;    memcpy(buf + 72, &u64, 8);        /* offset */
+    u64 = 0;    memcpy(buf + 80, &u64, 8);        /* vaddr */
+    u64 = 0;    memcpy(buf + 88, &u64, 8);        /* paddr */
+    u64 = 0x800;memcpy(buf + 96, &u64, 8);        /* filesz */
+    u64 = 0x800;memcpy(buf + 104, &u64, 8);       /* memsz */
+    u64 = 0x1000;memcpy(buf + 112, &u64, 8);
+    /* phdr[1] PT_INTERP @0x78 */
+    u32 = 3;    memcpy(buf + 120, &u32, 4);
+    u32 = 4;    memcpy(buf + 124, &u32, 4);
+    u64 = 0x600;memcpy(buf + 128, &u64, 8);
+    u64 = 0x600;memcpy(buf + 136, &u64, 8);
+    u64 = 0x600;memcpy(buf + 144, &u64, 8);
+    u64 = 17;   memcpy(buf + 152, &u64, 8);       /* "/libvslinterp.so\0" */
+    u64 = 17;   memcpy(buf + 160, &u64, 8);
+    u64 = 1;    memcpy(buf + 168, &u64, 8);
+    /* phdr[2] PT_DYNAMIC @0xb0 */
+    u32 = 2;    memcpy(buf + 176, &u32, 4);
+    u32 = 6;    memcpy(buf + 180, &u32, 4);
+    u64 = 0x700;memcpy(buf + 184, &u64, 8);
+    u64 = 0x700;memcpy(buf + 192, &u64, 8);
+    u64 = 0x700;memcpy(buf + 200, &u64, 8);
+    u64 = 48;   memcpy(buf + 208, &u64, 8);
+    u64 = 48;   memcpy(buf + 216, &u64, 8);
+    u64 = 8;    memcpy(buf + 224, &u64, 8);
+    ex_emit_write_byte(buf + 0x400, 'M', 77);     /* main entry (never runs) */
+    ex_emit_write_byte(buf + 0x500, 'I', -1);     /* DT_INIT */
+    ex_emit_write_byte(buf + 0x540, 'F', -1);     /* DT_FINI */
+    memcpy(buf + 0x600, "/libvslinterp.so", 17);
+    u64 = 12;   memcpy(buf + 0x700, &u64, 8);     /* DT_INIT */
+    u64 = 0x500;memcpy(buf + 0x708, &u64, 8);
+    u64 = 13;   memcpy(buf + 0x710, &u64, 8);     /* DT_FINI */
+    u64 = 0x540;memcpy(buf + 0x718, &u64, 8);
+    u64 = 0;    memcpy(buf + 0x720, &u64, 8);     /* DT_NULL */
+    return 0x800;
+}
+
+/* Pre-change loader rule: PT_INTERP was ignored and the main e_entry was
+ * called directly.  A synthetic image that writes 'M'/exits(77) at its
+ * entry proves the differential with the interpreter-driven new path. */
+static int legacy_ignores_interp(void) { return 1; }
+
+/* Pre-change loader rule: any PT_INTERP was ignored, so __libc_start_main
+ * (absent from the bounded host symbol table) failed closed with ERR_RELOC.
+ * Negative control for the real glibc binary: the same bytes, old rule. */
+static int legacy_rejects_glibc_dyn(const uint8_t *img, size_t n) {
+    if (n < 64) return 0;
+    uint64_t phoff; uint16_t phentsize, phnum;
+    memcpy(&phoff, img + 32, 8);
+    memcpy(&phentsize, img + 54, 2);
+    memcpy(&phnum, img + 56, 2);
+    if (phoff + (uint64_t)phnum * phentsize > n) return 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *ph = img + phoff + (uint64_t)i * phentsize;
+        uint32_t t; memcpy(&t, ph, 4);
+        if (t == 3) return 1;                    /* PT_INTERP ignored */
+    }
+    return 0;
+}
+
 /* Pre-change loader rule: any e_type != ET_EXEC(2) was rejected as FORMAT.
  * Used as the differential negative control against the exact fixture. */
 static int legacy_rejects_et_dyn(const uint8_t *img, size_t n) {
@@ -1058,8 +1167,8 @@ int main(int argc, char **argv) {
         uint8_t seedA[0x28] = {0}, seedB[0x28] = {0};
         memcpy(seedA + TLS_SYM_VALUE, &tagA, 8);
         memcpy(seedB + TLS_SYM_VALUE, &tagB, 8);
-        VslImageCfg cfgA = { NULL, 0, 0, seedA, sizeof(seedA) };
-        VslImageCfg cfgB = { NULL, 0, 0, seedB, sizeof(seedB) };
+        VslImageCfg cfgA = { NULL, 0, 0, seedA, sizeof(seedA), NULL };
+        VslImageCfg cfgB = { NULL, 0, 0, seedB, sizeof(seedB), NULL };
         uint64_t outA = 0, outB = 0;
 
         /* Negative control: the pre-change loader applied ONLY RELATIVE and
@@ -1431,8 +1540,8 @@ int main(int argc, char **argv) {
     CHECK(img != NULL, "vn_file gate: fixture readable");
     if (img) {
         const char *dirs[] = { dir, NULL };
-        VslImageCfg hard = { dirs, 0, 0, NULL, 0 };   /* enforce vn_file */
-        VslImageCfg old  = { dirs, 1, 1, NULL, 0 };   /* pre-change rules */
+        VslImageCfg hard = { dirs, 0, 0, NULL, 0, NULL };   /* enforce vn_file */
+        VslImageCfg old  = { dirs, 1, 1, NULL, 0, NULL };   /* pre-change rules */
         rc = vsl_exec_image(img, n, &hard, &r);
         uint64_t ver = 0, weakm = 0;
         if (r.output_len >= 16) {
@@ -1486,8 +1595,8 @@ int main(int argc, char **argv) {
 {
     size_t nw = 0, ns = 0;
     const char *no_dirs[] = { NULL };
-    VslImageCfg hard = { no_dirs, 0, 0, NULL, 0 };
-    VslImageCfg old  = { no_dirs, 0, 1, NULL, 0 };
+    VslImageCfg hard = { no_dirs, 0, 0, NULL, 0, NULL };
+    VslImageCfg old  = { no_dirs, 0, 1, NULL, 0, NULL };
     snprintf(path, sizeof(path), "%s/guest_weakundef.elf", dir);
     uint8_t *w = read_test_file(path, &nw);
     CHECK(w != NULL, "weak-UNDEF gate: fixture readable");
@@ -1534,9 +1643,9 @@ int main(int argc, char **argv) {
     const char *onlyA[] = { dirA, NULL };
     const char *onlyB[] = { dirB, NULL };
     const char *skips[] = { "/nonexistent-vsl-dep-dir", dirB, NULL };
-    VslImageCfg cfgA = { onlyA, 0, 0, NULL, 0 };
-    VslImageCfg cfgB = { onlyB, 0, 0, NULL, 0 };
-    VslImageCfg cfgSkip = { skips, 0, 0, NULL, 0 };
+    VslImageCfg cfgA = { onlyA, 0, 0, NULL, 0, NULL };
+    VslImageCfg cfgB = { onlyB, 0, 0, NULL, 0, NULL };
+    VslImageCfg cfgSkip = { skips, 0, 0, NULL, 0, NULL };
     snprintf(path, sizeof(path), "%s/guest_imgdep.elf", dir);
     uint8_t *img = read_test_file(path, &n);
     CHECK(img != NULL, "per-image dir gate: fixture readable");
@@ -1581,6 +1690,149 @@ int main(int argc, char **argv) {
               "per-image dir gate: global allow-list cleared");
         free(img);
     }
+}
+
+/* (v) Bounded PT_INTERP / guest-rootfs differential gate.
+ *     A REAL dynamically linked gcc binary from the repo-local toolchain
+ *     (plain `gcc`, no -static/-nostdlib): PT_INTERP is
+ *     /lib64/ld-linux-x86-64.so.2, DT_NEEDED libc.so.6, imports
+ *     __libc_start_main/puts@GLIBC_2.2.5.  The pre-change loader ignored
+ *     PT_INTERP and failed closed with ERR_RELOC on the unresolved import;
+ *     the new loader recognises and bounds the path, resolves it inside the
+ *     guest rootfs, and refuses a full glibc ld.so run with an exact reason. */
+{
+    size_t n = 0;
+    const char *none[] = { NULL };
+    snprintf(path, sizeof(path), "%s/guest_glibc_dyn.elf", dir);
+    uint8_t *img = read_test_file(path, &n);
+    CHECK(img != NULL, "PT_INTERP gate: real dynamic gcc binary readable");
+    if (img) {
+        char rootfs[512];
+        snprintf(rootfs, sizeof(rootfs), "%s/glibc_rootfs", dir);
+        VslImageCfg cfg = { none, 0, 0, NULL, 0, rootfs };
+
+        /* Negative control: pre-change loader (PT_INTERP ignored). */
+        CHECK(legacy_rejects_glibc_dyn(img, n) == 1,
+              "negative control: fixture really carries PT_INTERP");
+        vsl_dyn_set_interp(0);
+        int rc_old = vsl_exec_image(img, n, NULL, &r);
+        printf("[gate v] old loader: rc=%d status=%d interp_present=%u\n",
+               rc_old, r.status, r.interp_present);
+        CHECK(rc_old == VSL_EXEC_ERR_RELOC,
+              "old loader rejects the real glibc binary (ERR_RELOC)");
+
+        vsl_dyn_set_interp(1);
+        int rc_new = vsl_exec_image(img, n, &cfg, &r);
+        printf("[gate v] new loader: rc=%d status=%d interp_present=%u "
+               "path=\"%s\" resolved=%u reason=\"%s\"\n",
+               rc_new, r.status, r.interp_present, r.interp_path,
+               r.interp_resolved, r.interp_reason);
+        CHECK(r.interp_present == 1, "PT_INTERP recognised on the real binary");
+        CHECK(strcmp(r.interp_path, "/lib64/ld-linux-x86-64.so.2") == 0,
+              "bounded interpreter path is the exact ld.so soname");
+        CHECK(rc_new == VSL_EXEC_ERR_INTERP,
+              "full glibc ld.so run refused (verified negative)");
+        CHECK(r.interp_resolved == 1,
+              "ld.so path resolved inside the guest rootfs only");
+        CHECK(r.interp_reason[0] != 0,
+              "exact refusal reason recorded for the negative evidence");
+        CHECK(rc_old != rc_new, "old/new rejection codes differ (differential)");
+        vsl_dyn_set_interp(0);
+        free(img);
+    }
+}
+
+/* (w) Positive bounded-interpreter gate.  A synthetic ET_DYN main image
+ *     carries PT_INTERP=/libvslinterp.so and DT_INIT/DT_FINI.  The loader
+ *     maps the freestanding interpreter from the guest rootfs, invokes
+ *     DT_INIT first, hands control to the interpreter (NOT to the main
+ *     entry), and the interpreter reads the kernel-shaped auxv off its own
+ *     stack and emits its exact tag/value pairs.  DT_FINI runs on unload. */
+{
+    uint8_t img[0x800];
+    size_t n = build_interp_main_elf(img);
+    const char *none[] = { NULL };
+    char rootfs[512];
+    snprintf(rootfs, sizeof(rootfs), "%s/glibc_rootfs", dir);
+    VslImageCfg cfg = { none, 0, 0, NULL, 0, rootfs };
+    CHECK(n == 0x800, "interp-main fixture assembled");
+
+    /* Negative control: with PT_INTERP handling OFF the old rule calls the
+     * main entry directly (writes 'M', exits 77) -- no auxv, no interp. */
+    CHECK(legacy_ignores_interp() == 1, "legacy rule: ignore PT_INTERP");
+    vsl_dyn_set_interp(0);
+    vsl_dyn_set_init_fini(0);
+    rc = vsl_exec_image(img, n, NULL, &r);
+    printf("[gate w] old loader: rc=%d exit=%d out=\"%.*s\"\n",
+           rc, r.exit_code, (int)r.output_len, r.output);
+    CHECK(rc == VSL_EXEC_OK && r.exit_code == 77,
+          "old loader calls main entry (exit 77) and ignores PT_INTERP");
+    CHECK(r.output_len == 1 && r.output[0] == 'M',
+          "old loader output is only the main-entry marker");
+
+    vsl_dyn_set_interp(1);
+    vsl_dyn_set_init_fini(1);
+    rc = vsl_exec_image(img, n, &cfg, &r);
+    printf("[gate w] new loader: rc=%d exit=%d deps=%u out_len=%zu "
+           "interp=%u resolved=%u bias=0x%llx auxv=%u init=%u fini=%u\n",
+           rc, r.exit_code, r.deps_loaded, r.output_len,
+           r.interp_loaded, r.interp_resolved,
+           (unsigned long long)r.interp_bias, r.auxv_entries,
+           r.init_called, r.fini_called);
+    CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+          "interpreter runs and exits(0); main entry was not reached");
+    CHECK(r.output_len == 58 && r.output[0] == 'I' && r.output[57] == 'F',
+          "DT_INIT marker precedes output, DT_FINI marker follows on unload");
+    CHECK(r.init_called == 1 && r.fini_called == 1,
+          "DT_INIT/DT_FINI invoked through the existing init/fini owner");
+    CHECK(r.interp_loaded == 1 && r.interp_resolved == 1,
+          "interpreter mapped from the bounded guest rootfs");
+    CHECK(r.auxv_entries == 8, "auxv has seven entries plus AT_NULL");
+    if (r.output_len == 58) {
+        uint64_t v[7];
+        for (int i = 0; i < 7; i++)
+            memcpy(&v[i], r.output + 1 + i * 8, 8);
+        printf("[gate w] auxv PHDR=0x%llx PHENT=%llu PHNUM=%llu "
+               "BASE=0x%llx ENTRY=0x%llx PAGESZ=%llu RANDOM=0x%llx\n",
+               (unsigned long long)v[0], (unsigned long long)v[1],
+               (unsigned long long)v[2], (unsigned long long)v[3],
+               (unsigned long long)v[4], (unsigned long long)v[5],
+               (unsigned long long)v[6]);
+        CHECK(v[0] == r.load_bias + 64,
+              "AT_PHDR is main e_phoff mapped at the chosen load bias");
+        CHECK(v[1] == 56 && v[2] == 3,
+              "AT_PHENT/AT_PHNUM describe the real main program headers");
+        CHECK(v[3] == r.interp_bias && v[3] != 0,
+              "AT_BASE is the interpreter's own non-zero load bias");
+        CHECK(v[4] == r.load_bias + 0x400,
+              "AT_ENTRY is the real main entry the ld.so would jump to");
+        CHECK(v[5] == 4096, "AT_PAGESZ is 4096");
+        CHECK(v[6] != 0, "AT_RANDOM points at stack bytes");
+    }
+
+    /* Fail-closed controls: no rootfs, escaping path, malformed path. */
+    {
+        VslImageCfg no_root = { none, 0, 0, NULL, 0, NULL };
+        rc = vsl_exec_image(img, n, &no_root, &r);
+        printf("[gate w] no rootfs: rc=%d reason=\"%s\"\n", rc, r.interp_reason);
+        CHECK(rc == VSL_EXEC_ERR_INTERP, "PT_INTERP refused with no rootfs");
+    }
+    {
+        uint8_t bad[0x800];
+        memcpy(bad, img, n);
+        memcpy(bad + 0x600, "/../../etc/passwd", 17);
+        rc = vsl_exec_image(bad, n, &cfg, &r);
+        CHECK(rc == VSL_EXEC_ERR_INTERP,
+              "dot-escaping PT_INTERP path fails closed");
+        memcpy(bad, img, n);
+        uint64_t z = 0;
+        memcpy(bad + 152, &z, 8);                  /* PT_INTERP p_filesz = 0 */
+        rc = vsl_exec_image(bad, n, &cfg, &r);
+        CHECK(rc == VSL_EXEC_ERR_INTERP,
+              "malformed PT_INTERP size fails closed");
+    }
+    vsl_dyn_set_interp(0);
+    vsl_dyn_set_init_fini(0);
 }
 
 /* (h) host syscalls still real after all runs (filter ALLOW path) */

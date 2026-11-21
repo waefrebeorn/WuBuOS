@@ -153,6 +153,8 @@ venv*/
 *.d
 *.a
 *.so
+# Host ld.so copied by the VSL PT_INTERP gate into the guest-rootfs fixture.
+src/runtime/vsl/exec_guests/glibc_rootfs/lib64/ld-linux-x86-64.so.2
 *.exe
 *.bin
 *.iso

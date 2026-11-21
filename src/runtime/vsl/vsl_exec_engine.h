@@ -90,6 +90,7 @@
 
 #define VSL_EXEC_OUTPUT_MAX 65536
 #define VSL_TLS_BLOCK_MAX   256u   /* host-provided TLS bytes per image */
+#define VSL_INTERP_PATH_MAX 256u   /* bounded PT_INTERP path length */
 
 /* Run status / engine error codes (also the function return value). */
 enum {
@@ -105,7 +106,8 @@ enum {
     VSL_EXEC_ERR_FAULT     = -9,  /* guest SIGSEGV/SIGBUS (engine survived) */
     VSL_EXEC_ERR_SIGNAL    = -10, /* sigaction/setcontext setup failed */
     VSL_EXEC_ERR_RELOC     = -11, /* ET_DYN relocation table malformed */
-    VSL_EXEC_ERR_RELOCTYPE = -12  /* ET_DYN has unsupported relocation types */
+    VSL_EXEC_ERR_RELOCTYPE = -12, /* ET_DYN has unsupported relocation types */
+    VSL_EXEC_ERR_INTERP    = -13  /* PT_INTERP path/rootfs/interpreter refused */
 };
 
 typedef struct {
@@ -133,6 +135,14 @@ typedef struct {
     uint32_t plt_resolves;      /* first-call resolver invocations this run */
     uint32_t init_called;       /* DT_INIT/INIT_ARRAY functions invoked */
     uint32_t fini_called;       /* DT_FINI_ARRAY/FINI functions invoked */
+    /* PT_INTERP / guest-rootfs / auxv diagnostics (opt-in; zero otherwise) */
+    uint32_t interp_present;    /* main image carries PT_INTERP */
+    uint32_t interp_resolved;   /* bounded path resolved inside the rootfs */
+    uint32_t interp_loaded;     /* interpreter ELF mapped + relocated */
+    uint64_t interp_bias;       /* load bias applied to the interpreter */
+    uint32_t auxv_entries;      /* auxv pairs built on the guest stack */
+    char     interp_path[VSL_INTERP_PATH_MAX];   /* bounded path from PT_INTERP */
+    char     interp_reason[128]; /* exact reason a glibc interpreter was refused */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
@@ -185,6 +195,11 @@ typedef struct {
      * len > VSL_TLS_BLOCK_MAX is rejected with VSL_EXEC_ERR_ARGS. */
     const uint8_t *tls_init;
     size_t         tls_init_len;
+    /* Guest rootfs directory used to resolve an absolute PT_INTERP path.
+     * NULL = no rootfs (a PT_INTERP is then refused when interp handling is
+     * enabled).  Appended at the END so older positional initialisers stay
+     * source-compatible. */
+    const char *rootfs;
 } VslImageCfg;
 
 /* Hardened per-image run.  Returns the same codes as vsl_exec_elf_bytes();
@@ -207,6 +222,30 @@ uint64_t vsl_dyn_dep_symbol(const char *name);
  *     unload, for dependencies then the main image. */
 void vsl_dyn_set_lazy_plt(int on);
 void vsl_dyn_set_init_fini(int on);
+
+/* Opt-in bounded PT_INTERP handling.  OFF by default (pre-change behavior:
+ * PT_INTERP was ignored and the main e_entry was called directly).  When ON,
+ * an ET_EXEC/ET_DYN image with PT_INTERP is handled as a real kernel would:
+ *   - the path is parsed with strict bounds (absolute, no "..", NUL inside
+ *     p_filesz, length <= VSL_INTERP_PATH_MAX);
+ *   - the absolute path is re-rooted inside the allow-listed guest rootfs
+ *     (per-image VslImageCfg.rootfs, or the process-wide one below) with
+ *     realpath confinement -- nothing is ever read from the host root;
+ *   - the interpreter is mapped and relocated with the SAME bounded loader
+ *     as a DT_NEEDED dependency, and its DT_INIT/DT_FINI join the existing
+ *     init/fini owner (interpreter first, deps leaf-first, main last; fini
+ *     in reverse).  Control transfers to the interpreter's e_entry.
+ *   - the guest stack carries the full auxv an ld.so needs: AT_PHDR,
+ *     AT_PHENT, AT_PHNUM, AT_BASE (interpreter bias), AT_ENTRY (main entry),
+ *     AT_PAGESZ, AT_RANDOM and AT_NULL.
+ * A real glibc ld.so needs unmodeled %fs/TCB, TLS and versioned-symbol
+ * machinery; when the bounded interpreter load fails the engine fails closed
+ * with VSL_EXEC_ERR_INTERP and an exact reason in VslExecResult.interp_reason.
+ */
+void vsl_dyn_set_interp(int on);
+/* Process-wide guest rootfs allow-list (NULL clears it).  A per-image cfg
+ * rootfs takes precedence; both refuse paths escaping the directory. */
+int  vsl_dyn_set_rootfs(const char *dir);
 /* Lifetime count of first-call PLT resolver invocations (for differential
  * gates).  Per-run count is in VslExecResult.plt_resolves. */
 uint64_t vsl_dyn_plt_resolve_count(void);

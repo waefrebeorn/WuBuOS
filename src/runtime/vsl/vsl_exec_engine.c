@@ -179,19 +179,36 @@ static int ex_range_free(uint64_t lo, uint64_t hi) {
     return free_;
 }
 
-/* -- initial guest stack: argc/argv/envp/auxv ------------------------ */
-static uint64_t ex_build_stack(uint8_t *base, size_t size, uint64_t entry) {
+/* -- initial guest stack: argc/argv/envp/full auxv -------------------
+ * A real ld.so needs AT_PHDR/AT_PHENT/AT_PHNUM to find the main image's
+ * PT_DYNAMIC, AT_BASE for its own load bias, AT_ENTRY for the main entry it
+ * must jump to, AT_PAGESZ and AT_RANDOM.  The old loader only supplied
+ * AT_PAGESZ + AT_ENTRY; this is the bounded, kernel-shaped layout. */
+#define EX_AUXV_ENTRIES 7u   /* PHDR,PHENT,PHNUM,BASE,ENTRY,PAGESZ,RANDOM */
+static uint64_t ex_build_stack(uint8_t *base, size_t size, uint64_t entry,
+                               uint64_t phdr_addr, uint16_t phentsize,
+                               uint16_t phnum, uint64_t interp_bias,
+                               uint64_t *out_auxv_count) {
     uint64_t top = (uint64_t)(uintptr_t)base + size;
-    char *arg0 = (char *)(top - 16);
+    /* AT_RANDOM: 16 bytes at the very top, kernel-style. */
+    uint8_t *rnd = (uint8_t *)(top - 16);
+    for (int i = 0; i < 16; i++) rnd[i] = (uint8_t)(0xa5 ^ (i * 0x11));
+    char *arg0 = (char *)(top - 32);
     memcpy(arg0, "vsl-guest", 10);
     uint64_t *p = (uint64_t *)arg0;
     *--p = 0;     *--p = 0;        /* auxv AT_NULL */
+    *--p = (uint64_t)(uintptr_t)rnd; *--p = 25;  /* AT_RANDOM */
     *--p = 4096;  *--p = 6;        /* auxv AT_PAGESZ */
-    *--p = entry; *--p = 9;        /* auxv AT_ENTRY */
+    *--p = entry; *--p = 9;        /* auxv AT_ENTRY (main e_entry) */
+    *--p = interp_bias; *--p = 7;  /* auxv AT_BASE (interpreter bias) */
+    *--p = phnum; *--p = 5;        /* auxv AT_PHNUM */
+    *--p = phentsize; *--p = 4;    /* auxv AT_PHENT */
+    *--p = phdr_addr; *--p = 3;    /* auxv AT_PHDR */
     *--p = 0;                      /* envp terminator */
     *--p = 0;                      /* argv terminator */
     *--p = (uint64_t)(uintptr_t)arg0;  /* argv[0] */
     *--p = 1;                      /* argc */
+    if (out_auxv_count) *out_auxv_count = EX_AUXV_ENTRIES + 1;
     return (uint64_t)(uintptr_t)p & ~15ULL;
 }
 
@@ -501,6 +518,67 @@ static int ex_collect_ctors(const uint8_t *f, size_t fsz,
     return 0;
 }
 
+/* -- bounded PT_INTERP recognition + guest-rootfs resolution ----------
+ * A PT_INTERP is DATA, not an instruction to trust a host path.  We accept
+ * only a bounded, absolute, dot-free NUL-terminated string, and re-root it
+ * inside an allow-listed guest rootfs. */
+#define EX_PT_INTERP 3u
+static int      g_run_interp;               /* opt-in, default OFF */
+static uint64_t g_interp_entry;             /* interpreter e_entry (link addr) */
+static uint64_t g_interp_bias;
+static uint8_t *g_interp_map;
+static uint64_t g_interp_lo, g_interp_hi;
+
+void vsl_dyn_set_interp(int on) { g_run_interp = on ? 1 : 0; }
+
+static void ex_interp_reset(void) {
+    if (g_interp_map)
+        munmap(g_interp_map, (size_t)(g_interp_hi - g_interp_lo));
+    g_interp_entry = g_interp_bias = 0;
+    g_interp_map = NULL;
+    g_interp_lo = g_interp_hi = 0;
+}
+
+/* Strict PT_INTERP parse.  Returns 0 when there is no interpreter or a
+ * valid one was copied into out->interp_path; -1 when a PT_INTERP exists but
+ * violates a bound (caller fails closed with ERR_INTERP). */
+static int ex_parse_interp(const uint8_t *f, size_t fsz, uint16_t phnum,
+                           uint16_t phentsize, uint64_t phoff,
+                           VslExecResult *out) {
+    if (phentsize < 56) return -1;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *cur = f + phoff + (uint64_t)i * phentsize;
+        uint32_t t;
+        memcpy(&t, cur, 4);
+        if (t != EX_PT_INTERP) continue;
+        uint64_t off, filesz;
+        memcpy(&off, cur + 8, 8);
+        memcpy(&filesz, cur + 32, 8);
+        if (filesz < 2 || filesz > VSL_INTERP_PATH_MAX ||
+            off > fsz || filesz > fsz - off) return -1;
+        const char *s = (const char *)(f + off);
+        size_t len = 0;
+        while (len < filesz && s[len] != '\0') len++;
+        if (len == 0 || len >= filesz || len >= VSL_INTERP_PATH_MAX) return -1;
+        if (s[0] != '/') return -1;                  /* absolute only */
+        /* Reject dot components and adjacent slashes: the path is re-rooted
+         * verbatim, so no component may try to escape the guest rootfs. */
+        if (strstr(s, "..") || strstr(s, "//")) return -1;
+        const char *seg = s;
+        for (const char *c = s; c <= s + len; c++) {
+            if (*c == '/' || *c == '\0') {
+                if (c > seg && c - seg == 1 && seg[0] == '.') return -1;
+                seg = c + 1;
+            }
+        }
+        memcpy(out->interp_path, s, len);
+        out->interp_path[len] = '\0';
+        out->interp_present = 1;
+        return 0;
+    }
+    return 0;                                        /* static binary */
+}
+
 /* -- ET_DYN helpers -------------------------------------------------- */
 
 /* Translate a link-time virtual address to a raw file offset by finding the
@@ -627,6 +705,19 @@ typedef struct VslDynInfo {
 static char g_dep_dir[EX_DEP_PATH_MAX];
 static int  g_dep_dir_set;
 
+/* -- bounded guest rootfs for PT_INTERP ------------------------------ */
+static char g_rootfs_dir[EX_DEP_PATH_MAX];
+static int  g_rootfs_dir_set;
+
+int vsl_dyn_set_rootfs(const char *dir) {
+    if (!dir || !dir[0]) { g_rootfs_dir[0] = 0; g_rootfs_dir_set = 0; return 0; }
+    size_t n = strlen(dir);
+    if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
+    memcpy(g_rootfs_dir, dir, n + 1);
+    g_rootfs_dir_set = 1;
+    return 0;
+}
+
 /* -- HOST-PROVIDED TLS BLOCKS ------------------------------------------
  * One fixed-size block per image: index 0 = main image, 1..EX_DEP_MAX =
  * DT_NEEDED dependencies.  Static, bounded host memory -- no guest-supplied
@@ -645,6 +736,8 @@ static char     g_run_dirs[VSL_IMAGE_DIRS_MAX][EX_DEP_PATH_MAX];
 static uint32_t g_run_dir_count;
 static int      g_run_legacy_ver_any_file;
 static int      g_run_legacy_weak_fail;
+static char     g_run_rootfs[EX_DEP_PATH_MAX];
+static int      g_run_rootfs_set;
 
 /* Copy one run's configuration; no directory is ever written to a global
  * allow-list.  Returns 0 ok, -1 on an invalid/oversized path or too many
@@ -659,9 +752,21 @@ static int ex_set_run_config(const VslImageCfg *cfg) {
     if (cfg && cfg->tls_init_len > sizeof(g_tls_blocks[0])) return -1;
     if (cfg && cfg->tls_init && cfg->tls_init_len)
         memcpy(g_tls_blocks[0], cfg->tls_init, cfg->tls_init_len);
+    g_run_rootfs[0] = 0;
+    g_run_rootfs_set = 0;
+    if (cfg && cfg->rootfs && cfg->rootfs[0]) {
+        size_t n = strlen(cfg->rootfs);
+        if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
+        memcpy(g_run_rootfs, cfg->rootfs, n + 1);
+        g_run_rootfs_set = 1;
+    }
     if (!cfg) {                              /* legacy entry point */
         g_run_legacy_ver_any_file = 1;      /* old: ignore vn_file */
         g_run_legacy_weak_fail = 1;         /* old: weak UNDEF fails closed */
+        if (!g_run_rootfs_set && g_rootfs_dir_set) {
+            memcpy(g_run_rootfs, g_rootfs_dir, strlen(g_rootfs_dir) + 1);
+            g_run_rootfs_set = 1;
+        }
         if (g_dep_dir_set && g_dep_dir[0]) {
             size_t n = strlen(g_dep_dir);
             if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
@@ -672,6 +777,10 @@ static int ex_set_run_config(const VslImageCfg *cfg) {
     }
     g_run_legacy_ver_any_file = cfg->legacy_version_any_file ? 1 : 0;
     g_run_legacy_weak_fail    = cfg->legacy_weak_undef_fail ? 1 : 0;
+    if (!g_run_rootfs_set && g_rootfs_dir_set) {
+        memcpy(g_run_rootfs, g_rootfs_dir, strlen(g_rootfs_dir) + 1);
+        g_run_rootfs_set = 1;
+    }
     if (!cfg->dirs) return 0;                /* isolated image: no deps */
     for (uint32_t i = 0; i < VSL_IMAGE_DIRS_MAX; i++) {
         const char *d = cfg->dirs[i];
@@ -1819,7 +1928,135 @@ static void ex_reset_dep_state(void) {
 
 /* Backwards-compatible name used by the rollback paths: a failed load leaves
  * NO stale dependency state at all. */
-static void ex_unload_dependencies(void) { ex_reset_dep_state(); }
+static void ex_unload_dependencies(void) {
+    ex_reset_dep_state();
+    ex_interp_reset();              /* every rollback also drops the interp */
+}
+
+/* -- bounded PT_INTERP resolution + interpreter load ------------------
+ * The absolute PT_INTERP path is RE-ROOTED under the allow-listed guest
+ * rootfs.  realpath() confinement means a symlink can never escape it. */
+static char *ex_resolve_rootfs_path(const char *root, const char *abs,
+                                    char *reason, size_t reason_sz) {
+    if (!g_run_rootfs_set || !root || !root[0]) {
+        snprintf(reason, reason_sz, "no guest rootfs configured for PT_INTERP");
+        return NULL;
+    }
+    size_t nr = strlen(root), na = strlen(abs);
+    if (nr + na + 1 >= EX_DEP_PATH_MAX) {
+        snprintf(reason, reason_sz, "PT_INTERP path exceeds bounded length");
+        return NULL;
+    }
+    char joined[EX_DEP_PATH_MAX];
+    memcpy(joined, root, nr);
+    memcpy(joined + nr, abs, na + 1);
+    /* realpath(path, NULL) instead of a caller-sized buffer: glibc's
+     * __realpath_chk fortify check trips on undersized buffers. */
+    char *rp_root = realpath(root, NULL);
+    char *rp = realpath(joined, NULL);
+    if (!rp_root || !rp) {
+        snprintf(reason, reason_sz, "interpreter not found inside guest rootfs");
+        free(rp_root); free(rp);
+        return NULL;
+    }
+    size_t lr = strlen(rp_root);
+    if (strncmp(rp, rp_root, lr) != 0 || rp[lr] != '/') {
+        snprintf(reason, reason_sz, "interpreter path escapes guest rootfs");
+        free(rp_root); free(rp);
+        return NULL;
+    }
+    free(rp_root);
+    return rp;                                  /* caller frees */
+}
+
+/* Load the interpreter with the SAME bounded ET_DYN machinery as a
+ * dependency: map its PT_LOAD union, apply the same relocation set, merge
+ * its exports and collect its DT_INIT/DT_FINI into the existing owner.  A
+ * real glibc ld.so fails here (unsupported relocations / unknown symbols)
+ * and is classified as an infeasible ABI with the exact reason. */
+static int ex_load_interpreter(VslExecResult *out) {
+    char *path = ex_resolve_rootfs_path(g_run_rootfs, out->interp_path,
+                                        out->interp_reason,
+                                        sizeof(out->interp_reason));
+    if (!path) return -1;
+    out->interp_resolved = 1;
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter file unreadable");
+        free(path); return -1;
+    }
+    if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); free(path); return -1; }
+    long sz = ftell(fp);
+    if (sz <= 0 || sz > (long)EX_DEP_FILE_MAX || fseek(fp, 0, SEEK_SET) != 0) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter file size out of bounds");
+        fclose(fp); free(path); return -1;
+    }
+    uint8_t *f = (uint8_t *)malloc((size_t)sz);
+    if (!f) { fclose(fp); free(path); return -1; }
+    if (fread(f, 1, (size_t)sz, fp) != (size_t)sz) {
+        free(f); fclose(fp); free(path); return -1;
+    }
+    fclose(fp);
+    free(path);
+
+    uint64_t entry = 0;
+    uint16_t et = 0, phnum, phentsize;
+    uint64_t phoff;
+    if (vsl_elf_validate(f, (size_t)sz, &entry) != 0 ||
+        (size_t)sz < 64) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter is not a valid ELF image");
+        free(f); return -1;
+    }
+    memcpy(&et, f + 16, 2);
+    memcpy(&phoff, f + 32, 8);
+    memcpy(&phentsize, f + 54, 2);
+    memcpy(&phnum, f + 56, 2);
+    if (et != 3 || phentsize < 56 ||
+        phoff + (uint64_t)phnum * phentsize > (size_t)sz) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter is not a bounded ET_DYN ELF");
+        free(f); return -1;
+    }
+    VslDynInfo di;
+    if (ex_parse_dyn(f, (size_t)sz, phnum, phentsize, phoff, &di) != 0) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter dynamic section malformed");
+        free(f); return -1;
+    }
+    if (ex_map_dyn_image(f, (size_t)sz, phnum, phentsize, phoff,
+                         &g_interp_map, &g_interp_bias,
+                         &g_interp_lo, &g_interp_hi) != 0) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter PT_LOAD union cannot be mapped in VSL window");
+        free(f); return -1;
+    }
+    uint32_t applied = 0, skipped = 0, resolved = 0, tls = 0;
+    if (ex_apply_relocations(f, (size_t)sz, g_interp_bias,
+                             g_interp_lo, g_interp_hi, phnum, phentsize, phoff,
+                             &applied, &skipped, &resolved, 0,
+                             ex_tls_base(0), &tls) != 0 || skipped) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter needs unsupported relocations/symbols "
+                 "(glibc ld.so ABI unmodeled)");
+        free(f); return -1;
+    }
+    if (ex_register_exports(f, (size_t)sz, phnum, phentsize, phoff,
+                            &di, g_interp_bias, "ld-interp") != 0 ||
+        ex_collect_ctors(f, (size_t)sz, phnum, phentsize, phoff,
+                         g_interp_bias, g_interp_lo, g_interp_hi) != 0) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter exports/constructors out of bounds");
+        free(f); return -1;
+    }
+    g_interp_entry = entry;
+    out->interp_bias = g_interp_bias;
+    out->interp_loaded = 1;
+    free(f);
+    return 0;
+}
 
 /* -- the engine ------------------------------------------------------- */
 int vsl_exec_image(const void *elf_data, size_t elf_size,
@@ -1832,6 +2069,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         return out->status;
     }
     ex_unload_dependencies();              /* reset per-run DT_NEEDED state */
+    ex_interp_reset();                     /* release any prior interpreter */
     ex_plt_reset();                        /* reset per-run lazy-PLT state */
     ex_ctors_reset();                      /* reset per-run init/fini state */
     if (!elf_data || elf_size < 64) {
@@ -1866,7 +2104,30 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         return out->status;
     }
 
-    /* 2b. ET_DYN: load the bounded DT_NEEDED graph BEFORE choosing the main
+    /* 2a. Recognise PT_INTERP early (even for a legacy run, so diagnostics
+     *     are honest).  A malformed path is always a hard reject. */
+    if (ex_parse_interp(p, elf_size, e_phnum, e_phentsize, e_phoff, out) != 0) {
+        out->status = VSL_EXEC_ERR_INTERP;
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "malformed PT_INTERP path");
+        return out->status;
+    }
+
+    /* 2b. Bounded interpreter: resolve inside the guest rootfs, map it with
+     *     the same bounded ET_DYN loader as a dependency and collect its
+     *     constructors FIRST (the interpreter initialises before deps/main).
+     *     OPT-IN: with handling off, PT_INTERP stays ignored exactly as in
+     *     the pre-change engine. */
+    if (g_run_interp && out->interp_present) {
+        if (ex_load_interpreter(out) != 0) {
+            ex_unload_dependencies();
+            ex_interp_reset();
+            out->status = VSL_EXEC_ERR_INTERP;
+            return out->status;
+        }
+    }
+
+    /* 2c. ET_DYN: load the bounded DT_NEEDED graph BEFORE choosing the main
      *     bias, so dependencies occupy their own in-window mappings and their
      *     exports are merged before the main image is relocated.  Any missing,
      *     malformed or out-of-tree dependency fails closed with ERR_RELOC. */
@@ -1938,7 +2199,12 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         }
     }
     out->load_bias = load_bias;                      /* 0 for ET_EXEC */
-    uint64_t entry = entry_link + load_bias;
+    uint64_t entry = entry_link + load_bias;         /* MAIN entry (AT_ENTRY) */
+    /* With a bounded interpreter loaded, control starts at the interpreter,
+     * exactly as a kernel hands the image to ld.so; the interpreter later
+     * jumps to AT_ENTRY.  Without one, behaviour is unchanged. */
+    uint64_t run_entry = out->interp_loaded
+                       ? g_interp_entry + g_interp_bias : entry;
 
     /* Pass B: biased bounding range + executable extents. */
     uint64_t lo = UINT64_MAX, hi = 0;
@@ -2120,7 +2386,9 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     stack = mmap(NULL, EX_STACK_SIZE, PROT_READ | PROT_WRITE,
                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
     if (stack == MAP_FAILED) { stack = NULL; rc = VSL_EXEC_ERR_MAP; goto cleanup; }
-    sp = ex_build_stack(stack, EX_STACK_SIZE, entry);
+    sp = ex_build_stack(stack, EX_STACK_SIZE, entry, e_phoff + load_bias,
+                        e_phentsize, e_phnum, g_interp_bias,
+                        &out->auxv_entries);
     proc->stack_pointer = sp;
 
     /* 9. Transfer control.  exit/exit_group and faults siglongjmp back. */
@@ -2139,7 +2407,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         uc.uc_stack.ss_size = EX_STACK_SIZE;
         uc.uc_link = NULL;
         uc.uc_mcontext.gregs[REG_RSP] = (greg_t)sp;
-        uc.uc_mcontext.gregs[REG_RIP] = (greg_t)entry;
+        uc.uc_mcontext.gregs[REG_RIP] = (greg_t)run_entry;
         g_ex.active = 1;
         setcontext(&uc);   /* does not return; guest runs until exit/fault */
         g_ex.active = 0;
@@ -2203,6 +2471,7 @@ cleanup:
     if (map && (uint64_t)(uintptr_t)map == lo)
         munmap(map, (size_t)(hi - lo));
     ex_release_dep_mappings();        /* keep load-order/symbol view for gate */
+    ex_interp_reset();                /* unmap the bounded interpreter */
     ex_plt_release();                 /* lazy-PLT stubs are per-run */
     if (stack) munmap(stack, EX_STACK_SIZE);
     if (out->status == VSL_EXEC_OK && rc != VSL_EXEC_OK)

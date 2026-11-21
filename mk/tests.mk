@@ -703,7 +703,10 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_strongundef.elf \
 	$(RT)/vsl/exec_guests/dirA/libvslimgdep.so \
 	$(RT)/vsl/exec_guests/dirB/libvslimgdep.so \
-	$(RT)/vsl/exec_guests/guest_imgdep.elf
+	$(RT)/vsl/exec_guests/guest_imgdep.elf \
+	$(RT)/vsl/exec_guests/guest_glibc_dyn.elf \
+	$(RT)/vsl/exec_guests/glibc_rootfs/libvslinterp.so \
+	$(RT)/vsl/exec_guests/glibc_rootfs/lib64/ld-linux-x86-64.so.2
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -828,6 +831,34 @@ $(RT)/vsl/exec_guests/guest_imgdep.elf: \
 		-fno-stack-protector -fno-asynchronous-unwind-tables \
 		-Wl,--build-id=none -Wl,-e,_start -Wl,--no-as-needed \
 		-L$(RT)/vsl/exec_guests/dirA -l:libvslimgdep.so $< -o $@
+
+# PT_INTERP leg fixtures.  guest_glibc_dyn.elf is a REAL dynamically linked
+# glibc binary (plain $(CC), no -static/-nostdlib) from the repo-local
+# toolchain: its PT_INTERP is /lib64/ld-linux-x86-64.so.2 and it imports
+# __libc_start_main/puts from libc.so.6.  libvslinterp.so is a freestanding
+# ET_DYN interpreter placed at /libvslinterp.so inside the guest rootfs.
+$(RT)/vsl/exec_guests/guest_glibc_dyn.elf: \
+		$(RT)/vsl/exec_guests/guest_glibc_dyn.c
+	$(CC) -O2 -Wl,--build-id=none $< -o $@
+
+$(RT)/vsl/exec_guests/glibc_rootfs/libvslinterp.so: \
+		$(RT)/vsl/exec_guests/guest_interp.c
+	mkdir -p $(dir $@)
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start $< -o $@
+
+# A copy of the host's real ld.so is placed in the guest rootfs ONLY so the
+# verified-negative gate can prove the bounded loader refuses a genuine
+# glibc interpreter (unsupported relocations/symbols).  Never read from the
+# host root at run time.  Missing host file still yields a fail-closed gate.
+$(RT)/vsl/exec_guests/glibc_rootfs/lib64/ld-linux-x86-64.so.2:
+	mkdir -p $(dir $@)
+	@if [ -e /lib64/ld-linux-x86-64.so.2 ]; then \
+		cp -L /lib64/ld-linux-x86-64.so.2 $@; \
+	else \
+		printf 'vsl: no host ld.so available\n' > $@; \
+	fi
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
