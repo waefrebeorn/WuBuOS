@@ -80,10 +80,22 @@
  * FIXED 4096 (a real glibc libc.so.6 defines 3136 dynsyms) with an explicit
  * 2 MiB name/byte budget and a 2 MiB static-footprint assertion, so growth
  * stays bounded.  The real glibc fixture then advances past the cap: its
- * exports are merged and the main image's versioned imports bind from them;
- * the exact NEXT boundary is a guest fault (VSL_EXEC_ERR_FAULT at 0xa0) when
- * unmodelled glibc startup bytes execute -- a verified negative, not a silent
- * skip.  A vn_file retarget to libc.so.6 restores the _dl_argv fault earlier.
+ * exports are merged and the main image's versioned imports bind from them.
+ * Without the opt-in startup state the exact NEXT boundary is a guest fault
+ * (VSL_EXEC_ERR_FAULT at 0xa0): __libc_start_main derefs the zeroed
+ * _rtld_global._dl_rtld_map (l_info[DT_INIT] at +0xa0) -- a verified negative,
+ * not a silent skip.  A vn_file retarget to libc.so.6 restores the _dl_argv
+ * fault earlier.  With vsl_dyn_set_glibc_startup(1) that state is modelled:
+ * a bounded link_map model is published as _rtld_global._dl_rtld_map and a
+ * bounded x86-64 TCB (guards from AT_RANDOM) is installed as %fs, with
+ * TPOFF64 words expressed relative to it.  RELR bitmaps now advance their
+ * base per 63-slot word (real glibc's atexit list lives in a second word),
+ * and the 42 IRELATIVE stand-ins are canonical callable host stubs rather
+ * than a non-canonical sentinel (#GP).  A real glibc libc.so.6 then runs a
+ * dynamically linked COPY guest to a correct exit(1) through the REAL
+ * vsl_sys_exit; the remaining boundaries are IFUNC resolver SEMANTICS
+ * (stand-ins return, they do not implement memcpy/strlen), init/fini of the
+ * real DSOs, and the real allocator -- all still fail closed on guest fault.
  *
  * DT_NEEDED is supported ONLY in this bounded form: DT_NEEDED sonames are a
  * plain basename found in a bounded per-image search-directory list (or the
@@ -205,7 +217,10 @@ uint64_t vsl_dyn_ifunc_call_count(void);  /* IRELATIVE host resolver calls */
 /* Bounded stand-in value returned for the real-glibc IRELATIVE resolver
  * addresses registered in the host table.  The real resolvers pick guest
  * code at run time; the bounded model never runs guest bytes during
- * relocation, so this fixed value is written instead. */
+ * relocation.  The value is the address of a fixed host function that only
+ * returns -- canonical and callable, so a real glibc indirect call through
+ * a resolved GOT slot cannot #GP on a sentinel; it is NOT a faithful IFUNC
+ * implementation (no member operations are modelled). */
 uint64_t vsl_dyn_ifunc_libc_value(void);
 
 /* Base of the HOST-provided TLS block used by the main image of the last
@@ -342,6 +357,16 @@ uint64_t vsl_dyn_plt_resolve_count(void);
  * ARCH_GET_FS returns the recorded guest base.  Unknown arch_prctl options
  * fail closed with -EINVAL. */
 void vsl_dyn_set_fs_tls(int on);
+/* Opt-in bounded glibc startup state, OFF by default.  Models the state a
+ * kernel + interpreter install before __libc_start_main on the direct-entry
+ * path: a fixed-size link_map model published as _rtld_global._dl_rtld_map
+ * (DT_INIT/DT_INIT_ARRAY read NULL -- no interpreter constructor runs), and a
+ * fixed-size x86-64 startup TCB (self, dtv, pthread self, stack/pointer
+ * guards from AT_RANDOM) installed as %fs at guest entry.  TPOFF64 words are
+ * expressed relative to that base so real glibc's %fs-relative TLS accesses
+ * land in the bounded host TLS blocks.  All state is host static storage
+ * with explicit bounds; unmodelled startup bytes still fault fail-closed. */
+void vsl_dyn_set_glibc_startup(int on);
 /* Address of the host TCB/dtv backing store used by the LAST run (for gates). */
 uint64_t vsl_dyn_tcb_base(void);
 /* Module id assigned at index idx in the last run's TLS layout, or 0. */

@@ -1468,6 +1468,8 @@ int main(int argc, char **argv) {
               "every real-glibc IRELATIVE resolver bound via host table");
         CHECK(vsl_dyn_ifunc_call_count() == before + nres,
               "one bounded host resolver call per real-glibc resolver entry");
+        CHECK(magic < 0x0000800000000000ULL || (magic >> 47) == 0x1ffffULL,
+              "IFUNC stand-in is canonical/callable, not a #GP sentinel");
     }
 
     /* (o) Bounded TLS differential gate.  A hand-built ET_DYN uses TPOFF64
@@ -2806,6 +2808,77 @@ int main(int argc, char **argv) {
         vsl_dyn_set_interp_bind_main(0);
         vsl_dyn_set_interp(0);
         free(hbig);
+    }
+}
+
+/* (ad) Bounded FS/TCB+TLS startup state for a REAL glibc libc.so.6 provider.
+ *  The same byte-identical dynamically-linked COPY guest is run twice against
+ *  the real host libc.so.6:
+ *   - startup state OFF (default): relocation completes, then __libc_start_main
+ *     derefs _rtld_global._dl_rtld_map (l_info[DT_INIT] at +0xa0) and faults at
+ *     the exact 0xa0 boundary -- the verified pre-change negative control;
+ *   - startup state ON: the engine publishes a bounded link_map model and a
+ *     bounded x86-64 TCB as %fs (with %fs-relative TPOFF64 words), so the
+ *     real glibc-linked guest runs to a REAL vsl_sys_exit: the COPY of the
+ *     real libc's `optind` is 0x01, written on fd 1 and returned as exit(1).
+ *  No relocation failure remains and %fs is restored to the host afterwards. */
+{
+    char root[512], realroot[512], path[512];
+    snprintf(root,     sizeof(root),     "%s/glibc_rootfs", dir);
+    snprintf(realroot, sizeof(realroot), "%s/glibc_rootfs_reallibc", dir);
+    const char *none[]       = { NULL };
+    const char *real_first[] = { realroot, root, NULL };
+    VslImageCfg cfg = { none, 0, 0, NULL, 0, NULL, real_first };
+
+    snprintf(path, sizeof(path), "%s/guest_copy.elf", dir);
+    size_t n = 0;
+    uint8_t *img = read_test_file(path, &n);
+    CHECK(img != NULL, "startup-state gate: real COPY fixture readable");
+    if (img) {
+        vsl_dyn_set_interp(1);
+        vsl_dyn_set_interp_bind_main(1);
+        vsl_dyn_set_init_fini(0);
+        vsl_dyn_set_fs_tls(0);
+        vsl_dyn_set_libc_rootfs(1);
+
+        /* NEGATIVE CONTROL: default (feature OFF) is byte-for-byte the old
+         * path and must fault at the exact 0xa0 boundary. */
+        vsl_dyn_set_glibc_startup(0);
+        int rc_off = vsl_exec_image(img, n, &cfg, &r);
+        printf("[ad] startup OFF: rc=%d status=%d fault=0x%llx syscalls=%llu "
+               "reloc_failure=\"%s\"\n",
+               rc_off, r.status, (unsigned long long)r.fault_addr,
+               (unsigned long long)r.syscalls_trapped, r.reloc_failure);
+        CHECK(rc_off == VSL_EXEC_ERR_FAULT && r.fault_addr == 0xa0 &&
+              r.reloc_failure[0] == 0,
+              "startup OFF: exact 0xa0 _rtld_global fault (negative control)");
+
+        /* POSITIVE: the bounded startup state advances real glibc to a real
+         * exit.  optind from the real libc is 0x01 (not the shim's 0x5a). */
+        vsl_dyn_set_glibc_startup(1);
+        int rc_on = vsl_exec_image(img, n, &cfg, &r);
+        printf("[ad] startup ON: rc=%d status=%d exit=%d fs_base=0x%llx "
+               "fault=0x%llx syscalls=%llu reloc_failure=\"%s\" "
+               "out_len=%zu out0=0x%02x\n",
+               rc_on, r.status, r.exit_code, (unsigned long long)r.fs_base,
+               (unsigned long long)r.fault_addr,
+               (unsigned long long)r.syscalls_trapped, r.reloc_failure,
+               r.output_len, r.output_len ? (unsigned char)r.output[0] : 0);
+        CHECK(rc_on == VSL_EXEC_OK && r.exit_code == 1 &&
+              r.reloc_failure[0] == 0,
+              "real glibc COPY guest runs to a correct exit(1) with startup state");
+        CHECK(r.fs_base != 0, "bounded startup TCB was installed as %fs");
+        CHECK(r.syscalls_trapped >= 1, "real guest dispatched syscalls through VSL");
+        CHECK(r.output_len == 1 && (unsigned char)r.output[0] == 0x01,
+              "real libc optind=0x01 written by the guest through VSL");
+        CHECK(r.fault_addr == 0, "no guest fault remains with startup state on");
+        CHECK(rc_on != rc_off, "differential: bounded startup state advances real glibc");
+
+        vsl_dyn_set_glibc_startup(0);
+        vsl_dyn_set_libc_rootfs(0);
+        vsl_dyn_set_interp_bind_main(0);
+        vsl_dyn_set_interp(0);
+        free(img);
     }
 }
 

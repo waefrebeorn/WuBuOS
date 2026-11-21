@@ -96,6 +96,7 @@ static __attribute__((no_stack_protector)) void ex_set_fs(uint64_t v) {
 }
 /* Defined in the TLS-layout section below; the SIGSYS handler needs both. */
 static int g_fs_tls;                /* opt-in arch_prctl/TCB, default OFF */
+static int g_glibc_startup;         /* opt-in bounded glibc startup state, default OFF */
 static void ex_seed_tcb(uint64_t base);
 
 static int g_filter_installed;
@@ -173,7 +174,7 @@ static __attribute__((no_stack_protector)) void ex_sigsys(int sig, siginfo_t *si
 
     int restore_guest_fs = guest_fs;
     int64_t ret;
-    if (g_fs_tls && nr == VSL_SYS_ARCH_PRCTL) {
+    if ((g_fs_tls || g_glibc_startup) && nr == VSL_SYS_ARCH_PRCTL) {
         uint64_t opt = regs[0];
         ret = -22;                                  /* -EINVAL, fail closed */
         if (opt == VSL_ARCH_SET_FS) {
@@ -342,7 +343,12 @@ static uint64_t vsl_dyn_ifunc_zero_fn(void) { return 0; }
  * of these GOT slots is outside the bounded model.  Registering the exact
  * addresses makes the table sufficient to advance the real libc fixture past
  * these relocations without ever guessing a resolver result. */
-#define VSL_DYN_IFUNC_LIBC_STANDIN 0x56534c4946434c42ULL /* "VSLIFCLB" */
+/* A canonical, callable stand-in.  A non-canonical sentinel makes a real
+ * glibc indirect call through a resolved GOT slot raise #GP (si_addr=0);
+ * this fixed host stub is canonical and only ever returns -- it runs no
+ * guest bytes at relocation time and issues no syscalls. */
+static void vsl_dyn_ifunc_ret_stub(void) { }
+#define VSL_DYN_IFUNC_LIBC_STANDIN ((uint64_t)(uintptr_t)&vsl_dyn_ifunc_ret_stub)
 static uint64_t vsl_dyn_ifunc_libc_fn(void) {
     g_dyn_ifunc_calls++;
     return VSL_DYN_IFUNC_LIBC_STANDIN;
@@ -406,6 +412,20 @@ static int64_t vsl_dl_find_object_shim(void *addr, void *result) {
 static int  g_ldso_libc_enable_secure = 0;
 static char g_ldso_rtld_global[1024];
 static char g_ldso_rtld_global_ro[1024];
+
+/* Bounded link_map model published as _rtld_global._dl_rtld_map.  Real glibc
+ * __libc_start_main reads l_info[DT_INIT] at +0xa0 and l_info[DT_INIT_ARRAY]
+ * at +0x108 from the interpreter map before calling main; a fixed, zeroed
+ * host struct makes those reads defined no-ops (no constructor runs on the
+ * interpreter map).  l_addr is set to the interpreter load bias when the
+ * bounded startup state is seeded, so any computed address stays in-window.
+ * No host link_map is reused and no guest size is trusted. */
+#define EX_RTLD_LINFO_MAX 64u
+typedef struct {
+    uint64_t l_addr, l_name, l_ld, l_next, l_prev, l_real, l_ns, l_libname;
+    uint64_t l_info[EX_RTLD_LINFO_MAX];
+} VslRtldMap;
+static VslRtldMap g_ldso_rtld_map;
 
 /* Honest, bounded stand-ins for the versioned FUNCTION imports a real
  * libc.so.6 pulls from ld.so.  These are glibc's interpreter-reserved
@@ -1046,7 +1066,16 @@ static uint32_t g_tls_mod_count;
 static uint64_t g_tcb_dtv[EX_TLS_MODULE_MAX + 1];   /* [0]=count, [i]=module i */
 static uint64_t g_tcb_hdr[4];                       /* host TCB backing store */
 
+/* Bounded startup TCB for the opt-in real-glibc path.  The kernel installs a
+ * thread pointer before __libc_start_main runs; this leg enters the main
+ * image directly, so the engine seeds an equivalent fixed-size TCB and sets
+ * %fs to it at entry.  All fields are host statics with explicit bounds. */
+#define EX_STARTUP_TCB_WORDS 16u
+static uint64_t g_startup_tcb[EX_STARTUP_TCB_WORDS];
+static uint64_t g_startup_fs_base;   /* stable host address of g_startup_tcb */
+
 void vsl_dyn_set_fs_tls(int on) { g_fs_tls = on ? 1 : 0; }
+void vsl_dyn_set_glibc_startup(int on) { g_glibc_startup = on ? 1 : 0; }
 uint64_t vsl_dyn_tcb_base(void) { return (uint64_t)(uintptr_t)&g_tcb_hdr[0]; }
 uint32_t vsl_dyn_module_id(uint32_t idx) {
     return idx < g_tls_mod_count ? g_tls_mods[idx].id : 0;
@@ -1083,6 +1112,32 @@ static void ex_seed_tcb(uint64_t base) {
     h[1] = (uint64_t)(uintptr_t)&g_tcb_dtv[0];         /* dtv */
     g_tcb_hdr[0] = base;                               /* host diagnostic copy */
     g_tcb_hdr[1] = (uint64_t)(uintptr_t)&g_tcb_dtv[0];
+}
+
+/* Seed the bounded state a kernel + interpreter install before main on the
+ * opt-in real-glibc path: the interpreter link_map model is published as
+ * _rtld_global._dl_rtld_map, and a fixed-size x86-64 TCB (self, dtv, pthread
+ * self, stack/pointer guards from AT_RANDOM) becomes %fs at guest entry.
+ * Every byte is host static storage with an explicit bound. */
+static void ex_seed_glibc_startup(uint64_t interp_bias, const uint8_t *at_random) {
+    memset(&g_ldso_rtld_map, 0, sizeof(g_ldso_rtld_map));
+    g_ldso_rtld_map.l_addr = interp_bias;
+    memset(g_ldso_rtld_global, 0, sizeof(g_ldso_rtld_global));
+    *(uint64_t *)g_ldso_rtld_global = (uint64_t)(uintptr_t)&g_ldso_rtld_map;
+
+    memset(g_startup_tcb, 0, sizeof(g_startup_tcb));
+    g_startup_tcb[0] = g_startup_fs_base;                    /* tcb self @fs:0 */
+    g_startup_tcb[1] = (uint64_t)(uintptr_t)&g_tcb_dtv[0];   /* dtv @fs:8 */
+    g_startup_tcb[2] = g_startup_fs_base;                    /* pthread self @fs:0x10 */
+    if (at_random) {
+        uint64_t sg = 0, pg = 0;
+        memcpy(&sg, at_random, 8);
+        memcpy(&pg, at_random + 8, 8);
+        g_startup_tcb[5] = sg;                              /* stack_guard @fs:0x28 */
+        g_startup_tcb[6] = pg;                              /* pointer_guard @fs:0x30 */
+    }
+    g_ex.fs_set = 1;
+    g_ex.fs_base = g_startup_fs_base;
 }
 
 /* -- per-image configuration (set at the top of each run, never global) --
@@ -1945,9 +2000,16 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
             return ex_tls_fail(type, symidx, r_offset);
         }
         if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
-        /* The host block base plays the thread-pointer role; the guest
-         * dereferences this address directly (no %fs, no glibc ABI). */
-        *where = tls_base + off;
+        /* Freestanding model: the host block base plays the thread-pointer
+         * role and the guest dereferences the word directly.  Bounded glibc
+         * startup instead loads the word and dereferences it through %fs,
+         * so express the same fixed host block as a bounded offset from the
+         * TCB base installed as %fs at entry.  Both values are host statics:
+         * the displacement is fixed and no guest size or host link_map is
+         * used. */
+        uint64_t val = tls_base + off;
+        if (g_glibc_startup) val -= g_startup_fs_base;
+        *where = val;
         (*tls_relocs)++;
         return 0;
     }
@@ -2015,6 +2077,11 @@ static int ex_apply_relr(const uint8_t *f, size_t fsz, uint64_t bias,
                 *(uint64_t *)(uintptr_t)dest += bias;
                 (*out_applied)++;
             }
+            /* RELR bitmap words cover 63 slots each; a second word continues
+             * the run instead of repeating the first block.  Without the
+             * base advance the real glibc atexit/exit list pointers stay
+             * link-time addresses and __cxa_atexit faults during exit. */
+            base += (uint64_t)63 << 3;
         }
     }
     return 0;
@@ -2923,6 +2990,10 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     g_ex.fs_set = 0;
     g_ex.fs_base = 0;
     g_ex.fs_syscalls = 0;
+    /* Stable host address of the bounded startup TCB, computed before any
+     * relocation so glibc-startup TPOFF64 words can be expressed relative
+     * to the %fs base installed at entry. */
+    g_startup_fs_base = (uint64_t)(uintptr_t)&g_startup_tcb[0];
     g_ex.stack_lo = 0;
     g_ex.stack_hi = 0;
     /* Per-image config first: the DT_NEEDED loader below consults g_run_*. */
@@ -3259,6 +3330,9 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     sp = ex_build_stack(stack, EX_STACK_SIZE, entry, e_phoff + load_bias,
                         e_phentsize, e_phnum, g_interp_bias,
                         &out->auxv_entries);
+    if (g_glibc_startup)
+        ex_seed_glibc_startup(g_interp_bias,
+                              (const uint8_t *)(g_ex.stack_hi - 16)); /* AT_RANDOM */
     proc->stack_pointer = sp;
 
     /* 9. Transfer control.  exit/exit_group and faults siglongjmp back. */
@@ -3278,6 +3352,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         uc.uc_link = NULL;
         uc.uc_mcontext.gregs[REG_RSP] = (greg_t)sp;
         uc.uc_mcontext.gregs[REG_RIP] = (greg_t)run_entry;
+        if (g_glibc_startup) ex_set_fs(g_ex.fs_base); /* bounded startup TCB */
         g_ex.active = 1;
         setcontext(&uc);   /* does not return; guest runs until exit/fault */
         g_ex.active = 0;
@@ -3320,7 +3395,8 @@ cleanup:
     g_ex.running = 0;
     /* A guest may have installed its own %fs base; host libc here needs the
      * original one back before it runs again. */
-    if (g_fs_tls && g_ex.host_fs_base && ex_get_fs() != (uint64_t)g_ex.host_fs_base)
+    if ((g_fs_tls || g_glibc_startup) && g_ex.host_fs_base &&
+        ex_get_fs() != (uint64_t)g_ex.host_fs_base)
         ex_set_fs((uint64_t)g_ex.host_fs_base);
     /* Restore stdio first so diagnostics below go to the real console. */
     if (save1 >= 0) { dup2(save1, 1); close(save1); }
