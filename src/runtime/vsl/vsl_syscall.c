@@ -255,8 +255,8 @@ int vsl_openat(int dirfd, const char *pathname, int flags, mode_t mode) {
     if (!g_vsl.active) return -1;
     if (g_vsl.n_fds >= VSL_MAX_FDS) return -1;
 
-    int fd = strcmp(pathname ? pathname : "", VSL_GUEST_DRIVERS_PATH) == 0
-             ? vsl_open_inventory() : openat(dirfd, pathname, flags, mode);
+    int fd = vsl_virtual_open(pathname ? pathname : "");
+    if (fd == -2) fd = openat(dirfd, pathname, flags, mode);
     if (fd < 0) return -errno;
 
     int vsl_fd = g_vsl.n_fds + 3;

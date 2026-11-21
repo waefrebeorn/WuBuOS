@@ -16,21 +16,54 @@
 /* Global state */
 extern VSL_STATE g_vsl;
 
-/* D4: the ONE provider of the guest driver-inventory snapshot. Returns a
- * real host fd (mkstemp + unlink) so the existing read/lseek/close syscall
- * paths work unchanged -- no second VSL fd kind, no new syscall. */
-int vsl_open_inventory(void)
+/* D4: the ONE provider of guest snapshot files. Returns a real host fd
+ * (mkstemp + unlink) so existing read/lseek/close paths work unchanged. */
+static int vsl_snapshot_fd(const char *tmpl, const char *text)
 {
-    char tmpl[] = "/tmp/wubu-drv-XXXXXX";
-    int fd = mkstemp(tmpl);
+    char path[64];
+    strncpy(path, tmpl, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    int fd = mkstemp(path);
     if (fd < 0) return -1;
-    unlink(tmpl);                      /* anonymous: no residue on disk */
-    char buf[2048];
-    int n = vsl_driver_inventory(buf, sizeof(buf));
-    if (n < 0) { close(fd); return -1; }
-    if (write(fd, buf, (size_t)n) != (ssize_t)n) { close(fd); return -1; }
+    unlink(path);                      /* anonymous: no residue on disk */
+    size_t n = strlen(text);
+    if (write(fd, text, n) != (ssize_t)n) { close(fd); return -1; }
     lseek(fd, 0, SEEK_SET);
     return fd;
+}
+
+/* Host-supplied maze view (bounded). Empty string = no view. */
+static char g_vsl_maze[4096];
+
+void vsl_maze_snapshot_set(const char *text)
+{
+    g_vsl_maze[0] = '\0';
+    if (text && *text) {
+        strncpy(g_vsl_maze, text, sizeof(g_vsl_maze) - 1);
+        g_vsl_maze[sizeof(g_vsl_maze) - 1] = '\0';
+    }
+}
+
+int vsl_open_inventory(void)
+{
+    char buf[2048];
+    int n = vsl_driver_inventory(buf, sizeof(buf));
+    if (n < 0) return -1;
+    buf[sizeof(buf) - 1] = '\0';
+    return vsl_snapshot_fd("/tmp/wubu-drv-XXXXXX", buf);
+}
+
+static int vsl_open_maze(void)
+{
+    return vsl_snapshot_fd("/tmp/wubu-maze-XXXXXX", g_vsl_maze);
+}
+
+/* -2 means "not a virtual path"; -1 means a real provider failure. */
+int vsl_virtual_open(const char *path)
+{
+    if (strcmp(path, VSL_GUEST_DRIVERS_PATH) == 0) return vsl_open_inventory();
+    if (strcmp(path, VSL_GUEST_MAZE_PATH) == 0) return vsl_open_maze();
+    return -2;
 }
 
 /* -- File Operations ---------------------------------------------- */
@@ -40,8 +73,8 @@ int vsl_open(const char *path, int flags, int mode) {
     if (g_vsl.n_fds >= VSL_MAX_FDS) return -1;
     if (!path) return -2; /* ENOENT */
 
-    int host_fd = strcmp(path, VSL_GUEST_DRIVERS_PATH) == 0
-                  ? vsl_open_inventory() : open(path, flags, mode);
+    int host_fd = vsl_virtual_open(path);
+    if (host_fd == -2) host_fd = open(path, flags, mode);
     if (host_fd < 0) return -errno;
 
     int vsl_fd = g_vsl.n_fds + 3; /* 0=stdin, 1=stdout, 2=stderr */

@@ -9,6 +9,7 @@
 
 /* D4: the bounded guest-visible view of the VSL driver inventory. */
 #define VSL_GUEST_DRIVERS_PATH "/proc/wubu/drivers"
+#define VSL_GUEST_MAZE_PATH    "/proc/wubu/maze"
 
 #include "../../egojar.h"
 #include <stdint.h>

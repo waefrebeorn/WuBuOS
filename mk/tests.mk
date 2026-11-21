@@ -865,11 +865,11 @@ test_vsl_kernel_adapt: $(VSL_OBJS) src/runtime/vsl/vsl_kernel_adapt_test.c
 # qemu-user smoke standard. WEMU comes from the src/wemu submodule at
 # public main + the committed user-mode patch (mk/wemu_user.mk).
 test_wemu_busybox: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_bridge_test.c \
-		$(KERNEL)/wubu_drv.c $(KERNEL)/wubu_pci.c \
+		$(KERNEL)/wubu_drv.c $(KERNEL)/wubu_pci.c $(APPS)/wubu_maze/wubu_maze.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c
-	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(KERNEL) -Iinclude $(WEMU_INC) $(RT)/wubu_crc32.c \
+	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(KERNEL) -I$(APPS)/wubu_maze -Iinclude $(WEMU_INC) $(RT)/wubu_crc32.c \
 		$(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
-		$(RT)/wubu_wemu_bridge.c $(KERNEL)/wubu_drv.c $(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c $(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c $(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c $(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c $(KERNEL)/wubu_drv_thermal.c $(KERNEL)/wubu_drv_virtio.c $(KERNEL)/wubu_drv_arm.c $(KERNEL)/wubu_drv_intel.c $(KERNEL)/wubu_pci.c \
+		$(RT)/wubu_wemu_bridge.c $(KERNEL)/wubu_drv.c $(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c $(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c $(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c $(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c $(KERNEL)/wubu_drv_thermal.c $(KERNEL)/wubu_drv_virtio.c $(KERNEL)/wubu_drv_arm.c $(KERNEL)/wubu_drv_intel.c $(KERNEL)/wubu_pci.c $(APPS)/wubu_maze/wubu_maze.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
 		src/runtime/wubu_wemu_bridge_test.c \
 		-o $(RT)/wubu_wemu_bridge_test $(WEMU_LIB) -ldl -lvulkan -lcuda -lm

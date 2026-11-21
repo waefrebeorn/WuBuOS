@@ -189,7 +189,8 @@ cd /home/wubu/wubuos && make test_wemu_busybox
 - The BAR→VMM seam (D1) is **closed**, with DRV10b range mapping and DRV10c
   rollback; xHCI consumes a two-page aperture. The guest inventory includes
   a host-supplied snapshot from `wubu_drv_summary()`, but there is no live
-  metal→guest syscall channel.
+  metal→guest syscall channel. A second virtual file, `/proc/wubu/maze`,
+  serves the WUBU MAZE minimap so a WEMU guest can `cat` the game map.
 - The 1000-line `driver-bank.md` is a coverage *ledger*, not proof of a
   bound driver in the running kernel; "wired" there means a perception or
   routing module, not metal MMIO. Do not cite it as hardware support.
