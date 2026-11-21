@@ -133,9 +133,21 @@ cd /home/wubu/wubuos && make test_wemu_busybox
   all passed ===`); `make freestanding`: **PASS** (3 TUs compiled with
   `-std=c11 -ffreestanding -nostdinc`).
 - wubuos `make test_kernel_bridge`: **PASS** (`[kernel_bridge] all pass`).
-- wubuos `make kernel` + `ci_boot_assert`: see session log (running at
-  contract creation).
-- WEMU `make test`: see session log (running at contract creation).
+- wubuos `make kernel` + `ci_boot_assert`: **was RED at HEAD** —
+  `wubu_fantml.c:102` called hosted `getenv()` unconditionally while the
+  file is in `KERNEL_OBJS`, leaving `undefined reference to getenv` in the
+  freestanding link (the "hosted-green is not kernel-green" class). Fixed
+  in `98888998` with the tree's `#ifndef MYSEED_METAL` split. Re-verified:
+  `make kernel` builds, `ci_boot_assert` **PASS** (3839 bytes, interactive
+  `WuBuOS>` console), `make kernel-strict` builds, `test_hw_fantml`
+  **11/11**, `test_docs` **599/0**. Class audit: `vbe.c` already guards
+  `getenv` behind `#ifdef VBE_HOSTED`; `wubu_thermal_read.c` and
+  `wubu_drv_install.c` are not in `KERNEL_OBJS` — no other leak in the
+  freestanding link.
+- WEMU `make test`: **PASS** (all gates: isa/avx/paging/machine/string/
+  cpuid/sse2/usermode/shld/x87). Note: local checkout is `leg/user-mode-vsl`
+  at `775bf40`; the `wubuos/src/wemu` submodule pointer is a different leg
+  (`leg/nested-signals` at `2ce67c0`) — reconcile before any WEMU leg.
 - Last recorded full gate in `os-gaps-2026-11-19.md`: `full_test60.log`,
   exit 0, "✅ All tests passed (all tiers)"; `test_linux_product` PASS.
   Those are historical facts about that commit, not a live re-run.
