@@ -135,16 +135,7 @@ bool install_package_files(const wubu_pkg_manifest_t *manifest, const char *src_
 }
 
 void generate_desktop_entry(const wubu_pkg_manifest_t *manifest, int entry_idx, const char *install_path) {
-    const struct {
-        char id[WUBU_PKG_MAX_NAME];
-        char name[WUBU_PKG_MAX_NAME];
-        char exec[256];
-        char icon[256];
-        char categories[256];
-        char mime_types[256];
-        bool terminal;
-        bool startup_notify;
-    } *e = &manifest->entrypoints[entry_idx];
+    const wubu_pkg_entrypoint_t *e = &manifest->entrypoints[entry_idx];
     char path[512];
     char dir[512];
     snprintf(path, sizeof(path), "%s/share/applications/%s-%s.desktop",

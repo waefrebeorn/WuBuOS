@@ -65,6 +65,20 @@ typedef enum {
 /* ============================================================
  * Package Manifest (in-container JSON)
  * ============================================================ */
+/* Named entrypoint type: consumers hold the manifest's real type rather
+ * than a layout-compatible anonymous struct (CI's
+ * -Wincompatible-pointer-types treats those as distinct types). */
+typedef struct {
+    char id[WUBU_PKG_MAX_NAME];       /* e.g., "main", "editor", "server" */
+    char name[WUBU_PKG_MAX_NAME];     /* Display name */
+    char exec[256];                   /* Command line with %f %u placeholders */
+    char icon[256];                   /* Icon path in payload */
+    char categories[256];             /* Desktop categories */
+    char mime_types[256];             /* MIME types handled */
+    bool terminal;                    /* Run in terminal */
+    bool startup_notify;              /* Startup notification */
+} wubu_pkg_entrypoint_t;
+
 typedef struct {
     char id[WUBU_PKG_MAX_NAME];           /* Unique package ID (lowercase, hyphens) */
     char name[WUBU_PKG_MAX_NAME];         /* Display name */
@@ -85,16 +99,7 @@ typedef struct {
     int n_provides;
     
     /* Entrypoints (for desktop integration) */
-    struct {
-        char id[WUBU_PKG_MAX_NAME];       /* e.g., "main", "editor", "server" */
-        char name[WUBU_PKG_MAX_NAME];     /* Display name */
-        char exec[256];                   /* Command line with %f %u placeholders */
-        char icon[256];                   /* Icon path in payload */
-        char categories[256];             /* Desktop categories */
-        char mime_types[256];             /* MIME types handled */
-        bool terminal;                    /* Run in terminal */
-        bool startup_notify;              /* Startup notification */
-    } entrypoints[WUBU_PKG_MAX_ENTRY];
+    wubu_pkg_entrypoint_t entrypoints[WUBU_PKG_MAX_ENTRY];
     int n_entrypoints;
     
     /* Files to install (relative paths in payload) */
