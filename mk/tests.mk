@@ -73,17 +73,19 @@ test_eddsa_nombedtls:
 
 # Reproducible constant-time evidence artifact: source branch audit, compiled
 # instruction/branch table, and a dynamic constant-selection sweep.  Explicitly
-# NOT a formal proof; the doc records why.  Member of the DEFAULT test suite.
+# NOT a formal proof; the doc records why.  Member of the DEFAULT test suite
+# (via test_default_optin).
 test_ed25519_ct_evidence:
 	bash tools/eddsa_ct_evidence.sh
 
 # Dudect-style NON-FORMAL statistical leakage gate for the Ed25519 signing
 # scalar multiply (same-run baseline, fixed thresholds, no retries).
-# Member of the DEFAULT test suite; SKIPs (no fetch) if no mbedTLS root.
+# Member of the DEFAULT test suite (test_default_optin); SKIPs (no fetch) if
+# no mbedTLS root.
 test_ed25519_dudect:
 	bash tools/eddsa_dudect_gate.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect
+.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_default_optin test_default_crypto_negative_control
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds
@@ -135,18 +137,37 @@ test_pkg_revoke_sync:
 
 .PHONY: test_pkg_revoke_sync
 
-# Opt-in hosted GUI differential gate for the Control Panel sync widget and
-# its bounded scheduled loop (loopback HTTP + ephemeral signed feeds).
+# Hosted GUI differential gate for the Control Panel sync widget and its
+# bounded scheduled loop (loopback HTTP + ephemeral signed feeds). DEFAULT-tier
+# member via test_default_optin; SKIPs explicitly when no mbedTLS dev root.
 test_sync_panel:
 	bash tools/sync_panel_gate.sh
 .PHONY: test_sync_panel
 
 # Differential gate proving the default hosted build has NO TLS (HTTPS fails
 # closed) and that HOSTED_TLS=1 links the mbedTLS-backed HTTPS path, with a
-# loopback TLS fixture exercising the real transport. Opt-in: dev root needed.
+# loopback TLS fixture exercising the real transport. DEFAULT-tier member via
+# test_default_optin; SKIPs explicitly when no mbedTLS dev root (no fetch).
 test_hosted_tls:
 	bash tools/hosted_tls_gate.sh
 .PHONY: test_hosted_tls
+
+# ── Default-tier opt-in crypto/GUI bundle ─────────────────────────────────
+# These four gates used to be opt-in, so a green `make test` could miss them.
+# They now run in the default tier through one deterministic, loopback-only
+# bundle.  The wrapper prints SKIP_COUNT and asserts it: 0 when an mbedTLS dev
+# root is present (all four execute), 4 when absent (all four SKIP explicitly,
+# never a silent PASS and never a network fetch).
+test_default_optin:
+	bash tools/default_optin_gates.sh
+.PHONY: test_default_optin
+
+# Manual negative control (NOT in the default tier: it mutates a working-tree
+# copy of the shipped ladder, then restores it).  Proves the default tier does
+# detect a real constant-time regression in ge_mul_ladder.
+test_default_crypto_negative_control:
+	bash tools/default_crypto_negative_control.sh
+.PHONY: test_default_crypto_negative_control
 
 # Opt-in differential gate for trust-anchor expiry, admin rotation/recovery
 # and M-of-N feed-apply quorum (mbedTLS root required; not in default tier).
@@ -225,7 +246,7 @@ test_high_bear: test_bear_drivers test_jit test_jit_regalloc test_jit_remat test
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_docs test_eddsa_build_config test_eddsa_runtime test_ed25519_ct_evidence test_ed25519_dudect test_hosted_hw test_agent test_ns_kv test_ns_worldspace test_wubu_swarm test_wubu_boot_attest test_wubu_boot_attest_relay test_wubu_boot_attest_edr test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_guest_import test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_wubu_edid test_wubu_edid_scan test_wubu_edid_xrandr test_wubu_edid_kms test_wubu_gop_modes test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier test_evdev test_audio_backend test_glottis test_glott_network test_glott_voice test_glott_decimator test_glott_speak test_glott_geom test_glott_artic test_kvfs test_vulkan
+test_medium_other: runtime gui test_docs test_eddsa_build_config test_eddsa_runtime test_default_optin test_hosted_hw test_agent test_ns_kv test_ns_worldspace test_wubu_swarm test_wubu_boot_attest test_wubu_boot_attest_relay test_wubu_boot_attest_edr test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_guest_import test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_wubu_edid test_wubu_edid_scan test_wubu_edid_xrandr test_wubu_edid_kms test_wubu_gop_modes test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier test_evdev test_audio_backend test_glottis test_glott_network test_glott_voice test_glott_decimator test_glott_speak test_glott_geom test_glott_artic test_kvfs test_vulkan
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially

@@ -19,9 +19,14 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
-# Use the repo-local, validated dev root for the "present" states.
-unset WUBU_MBEDTLS_ROOT MBEDTLS_DEVROOT
-DEVROOT=$("$ROOT/tools/mbedtls_devroot.sh")
+# Use the validated dev root for the "present" states: an explicit override
+# (worktree/CI caller) or the repo-local cache.  An absent root is an explicit
+# SKIP in the default tier: no fetch, no fabricated PASS.  Do NOT discard an
+# already-present override here, or one gate would skip while the others run.
+if ! DEVROOT=$("$ROOT/tools/mbedtls_devroot.sh" 2>/dev/null); then
+    echo "[hosted_tls] SKIP: mbedTLS dev root unavailable (no fetch); hosted TLS gate not run."
+    exit 0
+fi
 export WUBU_MBEDTLS_ROOT="$DEVROOT"
 
 TMP=$(mktemp -d)

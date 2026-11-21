@@ -125,7 +125,7 @@ $(RT)/vsl/%.o: $(RT)/vsl/%.c
 	$(CC) $(CFLAGS) -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(KERNEL) -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@ -Iinclude
 
 # OCI submodule objects
-$(RT)/oci/%.o: $(RT)/oci/%.c
+$(RT)/oci/%.o: $(RT)/oci/%.c $(HOSTED_TLS_STATE)
 	$(CC) $(CFLAGS) $(OCI_TLS_CFLAGS) -I$(RT) -I$(RT)/oci -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@ -Iinclude
 
 # Container submodule objects

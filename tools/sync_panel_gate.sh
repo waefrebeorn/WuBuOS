@@ -17,11 +17,18 @@
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CTL="$ROOT/tools/wubu_pkg_key_ctl"
-WUBU_MBEDTLS_ROOT="$( "$ROOT/tools/mbedtls_devroot.sh")" || exit 2
+# Default-tier member: an absent mbedTLS dev root is an explicit SKIP, never
+# a silent PASS and never a network fetch.  tools/mbedtls_devroot.sh only
+# validates an already-present root; this gate never downloads anything.
+if ! WUBU_MBEDTLS_ROOT="$( "$ROOT/tools/mbedtls_devroot.sh" 2>/dev/null )"; then
+    echo "[sync_panel] SKIP: mbedTLS dev root unavailable (no fetch); GUI sync gate not run."
+    exit 0
+fi
 export WUBU_MBEDTLS_ROOT
 MB="$WUBU_MBEDTLS_ROOT/usr"
-[ -f "$MB/include/mbedtls/version.h" ] || { echo "missing mbedTLS headers" >&2; exit 2; }
-command -v openssl >/dev/null && command -v xxd >/dev/null && command -v python3 >/dev/null || exit 2
+[ -f "$MB/include/mbedtls/version.h" ] || { echo "[sync_panel] FAIL: missing mbedTLS headers" >&2; exit 1; }
+command -v openssl >/dev/null && command -v xxd >/dev/null && command -v python3 >/dev/null || {
+    echo "[sync_panel] FAIL: openssl, xxd and python3 are required by this default-tier gate" >&2; exit 1; }
 TMP=$(mktemp -d)
 SRV_PID=""
 SRV_TLS_PID=""

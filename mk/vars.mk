@@ -69,3 +69,17 @@ ifeq ($(HOSTED_TLS),1)
   OCI_TLS_CFLAGS := -DWUBU_HAVE_MBEDTLS -I$(WUBU_MBEDTLS_ROOT)/usr/include
   HOSTED_TLS_LIBS := -L$(WUBU_MBEDTLS_ROOT)/usr/lib/x86_64-linux-gnu -lmbedtls -lmbedx509 -lmbedcrypto -Wl,-rpath,$(WUBU_MBEDTLS_ROOT)/usr/lib/x86_64-linux-gnu
 endif
+
+# OCI objects are compiled with OCI_TLS_CFLAGS, which depends on HOSTED_TLS
+# and the dev-root path.  Make that state an explicit prerequisite: without
+# it, a TLS-enabled object survives a later root-less build and the link
+# fails with undefined mbedtls_* references.  The recipe is forced to run
+# but only rewrites the file when the state actually changes, so unrelated
+# builds do not recompile everything.
+HOSTED_TLS_STATE := build/hosted_tls.state
+.PHONY: FORCE_HOSTED_TLS_STATE
+FORCE_HOSTED_TLS_STATE:
+$(HOSTED_TLS_STATE): FORCE_HOSTED_TLS_STATE
+	@mkdir -p build
+	@printf '%s|%s\n' '$(HOSTED_TLS)' '$(WUBU_MBEDTLS_ROOT)' | cmp -s - $@ || \
+	  printf '%s|%s\n' '$(HOSTED_TLS)' '$(WUBU_MBEDTLS_ROOT)' > $@
