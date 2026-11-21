@@ -96,6 +96,15 @@ int main(int argc, char **argv)
     }
     CHECK(s.gems == WUBU_MAZE_NGEMS && s.score == 300,
           "score is 100 per gem");
+    {
+        char prog[4];
+        wubu_maze_progress(&s, prog);
+        CHECK(strcmp(prog, "***") == 0, "progress shows all gems held");
+        wubu_maze_state fresh;
+        wubu_maze_init(&fresh);
+        wubu_maze_progress(&fresh, prog);
+        CHECK(strcmp(prog, "---") == 0, "fresh progress shows no gems held");
+    }
     double ex, ey;
     wubu_maze_exit(&ex, &ey);
     s.p.x = ex; s.p.y = ey;

@@ -58,6 +58,14 @@ void wubu_maze_render_minimap(const wubu_maze_state *s, char *out)
         out[(size_t)py * WUBU_MAZE_MAP_W + (size_t)px] = '@';
 }
 
+void wubu_maze_progress(const wubu_maze_state *s, char out[4])
+{
+    if (!out) return;
+    for (int i = 0; i < WUBU_MAZE_NGEMS; i++)
+        out[i] = (s && s->gem_taken[i]) ? '*' : '-';
+    out[WUBU_MAZE_NGEMS] = '\0';
+}
+
 int wubu_maze_path(double sx, double sy, double tx, double ty,
                    int *out, int cap)
 {

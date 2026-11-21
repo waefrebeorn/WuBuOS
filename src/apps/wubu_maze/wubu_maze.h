@@ -49,6 +49,10 @@ void wubu_maze_render_minimap(const wubu_maze_state *s, char *out);
 int wubu_maze_path(double sx, double sy, double tx, double ty,
                    int *out, int cap);
 
+/* Compact progress view: one char per gem ('*' held, '-' still out there),
+ * plus a NUL terminator. Pure function of state, gateable without a GUI. */
+void wubu_maze_progress(const wubu_maze_state *s, char out[4]);
+
 /* Breadth-first reachability over open cells (orthogonal steps).
  * Used by the gate to PROVE start -> every gem -> exit is solvable. */
 int wubu_maze_reachable(double sx, double sy, double tx, double ty);

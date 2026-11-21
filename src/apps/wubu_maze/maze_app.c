@@ -50,6 +50,16 @@ static void maze_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h)
             maze_fill(fb, fb_w, fb_h, x * MAZE_CELL_W, y * MAZE_CELL_H,
                       MAZE_CELL_W, MAZE_CELL_H,
                       maze_color(cells[(size_t)y * MAZE_VIEW_W + (size_t)x]));
+
+    /* HUD: three gem indicator boxes; a green bar marks the win. */
+    char prog[4];
+    wubu_maze_progress(&g_maze, prog);
+    for (int i = 0; i < WUBU_MAZE_NGEMS; i++)
+        maze_fill(fb, fb_w, fb_h,
+                  MAZE_VIEW_W * MAZE_CELL_W - (WUBU_MAZE_NGEMS - i) * 14,
+                  2, 10, 10, prog[i] == '*' ? 0x00FFDC3C : 0x00404040);
+    if (g_maze.won)
+        maze_fill(fb, fb_w, fb_h, 0, 0, fb_w, 6, 0x0078D264);
 }
 
 static void maze_key(DosGuiWindow *win, uint32_t key, uint32_t mods)

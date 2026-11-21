@@ -52,7 +52,8 @@ Asserts:
 ## On the WuBuOS desktop
 
 `WUBU MAZE` is also a desktop app in the registry. Launch it from the app
-menu: `W/S` move, `A/D` turn, arrow keys work too, `R` restarts. The app
+menu: `W/S` move, `A/D` turn, arrow keys work too, `R` restarts. Three gem
+indicator boxes fill as gems are collected; a green bar marks a win. The app
 draws the raycaster state straight into the window framebuffer (coloured
 cells, no font dependency). `launch_wubu_maze()` uses the weak launch seam
 already used by the petdex, so lean `apps.c` test links stay intact.
