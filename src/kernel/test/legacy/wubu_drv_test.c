@@ -42,6 +42,25 @@ static uint8_t nvme_mmio[0x2000];
 static uint8_t wifi_mmio[32];
 static uint8_t eth_mmio[32];
 
+/* D1: a STRONG recording mapper overrides the weak extern in wubu_drv.c.
+ * This lets the hosted gate prove the BAR->VMM behaviour without linking
+ * wubu_vmm.o, and inject a mapper failure for the fail-soft path. */
+static uint64_t g_map_va[32], g_map_phys[32];
+static uint32_t g_map_flags[32];
+static int      g_map_n;
+static int      g_map_fail;
+
+int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
+{
+    if (g_map_fail) return -1;
+    if (g_map_n >= 32) return -1;
+    g_map_va[g_map_n] = virt;
+    g_map_phys[g_map_n] = phys;
+    g_map_flags[g_map_n] = flags;
+    g_map_n++;
+    return 0;
+}
+
 /* the fake GPU window: DSI connector, 1280x800@60, 8GB VRAM */
 static uint8_t gpu_mmio[32];
 
@@ -106,9 +125,13 @@ int main(void)
     d.vendor = 0x1002; d.device = 0x163F; d.class_code = 0x03; d.subclass = 0x00;
     wubu_drv_add_device(&d);   /* Van Gogh iGPU */
     d.vendor = 0x144D; d.device = 0xA80A; d.class_code = 0x01; d.subclass = 0x08;
+    d.bar0 = 0xFC000000ULL;                  /* D1: real NVMe MMIO BAR */
     wubu_drv_add_device(&d);   /* NVMe SSD */
+    d.bar0 = 0;
     d.vendor = 0x14C3; d.device = 0x7922; d.class_code = 0x02; d.subclass = 0x80;
+    d.bar0 = 0xFB000000ULL;                  /* D1: real Wi-Fi MMIO BAR */
     wubu_drv_add_device(&d);   /* RZ616 Wi-Fi */
+    d.bar0 = 0;
     d.vendor = 0x1022; d.device = 0x1457; d.class_code = 0x04; d.subclass = 0x03;
     wubu_drv_add_device(&d);   /* HDA audio */
     d.vendor = 0x10EC; d.device = 0x8168; d.class_code = 0x02; d.subclass = 0x00;
@@ -172,6 +195,66 @@ int main(void)
         FAIL("bar accessor on a BAR'd device");
     if (bar0 != 0xFC000000ULL) FAIL("bar0 = %llx", (unsigned long long)bar0);
     printf("  PASS: the PCI BAR glue carries the real MMIO base\n");
+
+    /* D1: the BAR -> VMM owner. Direct success path. */
+    g_map_n = 0; g_map_fail = 0;
+    uint64_t mapped = 0;
+    if (wubu_drv_map_mmio(&nvme_with_bar, WUBU_DRV_MMIO_VA_BASE, &mapped) != 0)
+        FAIL("map_mmio on a memory BAR");
+    if (g_map_n != 1) FAIL("mapper calls = %d, want 1", g_map_n);
+    if (g_map_phys[0] != 0xFC000000ULL)
+        FAIL("mapped phys = %llx", (unsigned long long)g_map_phys[0]);
+    if (g_map_flags[0] != 3u) FAIL("mapped flags = %u, want 3", g_map_flags[0]);
+    if (g_map_va[0] != WUBU_DRV_MMIO_VA_BASE || mapped != g_map_va[0])
+        FAIL("mapped VA slot");
+    printf("  PASS: BAR0 maps through the single VMM owner (phys/flags/VA)\n");
+
+    /* D1 negative: no BAR must not call the mapper. */
+    wubu_drv_dev_t no_bar = *nvme;
+    no_bar.bar0 = 0; no_bar.mmio_va = 0;
+    if (wubu_drv_map_mmio(&no_bar, WUBU_DRV_MMIO_VA_BASE + 0x1000, &mapped) == 0)
+        FAIL("no-BAR device mapped");
+    if (g_map_n != 1) FAIL("no-BAR device called the mapper");
+
+    /* D1 negative: I/O-space BAR (bit 0) is not an MMIO window. */
+    wubu_drv_dev_t io_bar = *nvme;
+    io_bar.bar0 = 0x1F0ULL | 1u; io_bar.mmio_va = 0;
+    if (wubu_drv_map_mmio(&io_bar, WUBU_DRV_MMIO_VA_BASE + 0x1000, &mapped) == 0)
+        FAIL("I/O-space BAR mapped");
+    if (g_map_n != 1) FAIL("I/O BAR called the mapper");
+
+    /* D1: 64-bit memory BAR uses bar1 as the high dword. */
+    wubu_drv_dev_t bar64 = *nvme;
+    bar64.bar0 = 0xFC000004ULL; bar64.bar1 = 1; bar64.mmio_va = 0;
+    if (wubu_drv_map_mmio(&bar64, WUBU_DRV_MMIO_VA_BASE + 0x2000, &mapped) != 0)
+        FAIL("64-bit BAR map");
+    if (g_map_phys[1] != 0x1FC000000ULL)
+        FAIL("64-bit phys = %llx", (unsigned long long)g_map_phys[1]);
+    printf("  PASS: no-BAR / I-O BAR rejected; 64-bit BAR assembled\n");
+
+    /* D1: fail-soft -- a mapper failure returns -1, never a fake VA. */
+    g_map_fail = 1;
+    g_map_n = 1;
+    if (wubu_drv_map_mmio(&nvme_with_bar, WUBU_DRV_MMIO_VA_BASE + 0x3000,
+                          &mapped) == 0)
+        FAIL("mapper failure reported success");
+    if (g_map_n != 1) FAIL("failed map still recorded a VA");
+    g_map_fail = 0;
+    printf("  PASS: mapper failure is fail-soft (no fabricated VA)\n");
+
+    /* D1: the late pass maps exactly the BAR'd bound devices, once. */
+    g_map_n = 0;
+    int nmapped = wubu_drv_map_all_mmio();
+    if (nmapped != 2) FAIL("map_all_mmio = %d, want 2", nmapped);
+    if (g_map_n != 2) FAIL("map_all calls = %d, want 2", g_map_n);
+    if (g_map_phys[0] != 0xFC000000ULL || g_map_phys[1] != 0xFB000000ULL)
+        FAIL("map_all phys wrong");
+    if (g_map_va[0] != WUBU_DRV_MMIO_VA_BASE + 0x1000 ||
+        g_map_va[1] != WUBU_DRV_MMIO_VA_BASE + 0x2000)
+        FAIL("map_all VA slots wrong");
+    if (wubu_drv_map_all_mmio() != 0 || g_map_n != 2)
+        FAIL("map_all_mmio is not idempotent");
+    printf("  PASS: late pass maps both BARs at distinct slots, idempotently\n");
 
     /* 3. the network */
     if (!wubu_net_wifi_link()) FAIL("wifi link down");

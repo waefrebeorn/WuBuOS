@@ -685,6 +685,14 @@ void kernel_main(void *boot_info) {
                         nmapped, pages);
         }
     }
+    /* D1: map bound devices' MMIO BARs through the single registry owner.
+     * This MUST stay after wubu_vmm_init(): the mapper allocates PT pages
+     * from the VMM pool, which init resets. Fail-soft -- an unmapped BAR
+     * leaves the device routable, just without an MMIO window. */
+    extern int wubu_drv_map_all_mmio(void);
+    int nmio = wubu_drv_map_all_mmio();
+    klog_printf("WuBuOS: %d device MMIO BARs mapped\n", nmio);
+
     /* interrupt-driven serial RX (gap E2): UART IRQ -> wubu_sync FIFO */
     extern void wubu_serial_init(void);
     wubu_serial_init();

@@ -34,6 +34,12 @@
 #include <stdio.h>
 #include <string.h>
 
+/* The page mapper lives in wubu_vmm.o on metal. Hosted driver gates link
+ * only the registry (no vmm.o), so declare it weak and guard the call;
+ * those gates provide a strong recording stub to prove the behaviour. */
+extern int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
+    __attribute__((weak));
+
 /* ---- the device table ---- */
 
 #define WUBU_DRV_MAX_DEV  32
@@ -153,6 +159,42 @@ int wubu_drv_dev_bar(const wubu_drv_dev_t *dev, uint64_t *bar0,
     if (bar0) *bar0 = dev->bar0;
     if (bar1) *bar1 = dev->bar1;
     return dev->bar0 ? 0 : -1;
+}
+
+/* DRV10: THE single BAR -> VMM mapping owner. No BAR / I/O-space BAR /
+ * absent mapper / map failure all return -1 without side effects. */
+int wubu_drv_map_mmio(const wubu_drv_dev_t *dev, uint64_t va_page,
+                      uint64_t *va_out)
+{
+    uint64_t bar0 = 0, bar1 = 0, phys;
+    if (!dev || !va_out || (va_page & 0xFFFull)) return -1;
+    if (wubu_drv_dev_bar(dev, &bar0, &bar1) != 0) return -1;
+    if (bar0 & 1u) return -1;                 /* I/O-space BAR, not MMIO */
+    phys = bar0 & ~0xFull;                    /* strip BAR type bits [3:0] */
+    if ((bar0 & 0x6u) == 0x4u) phys |= bar1 << 32;  /* 64-bit memory BAR */
+    if (!phys) return -1;
+    if (!wubu_vmm_map_page) return -1;        /* no mapper (hosted gate) */
+    if (wubu_vmm_map_page(va_page, phys, 3u) != 0) return -1; /* fail-soft */
+    *va_out = va_page;
+    return 0;
+}
+
+/* DRV11: the late, idempotent pass. NEVER call from wubu_drv_probe():
+ * the mapper allocates PT pages from the VMM pool that wubu_vmm_init()
+ * resets. metal_main calls this only after the pool is live. */
+int wubu_drv_map_all_mmio(void)
+{
+    int mapped = 0;
+    for (int i = 0; i < g_ndev; i++) {
+        uint64_t va;
+        if (!g_devs[i].bound || g_devs[i].mmio_va) continue;
+        uint64_t slot = WUBU_DRV_MMIO_VA_BASE + (uint64_t)i * 4096u;
+        if (wubu_drv_map_mmio(&g_devs[i], slot, &va) == 0) {
+            g_devs[i].mmio_va = va;
+            mapped++;
+        }
+    }
+    return mapped;
 }
 
 /* DRV6: probe — bind every device to its driver. Returns the number

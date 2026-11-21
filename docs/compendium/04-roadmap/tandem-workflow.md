@@ -59,17 +59,18 @@ driver a mapped MMIO window", without touching the WuBuKernel submodule.
 
 ## Drivers-first legs (smallest real increment + behaviour gate)
 
-**D1 — BAR→VMM single owner (start here).**
-Add one owner `wubu_drv_map_mmio(dev, va_page, *va_out)` in `wubu_drv.c`:
-reject no-BAR and I/O-space BARs, mask BAR type bits, call the real
-`wubu_vmm_map_page`, fail soft (a map failure never blocks probe). Expose a
-weak/injectable mapper so the hosted driver gate can record calls without
-linking `wubu_vmm.o`.
-Gate: extend `test_drv` (`mk/tests.mk:2967`) with a device whose BAR is a
-memory window and a driver whose `probe` reads the mapped VA; assert the
-map call happened with the exact physical BAR and that a no-BAR/I-O-BAR
-device is unchanged. Negative control: the pre-change probe path makes no
-map call. Also `make kernel` + boot assert + `kernel-strict`.
+**D1 — BAR→VMM single owner (DELIVERED 2026-11-21, `leg/d1-bar-vmm`).**
+`wubu_drv_map_mmio()` in `wubu_drv.c` is the one owner: rejects no-BAR and
+I/O-space BARs, masks BAR type bits (and assembles 64-bit BAR0+BAR1), calls
+`wubu_vmm_map_page` through a weak seam, fail-soft on map failure.
+`wubu_drv_map_all_mmio()` is the **late** idempotent pass — it must run
+AFTER `wubu_vmm_init()` because the mapper allocates PT pages from the VMM
+pool that init resets; `wubu_drv_probe()` runs before that point and must
+never map. `metal_main.c` calls the late pass and logs the count.
+Gate: `test_drv` extended with a strong recording mapper stub — asserts
+phys/flags/VA, no-BAR and I-O-BAR rejection, 64-bit assembly, fail-soft
+failure, and idempotent late pass. `make test_drv` exits 0. Metal boot log
+confirms `WuBuOS: 1 device MMIO BARs mapped` (real behavior, not a no-op).
 
 **D2 — one real consumer of D1.**
 Pick one existing driver (virtio-blk is already the persistence-proven
