@@ -83,9 +83,11 @@ owner and asserts `probe()` makes exactly one map call, uses the returned
 VA, and returns clean `absent` with zero map calls when no device exists.
 - Note: D1 originally mapped one 4K page per device. DRV10b
   `wubu_drv_map_mmio_range()` now lifts that limit (up to 16 pages) through
-  the SAME owner; xHCI still uses the one-page wrapper. A mid-range failure
-  rolls back the pages already mapped through a weak-seamed `wubu_vmm_unmap`
-  and returns -1 with no fabricated VA.
+  the SAME owner. A mid-range failure rolls back already-mapped pages via a
+  weak-seamed `wubu_vmm_unmap` and returns -1 with no fabricated VA.
+- xHCI consumes the range form: it requests a two-page aperture, so
+  capability/operational/doorbell registers that cross a 4K boundary are
+  covered. `test_xhci` asserts pages == 2.
 
 **D3 — contract alignment, not adoption (DELIVERED 2026-11-21).**
 WuBuKernel now owns `include/wubu_driver_contract.h` + `src/wubu_driver_contract.c`:

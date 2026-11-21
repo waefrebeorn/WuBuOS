@@ -28,10 +28,13 @@ const wubu_drv_dev_t *wubu_drv_find_class(uint8_t c, uint8_t s)
     return g_fake_xhci_present ? &g_fake_xhci_dev : NULL;
 }
 
-int wubu_drv_map_mmio(const wubu_drv_dev_t *d, uint64_t va, uint64_t *out)
+static uint32_t g_fake_map_pages;
+int wubu_drv_map_mmio_range(const wubu_drv_dev_t *d, uint64_t va,
+                            uint32_t pages, uint64_t *out)
 {
     (void)d; (void)va;
     g_fake_map_calls++;
+    g_fake_map_pages = pages;
     if (!out) return -1;
     *out = g_fake_map_va;
     return 0;
@@ -75,6 +78,7 @@ int main(void)
     CHECK(wubu_xhci_probe(&px) == 0);
     CHECK(px.present == 1);
     CHECK(g_fake_map_calls == 1);
+    CHECK(g_fake_map_pages == 2);   /* two-page MMIO aperture */
     CHECK(px.mmio_base == (uint64_t)(uintptr_t)mm);
     CHECK(px.op_base == (uint64_t)(uintptr_t)mm + 32);
     /* negative: no registry device -> clean absent, mapper never called */

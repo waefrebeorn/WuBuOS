@@ -75,11 +75,16 @@ static uint8_t g_erst[16] __attribute__((aligned(64)));
  * physical address as a VA (broken once paging is on) -- and its
  * `bar0 & 1` test was inverted: bit 0 SET means I/O space, not MMIO.
  * No second PCI scan here; the registry owns discovery and mapping. */
+/* xHCI capability + operational + doorbell registers can cross a 4K
+ * boundary, so request a two-page aperture through the range owner. */
+#define WUBU_XHCI_MMIO_PAGES 2u
+
 static int xhci_registry_mmio(uint64_t *va)
 {
     const wubu_drv_dev_t *dev = wubu_drv_find_class(0x0C, 0x03);
     if (!dev) return -1;
-    return wubu_drv_map_mmio(dev, WUBU_XHCI_MMIO_VA, va);
+    return wubu_drv_map_mmio_range(dev, WUBU_XHCI_MMIO_VA,
+                                   WUBU_XHCI_MMIO_PAGES, va);
 }
 
 int wubu_xhci_probe_regs(uint64_t mmio, wubu_xhci_t *out)
