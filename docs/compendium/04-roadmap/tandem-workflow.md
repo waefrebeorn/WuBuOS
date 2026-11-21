@@ -177,8 +177,11 @@ cd /home/wubu/wubuos && make test_wemu_busybox
   "✅ All tests passed (all tiers)" (`guest_host_full.log`);
   `env -u DISPLAY -u WAYLAND_DISPLAY make test_linux_product` PASS —
   1 headless boot + 5 distinct real-GUI frames (`guest_host_product.log`).
-  Local evidence only: `gh` is not authenticated here, so CI run status was
-  not checked and is not claimed.
+  Local evidence only for the final commit: `gh` is not authenticated here.
+  CI status was checked through the public web UI instead: `boot-verify`
+  runs #97–#101 (covering the game and driver commits) were still **in
+  progress** at check time; #95 and #96 completed successfully. Those runs
+  take ~42 minutes. Do not claim CI green for the latest commits.
 
 ## Honest boundaries
 
