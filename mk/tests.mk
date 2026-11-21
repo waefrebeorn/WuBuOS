@@ -125,7 +125,24 @@ test_ed25519_gimple_ct:
 test_ed25519_gimple_ct_negctl:
 	bash tools/eddsa_gimple_ct_negative_control.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_default_optin test_default_crypto_negative_control
+# CALLEE-CT gate (next increment after the intraprocedural GIMPLE gate):
+# interprocedural secret-taint across the ladder and EVERY reachable callee in
+# real gcc -O2 GIMPLE, a register-level audit of the shipped mbedTLS 2.28.8
+# mbedtls_mpi_safe_cond_swap MACHINE CODE from the local libmbedcrypto.a, and a
+# gcc -O2 select->cmov lowering check.  FAILS CLOSED (never a fake PASS) when
+# gcc/objdump/mbedTLS archive are absent, so it is opt-in like the other CT
+# gates; the always-on structural ladder guard stays in the default tier.
+test_ed25519_callee_ct:
+	bash tools/eddsa_callee_ct_gate.sh
+
+# Standalone negative control for the callee-CT gate: injects a secret-dependent
+# cswap at BOTH levels (GIMPLE 'if (swap)' in the ladder and an assembly-level
+# branchy cswap fixture), requires both detectors to go red, restores the
+# shipped source and requires green.  Fails closed with no local gcc.
+test_ed25519_callee_ct_negctl:
+	bash tools/eddsa_callee_ct_negative_control.sh
+
+.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_default_optin test_default_crypto_negative_control
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds

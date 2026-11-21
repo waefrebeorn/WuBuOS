@@ -1,4 +1,4 @@
-# Ed25519 ladder constant-time evidence (2026-11-21T04:37:39Z)
+# Ed25519 ladder constant-time evidence (2026-11-21T05:00:17Z)
 
 **Status: EMPIRICAL STRUCTURAL EVIDENCE — NOT A FORMAL VERIFICATION PROOF.**
 
@@ -7,7 +7,9 @@ test_ed25519_ct_evidence`).  Every number below came from a real compile and
 run on this host; re-run the target to regenerate it.
 
 An increment added a machine-checkable compiled-tree check on top of this
-empirical evidence; see `docs/ED25519_GIMPLE_CT_CHECK.md`.
+empirical evidence; see `docs/ED25519_GIMPLE_CT_CHECK.md`.  A further increment
+audits the ladder CALLEES and the shipped mbedTLS swap machine code; see
+`docs/ED25519_CALLEE_CT_CHECK.md`.
 
 ## What is actually shipped
 
@@ -69,7 +71,12 @@ counterpart of the fixed 256-iteration schedule.
 
 1. The selection primitive is mbedTLS 2.28.8's `mbedtls_mpi_safe_cond_swap()`,
    whose constant-time behaviour is an upstream claim about hand-written
-   assembly.  No mechanised proof of that assembly exists in this tree.
+   assembly.  `docs/ED25519_CALLEE_CT_CHECK.md` now audits that shipped object
+   code (`make test_ed25519_callee_ct`): 5 conditional jumps remain, 0 governed
+   by the secret swap byte, and the exact governing instructions (pointer
+   equality, grow return code, limb count) are inventoried there as UNVERIFIED
+   assumptions because the mbedTLS C source is absent from the devroot.  No
+   mechanised proof of that assembly exists in this tree.
 2. A C11 source audit does not bound what GCC `-O2` emits; a compiler could
    reintroduce a data-dependent branch.  The disassembly table above bounds
    only THIS compiler/flags/version, not all toolchains.  The gap for THIS
