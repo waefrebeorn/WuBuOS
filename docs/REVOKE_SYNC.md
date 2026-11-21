@@ -155,6 +155,20 @@ loopback bad-signature feed to assert the exact exponential-with-cap schedule
 and a reset on the next successful recovery feed (settings keys persisted).
 It is also part of `make test_optin_crypto`.
 
+The same target now includes the **GUI-driven trusted-CA end-to-end leg**. A
+loopback HTTPS fixture serves a self-signed cert whose only SAN is
+`DNS:localhost`; a signed seq-10 feed waits at `/live_https`, and the fixture
+is rotated to a higher signed seq-11 feed at the same URL before the two
+refusal attempts. With `WUBU_CA_BUNDLE` set to the trusted CA, typing the URL
+into the widget and clicking **Sync Now** revokes the key and it survives a
+fresh `wubu_pkgmgr_init()` load. With a **different, valid CA** the widget
+refuses, and with the **correct CA but the wrong host** (`127.0.0.1`, not in
+the cert's SAN) it also refuses; in both cases the revoked-key count is
+unchanged and the higher-seq key is **not** revoked, so the refusal is proven
+fail-closed rather than a silent no-op on an empty fixture. The base commit
+`8c0c04b` has no GUI CA fixture at all — that is the pre-change negative
+control for this leg.
+
 `make test_hosted_tls` runs `tools/hosted_tls_gate.sh`: exact build evidence
 for the no-TLS default hosted recipe and the `HOSTED_TLS=1` recipe, plus a
 loopback TLS fixture proving the mbedTLS-backed HTTPS path authenticates the

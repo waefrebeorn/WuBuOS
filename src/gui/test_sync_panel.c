@@ -76,6 +76,23 @@ static void rotate_feed_to(const char *dir, const char *base) {
 
 static void rotate_feed(const char *dir) { rotate_feed_to(dir, "feed_b"); }
 
+/* Same rotation for the HTTPS-only mount points: the TLS fixture serves the
+ * same directory as the HTTP one, but uses its own live/live.sig names so the
+ * two transports do not disturb each other's generation state. */
+static void rotate_https_to(const char *dir, const char *base) {
+    char live[1024], livesig[1024], next[1024], nextsig[1024];
+    char tgt[256], tgtsig[260];
+    snprintf(live, sizeof(live), "%s/live_https", dir);
+    snprintf(livesig, sizeof(livesig), "%s/live_https.sig", dir);
+    snprintf(next, sizeof(next), "%s/.next_https", dir);
+    snprintf(nextsig, sizeof(nextsig), "%s/.nextsig_https", dir);
+    snprintf(tgt, sizeof(tgt), "%s", base);
+    snprintf(tgtsig, sizeof(tgtsig), "%s.sig", base);
+    unlink(next); unlink(nextsig);
+    if (symlink(tgt, next) == 0) (void)rename(next, live);
+    if (symlink(tgtsig, nextsig) == 0) (void)rename(nextsig, livesig);
+}
+
 static bool settings_persisted(const char *needle) {
     char path[1024];
     const char *xdg = getenv("XDG_CONFIG_HOME");
@@ -330,6 +347,69 @@ int main(void) {
         CHECK(cp_pkg_sync_sync_now(err, sizeof(err)), "Sync Now uses the bounded URL list");
         wubu_pkgmgr_shutdown(); wubu_pkgmgr_init(&cfg);
         CHECK(wubu_pkgmgr_key_is_revoked(k6), "second URL revocation persisted");
+    }
+
+    /* -- GUI-driven HTTPS sync with a trusted CA (end-to-end) ---------- */
+    {
+        const char *https  = env_or("WUBU_SYNC_HTTPS_URL", NULL);
+        const char *goodca = env_or("WUBU_SYNC_HTTPS_GOOD_CA", NULL);
+        const char *badca  = env_or("WUBU_SYNC_HTTPS_BAD_CA", NULL);
+        const char *wrong  = env_or("WUBU_SYNC_HTTPS_WRONGHOST_URL", NULL);
+        const char *k7     = env_or("WUBU_SYNC_KEY7", NULL);
+        const char *k8     = env_or("WUBU_SYNC_KEY8", NULL);
+        if (!https || !goodca || !badca || !wrong || !k7 || !k8) {
+            fprintf(stderr, "test_sync_panel: missing HTTPS CA fixture env\n");
+            return 2;
+        }
+        int before_https = wubu_pkgmgr_key_revoked_count();
+
+        /* Trusted CA: set the bundle, then drive the REAL widget callbacks
+         * exactly as a user would (type URL + Enter, click Sync Now). */
+        setenv("WUBU_CA_BUNDLE", goodca, 1);
+        type_url(&a, https);
+        click_button(&a, 1);
+        CHECK(cp_pkg_sync_state()->last_ok,
+              "trusted-CA HTTPS feed accepted via the widget");
+        cp_pkg_sync_test_line(line, sizeof(line));
+        printf("  [widget] %s\n", line);
+        wubu_pkgmgr_shutdown(); wubu_pkgmgr_init(&cfg);
+        CHECK(wubu_pkgmgr_key_is_revoked(k7),
+              "trusted-CA HTTPS revocation persisted after a fresh DB load");
+        CHECK(wubu_pkgmgr_key_revoked_count() == before_https + 1,
+              "trusted-CA HTTPS sync added exactly one revocation");
+
+        /* Rotate the HTTPS feed at the SAME URL to a higher signed seq that
+         * would revoke k8.  A TLS refusal must stop this feed before it ever
+         * reaches the importer (no signature/DB work at all). */
+        rotate_https_to(serve, "feed_https2");
+        before_https = wubu_pkgmgr_key_revoked_count();
+
+        /* Untrusted but VALID other CA: must fail closed, not VERIFY_NONE. */
+        setenv("WUBU_CA_BUNDLE", badca, 1);
+        type_url(&a, https);
+        click_button(&a, 1);
+        CHECK(!cp_pkg_sync_state()->last_ok, "untrusted CA refused by the widget");
+        cp_pkg_sync_test_line(line, sizeof(line));
+        printf("  [widget] %s\n", line);
+        CHECK(strstr(line, "last_ok=0") != NULL,
+              "untrusted CA shown as refused in widget status");
+        wubu_pkgmgr_shutdown(); wubu_pkgmgr_init(&cfg);
+        CHECK(wubu_pkgmgr_key_revoked_count() == before_https,
+              "untrusted CA: no DB change");
+        CHECK(!wubu_pkgmgr_key_is_revoked(k8),
+              "untrusted CA: higher-seq key not revoked");
+
+        /* Correct CA, wrong hostname: certificate name check must reject. */
+        setenv("WUBU_CA_BUNDLE", goodca, 1);
+        type_url(&a, wrong);
+        click_button(&a, 1);
+        CHECK(!cp_pkg_sync_state()->last_ok, "wrong-host HTTPS refused by the widget");
+        wubu_pkgmgr_shutdown(); wubu_pkgmgr_init(&cfg);
+        CHECK(wubu_pkgmgr_key_revoked_count() == before_https,
+              "wrong host: no DB change");
+        CHECK(!wubu_pkgmgr_key_is_revoked(k8),
+              "wrong host: higher-seq key not revoked");
+        unsetenv("WUBU_CA_BUNDLE");
     }
 
     cp_pkg_sync_set_clock(NULL);

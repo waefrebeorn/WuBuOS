@@ -1,4 +1,4 @@
-# Ed25519 ladder constant-time evidence (2026-11-20T20:46:53Z)
+# Ed25519 ladder constant-time evidence (2026-11-21T00:05:01Z)
 
 **Status: EMPIRICAL STRUCTURAL EVIDENCE — NOT A FORMAL VERIFICATION PROOF.**
 
@@ -77,6 +77,11 @@ counterpart of the fixed 256-iteration schedule.
    statistical differential (legacy r=+0.9994 vs ladder r=+0.1980 in the
    recorded run); a statistical result is evidence of leak removal, not a
    proof of its absence.
+5. The default-suite dudect-style gate (`make test_ed25519_dudect`,
+   `tools/eddsa_dudect_probe.c`) runs a SAME-RUN Welch t-test between two
+   secret classes on the shipped ladder and a legacy negative control, with
+   FIXED thresholds (|t_ladder| <= 10, |t_legacy| > 10) and NO retries. It is
+   still statistical evidence, not a mechanised constant-time proof.
 
 Consequently this document claims **verified structural evidence and a
 reproducible instruction/branch table**, and explicitly does **not** claim
