@@ -99,7 +99,14 @@ void wubu_fantml_probe_root(const char *root)
 
 void wubu_fantml_probe(void)
 {
+#ifndef MYSEED_METAL
+    /* Hosted: the env override pins a fixture root for deterministic gates. */
     const char *root = getenv("WUBU_FAN_SYSFS");
+#else
+    /* Bare metal: no environment exists. Probe the real sysfs root; absent
+     * sensors stay -1, never a fabricated zero. */
+    const char *root = NULL;
+#endif
     wubu_fantml_probe_root(root);
 }
 
