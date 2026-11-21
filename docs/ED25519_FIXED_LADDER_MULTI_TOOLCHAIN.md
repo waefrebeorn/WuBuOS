@@ -136,8 +136,12 @@ single config.
 
 ## Remaining gaps
 
-1. `-O0` is not covered (GPR-taint model cannot track stack-slot secret flow at
-   `-O0`); a stack-aware or ctgrind/ct-verif proof is still needed.
+1. `-O0` was originally not covered (the GPR-taint model could not track
+   stack-slot secret flow).  That gap is now closed by the stack-aware checker
+   `tools/ed25519_fixed_ladder_o0_check.py` and gate
+   `tools/ed25519_fixed_ladder_o0_gate.sh` (`make test_ed25519_fixed_ladder_o0`,
+   `make test_ed25519_fixed_ladder_o0_negctl`); see
+   `docs/ED25519_FIXED_LADDER_O0.md`.  A ctgrind/ct-verif proof is still absent.
 2. Still structural/machine-code evidence, not a formal constant-time proof:
    no ct-verif/ctgrind, no interprocedural/assembly preservation argument, and
    microarchitectural channels are out of scope.
