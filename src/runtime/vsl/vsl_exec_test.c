@@ -1824,14 +1824,21 @@ int main(int argc, char **argv) {
     }
 }
 
-/* (v) Bounded PT_INTERP / guest-rootfs differential gate.
- *     A REAL dynamically linked gcc binary from the repo-local toolchain
- *     (plain `gcc`, no -static/-nostdlib): PT_INTERP is
- *     /lib64/ld-linux-x86-64.so.2, DT_NEEDED libc.so.6, imports
- *     __libc_start_main/puts@GLIBC_2.2.5.  The pre-change loader ignored
- *     PT_INTERP and failed closed with ERR_RELOC on the unresolved import;
- *     the new loader recognises and bounds the path, resolves it inside the
- *     guest rootfs, and refuses a full glibc ld.so run with an exact reason. */
+/* (v) Bounded PT_INTERP / REAL glibc ld.so bootstrap gate.
+ *     A REAL dynamically linked gcc binary (plain `gcc`, no -static) has
+ *     PT_INTERP=/lib64/ld-linux-x86-64.so.2 and imports __libc_start_main,
+ *     __cxa_finalize and the weak _ITM_* / __gmon_start__ GLOB_DATs.  The real
+ *     host ld.so (copied into glibc_rootfs/lib64) is static-pie with ONE
+ *     IRELATIVE (resolver 0x1a8d0, returns 0 on both paths), two self-defined
+ *     __rseq_* GLOB_DATs and 11 DT_RELR relative relocations.  This leg binds
+ *     that resolver from VSL's host IFUNC table, adds bounded DT_RELR, and a
+ *     minimal _dl_* host surface.  A kernel hands control to the loader
+ *     without pre-relocating the main image, so VSL skips main relocation /
+ *     DT_NEEDED preload when a genuine ld-linux interpreter is loaded.
+ *  VERIFIED OUTCOME: real ld.so guest bytes execute (syscalls>0), then fault
+ *  at an exact recorded address; the engine survives and stays runnable.  A
+ *  full hello-world run remains infeasible in this bounded model.  The
+ *  pre-change loader ignored PT_INTERP and never loaded an interpreter. */
 {
     size_t n = 0;
     const char *none[] = { NULL };
@@ -1848,27 +1855,40 @@ int main(int argc, char **argv) {
               "negative control: fixture really carries PT_INTERP");
         vsl_dyn_set_interp(0);
         int rc_old = vsl_exec_image(img, n, NULL, &r);
-        printf("[gate v] old loader: rc=%d status=%d interp_present=%u\n",
-               rc_old, r.status, r.interp_present);
+        uint32_t old_loaded = r.interp_loaded;
+        printf("[gate v] old loader: rc=%d status=%d interp_present=%u "
+               "interp_loaded=%u\n",
+               rc_old, r.status, r.interp_present, old_loaded);
         CHECK(rc_old == VSL_EXEC_ERR_RELOC,
               "old loader rejects the real glibc binary (ERR_RELOC)");
+        CHECK(old_loaded == 0,
+              "negative control: legacy loader never loaded an interpreter");
 
         vsl_dyn_set_interp(1);
         int rc_new = vsl_exec_image(img, n, &cfg, &r);
         printf("[gate v] new loader: rc=%d status=%d interp_present=%u "
-               "path=\"%s\" resolved=%u reason=\"%s\"\n",
+               "path=\"%s\" resolved=%u loaded=%u reason=\"%s\" "
+               "fault=0x%llx syscalls=%llu out_len=%zu out=\"%.*s\"\n",
                rc_new, r.status, r.interp_present, r.interp_path,
-               r.interp_resolved, r.interp_reason);
+               r.interp_resolved, r.interp_loaded, r.interp_reason,
+               (unsigned long long)r.fault_addr,
+               (unsigned long long)r.syscalls_trapped, r.output_len,
+               (int)(r.output_len < 64 ? r.output_len : 64), r.output);
         CHECK(r.interp_present == 1, "PT_INTERP recognised on the real binary");
         CHECK(strcmp(r.interp_path, "/lib64/ld-linux-x86-64.so.2") == 0,
               "bounded interpreter path is the exact ld.so soname");
-        CHECK(rc_new == VSL_EXEC_ERR_INTERP,
-              "full glibc ld.so run refused (verified negative)");
         CHECK(r.interp_resolved == 1,
               "ld.so path resolved inside the guest rootfs only");
-        CHECK(r.interp_reason[0] != 0,
-              "exact refusal reason recorded for the negative evidence");
-        CHECK(rc_old != rc_new, "old/new rejection codes differ (differential)");
+        CHECK(r.interp_loaded == 1,
+              "REAL glibc ld.so mapped + self-relocated (IRELATIVE+RELR+COPY)");
+        CHECK(rc_new == VSL_EXEC_ERR_FAULT,
+              "real glibc ld.so GUEST BYTES executed and faulted (engine survived)");
+        CHECK(r.fault_addr != 0,
+              "exact guest fault address recorded as the bootstrap boundary");
+        CHECK(r.syscalls_trapped > 0,
+              "ld.so dispatched real guest syscalls through VSL before faulting");
+        CHECK(old_loaded != r.interp_loaded,
+              "differential: interpreter loaded ONLY by the new loader");
         vsl_dyn_set_interp(0);
         free(img);
     }

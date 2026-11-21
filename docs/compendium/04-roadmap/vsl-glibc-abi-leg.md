@@ -150,3 +150,56 @@ ld.so run: the remaining reasons are now narrower but real (see below).
   multi-threaded FS switching (the engine is single-threaded by contract).
 * The ordered rootfs list bounds the interpreter search only; DT_NEEDED still
   uses the separate per-image directory list, not a unified search path.
+
+## Next increment (branch leg/glibc-ldso from 83cd53d): real ld.so self-relocation + guest execution
+
+Base 83cd53d; `test_vsl_exec` 239/0, `test_vsl` 118/118, `test_docs` 590/0.
+
+`readelf -r` on the REAL host ld.so copied into `glibc_rootfs/lib64` shows the
+prior blocker was NOT `_dl_*` imports (it has ZERO undefined dynsyms): it has
+one `R_X86_64_IRELATIVE` (link-time resolver `0x1a8d0`), two self-defined
+`__rseq_*` GLOB_DATs and 11 `DT_RELR` relative relocations.  Disassembly of
+`0x1a8d0` proves the resolver returns 0 on both branches, so this leg:
+
+* binds `0x1a8d0` in the bounded host IFUNC table to a host function returning
+  0 (no guest bytes are ever executed during relocation);
+* applies bounded `DT_RELR` (even word = address, odd word = bitmap) with
+  every write confined to the mapped PT_LOAD union and the VSL window;
+* adds a minimal, honest `_dl_*` host surface (`_dl_find_object` = "not
+  found", `_dl_argv` / `__libc_stack_end` = real host storage) for the NEXT
+  leg (libc/main import resolution) -- not needed for ld.so self-relocation;
+* records the EXACT first relocation failure in `VslExecResult.reloc_failure`
+  (was a generic "ABI unmodeled" reason).
+* hands control to a genuine ld-linux interpreter as a kernel does: VSL skips
+  main-image pre-relocation and DT_NEEDED preload when the PT_INTERP names a
+  real `ld-linux` loader, so the loader -- not VSL -- owns those steps.
+
+Gate (v), exact output (deterministic across 3 consecutive runs):
+
+```
+[gate v] old loader: rc=-11 status=-11 interp_present=1 interp_loaded=0
+[gate v] new loader: rc=-9 status=-9 interp_present=1 \
+  path="/lib64/ld-linux-x86-64.so.2" resolved=1 loaded=1 \
+  fault=0x3000000 syscalls=6 out_len=0 out=""
+```
+
+* Negative control: the pre-change loader (PT_INTERP off) never loads an
+  interpreter and rejects the fixture with `VSL_EXEC_ERR_RELOC` (-11).
+* New loader: the REAL glibc ld.so is mapped and self-relocated
+  (`interp_loaded=1`), its GUEST BYTES then execute (6 syscalls dispatched
+  through VSL) and fault at exact address `0x3000000`; the engine survives
+  and all later gates still pass (`VSL_EXEC_ERR_FAULT` -9).
+* A full hello-world run remains INFEASIBLE here: no fabricated success is
+  claimed; gate (v) asserts this exact negative.
+
+### Remaining gaps after this leg
+
+* The fault at `0x3000000` is recorded but its cause is unmodeled: ld.so's
+  later bootstrap needs a full glibc `tcbhead_t`, malloc-backed dtv and the
+  complete syscall set.  No libc.so.6 is present in the guest rootfs, so even
+  past the fault ld.so cannot resolve `__libc_start_main`/`__cxa_finalize`.
+* The IRELATIVE binding is tied to the specific fixture resolver address
+  `0x1a8d0` (fail-closed for any other resolver); a different glibc build
+  needs its own verified resolver table entry.
+* The `_dl_*` surface is for a future libc/main leg; libc.so.6 itself (with
+  its copy relocations, versioned needs and PLT resolver) is unmodeled.

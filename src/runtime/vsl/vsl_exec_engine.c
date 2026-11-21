@@ -321,21 +321,60 @@ static uint64_t vsl_dyn_ifunc_magic_fn(void) {
 }
 typedef uint64_t (*VslIfuncResolver)(void);
 typedef struct { uint64_t link_addr; VslIfuncResolver fn; } VslIfuncEntry;
+
+/* The real glibc ld.so fixture (glibc_rootfs/lib64/ld-linux-x86-64.so.2) is
+ * static-pie and has exactly ONE IRELATIVE whose resolver sits at link
+ * address 0x1a8d0.  Disassembly of that fixture proves the resolver returns
+ * 0 on BOTH paths (it loads _rtld_global_ro.glibc_has_cpu_features, and
+ * either way falls through to `xor %eax,%eax; ret`).  Binding it to a host
+ * function returning 0 is therefore semantically identical AND preserves
+ * the invariant that relocation never executes guest bytes. */
+static uint64_t vsl_dyn_ifunc_zero_fn(void) { return 0; }
+#define VSL_LDSO_IRELATIVE_RESOLVER 0x1a8d0ULL
+
 static const VslIfuncEntry g_ifunc_table[] = {
-    { 0x1180ULL, &vsl_dyn_ifunc_magic_fn },
+    { 0x1180ULL,                   &vsl_dyn_ifunc_magic_fn },
+    { VSL_LDSO_IRELATIVE_RESOLVER, &vsl_dyn_ifunc_zero_fn  },
 };
+
+/* Exact, bounded diagnostic for the FIRST relocation that could not be
+ * resolved in the current image.  Set by ex_apply_one(); copied into
+ * VslExecResult.interp_reason when a PT_INTERP interpreter fails to load.
+ * This turns a generic "ABI unmodeled" refusal into a verifiable, exact
+ * statement of which relocation/symbol blocked the bootstrap. */
+static char g_ex_reloc_fail[160];
 
 typedef struct {
     const char *name;
     uint64_t addr;
     uint64_t copy_sz;   /* max bytes a COPY relocation may take from addr */
 } VslDynHostSym;
+
+/* Host storage / shim backing the minimal _dl_* symbol surface below. */
+static void *g_dl_argv_host = NULL;
+static uint64_t g_libc_stack_end_host = 0;
+/* glibc dl_find_object ABI: 0 = found, nonzero = not found.  VSL has no
+ * host link_map to expose, so it honestly reports "not found". */
+static int64_t vsl_dl_find_object_shim(void *addr, void *result) {
+    (void)addr; (void)result; return 1;
+}
+
 static const VslDynHostSym g_dyn_host_syms[] = {
     { "write",         (uint64_t)(uintptr_t)&vsl_dyn_write_shim,   0 },
     { "vsl_test_shim", (uint64_t)(uintptr_t)&vsl_dyn_test_shim_fn, 0 },
     { "vsl_test_data", (uint64_t)(uintptr_t)g_dyn_test_data,       0 },
     { "vsl_copy_data", (uint64_t)(uintptr_t)g_dyn_copy_data,
                        sizeof(g_dyn_copy_data) - 1 },
+    /* Minimal _dl_* surface a glibc dynamic binary pulls from ld.so.  The
+     * REAL ld.so fixture has ZERO undefined dynsyms (verified with readelf),
+     * so these are NOT needed for its self-relocation -- they are the bounded
+     * host surface for the NEXT leg (libc.so.6 / __libc_start_main resolution).
+     * Semantics are honest: _dl_find_object reports "no object" (nonzero),
+     * _dl_argv / __libc_stack_end are real host storage a bounded COPY may
+     * read.  No arbitrary guest code runs. */
+    { "_dl_find_object",  (uint64_t)(uintptr_t)&vsl_dl_find_object_shim, 0 },
+    { "_dl_argv",         (uint64_t)(uintptr_t)&g_dl_argv_host,   sizeof(void *) },
+    { "__libc_stack_end", (uint64_t)(uintptr_t)&g_libc_stack_end_host, sizeof(uint64_t) },
 };
 
 static const VslDynHostSym *ex_host_lookup(const char *name) {
@@ -593,6 +632,10 @@ static int ex_collect_ctors(const uint8_t *f, size_t fsz,
  * inside an allow-listed guest rootfs. */
 #define EX_PT_INTERP 3u
 static int      g_run_interp;               /* opt-in, default OFF */
+/* A genuine glibc ld.so owns main-image relocation and DT_NEEDED loading:
+ * a kernel only maps the main image + interpreter, then hands control to
+ * ld.so.  VSL must not pre-relocate the main image in that mode. */
+static int      g_interp_owns_main;
 static uint64_t g_interp_entry;             /* interpreter e_entry (link addr) */
 static uint64_t g_interp_bias;
 static uint8_t *g_interp_map;
@@ -606,6 +649,7 @@ static void ex_interp_reset(void) {
     g_interp_entry = g_interp_bias = 0;
     g_interp_map = NULL;
     g_interp_lo = g_interp_hi = 0;
+    g_interp_owns_main = 0;
 }
 
 /* Strict PT_INTERP parse.  Returns 0 when there is no interpreter or a
@@ -697,6 +741,9 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 #define EX_DT_RELENT     19
 #define EX_DT_PLTREL     20
 #define EX_DT_JMPREL     23
+#define EX_DT_RELR       36      /* DT_RELR: packed relative relocations */
+#define EX_DT_RELRSZ     35
+#define EX_DT_RELRENT    37
 #define EX_DT_GNU_HASH   0x6ffffef5ULL
 
 #define EX_R_X86_64_64       1
@@ -1392,6 +1439,33 @@ static int ex_resolve_copy(const uint8_t *f, size_t fsz,
     return 0;
 }
 
+/* Best-effort bounded copy of a dynsym's name for diagnostics. */
+static void ex_sym_name_snip(const uint8_t *f, size_t fsz,
+                             uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                             uint64_t symtab, uint64_t syment,
+                             uint64_t strtab, uint64_t strsz, uint32_t symcount,
+                             uint32_t symidx, char *dst, size_t dstsz) {
+    dst[0] = 0;
+    if (!symtab || !strtab || !strsz || strsz > EX_STRTAB_MAX ||
+        syment < 24 || symidx >= symcount) return;
+    uint64_t so;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        symtab + (uint64_t)symidx * syment, 24, &so) != 0) return;
+    uint32_t st_name;
+    memcpy(&st_name, f + so, 4);
+    if (st_name >= strsz) return;
+    uint64_t stroff;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        strtab, strsz, &stroff) != 0) return;
+    const char *name = (const char *)(f + stroff + st_name);
+    size_t room = (size_t)(strsz - st_name);
+    if (!memchr(name, 0, room)) return;
+    size_t len = strlen(name);
+    if (len >= dstsz) len = dstsz - 1;
+    memcpy(dst, name, len);
+    dst[len] = 0;
+}
+
 /* Resolve one IRELATIVE resolver.  `link_addr` is the resolver's link-time
  * address (RELA addend, or the original GOT word for REL).  Only addresses
  * in the fixed table are callable; no guest code is invoked. */
@@ -1480,7 +1554,14 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
          * the table maps it to a host function; we never call guest bytes. */
         uint64_t link_resolver = has_addend ? (uint64_t)addend : *where;
         VslIfuncResolver fn = ex_ifunc_resolve(link_resolver);
-        if (!fn) return -1;
+        if (!fn) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "IRELATIVE resolver 0x%llx at offset 0x%llx is not in "
+                     "the host IFUNC table",
+                     (unsigned long long)link_resolver,
+                     (unsigned long long)r_offset);
+            return -1;
+        }
         *where = fn();
         return 0;
     }
@@ -1494,6 +1575,15 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
         } else if (ex_resolve_symbol(f, fsz, phnum, phentsize, phoff,
                                      symtab, syment, strtab, strsz,
                                      symcount, symidx, bias, vc, &S) != 0) {
+            char sn[EX_NAME_MAX];
+            ex_sym_name_snip(f, fsz, phnum, phentsize, phoff,
+                             symtab, syment, strtab, strsz, symcount,
+                             symidx, sn, sizeof(sn));
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "relocation type %u symbol '%s' (index %u) at offset "
+                     "0x%llx is unresolved",
+                     type, sn[0] ? sn : "(unnamed)", symidx,
+                     (unsigned long long)r_offset);
             return -1;
         }
         uint64_t val = (type == EX_R_X86_64_64)
@@ -1552,6 +1642,50 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
     }
 }
 
+/* Apply a bounded DT_RELR table (packed relative relocations, glibc 2.36+).
+ * An even word is a link-time address whose word gets `bias` added; an odd
+ * word is a bitmap: bit i relocates the word at (previous_even + (i+1)*8).
+ * No symbol lookup, no guest code -- only bounded in-image writes.  The real
+ * glibc ld.so fixture carries 11 such relocations. */
+static int ex_apply_relr(const uint8_t *f, size_t fsz, uint64_t bias,
+                         uint16_t phnum, uint16_t phentsize, uint64_t phoff,
+                         uint64_t map_lo, uint64_t map_hi,
+                         uint64_t relr, uint64_t relrsz,
+                         uint32_t *out_applied) {
+    if (!relr || !relrsz) return 0;
+    if (relrsz > (uint64_t)EX_SYM_MAX * 8u || (relrsz & 7u)) return -1;
+    uint64_t off;
+    if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
+                        relr, relrsz, &off) != 0) return -1;
+    uint64_t base = 0;
+    uint64_t n = relrsz / 8u;
+    for (uint64_t k = 0; k < n; k++) {
+        uint64_t w;
+        memcpy(&w, f + off + k * 8u, 8);
+        if ((w & 1u) == 0) {                    /* even: explicit address */
+            base = w;
+            uint64_t dest = bias + w;
+            if (dest < EX_WIN_LO || dest < map_lo ||
+                dest > EX_WIN_HI - 8u || dest > map_hi - 8u) return -1;
+            *(uint64_t *)(uintptr_t)dest += bias;
+            (*out_applied)++;
+        } else {                                /* odd: bitmap after base */
+            uint64_t bits = w >> 1;
+            for (unsigned b = 0; b < 63; b++) {
+                if (!(bits & (1ULL << b))) continue;
+                /* base must already be established by a preceding even word */
+                if (!base) return -1;
+                uint64_t dest = bias + base + ((uint64_t)(b + 1) << 3);
+                if (dest < EX_WIN_LO || dest < map_lo ||
+                    dest > EX_WIN_HI - 8u || dest > map_hi - 8u) return -1;
+                *(uint64_t *)(uintptr_t)dest += bias;
+                (*out_applied)++;
+            }
+        }
+    }
+    return 0;
+}
+
 /* Apply the dynamic relocations of an ET_DYN image after its PT_LOAD bytes
  * are in place.  Handles the six supported types above; every other type is
  * counted in *skipped and makes the caller reject the image (fail closed).
@@ -1565,7 +1699,7 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                 uint64_t tls_base, uint32_t module_id,
                                 uint32_t *out_tls) {
     *out_applied = *out_skipped = *out_resolved = *out_tls = 0;
-
+    g_ex_reloc_fail[0] = 0;
     /* Locate PT_DYNAMIC and read its file bytes. */
     uint64_t doff = 0, dsz = 0;
     for (int i = 0; i < phnum; i++) {
@@ -1583,6 +1717,7 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
     /* Parse d_tag/d_val pairs until DT_NULL. */
     uint64_t rela = 0, relasz = 0, relaent = 24;
     uint64_t rel  = 0, relsz  = 0, relent = 16;
+    uint64_t relr = 0, relrsz = 0, relrent = 8;
     uint64_t jmprel = 0, pltrelsz = 0, pltrel = 0;
     uint64_t symtab = 0, strtab = 0, strsz = 0, syment = 24;
     uint64_t hash = 0, gnu_hash = 0;
@@ -1603,6 +1738,9 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
         case EX_DT_REL:     rel = val;    break;
         case EX_DT_RELSZ:   relsz = val;  break;
         case EX_DT_RELENT:  relent = val; break;
+        case EX_DT_RELR:    relr = val;   break;
+        case EX_DT_RELRSZ:  relrsz = val; break;
+        case EX_DT_RELRENT: relrent = val;break;
         case EX_DT_JMPREL:  jmprel = val; break;
         case EX_DT_PLTRELSZ:pltrelsz = val;break;
         case EX_DT_PLTREL:  pltrel = val; break;
@@ -1658,6 +1796,8 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
         else return -1;
     }
 #undef EX_SCAN_TABLE
+    if (relrent && relrent != 8) return -1;      /* DT_RELRENT must be 8 */
+    if (relrsz && !relr) return -1;
     if (need_syms || vdi.versym) {
         if (ex_symbol_count(f, fsz, phnum, phentsize, phoff,
                             hash, gnu_hash, &symcount) != 0) return -1;
@@ -1712,6 +1852,13 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
         else return -1;
     }
 #undef EX_WALK_TABLE
+    /* DT_RELR relative relocations (glibc 2.36+ static-pie ld.so). */
+    if (ex_apply_relr(f, fsz, bias, phnum, phentsize, phoff,
+                      map_lo, map_hi, relr, relrsz, out_applied) != 0) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "DT_RELR packed relative relocation table is out of bounds");
+        return -1;
+    }
     return 0;
 }
 
@@ -2024,7 +2171,12 @@ static int ex_load_dependencies(const uint8_t *f, size_t fsz,
         if (g_dep_count >= EX_DEP_MAX) return -1;
         size_t dsz = 0;
         uint8_t *df = ex_read_dep_file(name, &dsz);
-        if (!df) return -1;                            /* missing -> fail closed */
+        if (!df) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "DT_NEEDED '%s' not found in the bounded dependency "
+                     "search directory", name);
+            return -1;                            /* missing -> fail closed */
+        }
         uint64_t entry = 0;
         uint16_t dphnum, dphentsize;
         uint64_t dphoff;
@@ -2249,9 +2401,21 @@ static int ex_load_interpreter(VslExecResult *out) {
                                   ex_tls_base(EX_TLS_INTERP_SLOT), interp_mod, &tls);
     g_self_owner = NULL;
     if (rr != 0 || skipped) {
-        snprintf(out->interp_reason, sizeof(out->interp_reason),
-                 "interpreter needs unsupported relocations/symbols "
-                 "(glibc ld.so ABI unmodeled)");
+        /* Exact evidence: name the specific relocation/symbol that blocked
+         * the bootstrap instead of a generic "ABI unmodeled" refusal. */
+        if (g_ex_reloc_fail[0])
+            snprintf(out->interp_reason, sizeof(out->interp_reason),
+                     "interpreter relocation failed: %s", g_ex_reloc_fail);
+        else if (skipped)
+            snprintf(out->interp_reason, sizeof(out->interp_reason),
+                     "interpreter has %u unsupported relocation type(s) "
+                     "(glibc ld.so ABI unmodeled)", skipped);
+        else
+            snprintf(out->interp_reason, sizeof(out->interp_reason),
+                     "interpreter relocation table malformed "
+                     "(glibc ld.so ABI unmodeled)");
+        snprintf(out->reloc_failure, sizeof(out->reloc_failure),
+                 "%s", g_ex_reloc_fail);
         free(f); return -1;
     }
     if (ex_collect_ctors(f, (size_t)sz, phnum, phentsize, phoff,
@@ -2261,6 +2425,10 @@ static int ex_load_interpreter(VslExecResult *out) {
         free(f); return -1;
     }
     g_interp_entry = entry;
+    /* Only a genuine glibc ld-linux interpreter owns main relocation; the
+     * bounded synthetic libvslinterp.so fixtures keep VSL-owned relocation. */
+    g_interp_owns_main =
+        (strstr(out->interp_path, "ld-linux") != NULL);
     out->interp_bias = g_interp_bias;
     out->interp_loaded = 1;
     free(f);
@@ -2348,11 +2516,13 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
      *     bias, so dependencies occupy their own in-window mappings and their
      *     exports are merged before the main image is relocated.  Any missing,
      *     malformed or out-of-tree dependency fails closed with ERR_RELOC. */
-    if (is_dyn) {
+    if (is_dyn && !g_interp_owns_main) {
         if (ex_load_dependencies(p, elf_size, e_phnum, e_phentsize, e_phoff,
                                  0) != 0) {
             ex_unload_dependencies();
             out->status = VSL_EXEC_ERR_RELOC;
+            snprintf(out->reloc_failure, sizeof(out->reloc_failure),
+                     "%s", g_ex_reloc_fail);
             ex_unload_dependencies();   /* roll back any dep mappings */
             return out->status;
         }
@@ -2503,7 +2673,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
      *     Undefined symbols resolve only from a bounded fixed host table;
      *     unknown names, unregistered IRELATIVE resolvers, STT_TLS symbols in
      *     plain relocations and all other TLS models are hard rejects. */
-    if (is_dyn) {
+    if (is_dyn && !g_interp_owns_main) {
         /* Lazy PLT needs its per-run stub page BEFORE any GOT entry is
          * rewritten to point at a stub.  ex_plt_reset() runs at run start. */
         if (g_lazy_plt && ex_plt_alloc_stubs() != 0) {
@@ -2518,6 +2688,8 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
                                  g_tls_mods[0].id ? g_tls_mods[0].id : 1,
                                  &tls_count) != 0) {
             rc = VSL_EXEC_ERR_RELOC;
+            snprintf(out->reloc_failure, sizeof(out->reloc_failure),
+                     "%s", g_ex_reloc_fail);
             goto cleanup;
         }
         out->relocations_applied = applied;

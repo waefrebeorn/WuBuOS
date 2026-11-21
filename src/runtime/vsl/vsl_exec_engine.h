@@ -149,6 +149,9 @@ typedef struct {
     uint32_t fs_syscalls;       /* arch_prctl calls trapped and handled this run */
     uint32_t tls_modules;       /* TLS modules with a real assigned module id */
     uint32_t rootfs_tried;      /* rootfs dirs searched for the interpreter */
+    /* Exact first relocation failure (any image), empty on success.  Makes
+     * a glibc-bootstrap negative verifiable down to the symbol/relocation. */
+    char     reloc_failure[160];
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
