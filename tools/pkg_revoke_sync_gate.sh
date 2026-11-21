@@ -15,7 +15,8 @@
 #   * trusted_sync_url stored through the GUI settings store survives
 #     save/load and is the sole trust source on a fresh process (no --trusted,
 #     no config file, no env var);
-#   * the PRE-CHANGE operator CLI from aadf13c (no `sync` command) still refuses.
+#   * a synthetic pre-change operator CLI (sync dispatch disabled locally)
+#     still refuses — no hard-coded historical SHA, valid in shallow CI.
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CTL="$ROOT/tools/wubu_pkg_key_ctl"
@@ -101,11 +102,21 @@ SRCS="$ROOT/src/runtime/wubu_crc32.c \
  $ROOT/src/runtime/oci/oci_http_client.c $ROOT/src/kernel/wubu_math.c"
 LIBS="-L$MB/lib/x86_64-linux-gnu -lmbedtls -lmbedx509 -lmbedcrypto \
  -Wl,-rpath,$MB/lib/x86_64-linux-gnu -lsqlite3 -lzstd -lm"
-BASE=aadf13c
-git -C "$ROOT" show "$BASE:tools/wubu_pkg_key_ctl.c" >"$TMP/ctl_pre.c" || {
-    echo "[gate] FAIL: cannot read pre-change CLI from $BASE" >&2; exit 2;
-}
-echo "[gate] compiling pre-change negative-control CLI from $BASE"
+# Negative control: build a synthetic pre-change CLI from the CURRENT
+# source with only the `sync` dispatch renamed. Do NOT depend on a fixed
+# historical SHA: CI uses a shallow checkout where that object is absent,
+# and hard-coding one broke boot-verify even after unrelated fixes.
+python3 - "$ROOT/tools/wubu_pkg_key_ctl.c" "$TMP/ctl_pre.c" <<'PY'
+import sys
+src = open(sys.argv[1], encoding='utf-8').read()
+old = '} else if (strcmp(cmd, "sync") == 0 && np >= 2) {'
+new = '} else if (strcmp(cmd, "__disabled_sync__") == 0 && np >= 2) {'
+if src.count(old) != 1:
+    print('[gate] FAIL: cannot locate sync dispatch for negative control', file=sys.stderr)
+    sys.exit(2)
+open(sys.argv[2], 'w', encoding='utf-8').write(src.replace(old, new))
+PY
+echo "[gate] compiling pre-change negative-control CLI (sync dispatch disabled locally)"
 gcc $CFLAGS $INCLUDES -include "$ROOT/src/runtime/wubu_gnu_compat.h" $SRCS \
     "$TMP/ctl_pre.c" -o "$TMP/ctl_pre" $LIBS || {
     echo "[gate] FAIL: pre-change CLI build" >&2; exit 2;

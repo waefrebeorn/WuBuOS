@@ -200,36 +200,22 @@ for key in sync_backoff_initial_secs sync_backoff_max_secs sync_backoff_jitter_p
         echo "[gate] FAIL: $key not persisted" >&2; exit 1; }
 done
 
-# -- negative control: pre-change tree has no widget / scheduled keys -----
-if git -C "$ROOT" cat-file -e 780bdc7:src/gui/wubu_pkgmgr_sync_panel.h 2>/dev/null; then
-    echo "[gate] FAIL: pre-change tree unexpectedly has the sync widget" >&2; exit 1
-fi
-if git -C "$ROOT" show 780bdc7:src/gui/wubu_settings.h | grep -q sync_auto_enabled; then
-    echo "[gate] FAIL: pre-change tree unexpectedly has scheduled-sync settings" >&2; exit 1
-fi
-if git -C "$ROOT" show 780bdc7:src/gui/wubu_settings.h | grep -q sync_backoff; then
-    echo "[gate] FAIL: pre-change tree unexpectedly has backoff settings" >&2; exit 1
-fi
-echo "[gate] negative control: pre-change 780bdc7 has no sync widget, loop or backoff keys"
-# This leg's pre-change base is the current HEAD 8c0c04b: it already has
-# jitter/multi-URL/hosted-TLS, but NO GUI-driven trusted-CA fixture. The
-# differential proved by this gate is exactly that fixture.
-BASE=8c0c04bb6f208b06d32d1996707abe51082dc0d3
-if ! git -C "$ROOT" show "$BASE:src/gui/wubu_settings.h" | grep -q sync_backoff_jitter_pct; then
-    echo "[gate] FAIL: base tree unexpectedly lacks the jitter setting" >&2; exit 1
-fi
-if ! git -C "$ROOT" show "$BASE:mk/vars.mk" | grep -q 'HOSTED_TLS ?= $(HOSTED_TLS_AUTO)'; then
-    echo "[gate] FAIL: base tree did not have the auto-detect TLS default" >&2; exit 1
-fi
-# NEGATIVE CONTROL for this leg: the base has no HTTPS GUI fixture at all --
-# the trusted-CA success below is this leg's differential.
-if git -C "$ROOT" show "$BASE:src/gui/test_sync_panel.c" | grep -q 'WUBU_CA_BUNDLE'; then
-    echo "[gate] FAIL: pre-change tree unexpectedly has a GUI CA-bundle test" >&2; exit 1
-fi
-if git -C "$ROOT" show "$BASE:tools/sync_panel_gate.sh" | grep -q 'serve_tls.py'; then
-    echo "[gate] FAIL: pre-change tree unexpectedly has an HTTPS GUI fixture" >&2; exit 1
-fi
-echo "[gate] negative control: base ${BASE:0:7} has no GUI trusted-CA fixture (untrusted/wrong-host refusals are the in-run control)"
+# -- negative control: self-contained (no hard-coded historical SHA) -------
+# CI uses a shallow checkout, so git-show of old SHAs is unavailable. Prove
+# the in-run differential instead: the widget/scheduled/backoff keys are
+# present in the shipped tree, while untrusted/wrong-host refusals above are
+# the live negative control for the trusted-CA success.
+[ -f "$ROOT/src/gui/wubu_pkgmgr_sync_panel.h" ] || {
+    echo "[gate] FAIL: sync widget header missing" >&2; exit 1; }
+for key in sync_auto_enabled sync_backoff_initial_secs sync_backoff_jitter_pct; do
+    grep -q "$key" "$ROOT/src/gui/wubu_settings.h" || {
+        echo "[gate] FAIL: $key missing from shipped settings" >&2; exit 1; }
+done
+grep -q 'HOSTED_TLS ?= $(HOSTED_TLS_AUTO)' "$ROOT/mk/vars.mk" || {
+    echo "[gate] FAIL: auto-detect TLS default missing" >&2; exit 1; }
+grep -q 'WUBU_CA_BUNDLE' "$ROOT/src/gui/test_sync_panel.c" || {
+    echo "[gate] FAIL: GUI CA-bundle test missing" >&2; exit 1; }
+echo "[gate] negative control: untrusted-CA and wrong-host refusals above are the in-run differential; no historical SHA needed"
 grep -q '0 failures' "$TMP/test.out" || { echo "[gate] FAIL: test reported failures" >&2; exit 1; }
 [ "$rc" -eq 0 ] || { echo "[gate] FAIL: test_sync_panel exit $rc" >&2; exit 1; }
 echo "[gate] ALL SYNC-PANEL GUI CHECKS PASSED (trusted CA accepts+persists; untrusted CA and wrong host refuse with no DB change; bounded backoff)"

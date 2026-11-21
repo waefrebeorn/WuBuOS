@@ -10,7 +10,8 @@
 #      with no curl/wget/apt invocation (no network fetch).
 #   4. HOSTED_TLS=1 explicit: the opt-in recipe still links HTTPS.
 #   5. LOOPBACK TLS FIXTURE: untrusted CA refused, trusted CA accepted.
-#   6. NEGATIVE CONTROL: the pre-change base had HOSTED_TLS ?= 0.
+#   6. NEGATIVE CONTROL: the pre-change default is reproduced in-run by the
+#      HOSTED_TLS=0 state above (no hard-coded historical SHA; shallow CI).
 #
 # Submodule checkouts are optional here: `make -n` only needs the recipe, so
 # any missing (uninitialised) submodule source is treated as -o/old and the
@@ -113,14 +114,12 @@ echo "[hosted_tls] opt-in VERIFIED: HOSTED_TLS=1 links the mbedTLS HTTPS path"
 echo "[hosted_tls] === 5. LOOPBACK TLS FIXTURE: untrusted CA refused ==="
 bash "$ROOT/tools/oci_tls_gate.sh"
 
-echo "[hosted_tls] === 6. NEGATIVE CONTROL: pre-change base ==="
-BASE=a6c46b03fd281d1decd8d7f92381cc558add9564
-if ! git -C "$ROOT" show "$BASE:mk/vars.mk" | grep -q 'HOSTED_TLS ?= 0'; then
-    echo "[hosted_tls] FAIL: pre-change base did not have HOSTED_TLS ?= 0" >&2; exit 1
+echo "[hosted_tls] === 6. NEGATIVE CONTROL: in-run HOSTED_TLS=0 state ==="
+grep -q 'HOSTED_TLS ?= $(HOSTED_TLS_AUTO)' "$ROOT/mk/vars.mk" || {
+    echo "[hosted_tls] FAIL: default no longer auto-detects mbedTLS" >&2; exit 1; }
+if grep -qE '^HOSTED_TLS \?= 0[[:space:]]*$' "$ROOT/mk/vars.mk"; then
+    echo "[hosted_tls] FAIL: pre-change hard-coded-off default still present" >&2; exit 1;
 fi
-if git -C "$ROOT" show "$BASE:mk/vars.mk" | grep -q 'HOSTED_TLS_AUTO'; then
-    echo "[hosted_tls] FAIL: pre-change base unexpectedly auto-detected TLS" >&2; exit 1
-fi
-echo "[hosted_tls] negative control: base $BASE had HOSTED_TLS ?= 0 (no auto-detect)"
+echo "[hosted_tls] negative control: pre-change hard-off default absent; the HOSTED_TLS=0 state above is the in-run differential"
 
 echo "[hosted_tls] ALL HOSTED-TLS CONFIG GATE CHECKS PASSED"
