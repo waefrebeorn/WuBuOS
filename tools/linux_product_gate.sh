@@ -20,8 +20,10 @@ make -j"$(nproc)" hosted >"$outdir/build.log" 2>&1 || {
 }
 test -x src/hosted/wubu || fail "src/hosted/wubu missing"
 
-log "booting headless product frame"
-timeout 90 ./src/hosted/wubu --screenshot "$outdir/headless.ppm" \
+log "booting headless product frame (host display isolated)"
+# Never let a product gate touch the user's live X/Wayland display:
+# Cinnamon's monitor-change path has crashed on display churn before.
+env -u DISPLAY -u WAYLAND_DISPLAY timeout 90 ./src/hosted/wubu --screenshot "$outdir/headless.ppm" \
     >"$outdir/headless.log" 2>&1 || {
     tail -40 "$outdir/headless.log" >&2
     fail "headless boot"
@@ -31,10 +33,10 @@ grep -q 'WuBuOS running' "$outdir/headless.log" || fail "kernel/GUI not initiali
 grep -q 'Screenshot saved' "$outdir/headless.log" || fail "frame not presented"
 log "headless frame: $(wc -c <"$outdir/headless.ppm") bytes"
 
-log "capturing real GUI frames"
+log "capturing real GUI frames (offscreen; host display isolated)"
 shots=/tmp/wubu_gui_shots
 rm -rf "$shots"
-make gui_shot >"$outdir/gui.log" 2>&1 || {
+env -u DISPLAY -u WAYLAND_DISPLAY make gui_shot >"$outdir/gui.log" 2>&1 || {
     tail -40 "$outdir/gui.log" >&2
     fail "make gui_shot"
 }
