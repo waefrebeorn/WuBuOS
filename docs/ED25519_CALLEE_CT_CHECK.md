@@ -122,14 +122,21 @@ mechanized constant-time proof.  The exact unverified instructions are:
    assumption it is, not as a verified fact.  (The ladder pre-grows all limbs
    before the loop, so the grow-failure path is not taken mid-ladder; that
    mitigation is source-level evidence, not part of the machine check.)
-2. **Bignum-internal data-dependent behaviour is out of scope.**  The GIMPLE
-   checker models every external call result as public and does not taint the
-   secret-derived *values* that flow into `mbedtls_mpi_add_mpi/sub_mpi/mul_mpi/
-   mod_mpi/cmp_mpi/get_bit`.  mbedTLS 2.28 bignum internals are shipped only as
-   object code and are not audited here; a full CT claim would require
-   ct-verif/ctgrind-style verification of those routines too.  This gate proves
-   *selection-bit / swap independence*, not value-independence of the group
-   field arithmetic.
+2. **Bignum-internal data-dependent behaviour — now IN SCOPE, VERIFIED
+   NEGATIVE.** The GIMPLE checker models every external call result as public
+   and does not taint the secret-derived *values* that flow into
+   `mbedtls_mpi_add_mpi/sub_mpi/mul_mpi/mod_mpi/cmp_mpi`.  That boundary has
+   been advanced by `docs/EDDSA_BIGNUM_VALUE_CHECK.md`
+   (`make test_ed25519_bignum_value`): a bounded abstract interpretation of the
+   SHIPPED bignum machine code from the local `libmbedcrypto.a` finds 102 exact
+   non-public control/address sites (57 secret-governed, 45 unproven) and
+   **fails closed with `BIGNUM_VALUE_GATE VERIFIED_NEGATIVE`** rather than
+   claiming value-independence.  The gate proves *selection-bit / swap
+   independence*; value-independence of the group field arithmetic is NOT
+   established, and the exact refuting instructions are recorded in
+   `docs/EDDSA_BIGNUM_VALUE_EVIDENCE.txt`.  A full CT claim would still need a
+   ct-verif/ctgrind-style verification of those routines plus their C source,
+   which this devroot (headers + `.a`) does not contain.
 3. **One toolchain, one library build.**  Results are bound to gcc 13.3.0
    `-O2` and Ubuntu's mbedTLS 2.28.8 `libmbedcrypto.a`; they are not a
    cross-toolchain/cross-version preservation argument (e.g. compiler-iris).

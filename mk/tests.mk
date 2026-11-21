@@ -142,7 +142,23 @@ test_ed25519_callee_ct:
 test_ed25519_callee_ct_negctl:
 	bash tools/eddsa_callee_ct_negative_control.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_default_optin test_default_crypto_negative_control
+# BIGNUM-VALUE gate (next increment after the callee-CT gate): bounded
+# abstract interpretation of the SHIPPED mbedTLS bignum machine code from the
+# local libmbedcrypto.a, carrying secret-derived VALUES (not just the swap
+# selection byte) into mbedtls_mpi_add/sub/mul/mod/cmp and their in-archive
+# helpers.  Fails closed with an EXACT verified negative when the local
+# devroot has headers + .a only, so it is opt-in like the other CT gates.
+test_ed25519_bignum_value:
+	bash tools/eddsa_bignum_value_gate.sh
+
+# Standalone negative control for the bignum-value auditor: compiles a callee
+# fixture clean (branch-free select) and with an INJECTED secret-dependent
+# branch on an mpi limb value, and requires the detector to accept the first
+# and refute the second.  Fails closed with no local gcc.
+test_ed25519_bignum_value_negctl:
+	bash tools/eddsa_bignum_value_negctl.sh
+
+.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_bignum_value test_ed25519_bignum_value_negctl test_default_optin test_default_crypto_negative_control
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds

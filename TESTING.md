@@ -58,13 +58,15 @@ make test                 # every tier, sequentially — the full gate
 
 ## The gates that guard the tree
 
-Three targets are load-bearing and worth understanding:
+Three targets are load-bearing and worth understanding (plus the opt-in
+bignum-value gate, which fails closed with an exact verified negative):
 
 | test | what it proves |
 |---|---|
 | `test_spellbook` | the spell book scans clean; a mis-filed spell or a manifest that disagrees with its directory is a **build failure** |
 | `test_docs` | every file path the front-door docs name still exists; a doc shorter than 200 bytes is a stub, not a doc |
 | `test_vsl_nt_collision` | the NT dispatch table has zero real collisions (only intended stub→real upgrades) |
+| `test_ed25519_bignum_value` | opt-in: bounded audit of shipped mbedTLS bignum callees; `BIGNUM_VALUE_GATE VERIFIED_NEGATIVE` (exit 1) when value-independence cannot be established — see `docs/EDDSA_BIGNUM_VALUE_CHECK.md` and `tools/eddsa_bignum_value_gate.sh` |
 
 ## How to ADD a test (read this before touching `mk/tests.mk`)
 
