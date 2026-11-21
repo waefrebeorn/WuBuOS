@@ -296,7 +296,8 @@ BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscal
 APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_editor_bookmark.o $(APPS)/wubu_editor_macro.o $(APPS)/wubu_editor_undo.o $(APPS)/wubu_editor_selection.o $(APPS)/wubu_editor_find.o $(APPS)/wubu_canvas_layers.o $(APPS)/wubu_canvas_draw.o $(APPS)/wubu_canvas_filter.o $(APPS)/wubu_canvas_transform.o $(APPS)/wubu_canvas_plugin.o $(APPS)/wubu_canvas_undo.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_image_codec.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o $(APPS)/apps.o $(APPS)/wubu_petdex.o $(APPS)/apps_wet.o $(APPS)/cmd/cmd.o $(APPS)/app_canvas.o $(APPS)/app_explorer.o $(APPS)/notes.o $(APPS)/todo.o $(APPS)/music.o \
            $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
            $(APPS)/control/control.o $(APPS)/editor/editor.o \
-           $(APPS)/bonzi/bonzi.o $(APPS)/comfy/comfy.o $(APPS)/tandem/tandem.o
+           $(APPS)/bonzi/bonzi.o $(APPS)/comfy/comfy.o $(APPS)/tandem/tandem.o \
+           $(APPS)/wubu_maze/wubu_maze.o $(APPS)/wubu_maze/maze_app.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o

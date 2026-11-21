@@ -258,6 +258,14 @@ DosGuiWindow* launch_petdex(void) {
     return wubu_petdex_open();
 }
 
+/* WUBU MAZE is optional at link time: lean apps.c test targets must not
+ * pull the raycaster in. Same weak seam as the petdex. */
+__attribute__((weak)) DosGuiWindow* wubu_maze_app_launch(void);
+
+DosGuiWindow* launch_wubu_maze(void) {
+    return wubu_maze_app_launch ? wubu_maze_app_launch() : NULL;
+}
+
 DosGuiWindow* launch_getting_started(void) {
     /* The first-run path: where to start, in the product rather than in a
      * wiki.  Reachable from Help and from the greeter's offers row. */
@@ -388,6 +396,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "WET Applet", "WET Applet", DESK_ICON_COUNT + 16, 0x0080C0A0, launch_wet },
     /* L8: load their system -- imported distro roots, launchable guests. */
     { "Guests", "Guests", DESK_ICON_COUNT + 18, 0x0020A060, launch_guests_entry },
+    { "WUBU MAZE", "WUBU MAZE", DESK_ICON_COUNT + 19, 0x00D26478, launch_wubu_maze },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 

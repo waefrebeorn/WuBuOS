@@ -43,6 +43,14 @@ Asserts:
 - Both frames match committed FNV-1a golden hashes; no image is stored.
 - `--ppm <path>` writes a binary P6 frame for human inspection only.
 
+## On the WuBuOS desktop
+
+`WUBU MAZE` is also a desktop app in the registry. Launch it from the app
+menu: `W/S` move, `A/D` turn, arrow keys work too, `R` restarts. The app
+draws the raycaster state straight into the window framebuffer (coloured
+cells, no font dependency). `launch_wubu_maze()` uses the weak launch seam
+already used by the petdex, so lean `apps.c` test links stay intact.
+
 ## Provenance
 
 The DDA grid-step and perpendicular-distance formulation follow Lode
