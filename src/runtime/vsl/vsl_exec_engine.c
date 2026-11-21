@@ -289,6 +289,7 @@ static uint64_t ex_build_stack(uint8_t *base, size_t size, uint64_t entry,
 static uint64_t g_dyn_shim_calls;
 static uint64_t g_dyn_write_calls;
 static uint64_t g_dyn_ifunc_calls;
+static uint64_t g_dyn_ifunc_named_calls;   /* by-name IFUNC host impl calls */
 static const char g_dyn_test_data[] = "VSL-DYNSYM-DATA\n";
 /* Read-only source bytes for the R_X86_64_COPY gate.  The matching host
  * symbol below declares a byte limit: a guest COPY may not request more
@@ -375,6 +376,93 @@ static const VslIfuncEntry g_ifunc_table[] = {
     VSL_IFUNC_LIBC(0xcbc20ULL) VSL_IFUNC_LIBC(0xcc450ULL) VSL_IFUNC_LIBC(0xcc4b0ULL) VSL_IFUNC_LIBC(0xd8fb0ULL)
     VSL_IFUNC_LIBC(0xd9030ULL) VSL_IFUNC_LIBC(0xd90e0ULL)
 };
+
+/* -- bounded IFUNC resolver selected by exact symbol name/version --------
+ * R_X86_64_IRELATIVE is symbol-less, so the table above is keyed by the
+ * link-time resolver address.  A STT_GNU_IFUNC symbol that another object
+ * imports by name (GLOB_DAT / JUMP_SLOT / R_X86_64_64) is different: its
+ * st_value in the defining object is a resolver address, and calling it
+ * would execute guest resolver bytes.  The bounded model never does that.
+ * Instead an UNDEFINED IFUNC import is bound to a REAL host implementation
+ * selected by the EXACT (name, DT_VERNEED version, vn_file) triple, or by
+ * (name, unversioned) when the import carries no version.  Any name/version/
+ * file that is not listed here fails closed -- no guessed implementation.
+ * The four entries are the documented minimal set; the version strings were
+ * verified with readelf against the real host glibc 2.39 (memcpy@GLIBC_2.14,
+ * strlen/memset@GLIBC_2.2.5).  puts is included as a feasible, real host
+ * implementation for an IFUNC-named symbol even though glibc exports puts as
+ * a plain FUNC.  Host functions only copy/measure/write bytes; they run no
+ * guest code and issue no unbounded work. */
+typedef struct {
+    const char *name;
+    const char *ver;      /* "" = unversioned import */
+    const char *file;     /* exact vn_file / owner soname, NULL = any */
+    uint64_t    impl;     /* host implementation address */
+} VslIfuncByName;
+
+static void *vsl_ifunc_memcpy(void *dst, const void *src, size_t n) {
+    g_dyn_ifunc_named_calls++;
+    return memcpy(dst, src, n);
+}
+static size_t vsl_ifunc_strlen(const char *s) {
+    g_dyn_ifunc_named_calls++;
+    return strlen(s);
+}
+static void *vsl_ifunc_memset(void *d, int c, size_t n) {
+    g_dyn_ifunc_named_calls++;
+    return memset(d, c, n);
+}
+/* Real puts semantics: write the bytes then a newline, using the same plain
+ * host write() as the proven write shim (no host stdio locks, no recursion
+ * into the seccomp trap window).  Returns the byte count, or -1 on error. */
+static int64_t vsl_ifunc_puts(const char *s) {
+    g_dyn_ifunc_named_calls++;
+    size_t n = strlen(s);
+    int64_t a = (int64_t)syscall(SYS_write, 1, s, n);
+    if (a == (int64_t)n) {
+        int64_t b = (int64_t)syscall(SYS_write, 1, "\n", 1);
+        if (b == 1) return a + b;
+    }
+    return -1;
+}
+
+#define VSL_IFUNC_BY_NAME(n, v, f, fn) { (n), (v), (f), (uint64_t)(uintptr_t)&(fn) },
+static const VslIfuncByName g_ifunc_by_name[] = {
+    VSL_IFUNC_BY_NAME("memcpy", "GLIBC_2.14", "libc.so.6", vsl_ifunc_memcpy)
+    VSL_IFUNC_BY_NAME("strlen", "GLIBC_2.2.5", "libc.so.6", vsl_ifunc_strlen)
+    VSL_IFUNC_BY_NAME("memset", "GLIBC_2.2.5", "libc.so.6", vsl_ifunc_memset)
+    VSL_IFUNC_BY_NAME("puts",   "GLIBC_2.2.5", "libc.so.6", vsl_ifunc_puts)
+    /* Unversioned forms: an unversioned IFUNC import selects by name only. */
+    VSL_IFUNC_BY_NAME("memcpy", "", NULL, vsl_ifunc_memcpy)
+    VSL_IFUNC_BY_NAME("strlen", "", NULL, vsl_ifunc_strlen)
+    VSL_IFUNC_BY_NAME("memset", "", NULL, vsl_ifunc_memset)
+    VSL_IFUNC_BY_NAME("puts",   "", NULL, vsl_ifunc_puts)
+};
+#undef VSL_IFUNC_BY_NAME
+
+/* Exact (name, version, file) lookup.  A versioned lookup requires BOTH the
+ * exact version and the exact vn_file (no cross-file borrowing, matching the
+ * ld.so provider rule).  An unversioned lookup matches only ver=="" entries.
+ * Anything else returns NULL -> fail closed. */
+static const VslIfuncByName *ex_ifunc_by_name(const char *name,
+                                              const char *ver,
+                                              const char *file) {
+    if (!name || !ver) return NULL;
+    for (size_t i = 0; i < sizeof(g_ifunc_by_name) / sizeof(g_ifunc_by_name[0]); i++) {
+        const VslIfuncByName *e = &g_ifunc_by_name[i];
+        if (strcmp(e->name, name) != 0 || strcmp(e->ver, ver) != 0) continue;
+        if (ver[0] && e->file && (!file || strcmp(e->file, file) != 0))
+            continue;
+        return e;
+    }
+    return NULL;
+}
+uint64_t vsl_dyn_ifunc_resolve_named(const char *name, const char *ver,
+                                     const char *file) {
+    const VslIfuncByName *e = ex_ifunc_by_name(name, ver, file);
+    return e ? e->impl : 0;
+}
+uint64_t vsl_dyn_ifunc_named_call_count(void) { return g_dyn_ifunc_named_calls; }
 
 /* Exact, bounded diagnostic for the FIRST relocation that could not be
  * resolved in the current image.  Set by ex_apply_one(); copied into
@@ -1634,6 +1722,32 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     const char *name = (const char *)(f + stroff + st_name);
     size_t room = (size_t)(strsz - st_name);
     if (!memchr(name, 0, room) || strlen(name) > EX_NAME_MAX) return -1;
+    /* A STT_GNU_IFUNC import is NEVER bound to the defining object's resolver
+     * address: calling that would execute guest resolver bytes.  A bounded
+     * HOST implementation is selected by the EXACT (name, DT_VERNEED version,
+     * vn_file) triple, or name-only for an unversioned import.  Any IFUNC
+     * symbol outside the small modelled set fails closed here -- no generic
+     * host-table or dependency fallback is attempted for it. */
+    if ((st_info & 0x0f) == 10) {                 /* STT_GNU_IFUNC */
+        const char *iver = "", *ifile = NULL;
+        if (vi > EX_VER_NDX_GLOBAL) {
+            const VslVerEnt *need = ex_ver_find(vc->needs, vc->nneeds, vi);
+            if (!need) return -1;
+            iver = need->name;
+            ifile = need->file;
+        }
+        const VslIfuncByName *ie = ex_ifunc_by_name(name, iver, ifile);
+        if (!ie) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "IFUNC symbol '%s'@%s%s%s has no bounded host "
+                     "implementation (unmodelled IFUNC)",
+                     name, iver[0] ? iver : "(unversioned)",
+                     ifile ? " from " : "", ifile ? ifile : "");
+            return -1;
+        }
+        *out = ie->impl;
+        return 0;
+    }
     uint64_t addr = 0;
     int found = 0;
     /* Versioned import: the index must resolve to a DT_VERNEED entry.  In
@@ -1902,6 +2016,7 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
                         uint32_t *tls_relocs) {
     uint32_t type   = (uint32_t)(r_info & 0xffffffffu);
     uint32_t symidx = (uint32_t)(r_info >> 32);
+    g_ex_reloc_fail[0] = 0;   /* per-relocation: helpers may set a precise one */
     uint64_t dest = bias + r_offset;
     if (dest < EX_WIN_LO || dest < map_lo) return -1;
     uint64_t *where = (uint64_t *)(uintptr_t)dest;
@@ -1949,15 +2064,19 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
         } else if (ex_resolve_symbol(f, fsz, phnum, phentsize, phoff,
                                      symtab, syment, strtab, strsz,
                                      symcount, symidx, bias, vc, &S) != 0) {
-            char sn[EX_NAME_MAX];
-            ex_sym_name_snip(f, fsz, phnum, phentsize, phoff,
-                             symtab, syment, strtab, strsz, symcount,
-                             symidx, sn, sizeof(sn));
-            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
-                     "relocation type %u symbol '%s' (index %u) at offset "
-                     "0x%llx is unresolved",
-                     type, sn[0] ? sn : "(unnamed)", symidx,
-                     (unsigned long long)r_offset);
+            /* Preserve a precise diagnostic (e.g. an unmodelled IFUNC) that
+             * the bounded resolver already recorded for this relocation. */
+            if (!g_ex_reloc_fail[0]) {
+                char sn[EX_NAME_MAX];
+                ex_sym_name_snip(f, fsz, phnum, phentsize, phoff,
+                                 symtab, syment, strtab, strsz, symcount,
+                                 symidx, sn, sizeof(sn));
+                snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                         "relocation type %u symbol '%s' (index %u) at offset "
+                         "0x%llx is unresolved",
+                         type, sn[0] ? sn : "(unnamed)", symidx,
+                         (unsigned long long)r_offset);
+            }
             return -1;
         }
         uint64_t val = (type == EX_R_X86_64_64)
@@ -2620,6 +2739,19 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
         }
         int weak = ((st_info >> 4) == 2);              /* STB_WEAK */
         int is_default = !hidden;
+        /* A DEFINED STT_GNU_IFUNC export's st_value is the defining object's
+         * resolver address, not an implementation: publishing it would make
+         * an importer call guest resolver bytes.  Resolve the exact (name,
+         * VERDEF version, owner soname) through the bounded host IFUNC table.
+         * Modelled entries publish the REAL host implementation; unmodelled
+         * IFUNC symbols are NOT published at all, so any import of them fails
+         * closed at relocation instead of binding to a resolver stand-in. */
+        uint64_t export_addr = bias + st_value;
+        if ((st_info & 0x0f) == 10) {                  /* STT_GNU_IFUNC */
+            const VslIfuncByName *ie = ex_ifunc_by_name(nm, verp, owner);
+            if (!ie) continue;                         /* fail closed */
+            export_addr = ie->impl;
+        }
         VslDepSym *dup = NULL;
         /* Strong-over-weak is a WITHIN-FILE rule: two files may export the
          * same (name, version), and vn_file enforcement must still see each
@@ -2634,7 +2766,7 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
         }
         if (dup) {                                     /* strong replaces weak */
             if (dup->weak && !weak) {
-                dup->addr = bias + st_value;
+                dup->addr = export_addr;
                 dup->size = st_size;
                 dup->weak = 0;
                 dup->is_default = (uint8_t)is_default;
@@ -2670,7 +2802,7 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
         snprintf(slot->owner, sizeof(slot->owner), "%s", owner);
         slot->weak = (uint8_t)weak;
         slot->is_default = (uint8_t)is_default;
-        slot->addr = bias + st_value;
+        slot->addr = export_addr;
         slot->size = st_size;
     }
     return 0;

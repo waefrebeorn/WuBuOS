@@ -93,9 +93,13 @@
  * and the 42 IRELATIVE stand-ins are canonical callable host stubs rather
  * than a non-canonical sentinel (#GP).  A real glibc libc.so.6 then runs a
  * dynamically linked COPY guest to a correct exit(1) through the REAL
- * vsl_sys_exit; the remaining boundaries are IFUNC resolver SEMANTICS
- * (stand-ins return, they do not implement memcpy/strlen), init/fini of the
- * real DSOs, and the real allocator -- all still fail closed on guest fault.
+ * vsl_sys_exit; IFUNC semantics are now bounded too: a STT_GNU_IFUNC import
+ * binds to a REAL host implementation selected by the exact (name, version,
+ * vn_file) triple (memcpy/strlen/memset/puts), never to the defining object's
+ * resolver address; unmodelled IFUNC symbols fail closed.  The remaining
+ * boundaries are DSO DT_INIT/DT_FINI, the real allocator, a real puts/stdout
+ * FILE state and full interpreter bootstrap (the real hello guest faults at
+ * 0x3000008 after 3 syscalls) -- all still fail closed on guest fault.
  *
  * DT_NEEDED is supported ONLY in this bounded form: DT_NEEDED sonames are a
  * plain basename found in a bounded per-image search-directory list (or the
@@ -222,6 +226,19 @@ uint64_t vsl_dyn_ifunc_call_count(void);  /* IRELATIVE host resolver calls */
  * a resolved GOT slot cannot #GP on a sentinel; it is NOT a faithful IFUNC
  * implementation (no member operations are modelled). */
 uint64_t vsl_dyn_ifunc_libc_value(void);
+
+/* Bounded IFUNC resolver selected by EXACT symbol name/version/vn_file.
+ * An STT_GNU_IFUNC import is bound to the REAL host implementation returned
+ * here (memcpy/strlen/memset/puts), never to the defining object's resolver
+ * address.  Returns 0 when the (name, version, file) triple is not modelled:
+ * the loader then fails closed -- no guessed implementation and no guest
+ * resolver bytes run.  Versioned lookups require the exact version AND vn_file;
+ * an unversioned lookup uses ver="" and file=NULL.  The counter reports how
+ * many times a resolved host implementation was actually invoked by guest
+ * code across runs (differential-gate evidence). */
+uint64_t vsl_dyn_ifunc_resolve_named(const char *name, const char *ver,
+                                     const char *file);
+uint64_t vsl_dyn_ifunc_named_call_count(void);
 
 /* Base of the HOST-provided TLS block used by the main image of the last
  * run (0 before any run).  Exposed so a gate can assert the exact address a

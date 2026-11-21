@@ -928,6 +928,160 @@ static size_t build_copy_irelative_elf(uint8_t *buf) {
     return 0x1600;
 }
 
+/* Hand-built ET_DYN with TWO versioned STT_GNU_IFUNC JUMP_SLOT imports
+ * (memcpy@GLIBC_2.14 and strlen@GLIBC_2.2.5 from libc.so.6).  It is a REAL
+ * ELF with DT_VERSYM/DT_VERNEED/DT_JMPREL; the guest calls both resolved GOT
+ * slots and writes the copied bytes plus the measured length through VSL.
+ * name1/ver1/file may override the three dynstr strings IN PLACE (same
+ * length) for fail-closed negative controls. */
+#define IB_GOT_MEMCPY 0x1100ULL
+#define IB_GOT_STRLEN 0x1108ULL
+#define IB_SRC        0x1120ULL
+#define IB_DST        0x1140ULL
+#define IB_LENBUF     0x1160ULL
+#define IB_SYMTAB     0x1180ULL
+#define IB_STRTAB     0x11d0ULL
+#define IB_STRSZ      64u
+#define IB_HASH       0x1210ULL
+#define IB_VERSYM     0x1228ULL
+#define IB_VERNEED    0x1230ULL
+#define IB_DYNAMIC    0x1300ULL
+#define IB_JMPREL     0x1400ULL
+static size_t build_ifunc_named_elf(uint8_t *buf,
+                                    const char *name1, const char *ver1,
+                                    const char *file) {
+    memset(buf, 0, 0x1800);
+    buf[0] = 0x7f; buf[1] = 'E'; buf[2] = 'L'; buf[3] = 'F';
+    buf[4] = 2; buf[5] = 1; buf[6] = 1;
+    uint16_t u16; uint32_t u32; uint64_t u64;
+    u16 = 3;    memcpy(buf + 16, &u16, 2);        /* ET_DYN */
+    u16 = 0x3e; memcpy(buf + 18, &u16, 2);        /* EM_X86_64 */
+    u32 = 1;    memcpy(buf + 20, &u32, 4);
+    u64 = 0x1000; memcpy(buf + 24, &u64, 8);      /* e_entry */
+    u64 = 64;   memcpy(buf + 32, &u64, 8);        /* e_phoff */
+    u16 = 64;   memcpy(buf + 52, &u16, 2);
+    u16 = 56;   memcpy(buf + 54, &u16, 2);
+    u16 = 2;    memcpy(buf + 56, &u16, 2);        /* e_phnum */
+    /* phdr[0] PT_LOAD 0x1000..0x1800 RWX */
+    u32 = 1;    memcpy(buf + 64,  &u32, 4);
+    u32 = 7;    memcpy(buf + 68,  &u32, 4);
+    u64 = 0x1000; memcpy(buf + 72,  &u64, 8);
+    u64 = 0x1000; memcpy(buf + 80,  &u64, 8);
+    u64 = 0x1000; memcpy(buf + 88,  &u64, 8);
+    u64 = 0x800;  memcpy(buf + 96,  &u64, 8);
+    u64 = 0x800;  memcpy(buf + 104, &u64, 8);
+    u64 = 0x1000; memcpy(buf + 112, &u64, 8);
+    /* phdr[1] PT_DYNAMIC @0x1300 */
+    u32 = 2;    memcpy(buf + 120, &u32, 4);
+    u32 = 6;    memcpy(buf + 124, &u32, 4);
+    u64 = IB_DYNAMIC; memcpy(buf + 128, &u64, 8);
+    u64 = IB_DYNAMIC; memcpy(buf + 136, &u64, 8);
+    u64 = IB_DYNAMIC; memcpy(buf + 144, &u64, 8);
+    u64 = 192;    memcpy(buf + 152, &u64, 8);
+    u64 = 192;    memcpy(buf + 160, &u64, 8);
+    u64 = 8;      memcpy(buf + 168, &u64, 8);
+    /* Guest code.  RIP-relative displacements are link-time constants. */
+    static const uint8_t code[] = {
+        0x49,0x89,0xe4,                                    /* mov %rsp,%r12 */
+        0x49,0x83,0xe4,0xf0,                               /* and $-16,%rsp */
+        0x48,0x8d,0x3d,0x32,0x01,0x00,0x00,                /* lea DST,%rdi */
+        0x48,0x8d,0x35,0x0b,0x01,0x00,0x00,                /* lea SRC,%rsi */
+        0xba,0x0c,0x00,0x00,0x00,                          /* mov $12,%edx */
+        0x48,0x8b,0x05,0xdf,0x00,0x00,0x00,                /* mov GOT0,%rax */
+        0xff,0xd0,                                         /* call *%rax */
+        0x48,0x8d,0x35,0x16,0x01,0x00,0x00,                /* lea DST,%rsi */
+        0xbf,0x01,0x00,0x00,0x00,                          /* mov $1,%edi */
+        0xba,0x0c,0x00,0x00,0x00,                          /* mov $12,%edx */
+        0xb8,0x01,0x00,0x00,0x00,                          /* mov $1,%eax */
+        0x0f,0x05,                                         /* syscall write */
+        0x48,0x8d,0x3d,0xde,0x00,0x00,0x00,                /* lea SRC,%rdi */
+        0x48,0x8b,0x05,0xbf,0x00,0x00,0x00,                /* mov GOT1,%rax */
+        0xff,0xd0,                                         /* call *%rax */
+        0x48,0x8d,0x15,0x0e,0x01,0x00,0x00,                /* lea LENBUF,%rdx */
+        0x48,0x89,0x02,                                    /* mov %rax,(%rdx) */
+        0x48,0x8d,0x35,0x04,0x01,0x00,0x00,                /* lea LENBUF,%rsi */
+        0xbf,0x01,0x00,0x00,0x00,                          /* mov $1,%edi */
+        0xba,0x01,0x00,0x00,0x00,                          /* mov $1,%edx */
+        0xb8,0x01,0x00,0x00,0x00,                          /* mov $1,%eax */
+        0x0f,0x05,                                         /* syscall write */
+        0x4c,0x89,0xe4,                                    /* mov %r12,%rsp */
+        0xb8,0x3c,0x00,0x00,0x00,                          /* mov $60,%eax */
+        0x31,0xff,                                         /* xor %edi,%edi */
+        0x0f,0x05                                          /* syscall exit */
+    };
+    memcpy(buf + 0x1000, code, sizeof(code));
+    memcpy(buf + IB_SRC, "WUBUIFUNC-OK", 12);
+    /* dynstr: fixed offsets, same-length overrides for negative controls. */
+    memcpy(buf + IB_STRTAB + 1,  name1 ? name1 : "memcpy",     6);
+    memcpy(buf + IB_STRTAB + 8,  "strlen",                      6);
+    memcpy(buf + IB_STRTAB + 15, ver1 ? ver1 : "GLIBC_2.14",   10);
+    memcpy(buf + IB_STRTAB + 26, "GLIBC_2.2.5",                11);
+    memcpy(buf + IB_STRTAB + 38, file ? file : "libc.so.6",     9);
+    /* dynsym[1] @+0x18, dynsym[2] @+0x30: STB_GLOBAL|STT_GNU_IFUNC (0x1a),
+     * SHN_UNDEF, st_value 0. */
+    u32 = 1; memcpy(buf + IB_SYMTAB + 0x18, &u32, 4);
+    buf[IB_SYMTAB + 0x1c] = 0x1a;
+    u32 = 8; memcpy(buf + IB_SYMTAB + 0x30, &u32, 4);
+    buf[IB_SYMTAB + 0x34] = 0x1a;
+    /* DT_HASH @0x1210: nbucket=1 nchain=3 bucket[0]=1 chain={0,2,0} */
+    u32 = 1; memcpy(buf + IB_HASH, &u32, 4);
+    u32 = 3; memcpy(buf + IB_HASH + 4, &u32, 4);
+    u32 = 1; memcpy(buf + IB_HASH + 8, &u32, 4);
+    u32 = 0; memcpy(buf + IB_HASH + 12, &u32, 4);
+    u32 = 2; memcpy(buf + IB_HASH + 16, &u32, 4);
+    u32 = 0; memcpy(buf + IB_HASH + 20, &u32, 4);
+    /* DT_VERSYM: sym0 local, sym1 -> ndx 2, sym2 -> ndx 3 */
+    u16 = 0; memcpy(buf + IB_VERSYM,      &u16, 2);
+    u16 = 2; memcpy(buf + IB_VERSYM + 2,  &u16, 2);
+    u16 = 3; memcpy(buf + IB_VERSYM + 4,  &u16, 2);
+    /* DT_VERNEED: one Verneed{cnt=2,file=38,aux=16} + two Vernaux. */
+    u16 = 1; memcpy(buf + IB_VERNEED, &u16, 2);
+    u16 = 2; memcpy(buf + IB_VERNEED + 2, &u16, 2);
+    u32 = 38; memcpy(buf + IB_VERNEED + 4, &u32, 4);
+    u32 = 16; memcpy(buf + IB_VERNEED + 8, &u32, 4);
+    u16 = 0; memcpy(buf + IB_VERNEED + 0x10 + 4, &u16, 2);
+    u16 = 2; memcpy(buf + IB_VERNEED + 0x10 + 6, &u16, 2);
+    u32 = 15; memcpy(buf + IB_VERNEED + 0x10 + 8, &u32, 4);
+    u32 = 16; memcpy(buf + IB_VERNEED + 0x10 + 12, &u32, 4);
+    u16 = 0; memcpy(buf + IB_VERNEED + 0x20 + 4, &u16, 2);
+    u16 = 3; memcpy(buf + IB_VERNEED + 0x20 + 6, &u16, 2);
+    u32 = 26; memcpy(buf + IB_VERNEED + 0x20 + 8, &u32, 4);
+    u32 = 0;  memcpy(buf + IB_VERNEED + 0x20 + 12, &u32, 4);
+    /* PT_DYNAMIC: 12 pairs. */
+    const uint64_t tags[12][2] = {
+        { 4, IB_HASH }, { 5, IB_STRTAB }, { 6, IB_SYMTAB },
+        { 23, IB_JMPREL }, { 2, 48 }, { 20, 7 },
+        { 11, 24 }, { 10, IB_STRSZ },
+        { 0x6ffffff0ULL, IB_VERSYM }, { 0x6ffffffeULL, IB_VERNEED },
+        { 0x6fffffffULL, 1 }, { 0, 0 }
+    };
+    for (int i = 0; i < 12; i++) {
+        memcpy(buf + IB_DYNAMIC + (uint64_t)i * 16, &tags[i][0], 8);
+        memcpy(buf + IB_DYNAMIC + (uint64_t)i * 16 + 8, &tags[i][1], 8);
+    }
+    /* DT_JMPREL RELA[2]: JUMP_SLOT (type 7) sym1 / sym2. */
+    u64 = IB_GOT_MEMCPY; memcpy(buf + IB_JMPREL, &u64, 8);
+    u64 = ((uint64_t)1 << 32) | 7; memcpy(buf + IB_JMPREL + 8, &u64, 8);
+    u64 = 0; memcpy(buf + IB_JMPREL + 16, &u64, 8);
+    u64 = IB_GOT_STRLEN; memcpy(buf + IB_JMPREL + 24, &u64, 8);
+    u64 = ((uint64_t)2 << 32) | 7; memcpy(buf + IB_JMPREL + 32, &u64, 8);
+    u64 = 0; memcpy(buf + IB_JMPREL + 40, &u64, 8);
+    return 0x1800;
+}
+#undef IB_GOT_MEMCPY
+#undef IB_GOT_STRLEN
+#undef IB_SRC
+#undef IB_DST
+#undef IB_LENBUF
+#undef IB_SYMTAB
+#undef IB_STRTAB
+#undef IB_STRSZ
+#undef IB_HASH
+#undef IB_VERSYM
+#undef IB_VERNEED
+#undef IB_DYNAMIC
+#undef IB_JMPREL
+
 /* Map a link-time vaddr to a file offset via the first covering PT_LOAD. */
 static int img_vaddr_to_off(const uint8_t *img, size_t n, uint64_t va,
                             uint64_t len, uint64_t *out) {
@@ -2880,6 +3034,110 @@ int main(int argc, char **argv) {
         vsl_dyn_set_interp(0);
         free(img);
     }
+}
+
+/* (ae) Bounded IFUNC resolver semantics by exact symbol name/version.
+ *  A STT_GNU_IFUNC JUMP_SLOT import must bind to a REAL host implementation
+ *  selected by (name, version, vn_file), never to the defining object's
+ *  resolver address.  The hand-built ET_DYN guest calls memcpy/strlen through
+ *  those GOT slots and writes the copied bytes + measured length through VSL.
+ *  Wrong version, wrong vn_file and an unmodelled name fail closed. */
+{
+    uint8_t img[0x1800];
+    const char *none[] = { NULL };
+    VslImageCfg cfg = { none, 0, 0, NULL, 0, NULL, NULL };
+    vsl_dyn_set_interp(0);
+    vsl_dyn_set_interp_bind_main(0);
+    vsl_dyn_set_init_fini(0);
+    vsl_dyn_set_fs_tls(0);
+    vsl_dyn_set_libc_rootfs(0);
+    vsl_dyn_set_glibc_startup(0);
+    vsl_dyn_set_lazy_plt(0);
+    vsl_dyn_set_dep_search_dir(NULL);
+
+    /* Exact-selection differential (the counter is per host call, not lookup). */
+    uint64_t mc = vsl_dyn_ifunc_resolve_named("memcpy", "GLIBC_2.14", "libc.so.6");
+    uint64_t st = vsl_dyn_ifunc_resolve_named("strlen", "GLIBC_2.2.5", "libc.so.6");
+    uint64_t ms = vsl_dyn_ifunc_resolve_named("memset", "GLIBC_2.2.5", "libc.so.6");
+    uint64_t pu = vsl_dyn_ifunc_resolve_named("puts",   "GLIBC_2.2.5", "libc.so.6");
+    CHECK(mc && st && ms && pu,
+          "memcpy/strlen/memset/puts resolve to real host implementations");
+    CHECK(mc != st && st != ms && ms != pu,
+          "distinct IFUNC names select distinct host implementations");
+    CHECK(vsl_dyn_ifunc_resolve_named("memcpy", "GLIBC_2.14", "libc.so.6") == mc,
+          "identical exact triple resolves to the identical host function");
+    CHECK(vsl_dyn_ifunc_resolve_named("memcpy", "GLIBC_9.99", "libc.so.6") == 0,
+          "wrong version fails closed");
+    CHECK(vsl_dyn_ifunc_resolve_named("memcpy", "GLIBC_2.14", "libx.so.6") == 0,
+          "wrong vn_file fails closed");
+    CHECK(vsl_dyn_ifunc_resolve_named("strcat", "GLIBC_2.2.5", "libc.so.6") == 0,
+          "unmodelled IFUNC name fails closed");
+    CHECK(vsl_dyn_ifunc_resolve_named("memcpy", NULL, "libc.so.6") == 0,
+          "missing version fails closed");
+
+    /* Positive end-to-end: guest calls both IFUNC-resolved GOT slots. */
+    size_t n = build_ifunc_named_elf(img, NULL, NULL, NULL);
+    uint64_t before = vsl_dyn_ifunc_named_call_count();
+    int rc = vsl_exec_image(img, n, &cfg, &r);
+    static const uint8_t want[13] = {
+        'W','U','B','U','I','F','U','N','C','-','O','K',12
+    };
+    printf("[ae] hex:");
+    for (size_t hi = 0; hi < r.output_len && hi < 16; hi++)
+        printf(" %02x", (unsigned char)r.output[hi]);
+    printf("\n");
+    printf("[ae] IFUNC-by-name: rc=%d exit=%d relocs=%u syms=%u "
+           "out_len=%zu out=\"%.*s\" len_byte=0x%02x named_calls=%llu "
+           "reloc_failure=\"%s\"\n",
+           rc, r.exit_code, r.relocations_applied, r.symbols_resolved,
+           r.output_len, (int)(r.output_len > 12 ? 12 : r.output_len), r.output,
+           r.output_len > 12 ? (unsigned char)r.output[12] : 0,
+           (unsigned long long)(vsl_dyn_ifunc_named_call_count() - before),
+           r.reloc_failure);
+    CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+          "real IFUNC guest runs to exit(0) through bounded host implementations");
+    CHECK(r.symbols_resolved >= 2,
+          "both versioned IFUNC imports bound through the bounded resolver");
+    CHECK(r.output_len == 13 && memcmp(r.output, want, 13) == 0,
+          "guest called REAL host memcpy + strlen via IFUNC-resolved GOTs");
+    CHECK(vsl_dyn_ifunc_named_call_count() == before + 2,
+          "both modelled host implementations actually executed");
+
+    /* Negative controls: unmodelled name, wrong version, wrong vn_file. */
+    n = build_ifunc_named_elf(img, "strcat", NULL, NULL);
+    rc = vsl_exec_image(img, n, &cfg, &r);
+    printf("[ae] unmodelled IFUNC name: rc=%d status=%d reloc_failure=\"%s\"\n",
+           rc, r.status, r.reloc_failure);
+    CHECK(rc == VSL_EXEC_ERR_RELOC && strstr(r.reloc_failure, "strcat") &&
+          strstr(r.reloc_failure, "IFUNC"),
+          "unmodelled IFUNC name fails closed with exact diagnostic");
+
+    n = build_ifunc_named_elf(img, NULL, "GLIBC_9.99", NULL);
+    rc = vsl_exec_image(img, n, &cfg, &r);
+    printf("[ae] wrong version: rc=%d status=%d reloc_failure=\"%s\"\n",
+           rc, r.status, r.reloc_failure);
+    CHECK(rc == VSL_EXEC_ERR_RELOC && strstr(r.reloc_failure, "GLIBC_9.99"),
+          "wrong IFUNC version fails closed and names the version");
+
+    n = build_ifunc_named_elf(img, NULL, NULL, "libx.so.6");
+    rc = vsl_exec_image(img, n, &cfg, &r);
+    printf("[ae] wrong vn_file: rc=%d status=%d reloc_failure=\"%s\"\n",
+           rc, r.status, r.reloc_failure);
+    CHECK(rc == VSL_EXEC_ERR_RELOC && strstr(r.reloc_failure, "libx.so.6"),
+          "wrong IFUNC vn_file fails closed and names the file");
+
+    /* Differential isolating the new path: same bytes, but mark the imports
+     * STT_FUNC instead of STT_GNU_IFUNC.  The pre-change rule then applies --
+     * a named import with no host/dep definition fails closed -- proving the
+     * successful positive above is due to the bounded IFUNC resolver. */
+    n = build_ifunc_named_elf(img, NULL, NULL, NULL);
+    img[0x1180 + 0x1c] = 0x12;                /* sym1: GLOBAL|FUNC */
+    img[0x1180 + 0x34] = 0x12;                /* sym2: GLOBAL|FUNC */
+    rc = vsl_exec_image(img, n, &cfg, &r);
+    printf("[ae] FUNC-typed (pre-change) import: rc=%d status=%d "
+           "reloc_failure=\"%s\"\n", rc, r.status, r.reloc_failure);
+    CHECK(rc == VSL_EXEC_ERR_RELOC && strstr(r.reloc_failure, "unresolved"),
+          "non-IFUNC import of the same name fails closed (differential)");
 }
 
 /* (h) host syscalls still real after all runs (filter ALLOW path) */
