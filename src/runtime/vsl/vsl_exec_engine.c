@@ -47,6 +47,7 @@
 #include "vsl/vsl_syscall_numbers.h"
 #include "vsl/vsl_elf.h"
 #include "vsl/vsl_process.h"
+#include "vsl/vsl_memory.h"
 #include "vsl/vsl_exec_engine.h"
 #include "../wubu_kernel_xchg.h"
 
@@ -74,6 +75,7 @@ static struct {
     volatile int reason;            /* 1 = exit, 2 = fault */
     volatile uint64_t trapped;
     volatile uint64_t fault_addr;
+    volatile uint64_t fault_rip;    /* exact guest RIP of the faulting insn */
     /* arch_prctl(ARCH_SET_FS) state, touched by ex_sigsys on the guest's
      * thread.  host_fs_base is captured before setcontext and restored on
      * every unwind so host libc keeps its own TLS. */
@@ -98,6 +100,48 @@ static __attribute__((no_stack_protector)) void ex_set_fs(uint64_t v) {
 static int g_fs_tls;                /* opt-in arch_prctl/TCB, default OFF */
 static int g_glibc_startup;         /* opt-in bounded glibc startup state, default OFF */
 static void ex_seed_tcb(uint64_t base);
+
+/* -- bounded host backing for guest anonymous mmap -------------------
+ * Registry-only mmap is the pre-change behaviour: vsl_mmap() hands the guest
+ * an address but maps no host pages, so a real glibc malloc writing its top
+ * chunk header faults at address+8.  This opt-in leg materializes those pages.
+ * Every limit is fixed and every refusal is fail-closed and diagnosed. */
+#define EX_MMAP_BACK_MAX   32u
+#define EX_MAP_ANONYMOUS   0x20u          /* Linux x86-64 MAP_ANONYMOUS */
+#define EX_MAP_FIXED_NOREPLACE 0x100000u  /* fail if a host range is occupied */
+#define EX_MMAP_FAIL_MAX   160u
+
+static int      g_mmap_backing;                     /* opt-in, default OFF */
+static uint64_t g_mmap_backing_max = VSL_MMAP_BACK_CEILING;
+static struct { uint64_t addr, size; } g_mmap_back[EX_MMAP_BACK_MAX];
+static uint32_t g_mmap_back_n;
+static uint64_t g_mmap_back_bytes;
+static char     g_mmap_back_fail[EX_MMAP_FAIL_MAX];
+
+/* Minimal async-signal-safe formatter: the hook runs inside SIGSYS, so no
+ * printf/stdio locking is used here. */
+static void ex_bappend(char *d, size_t cap, size_t *n, const char *s) {
+    while (*s && *n + 1 < cap) d[(*n)++] = *s++;
+    d[*n] = 0;
+}
+static void ex_bappend_hex(char *d, size_t cap, size_t *n, uint64_t v) {
+    static const char hx[] = "0123456789abcdef";
+    char tmp[16]; size_t k = 0;
+    if (*n + 3 >= cap) return;
+    d[(*n)++] = '0'; d[(*n)++] = 'x';
+    do { tmp[k++] = hx[v & 0xf]; v >>= 4; } while (v && k < sizeof(tmp));
+    while (k && *n + 1 < cap) d[(*n)++] = tmp[--k];
+    d[*n] = 0;
+}
+static void ex_back_fail(const char *why, uint64_t a, uint64_t b) {
+    size_t n = 0;
+    g_mmap_back_fail[0] = 0;
+    ex_bappend(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, why);
+    ex_bappend(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, " addr=");
+    ex_bappend_hex(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, a);
+    ex_bappend(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, " size=");
+    ex_bappend_hex(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, b);
+}
 
 static int g_filter_installed;
 static struct sigaction g_old_sigsys, g_old_sigsegv, g_old_sigbus;
@@ -133,6 +177,73 @@ static int ex_install_filter(void) {
         return -1;
     g_filter_installed = 1;
     return 0;
+}
+
+/* Materialize a successful guest anonymous mmap at the SAME guest address.
+ * Returns the guest-visible return value: the original success, or -ENOMEM
+ * after rolling the registry entry back when the bounded backing is refused. */
+static int64_t ex_back_guest_mmap(const uint64_t *regs, int64_t ret) {
+    if (!g_mmap_backing || ret < 0) return ret;
+    const uint64_t size = regs[1], prot = regs[2];
+    const uint64_t flags = regs[3], fd = regs[4];
+    /* Only MAP_PRIVATE|MAP_ANONYMOUS with no file can be modelled as zero
+     * pages.  Everything else keeps the legacy registry-only semantics.
+     * The dispatcher widens the syscall's int fd to uint64_t without sign
+     * extension, so MAP_ANON's -1 arrives as 0x00000000ffffffff. */
+    if ((uint32_t)fd != 0xffffffffu || !(flags & EX_MAP_ANONYMOUS)) return ret;
+
+    uint64_t sz = (size + 0xfff) & ~0xfffull;
+    if (size == 0 || sz < size || (uint64_t)ret < EX_WIN_LO ||
+        (uint64_t)ret + sz > EX_WIN_HI) {
+        ex_back_fail("guest mmap backing: invalid range", (uint64_t)ret, sz);
+        goto refuse;
+    }
+    if (sz > VSL_MMAP_BACK_SINGLE) {
+        ex_back_fail("guest mmap backing: 16 MiB per-map cap exceeded",
+                     (uint64_t)ret, sz);
+        goto refuse;
+    }
+    if (g_mmap_back_n >= EX_MMAP_BACK_MAX) {
+        ex_back_fail("guest mmap backing: 32-entry cap exhausted",
+                     (uint64_t)ret, sz);
+        goto refuse;
+    }
+    if (sz > g_mmap_backing_max - g_mmap_back_bytes) {
+        ex_back_fail("guest mmap backing: byte budget exhausted",
+                     (uint64_t)ret, sz);
+        goto refuse;
+    }
+    int hp = (int)(prot & 7);             /* PROT_READ/WRITE/EXEC are kernel ABI */
+    if (!hp) hp = PROT_READ;
+    void *m = mmap((void *)(uintptr_t)(uint64_t)ret, (size_t)sz, hp,
+                   MAP_PRIVATE | MAP_ANONYMOUS | EX_MAP_FIXED_NOREPLACE, -1, 0);
+    if (m == MAP_FAILED || (uint64_t)(uintptr_t)m != (uint64_t)ret) {
+        if (m != MAP_FAILED) munmap(m, (size_t)sz);
+        ex_back_fail("guest mmap backing: host range unavailable",
+                     (uint64_t)ret, sz);
+        goto refuse;
+    }
+    int i = (int)g_mmap_back_n++;
+    g_mmap_back[i].addr = (uint64_t)ret;
+    g_mmap_back[i].size = sz;
+    g_mmap_back_bytes += sz;
+    return ret;
+
+refuse:
+    /* Never leave the guest holding a registry entry with no host pages:
+     * that is the exact pre-change fault (top-chunk write at address+8). */
+    vsl_munmap((uint64_t)ret, size);
+    return -12;                            /* -ENOMEM, fail closed */
+}
+
+/* Release every host page materialized for a guest mmap this run.  Called
+ * on all engine exit paths, including faults and early errors. */
+static void ex_release_mmap_backing(void) {
+    for (uint32_t i = 0; i < g_mmap_back_n; i++)
+        munmap((void *)(uintptr_t)g_mmap_back[i].addr,
+               (size_t)g_mmap_back[i].size);
+    g_mmap_back_n = 0;
+    g_mmap_back_bytes = 0;
 }
 
 /* -- signal handlers ------------------------------------------------- */
@@ -207,6 +318,9 @@ static __attribute__((no_stack_protector)) void ex_sigsys(int sig, siginfo_t *si
     } else {
         ret = vsl_syscall_dispatch(nr, regs);
     }
+    /* Advance the real glibc allocator: back a successful guest anonymous
+     * mmap with host pages at the same address, or fail closed. */
+    if (nr == VSL_SYS_MMAP) ret = ex_back_guest_mmap(regs, ret);
     g_ex.trapped++;
     g[REG_RAX] = (greg_t)ret;
     /* Advance past the 2-byte syscall ONLY if RIP still points at it;
@@ -218,7 +332,7 @@ static __attribute__((no_stack_protector)) void ex_sigsys(int sig, siginfo_t *si
 }
 
 static __attribute__((no_stack_protector)) void ex_fault(int sig, siginfo_t *si, void *ucv) {
-    (void)ucv;
+    ucontext_t *uc = (ucontext_t *)ucv;
     if (!g_ex.active) {
         struct sigaction *old = (sig == SIGSEGV) ? &g_old_sigsegv : &g_old_sigbus;
         sigaction(sig, old, NULL);
@@ -229,6 +343,7 @@ static __attribute__((no_stack_protector)) void ex_fault(int sig, siginfo_t *si,
     if (g_ex.fs_set && ex_get_fs() == (uint64_t)g_ex.fs_base)
         ex_set_fs((uint64_t)g_ex.host_fs_base);
     g_ex.fault_addr = (uint64_t)(uintptr_t)si->si_addr;
+    g_ex.fault_rip = (uint64_t)uc->uc_mcontext.gregs[REG_RIP];
     g_ex.reason = 2;
     siglongjmp(g_ex.jb, 2);
 }
@@ -1230,6 +1345,13 @@ static uint64_t g_startup_fs_base;   /* stable host address of g_startup_tcb */
 
 void vsl_dyn_set_fs_tls(int on) { g_fs_tls = on ? 1 : 0; }
 void vsl_dyn_set_glibc_startup(int on) { g_glibc_startup = on ? 1 : 0; }
+void vsl_dyn_set_mmap_backing(int on) { g_mmap_backing = on ? 1 : 0; }
+int vsl_dyn_set_mmap_backing_max(uint64_t max_bytes) {
+    if (max_bytes > VSL_MMAP_BACK_CEILING) return -1;
+    g_mmap_backing_max = max_bytes;
+    return 0;
+}
+uint64_t vsl_dyn_mmap_backing_max(void) { return g_mmap_backing_max; }
 uint64_t vsl_dyn_tcb_base(void) { return (uint64_t)(uintptr_t)&g_tcb_hdr[0]; }
 uint32_t vsl_dyn_module_id(uint32_t idx) {
     return idx < g_tls_mod_count ? g_tls_mods[idx].id : 0;
@@ -3540,6 +3662,10 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     g_ex.reason = 0;
     g_ex.trapped = 0;
     g_ex.fault_addr = 0;
+    g_ex.fault_rip = 0;
+    g_mmap_back_fail[0] = 0;
+    g_mmap_back_n = 0;
+    g_mmap_back_bytes = 0;
     if (sigsetjmp(g_ex.jb, 1) == 0) {
         ucontext_t uc;
         if (getcontext(&uc) != 0) {
@@ -3575,6 +3701,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         out->status = VSL_EXEC_ERR_FAULT;
         out->fault_addr = g_ex.fault_addr;
     }
+    out->fault_rip = g_ex.fault_rip;
     rc = out->status;
 
     /* 9b. Bounded destructors on unload, while the mapping, captured fds and
@@ -3584,6 +3711,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         if (ex_call_ctors(g_fini_ctors, g_fini_count, 1) != 0) {
             out->status = VSL_EXEC_ERR_FAULT;
             out->fault_addr = g_ex.fault_addr;
+            out->fault_rip = g_ex.fault_rip;
             rc = out->status;
         } else {
             out->fini_called = g_fini_count;
@@ -3594,6 +3722,11 @@ cleanup:
     g_ex.active = 0;
     g_ex.running = 0;
     out->ctor_calls = g_ctor_calls;   /* bounded calls charged this run */
+    out->mmap_backed = g_mmap_back_n;
+    out->mmap_backed_bytes = g_mmap_back_bytes;
+    snprintf(out->mmap_failure, sizeof(out->mmap_failure), "%s",
+             g_mmap_back_fail);
+    ex_release_mmap_backing();        /* no guest pages survive a run */
     /* A guest may have installed its own %fs base; host libc here needs the
      * original one back before it runs again. */
     if ((g_fs_tls || g_glibc_startup) && g_ex.host_fs_base &&

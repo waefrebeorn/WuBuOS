@@ -167,6 +167,7 @@ typedef struct {
     uint32_t pid;               /* VSL process pid the guest ran as */
     uint64_t syscalls_trapped;  /* guest syscalls dispatched through VSL */
     uint64_t fault_addr;        /* si_addr when status == ERR_FAULT */
+    uint64_t fault_rip;         /* guest RIP at the exact faulting instruction */
     size_t   output_len;        /* bytes captured from guest fd 1+2 */
     char     output[VSL_EXEC_OUTPUT_MAX];
     /* ET_DYN diagnostics (zero for static ET_EXEC) */
@@ -203,6 +204,12 @@ typedef struct {
     /* Exact first relocation failure (any image), empty on success.  Makes
      * a glibc-bootstrap negative verifiable down to the symbol/relocation. */
     char     reloc_failure[160];
+    /* Bounded host backing for guest anonymous mmap (opt-in; zero otherwise).
+     * A VSL mmap is only a registry entry; without backing a glibc malloc that
+     * writes its top chunk to the returned address faults (0x3000008). */
+    uint32_t mmap_backed;       /* guest mmaps materialized with host pages */
+    uint64_t mmap_backed_bytes; /* total guest bytes backed this run */
+    char     mmap_failure[160]; /* exact reason a guest mmap was refused */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
@@ -398,5 +405,28 @@ void vsl_dyn_set_glibc_startup(int on);
 uint64_t vsl_dyn_tcb_base(void);
 /* Module id assigned at index idx in the last run's TLS layout, or 0. */
 uint32_t vsl_dyn_module_id(uint32_t idx);
+
+/* Bounded host backing for guest MAP_PRIVATE|MAP_ANONYMOUS mmap, OFF by
+ * default (pre-change registry-only behaviour).  VSL's mmap syscall records a
+ * range in the process registry but maps no host pages; a real glibc malloc
+ * then faults writing its arena's top chunk at the returned address.  When
+ * ON, a successful guest anonymous mmap is materialized as zeroed host pages
+ * with MAP_FIXED_NOREPLACE at the SAME guest address.  Only anonymous private
+ * maps are modelled; a file-backed / non-anonymous map keeps the legacy
+ * registry-only semantics and is never counted as backed.
+ *
+ * The feature is bounded by a fixed 32-entry table, a 16 MiB per-map limit and
+ * a 64 MiB total byte ceiling.  Any overrun, occupied host range, failed host
+ * mmap or out-of-window range is FAIL-CLOSED: the registry entry is rolled
+ * back, the guest sees -ENOMEM instead of an unbacked success, and the exact
+ * reason is reported in VslExecResult.mmap_failure.  Backed host pages are
+ * unmapped at the end of each run, so guest state cannot leak across runs. */
+#define VSL_MMAP_BACK_CEILING (64ULL * 1024 * 1024)
+#define VSL_MMAP_BACK_SINGLE  (16ULL * 1024 * 1024)
+void     vsl_dyn_set_mmap_backing(int on);
+/* Set the effective total byte budget (0..VSL_MMAP_BACK_CEILING).
+ * Returns 0 on success, -1 for an out-of-range value.  0 refuses ALL backing. */
+int      vsl_dyn_set_mmap_backing_max(uint64_t max_bytes);
+uint64_t vsl_dyn_mmap_backing_max(void);
 
 #endif /* WUBUOS_VSL_EXEC_ENGINE_H */

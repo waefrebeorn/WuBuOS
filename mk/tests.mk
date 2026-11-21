@@ -1137,11 +1137,19 @@ $(RT)/vsl/exec_guests/guest_copy.elf: \
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
 
-test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS)
+test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_hello.c
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
 		$(VSL_EXEC_OBJS) \
 		-o $(RT)/wubu_vsl_exec_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_exec_test $(RT)/vsl/exec_guests
+	# The real glibc hello must run in a FRESH process: late in the big
+	# single-process binary it spins in accumulated engine state.  This is
+	# also the fail-closed mmap-backing gate (OFF fault / ON exit / budget 0).
+	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
+		$(filter-out $(RT)/vsl/vsl_exec_test.o,$(VSL_EXEC_OBJS)) \
+		$(RT)/vsl/probe_ifunc_glibc_hello.c \
+		-o $(RT)/wubu_vsl_glibc_hello_test -ldl -lvulkan -lcuda
+	$(RT)/wubu_vsl_glibc_hello_test $(RT)/vsl/exec_guests
 
 
 test_vsl_nt: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
