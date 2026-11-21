@@ -104,8 +104,8 @@ int wubu_drv_map_mmio(const wubu_drv_dev_t *dev, uint64_t va_page,
 /* DRV10b: the range form -- one owner for a multi-page MMIO aperture.
  * Maps `pages` consecutive 4K pages from BAR0 at `va_page`; 1 <= pages <=
  * WUBU_DRV_MMIO_MAX_PAGES, va_page 4K-aligned. Returns 0 and writes the
- * first VA on success. A failed page leaves earlier pages mapped and
- * returns -1 (no fabricated VA); the caller must not use the window. */
+ * first VA on success. A failed page rolls back the pages already mapped
+ * (through wubu_vmm_unmap, weak-seamed) and returns -1 with no fabricated VA. */
 #define WUBU_DRV_MMIO_MAX_PAGES 16u
 int wubu_drv_map_mmio_range(const wubu_drv_dev_t *dev, uint64_t va_page,
                             uint32_t pages, uint64_t *va_out);

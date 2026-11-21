@@ -84,7 +84,8 @@ VA, and returns clean `absent` with zero map calls when no device exists.
 - Note: D1 originally mapped one 4K page per device. DRV10b
   `wubu_drv_map_mmio_range()` now lifts that limit (up to 16 pages) through
   the SAME owner; xHCI still uses the one-page wrapper. A mid-range failure
-  returns -1 and leaves earlier pages mapped — the caller discards the window.
+  rolls back the pages already mapped through a weak-seamed `wubu_vmm_unmap`
+  and returns -1 with no fabricated VA.
 
 **D3 — contract alignment, not adoption (DELIVERED 2026-11-21).**
 WuBuKernel now owns `include/wubu_driver_contract.h` + `src/wubu_driver_contract.c`:

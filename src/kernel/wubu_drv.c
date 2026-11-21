@@ -40,6 +40,10 @@
  * those gates provide a strong recording stub to prove the behaviour. */
 extern int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
     __attribute__((weak));
+/* DRV10c: unmap the pages a failed range already mapped. Weak so hosted
+ * driver gates need not link wubu_vmm.o; on metal this binds to the real
+ * wubu_vmm_unmap(). */
+extern int wubu_vmm_unmap(uint64_t virt) __attribute__((weak));
 
 /* ---- the device table ---- */
 
@@ -178,8 +182,13 @@ int wubu_drv_map_mmio_range(const wubu_drv_dev_t *dev, uint64_t va_page,
     for (uint32_t i = 0; i < pages; i++)
         if (wubu_vmm_map_page(va_page + (uint64_t)i * 4096u,
                               phys + (uint64_t)i * 4096u,
-                              WUBU_CONTRACT_MAP_FLAGS) != 0)
-            return -1;                                     /* fail-soft */
+                              WUBU_CONTRACT_MAP_FLAGS) != 0) {
+            /* DRV10c: roll back the pages we just mapped. No fabricated VA. */
+            if (wubu_vmm_unmap)
+                for (uint32_t j = 0; j < i; j++)
+                    (void)wubu_vmm_unmap(va_page + (uint64_t)j * 4096u);
+            return -1;
+        }
     *va_out = va_page;
     return 0;
 }

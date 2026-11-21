@@ -51,6 +51,15 @@ static uint32_t g_map_flags[32];
 static int      g_map_n;
 static int      g_map_fail;
 static int      g_map_fail_at = -1;
+static int      g_unmap_n;
+static uint64_t g_unmap_va[32];
+
+int wubu_vmm_unmap(uint64_t virt)
+{
+    if (g_unmap_n < 32) g_unmap_va[g_unmap_n] = virt;
+    g_unmap_n++;
+    return 0;
+}
 
 int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
 {
@@ -289,13 +298,15 @@ int main(void)
 
         /* Fail-soft mid-range: second page fails, no fabricated VA. */
         range_va = 0xDEADBEEFull;
-        g_map_n = 0; g_map_fail_at = 1;
+        g_map_n = 0; g_map_fail_at = 1; g_unmap_n = 0;
         if (wubu_drv_map_mmio_range(&nvme_with_bar, base, 3, &range_va) == 0)
             FAIL("failed range reported success");
         if (g_map_n != 1 || range_va != 0xDEADBEEFull)
             FAIL("failed range fabricated a VA or kept mapping");
+        if (g_unmap_n != 1 || g_unmap_va[0] != base)
+            FAIL("failed range did not roll back its first page");
         g_map_fail_at = -1;
-        printf("  PASS: bad args rejected, mid-range failure is fail-soft\n");
+        printf("  PASS: mid-range failure rolls back earlier pages\n");
     }
 
     /* 3. the network */
