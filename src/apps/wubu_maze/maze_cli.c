@@ -12,12 +12,22 @@
 #define VW 72
 #define VH 22
 
+static int g_show_map;
+
 static void draw(const wubu_maze_state *s)
 {
     char buf[VW * VH];
     wubu_maze_render_ascii(s, buf, VW, VH);
     for (int y = 0; y < VH; y++)
         printf("%.*s\n", VW, buf + (size_t)y * VW);
+    if (g_show_map) {
+        char mm[WUBU_MAZE_MAP_W * WUBU_MAZE_MAP_H];
+        wubu_maze_render_minimap(s, mm);
+        puts("--- map ---");
+        for (int y = 0; y < WUBU_MAZE_MAP_H; y++)
+            printf("%.*s\n", WUBU_MAZE_MAP_W,
+                   mm + (size_t)y * WUBU_MAZE_MAP_W);
+    }
     printf("[pos %.2f,%.2f  steps=%u blocked=%u  gems=%u/3 score=%u%s]\n"
            "[W/S move  A/D turn  Q quit]\n",
            s->p.x, s->p.y, s->steps, s->blocked, s->gems, s->score,
@@ -40,6 +50,8 @@ int main(int argc, char **argv)
 {
     wubu_maze_state s;
     wubu_maze_init(&s);
+    for (int i = 1; i < argc; i++)
+        if (strcmp(argv[i], "--map") == 0) g_show_map = 1;
 
     if (argc > 1 && strcmp(argv[1], "--tour") == 0) {
         /* A fixed script: walk east to the first gem, then explore. */

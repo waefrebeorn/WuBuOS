@@ -22,7 +22,10 @@ Example opening frame (one char per cell):
 Objective: collect three glowing gems (`*`, 100 points each) then reach the
 exit tile. The exit only wins once all gems are held. Gems are billboard
 sprites projected through the inverse camera matrix and clipped per column
-against the wall z-buffer, so walls correctly occlude them.
+against the wall z-buffer, so walls correctly occlude them. Add `--map` to
+show a 16x16 overhead minimap (`@` player, `E` exit, `*` gems). A BFS gate
+proves start → every gem → exit is reachable, so the level cannot silently
+become unwinnable.
 
 ## Gate
 

@@ -40,6 +40,14 @@ int wubu_maze_gem(int i, double *x, double *y);
 /* Exit tile position (only wins once every gem is collected). */
 void wubu_maze_exit(double *x, double *y);
 
+/* 16x16 overhead minimap: '#' walls, '*' untaken gems, 'E' exit, '@'
+ * player. out must hold WUBU_MAZE_MAP_W * WUBU_MAZE_MAP_H chars. */
+void wubu_maze_render_minimap(const wubu_maze_state *s, char *out);
+
+/* Breadth-first reachability over open cells (orthogonal steps).
+ * Used by the gate to PROVE start -> every gem -> exit is solvable. */
+int wubu_maze_reachable(double sx, double sy, double tx, double ty);
+
 /* Call after movement: collects gems in reach and detects the win.
  * Returns the number of gems collected by this call. */
 int wubu_maze_tick(wubu_maze_state *s);

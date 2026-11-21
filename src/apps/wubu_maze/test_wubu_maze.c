@@ -64,7 +64,25 @@ int main(int argc, char **argv)
         double gx, gy;
         CHECK(wubu_maze_gem(i, &gx, &gy) == 0, "gem accessor");
         CHECK(wubu_maze_cell((int)gx, (int)gy) == 0, "gem sits on open cell");
+        CHECK(wubu_maze_reachable(2.5, 1.5, gx, gy) == 1,
+              "start can reach each gem");
     }
+    {
+        double ex0, ey0;
+        wubu_maze_exit(&ex0, &ey0);
+        CHECK(wubu_maze_reachable(2.5, 1.5, ex0, ey0) == 1,
+              "start can reach the exit");
+        for (int i = 0; i < WUBU_MAZE_NGEMS; i++) {
+            double gx, gy;
+            (void)wubu_maze_gem(i, &gx, &gy);
+            CHECK(wubu_maze_reachable(gx, gy, ex0, ey0) == 1,
+                  "each gem can reach the exit");
+        }
+        /* Negative control: a wall is never reachable. */
+        CHECK(wubu_maze_reachable(2.5, 1.5, 4.5, 4.5) == 0,
+              "wall target is unreachable");
+    }
+    printf("  PASS: BFS proves every objective is reachable\n");
     CHECK(wubu_maze_gem(WUBU_MAZE_NGEMS, NULL, NULL) != 0,
           "bad gem index rejected");
 
@@ -137,6 +155,24 @@ int main(int argc, char **argv)
     CHECK(yellow2 == 0, "collected gems no longer render");
     printf("  PASS: billboard sprite %d px -> %d px after pickup\n",
            yellow, yellow2);
+
+    /* Minimap differential: three gems marked, all gone after pickup. */
+    char mm[WUBU_MAZE_MAP_W * WUBU_MAZE_MAP_H];
+    wubu_maze_init(&s);
+    wubu_maze_render_minimap(&s, mm);
+    int stars = 0, ats = 0, exits = 0;
+    for (size_t i = 0; i < sizeof(mm); i++) {
+        if (mm[i] == '*') stars++;
+        else if (mm[i] == '@') ats++;
+        else if (mm[i] == 'E') exits++;
+    }
+    CHECK(stars == WUBU_MAZE_NGEMS, "minimap shows all three gems");
+    CHECK(ats == 1 && exits == 1, "minimap shows one player and one exit");
+    wubu_maze_render_minimap(&cleared, mm);
+    stars = 0;
+    for (size_t i = 0; i < sizeof(mm); i++) if (mm[i] == '*') stars++;
+    CHECK(stars == 0, "collected gems vanish from the minimap");
+    printf("  PASS: minimap 3 gems -> 0, player + exit markers stable\n");
 
     /* Human inspection: --ppm path writes the frame; never committed. */
     for (int i = 1; i < argc; i++) {

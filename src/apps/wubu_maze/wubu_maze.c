@@ -41,6 +41,53 @@ void wubu_maze_exit(double *x, double *y)
     if (y) *y = g_exit_y;
 }
 
+void wubu_maze_render_minimap(const wubu_maze_state *s, char *out)
+{
+    if (!s || !out) return;
+    for (int y = 0; y < WUBU_MAZE_MAP_H; y++)
+        for (int x = 0; x < WUBU_MAZE_MAP_W; x++)
+            out[(size_t)y * WUBU_MAZE_MAP_W + (size_t)x] =
+                wubu_maze_cell(x, y) ? '#' : ' ';
+    out[(size_t)(int)g_exit_y * WUBU_MAZE_MAP_W + (size_t)(int)g_exit_x] = 'E';
+    for (int i = 0; i < WUBU_MAZE_NGEMS; i++)
+        if (!s->gem_taken[i])
+            out[(size_t)(int)g_gem_y[i] * WUBU_MAZE_MAP_W +
+                (size_t)(int)g_gem_x[i]] = '*';
+    int px = (int)s->p.x, py = (int)s->p.y;
+    if (px >= 0 && px < WUBU_MAZE_MAP_W && py >= 0 && py < WUBU_MAZE_MAP_H)
+        out[(size_t)py * WUBU_MAZE_MAP_W + (size_t)px] = '@';
+}
+
+int wubu_maze_reachable(double sx, double sy, double tx, double ty)
+{
+    int sxi = (int)sx, syi = (int)sy, txi = (int)tx, tyi = (int)ty;
+    if (wubu_maze_cell(sxi, syi) != 0 || wubu_maze_cell(txi, tyi) != 0)
+        return 0;
+    unsigned char seen[WUBU_MAZE_MAP_H][WUBU_MAZE_MAP_W];
+    memset(seen, 0, sizeof(seen));
+    int qx[WUBU_MAZE_MAP_W * WUBU_MAZE_MAP_H];
+    int qy[WUBU_MAZE_MAP_W * WUBU_MAZE_MAP_H];
+    int head = 0, tail = 0;
+    qx[tail] = sxi; qy[tail] = syi; tail++;
+    seen[syi][sxi] = 1;
+    static const int dx[4] = { 1, -1, 0, 0 };
+    static const int dy[4] = { 0, 0, 1, -1 };
+    while (head < tail) {
+        int x = qx[head], y = qy[head];
+        head++;
+        if (x == txi && y == tyi) return 1;
+        for (int k = 0; k < 4; k++) {
+            int nx = x + dx[k], ny = y + dy[k];
+            if (nx < 0 || nx >= WUBU_MAZE_MAP_W ||
+                ny < 0 || ny >= WUBU_MAZE_MAP_H) continue;
+            if (seen[ny][nx] || wubu_maze_cell(nx, ny) != 0) continue;
+            seen[ny][nx] = 1;
+            qx[tail] = nx; qy[tail] = ny; tail++;
+        }
+    }
+    return 0;
+}
+
 int wubu_maze_tick(wubu_maze_state *s)
 {
     if (!s) return 0;
