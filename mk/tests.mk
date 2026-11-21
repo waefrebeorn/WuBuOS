@@ -757,7 +757,10 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_fs_tcb.elf \
 	$(RT)/vsl/exec_guests/glibc_rootfs/libvslinterp.so \
 	$(RT)/vsl/exec_guests/glibc_rootfs2/libvslinterp.so \
-	$(RT)/vsl/exec_guests/glibc_rootfs/lib64/ld-linux-x86-64.so.2
+	$(RT)/vsl/exec_guests/glibc_rootfs/lib64/ld-linux-x86-64.so.2 \
+	$(RT)/vsl/exec_guests/glibc_rootfs/libc.so.6 \
+	$(RT)/vsl/exec_guests/glibc_rootfs_badver/libc.so.6 \
+	$(RT)/vsl/exec_guests/guest_hello.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -919,6 +922,39 @@ $(RT)/vsl/exec_guests/glibc_rootfs/lib64/ld-linux-x86-64.so.2:
 	else \
 		printf 'vsl: no host ld.so available\n' > $@; \
 	fi
+
+# A bounded GUEST libc shim: freestanding ET_DYN with soname libc.so.6 and
+# real DT_VERDEF/DT_VERSYM records for puts@GLIBC_2.2.5,
+# __libc_start_main@GLIBC_2.34 and __cxa_finalize@GLIBC_2.2.5.  It is the ONLY
+# provider VSL uses for a real dynamic binary's versioned main-image imports;
+# its bytes are guest bytes inside the trap window.  The badver copy exports
+# puts under VSL_BAD_9 so the versioned lookup fails closed (negative control).
+$(RT)/vsl/exec_guests/glibc_rootfs/libc.so.6: \
+		$(RT)/vsl/exec_guests/guest_libc_shim.c \
+		$(RT)/vsl/exec_guests/libc_shim.map
+	mkdir -p $(dir $@)
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-soname,libc.so.6 \
+		-Wl,--version-script=$(RT)/vsl/exec_guests/libc_shim.map $< -o $@
+
+$(RT)/vsl/exec_guests/glibc_rootfs_badver/libc.so.6: \
+		$(RT)/vsl/exec_guests/guest_libc_shim.c \
+		$(RT)/vsl/exec_guests/libc_shim_badver.map
+	mkdir -p $(dir $@)
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-DVSL_SHIM_PUTS_VER=\"VSL_BAD_9\" -DVSL_SHIM_CXA_VER=\"VSL_BAD_9\" \
+		-Wl,--build-id=none -Wl,-soname,libc.so.6 \
+		-Wl,--version-script=$(RT)/vsl/exec_guests/libc_shim_badver.map $< -o $@
+
+# A REAL dynamically linked hello-world (plain $(CC)): PT_INTERP ld-linux,
+# DT_NEEDED libc.so.6, JUMP_SLOT puts@GLIBC_2.2.5 and GLOB_DAT
+# __libc_start_main@GLIBC_2.34.  The generic %.elf pattern above would add
+# -nostdlib, so this explicit rule builds the genuine host-linked binary.
+$(RT)/vsl/exec_guests/guest_hello.elf: \
+		$(RT)/vsl/exec_guests/guest_hello.c
+	$(CC) -O0 -Wl,--build-id=none $< -o $@
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o

@@ -636,12 +636,20 @@ static int      g_run_interp;               /* opt-in, default OFF */
  * a kernel only maps the main image + interpreter, then hands control to
  * ld.so.  VSL must not pre-relocate the main image in that mode. */
 static int      g_interp_owns_main;
+/* OPT-IN: bind the main image's versioned libc imports from a bounded GUEST
+ * libc shim (a DT_NEEDED ET_DYN provider with real DT_VERDEF records) instead
+ * of handing main relocation to the real interpreter.  The ld.so is still
+ * mapped and self-relocated (the bounded ld.so path is exercised) but VSL
+ * owns main relocation and control starts at AT_ENTRY.  OFF by default so
+ * gate (v)'s real-ld.so behaviour is byte-for-byte unchanged. */
+static int      g_run_bind_main_shim;
 static uint64_t g_interp_entry;             /* interpreter e_entry (link addr) */
 static uint64_t g_interp_bias;
 static uint8_t *g_interp_map;
 static uint64_t g_interp_lo, g_interp_hi;
 
 void vsl_dyn_set_interp(int on) { g_run_interp = on ? 1 : 0; }
+void vsl_dyn_set_interp_bind_main(int on) { g_run_bind_main_shim = on ? 1 : 0; }
 
 static void ex_interp_reset(void) {
     if (g_interp_map)
@@ -2428,7 +2436,7 @@ static int ex_load_interpreter(VslExecResult *out) {
     /* Only a genuine glibc ld-linux interpreter owns main relocation; the
      * bounded synthetic libvslinterp.so fixtures keep VSL-owned relocation. */
     g_interp_owns_main =
-        (strstr(out->interp_path, "ld-linux") != NULL);
+        (strstr(out->interp_path, "ld-linux") != NULL) && !g_run_bind_main_shim;
     out->interp_bias = g_interp_bias;
     out->interp_loaded = 1;
     free(f);
@@ -2590,7 +2598,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     /* With a bounded interpreter loaded, control starts at the interpreter,
      * exactly as a kernel hands the image to ld.so; the interpreter later
      * jumps to AT_ENTRY.  Without one, behaviour is unchanged. */
-    uint64_t run_entry = out->interp_loaded
+    uint64_t run_entry = (out->interp_loaded && !g_run_bind_main_shim)
                        ? g_interp_entry + g_interp_bias : entry;
 
     /* Pass B: biased bounding range + executable extents. */

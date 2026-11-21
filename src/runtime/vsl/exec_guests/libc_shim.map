@@ -1,0 +1,7 @@
+GLIBC_2.2.5 {
+    global: shim_puts; puts; shim_cxa_finalize; __cxa_finalize;
+    local: *;
+};
+GLIBC_2.34 {
+    global: shim_start; __libc_start_main;
+} GLIBC_2.2.5;

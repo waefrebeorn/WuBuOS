@@ -257,6 +257,15 @@ void vsl_dyn_set_init_fini(int on);
  * with VSL_EXEC_ERR_INTERP and an exact reason in VslExecResult.interp_reason.
  */
 void vsl_dyn_set_interp(int on);
+/* OPT-IN: bind the main image's versioned libc imports from a bounded GUEST
+ * libc shim (a DT_NEEDED ET_DYN provider with real DT_VERDEF records) while a
+ * real ld.so is loaded as PT_INTERP.  OFF by default (pre-change behaviour:
+ * a genuine ld-linux interpreter owns main relocation and VSL transfers
+ * control to the interpreter's e_entry).  When ON, the ld.so is still mapped
+ * and self-relocated inside the guest rootfs, but VSL owns main relocation,
+ * loads the main DT_NEEDED graph from the per-image dep dirs, resolves the
+ * versioned imports from that shim's guest bytes, and starts at AT_ENTRY. */
+void vsl_dyn_set_interp_bind_main(int on);
 /* Process-wide guest rootfs allow-list (NULL clears it).  A per-image cfg
  * rootfs takes precedence; both refuse paths escaping the directory. */
 int  vsl_dyn_set_rootfs(const char *dir);

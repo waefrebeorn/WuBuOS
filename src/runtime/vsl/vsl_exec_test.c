@@ -2185,6 +2185,103 @@ int main(int argc, char **argv) {
     vsl_dyn_set_interp(0);
 }
 
+/* (aa) Bounded guest libc shim: bind the main image's VERSIONED libc imports
+ *      in the real-ld.so path and run a genuine dynamically linked hello-
+ *      world end-to-end.  `guest_hello.elf` is host-linked (PT_INTERP
+ *      /lib64/ld-linux-x86-64.so.2, DT_NEEDED libc.so.6, JUMP_SLOT
+ *      puts@GLIBC_2.2.5 + GLOB_DAT __libc_start_main@GLIBC_2.34).  The real
+ *      ld.so is still mapped and self-relocated from the guest rootfs, but
+ *      with bind_main ON VSL owns main relocation and binds those imports
+ *      from a bounded GUEST libc shim exporting the matching DT_VERDEF names.
+ *  DIFFERENTIAL / NEGATIVE CONTROLS:
+ *   - old rule (bind OFF): ld.so owns main -> guest ld.so executes then
+ *     faults; no hello output;
+ *   - no shim dir: DT_NEEDED libc.so.6 fails closed with the exact soname;
+ *   - version-mismatched shim (puts@VSL_BAD_9): main relocation fails closed
+ *     with the exact unresolved symbol name 'puts' and its GOT offset. */
+{
+    static const char hello[] = "VSL-HELLO-DYNAMIC-WORLD";
+    size_t hn = 0;
+    snprintf(path, sizeof(path), "%s/guest_hello.elf", dir);
+    uint8_t *himg = read_test_file(path, &hn);
+    CHECK(himg != NULL, "real dynamic hello-world fixture readable");
+    if (himg) {
+        char root[512], shimdir[512], badshimdir[512];
+        snprintf(root, sizeof(root), "%s/glibc_rootfs", dir);
+        snprintf(shimdir, sizeof(shimdir), "%s/glibc_rootfs", dir);
+        snprintf(badshimdir, sizeof(badshimdir), "%s/glibc_rootfs_badver", dir);
+        const char *none[] = { NULL };
+        const char *shim_dirs[] = { shimdir, NULL };
+        const char *bad_dirs[] = { badshimdir, NULL };
+        VslImageCfg cfg_none = { none,      0, 0, NULL, 0, root, NULL };
+        VslImageCfg cfg_shim = { shim_dirs, 0, 0, NULL, 0, root, NULL };
+        VslImageCfg cfg_bad  = { bad_dirs,  0, 0, NULL, 0, root, NULL };
+
+        /* NEGATIVE A: pre-change ld.so-owned main relocation. */
+        vsl_dyn_set_interp(1);
+        vsl_dyn_set_interp_bind_main(0);
+        vsl_dyn_set_init_fini(0);
+        int rc_old = vsl_exec_image(himg, hn, &cfg_none, &r);
+        printf("[gate aa] old ld.so-owned main: rc=%d status=%d interp=%u "
+               "fault=0x%llx syscalls=%llu out_len=%zu\n",
+               rc_old, r.status, r.interp_loaded,
+               (unsigned long long)r.fault_addr,
+               (unsigned long long)r.syscalls_trapped, r.output_len);
+        CHECK(r.interp_loaded == 1,
+              "old rule still maps the real ld.so from the guest rootfs");
+        CHECK(r.output_len < sizeof(hello) ||
+              memcmp(r.output, hello, sizeof(hello) - 1) != 0,
+              "old rule never reaches the guest hello-world main");
+
+        /* NEGATIVE B: version-mismatched shim -> exact unresolved symbol. */
+        vsl_dyn_set_interp_bind_main(1);
+        int rc_bad = vsl_exec_image(himg, hn, &cfg_bad, &r);
+        printf("[gate aa] bad-version shim: rc=%d status=%d "
+               "reloc_failure=\"%s\"\n",
+               rc_bad, r.status, r.reloc_failure);
+        CHECK(rc_bad == VSL_EXEC_ERR_RELOC,
+              "wrong-version shim fails closed with ERR_RELOC");
+        CHECK(strstr(r.reloc_failure, "puts") != NULL,
+              "exact unresolved symbol 'puts' recorded for the negative");
+
+        /* NEGATIVE C: no bounded dep dir -> DT_NEEDED fails closed. */
+        int rc_noshim = vsl_exec_image(himg, hn, &cfg_none, &r);
+        printf("[gate aa] no shim dir: rc=%d status=%d reloc_failure=\"%s\"\n",
+               rc_noshim, r.status, r.reloc_failure);
+        CHECK(rc_noshim == VSL_EXEC_ERR_RELOC,
+              "absent libc shim fails closed with ERR_RELOC");
+        CHECK(strstr(r.reloc_failure, "libc.so.6") != NULL,
+              "exact missing provider soname recorded");
+
+        /* NEW: bind main imports from the good bounded guest libc shim. */
+        int rc_new = vsl_exec_image(himg, hn, &cfg_shim, &r);
+        printf("[gate aa] shim-bound: rc=%d exit=%d interp=%u deps=%u "
+               "relocs=%u syms=%u reason=\"%s\" reloc_failure=\"%s\" "
+               "out_len=%zu out=\"%.*s\"\n",
+               rc_new, r.exit_code, r.interp_loaded, r.deps_loaded,
+               r.relocations_applied, r.symbols_resolved,
+               r.interp_reason, r.reloc_failure, r.output_len,
+               (int)(r.output_len < 80 ? r.output_len : 80), r.output);
+        CHECK(rc_new == VSL_EXEC_OK && r.exit_code == 0,
+              "real dynamic hello-world runs end-to-end to exit(0)");
+        CHECK(r.interp_loaded == 1,
+              "real ld.so still mapped + self-relocated (ld.so path intact)");
+        CHECK(r.deps_loaded >= 1,
+              "bounded guest libc shim loaded through DT_NEEDED");
+        CHECK(r.symbols_resolved >= 3,
+              "puts/__libc_start_main/__cxa_finalize bound from guest shim");
+        CHECK(r.output_len == sizeof(hello) &&
+              memcmp(r.output, hello, sizeof(hello) - 1) == 0 &&
+              r.output[sizeof(hello) - 1] == '\n',
+              "exact hello-world bytes written by GUEST puts through VSL");
+        CHECK(rc_old != rc_new,
+              "differential: main-import binding changes the outcome");
+        vsl_dyn_set_interp_bind_main(0);
+        vsl_dyn_set_interp(0);
+        free(himg);
+    }
+}
+
 /* (h) host syscalls still real after all runs (filter ALLOW path) */
     CHECK(getpid() > 0, "host getpid still works after engine runs");
 
