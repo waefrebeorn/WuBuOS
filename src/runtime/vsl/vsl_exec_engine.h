@@ -210,6 +210,10 @@ typedef struct {
     uint32_t mmap_backed;       /* guest mmaps materialized with host pages */
     uint64_t mmap_backed_bytes; /* total guest bytes backed this run */
     char     mmap_failure[160]; /* exact reason a guest mmap was refused */
+    /* Bounded stdout/FILE model (opt-in; zero otherwise). */
+    uint32_t stdout_writes;     /* bounded host stdout writes this run */
+    uint64_t stdout_bytes;      /* exact bytes emitted by the bounded model */
+    char     stdout_failure[160]; /* exact reason an unsupported shape refused */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
@@ -405,6 +409,27 @@ void vsl_dyn_set_glibc_startup(int on);
 uint64_t vsl_dyn_tcb_base(void);
 /* Module id assigned at index idx in the last run's TLS layout, or 0. */
 uint32_t vsl_dyn_module_id(uint32_t idx);
+
+/* Bounded stdout/FILE stream model (opt-in, OFF by default).  Real glibc's
+ * puts writes through an unmodelled FILE/stdout buffer whose internal write
+ * count(ptr) can be garbage (a bogus 0x2502000 write followed by -EFAULT,
+ * leaking ~12 KB of trailing bytes).  When ON, the engine binds the guest's
+ * FUNC-typed puts import to a bounded HOST implementation selected by the
+ * exact (name, DT_VERNEED version, vn_file) triple.  That implementation:
+ *   - measures the NUL-terminated string with a bounded scan,
+ *   - refuses any stream shape it cannot model (wrong fd, oversized string,
+ *     missing terminator) with an exact diagnostic and emits NO bytes,
+ *   - writes exactly the string bytes plus one newline, and reports the exact
+ *     byte count.  No guest FILE state is read or written, so the exit flush
+ *     has nothing pending and no bogus write/EFAULT can occur. */
+#define VSL_STDOUT_WRITE_MAX 4096u
+void     vsl_dyn_set_stdout_model(int on);
+int      vsl_dyn_stdout_model(void);
+/* Validate one stdout stream shape without emitting anything.  Returns 0
+ * when the (fd,count) pair is modelable, -1 and an exact diagnostic otherwise.
+ * Used by the fresh-process gate as a fail-closed negative control. */
+int      vsl_stdout_shape_ok(uint64_t fd, uint64_t count,
+                             char *diag, size_t diag_cap);
 
 /* Bounded host backing for guest MAP_PRIVATE|MAP_ANONYMOUS mmap, OFF by
  * default (pre-change registry-only behaviour).  VSL's mmap syscall records a

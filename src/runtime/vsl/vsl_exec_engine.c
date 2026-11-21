@@ -143,6 +143,58 @@ static void ex_back_fail(const char *why, uint64_t a, uint64_t b) {
     ex_bappend_hex(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, b);
 }
 
+static int      g_stdout_model;                     /* opt-in, default OFF */
+static uint32_t g_stdout_writes;
+static uint64_t g_stdout_bytes;
+static char     g_stdout_failure[160];
+
+/* Bounded stdout/FILE stream shape validator: only fd 1 (stdout) with a
+ * non-empty count at or below the fixed per-write cap is modelable.  Any
+ * other shape fails closed with an exact diagnostic and emits no bytes. */
+int vsl_stdout_shape_ok(uint64_t fd, uint64_t count,
+                        char *diag, size_t diag_cap) {
+    size_t n = 0;
+    if (diag && diag_cap) diag[0] = 0;
+    if (fd == 1 && count > 0 && count <= VSL_STDOUT_WRITE_MAX) return 0;
+    if (diag && diag_cap) {
+        ex_bappend(diag, diag_cap, &n, "stdout: unsupported FILE/stream shape fd=");
+        ex_bappend_hex(diag, diag_cap, &n, fd);
+        ex_bappend(diag, diag_cap, &n, " count=");
+        ex_bappend_hex(diag, diag_cap, &n, count);
+    }
+    return -1;
+}
+void vsl_dyn_set_stdout_model(int on) { g_stdout_model = on ? 1 : 0; }
+int  vsl_dyn_stdout_model(void) { return g_stdout_model; }
+
+/* Bounded host implementation bound in place of the guest's FUNC-typed puts
+ * import when the stdout model is enabled.  The string is bounded by a capped
+ * NUL scan; an overlong or unterminated string is an unsupported stream shape
+ * and emits nothing.  On success exactly the string bytes and one newline are
+ * written, matching the host puts oracle.  No guest FILE state is touched. */
+static int64_t vsl_stdout_puts(const char *s) {
+    if (!s) {
+        snprintf(g_stdout_failure, sizeof(g_stdout_failure),
+                 "stdout: unsupported FILE/stream shape: NULL string");
+        return -1;
+    }
+    size_t n = 0;
+    while (n < VSL_STDOUT_WRITE_MAX && s[n] != 0) n++;
+    if (n == 0 || n == VSL_STDOUT_WRITE_MAX) {
+        snprintf(g_stdout_failure, sizeof(g_stdout_failure),
+                 "stdout: unsupported FILE/stream shape: string len=%zu cap=%u",
+                 n, (unsigned)VSL_STDOUT_WRITE_MAX);
+        return -1;
+    }
+    int64_t a = syscall(SYS_write, 1, s, n);
+    if (a != (int64_t)n) return -1;
+    int64_t b = syscall(SYS_write, 1, "\n", 1);
+    if (b != 1) return -1;
+    g_stdout_writes += 2;
+    g_stdout_bytes += (uint64_t)(a + b);
+    return a + b;
+}
+
 static int g_filter_installed;
 static struct sigaction g_old_sigsys, g_old_sigsegv, g_old_sigbus;
 
@@ -1938,6 +1990,21 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     }
     uint64_t addr = 0;
     int found = 0;
+    /* Bounded stdout model: route the guest's FUNC-typed puts import to the
+     * bounded host implementation, selected ONLY by the exact version and
+     * vn_file of a real puts@GLIBC_2.2.5 import from libc.so.6.  A different
+     * name/version/file falls through to the normal bounded lookup, so a
+     * malformed import can never silently reach the host writer. */
+    if (g_stdout_model && (st_info & 0x0f) == 2 && strcmp(name, "puts") == 0) {
+        const char *iver = "", *ifile = NULL;
+        if (vi > EX_VER_NDX_GLOBAL) {
+            const VslVerEnt *need = ex_ver_find(vc->needs, vc->nneeds, vi);
+            if (!need) return -1;
+            iver = need->name; ifile = need->file;
+        }
+        const VslIfuncByName *ie = ex_ifunc_by_name(name, iver, ifile);
+        if (ie) { *out = (uint64_t)(uintptr_t)&vsl_stdout_puts; return 0; }
+    }
     /* Versioned import: the index must resolve to a DT_VERNEED entry.  In
      * hardened mode the definition must come from BOTH the exact version
      * name AND the vn_file named by that need, so a version required from
@@ -3666,6 +3733,9 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     g_mmap_back_fail[0] = 0;
     g_mmap_back_n = 0;
     g_mmap_back_bytes = 0;
+    g_stdout_writes = 0;
+    g_stdout_bytes = 0;
+    g_stdout_failure[0] = 0;
     if (sigsetjmp(g_ex.jb, 1) == 0) {
         ucontext_t uc;
         if (getcontext(&uc) != 0) {
@@ -3726,6 +3796,10 @@ cleanup:
     out->mmap_backed_bytes = g_mmap_back_bytes;
     snprintf(out->mmap_failure, sizeof(out->mmap_failure), "%s",
              g_mmap_back_fail);
+    out->stdout_writes = g_stdout_writes;
+    out->stdout_bytes = g_stdout_bytes;
+    snprintf(out->stdout_failure, sizeof(out->stdout_failure), "%s",
+             g_stdout_failure);
     ex_release_mmap_backing();        /* no guest pages survive a run */
     /* A guest may have installed its own %fs base; host libc here needs the
      * original one back before it runs again. */
