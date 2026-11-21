@@ -1414,8 +1414,9 @@ test_buddy_orb: $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c
 	$(RT)/test_buddy_orb
 test_kernel_bridge: $(KERNEL)/test/wubu_kernel_bridge_test.c \
 		$(KERNEL)/WuBuKernel/src/wubukcore.c $(KERNEL)/WuBuKernel/src/wubudriver.c \
-		$(KERNEL)/WuBuKernel/src/wubukernel_pmm.c
-	$(CC) -O2 -std=c11 -Wall -I$(KERNEL)/WuBuKernel/include $(KERNEL)/test/wubu_kernel_bridge_test.c $(KERNEL)/WuBuKernel/src/wubukcore.c $(KERNEL)/WuBuKernel/src/wubudriver.c $(KERNEL)/WuBuKernel/src/wubukernel_pmm.c -o $(KERNEL)/test_wubu_kernel_bridge -Iinclude src/runtime/wubu_crc32.c
+		$(KERNEL)/WuBuKernel/src/wubukernel_pmm.c \
+		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c
+	$(CC) -O2 -std=c11 -Wall -I$(KERNEL)/WuBuKernel/include $(KERNEL)/test/wubu_kernel_bridge_test.c $(KERNEL)/WuBuKernel/src/wubukcore.c $(KERNEL)/WuBuKernel/src/wubudriver.c $(KERNEL)/WuBuKernel/src/wubukernel_pmm.c $(KERNEL)/WuBuKernel/src/wubu_driver_contract.c -o $(KERNEL)/test_wubu_kernel_bridge -Iinclude src/runtime/wubu_crc32.c
 	$(KERNEL)/test_wubu_kernel_bridge
 test_wubutime: $(RT)/wubutime.c $(RT)/wubu_posix.c $(RT)/wubutime_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) -Iinclude $(RT)/wubutime.c $(RT)/wubu_posix.c $(RT)/wubutime_test.c -o $(RT)/test_wubutime -lm $(RT)/wubu_crc32.c
@@ -2967,6 +2968,7 @@ test_secmon: $(RT)/wubu_secmon.c $(KERNEL)/wubu_secmon.h $(KERNEL)/wubu_kvfs.c $
 test_drv:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
@@ -3015,6 +3017,7 @@ test_cab:
 test_machines:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
@@ -3030,6 +3033,7 @@ test_machines:
 test_world:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
@@ -3046,6 +3050,7 @@ test_world:
 test_ns_world:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
@@ -3750,13 +3755,14 @@ CORE_OBJS := $(CACHE)/ahci.o $(CACHE)/fat32.o $(CACHE)/fat32_cluster.o $(CACHE)/
 
 RUNTIME_OBJS := $(CACHE)/libc.o $(CACHE)/libc_string.o $(CACHE)/memory.o $(CACHE)/klog.o $(CACHE)/wubu_pci.o
 
-test_drv_install: $(KERNEL)/test/wubu_drv_install_selftest.c $(KERNEL)/wubu_drv_install.c $(KERNEL)/wubu_drv.c $(KERNEL)/wubu_pci.c $(KERNEL)/wubu_test_stubs.c
+test_drv_install: $(KERNEL)/test/wubu_drv_install_selftest.c $(KERNEL)/wubu_drv_install.c $(KERNEL)/wubu_drv.c $(KERNEL)/WuBuKernel/src/wubu_driver_contract.c $(KERNEL)/wubu_pci.c $(KERNEL)/wubu_test_stubs.c
 	@mkdir -p $(TEST_BIN)
 	$(CC) -O0 -g -Wall -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -no-pie  -Iinclude  $(RT)/wubu_crc32.c \
 		-I$(KERNEL) -I$(KERNEL)/test \
 		$(KERNEL)/test/wubu_drv_install_selftest.c \
 		$(KERNEL)/wubu_drv_install.c \
 		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \

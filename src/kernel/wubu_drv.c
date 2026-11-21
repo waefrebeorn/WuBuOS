@@ -29,6 +29,7 @@
  * C11.
  */
 #include "wubu_drv.h"
+#include "wubu_driver_contract.h"   /* the one BAR/MMIO decoder */
 #include "wubu_pci.h"
 
 #include <stdio.h>
@@ -169,12 +170,12 @@ int wubu_drv_map_mmio(const wubu_drv_dev_t *dev, uint64_t va_page,
     uint64_t bar0 = 0, bar1 = 0, phys;
     if (!dev || !va_out || (va_page & 0xFFFull)) return -1;
     if (wubu_drv_dev_bar(dev, &bar0, &bar1) != 0) return -1;
-    if (bar0 & 1u) return -1;                 /* I/O-space BAR, not MMIO */
-    phys = bar0 & ~0xFull;                    /* strip BAR type bits [3:0] */
-    if ((bar0 & 0x6u) == 0x4u) phys |= bar1 << 32;  /* 64-bit memory BAR */
-    if (!phys) return -1;
+    /* BAR decoding has exactly one owner: the shared WuBu driver contract. */
+    if (!wubu_contract_is_mmio(bar0)) return -1;   /* I/O-space BAR, not MMIO */
+    if (wubu_contract_decode_bar(bar0, bar1, &phys) != 0) return -1;
     if (!wubu_vmm_map_page) return -1;        /* no mapper (hosted gate) */
-    if (wubu_vmm_map_page(va_page, phys, 3u) != 0) return -1; /* fail-soft */
+    if (wubu_vmm_map_page(va_page, phys, WUBU_CONTRACT_MAP_FLAGS) != 0)
+        return -1;                                          /* fail-soft */
     *va_out = va_page;
     return 0;
 }

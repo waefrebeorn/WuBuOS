@@ -85,12 +85,17 @@ Note: D1 maps one 4K page per device — sufficient for xHCI capability/
 operational registers, but a driver needing the full BAR aperture must
 extend the owner to map a range (open, not claimed here).
 
-**D3 — contract alignment, not adoption.**
-Add a shared, documented driver-contract header in WuBuKernel that states
-the device/BAR/lifecycle invariants both registries honour; gate it by
-`test_kernel_bridge` plus an assertion that `wubu_drv.h` and the WuBuKernel
-header agree on the enum/field contract. **No KERNEL_OBJS change** under
-this reorientation.
+**D3 — contract alignment, not adoption (DELIVERED 2026-11-21).**
+WuBuKernel now owns `include/wubu_driver_contract.h` + `src/wubu_driver_contract.c`:
+BAR space encoding, 64-bit assembly, present+RW map flags, zero-VA sentinel,
+and the discover→bind→map-after-vmm-init→use lifecycle, with C11
+`_Static_assert`s so drift breaks the build. WuBuOS consumes it: `wubu_drv.c`
+delegates BAR decoding to the contract (one decoder, no second copy), and
+`test_kernel_bridge` proves both sides agree on version and decode results.
+L21 is intact — this is a shared contract, **not** KERNEL_OBJS adoption of
+the WuBuKernel driver model. Gates: WuBuKernel `make test` + `freestanding`
+(4 TUs); wubuos `test_drv`, `test_xhci`, `test_kernel_bridge`, `test_docs`,
+`kernel-strict`, `make kernel` + boot assert — all PASS.
 
 **D4 — guest-facing driver surface.**
 Expose a bounded `/n/guests`-style view of the bound driver table so a WEMU

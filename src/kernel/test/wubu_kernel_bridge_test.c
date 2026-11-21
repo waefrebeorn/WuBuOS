@@ -9,6 +9,7 @@
 #include "wubudriver.h"
 #include "wubukcore.h"
 #include "wubukernel_pmm.h"
+#include "wubu_driver_contract.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -108,6 +109,25 @@ int main(void)
     wubu_pmm_free(&pmm, 0x999000); /* foreign frame: must be ignored */
     CHECK(wubu_pmm_free_count(&pmm) == 1,
           "PMM ignores a frame outside its regions");
+
+    /* D3: the shared driver contract must be visible to the OS side and
+     * decode BARs identically to the registry's mapping path. */
+    CHECK(WUBU_DRIVER_CONTRACT_VERSION == 1, "driver contract v1 visible");
+    CHECK(wubu_contract_is_mmio(0xFC000000ull) == 1,
+          "contract accepts a memory BAR");
+    CHECK(wubu_contract_is_mmio(0x1F0ull | WUBU_CONTRACT_BAR_IO) == 0,
+          "contract rejects an I/O BAR");
+    {
+        uint64_t phys = 0;
+        CHECK(wubu_contract_decode_bar(0xFC000000ull, 0, &phys) == 0 &&
+              phys == 0xFC000000ull, "contract decodes a 32-bit BAR");
+        phys = 0;
+        CHECK(wubu_contract_decode_bar(0xFC000004ull, 1, &phys) == 0 &&
+              phys == 0x1FC000000ull, "contract assembles a 64-bit BAR");
+        CHECK(WUBU_CONTRACT_MAP_FLAGS == 3 &&
+              WUBU_CONTRACT_VA_UNMAPPED == 0,
+              "contract map flags / unmapped sentinel agree");
+    }
 
     if (fails) {
         printf("[kernel_bridge] %d fail\n", fails);
