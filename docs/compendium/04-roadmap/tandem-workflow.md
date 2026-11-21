@@ -109,9 +109,11 @@ The VSL driver inventory is now readable by a real guest at
 `vsl_open` and `vsl_openat` so the existing read/lseek/close paths work
 unchanged. Gate: `test_wemu_busybox` runs static busybox `cat` inside WEMU
 and asserts the **exact** inventory line, alongside the existing applet
-suite. Note: the source is the VSL driver registry (the guest's own
-personality), not the metal PCI registry -- that remains a separate
-boundary; do not claim the guest sees host hardware.
+The source is BOTH: the VSL driver registry and, when the host supplies it,
+the OS driver registry summary via `wubu_drv_summary()` →
+`vsl_driver_inventory_set_host()`. `test_wemu_busybox` asserts a real guest
+sees `[drv] 144d:a80a ... -> nvme` alongside the VSL driver, and that
+clearing the host section removes only that part (differential).
 
 Each leg gets its own git worktree (`git worktree add .../wubuos-<leg> -b
 leg/<name> main`), one agent per worktree, own branch, commits on the leg.

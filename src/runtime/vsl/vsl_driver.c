@@ -274,6 +274,18 @@ void *vsl_drv_get_priv(const VSL_DRV *drv) {
 
 /* ---- D4: guest-facing driver inventory -------------------------- */
 
+/* D4b: host-supplied section, bounded and owned here. */
+static char g_host_inventory[2048];
+
+void vsl_driver_inventory_set_host(const char *text)
+{
+    g_host_inventory[0] = '\0';
+    if (text && *text) {
+        strncpy(g_host_inventory, text, sizeof(g_host_inventory) - 1);
+        g_host_inventory[sizeof(g_host_inventory) - 1] = '\0';
+    }
+}
+
 static const char *vsl_drv_type_name(VSL_DRV_TYPE t)
 {
     switch (t) {
@@ -295,6 +307,13 @@ int vsl_driver_inventory(char *out, size_t cap)
     if (!out || !cap) return -1;
     out[0] = '\0';
     size_t off = 0;
+    if (g_host_inventory[0]) {
+        size_t hn = strlen(g_host_inventory);
+        if (hn >= cap) hn = cap - 1;
+        memcpy(out, g_host_inventory, hn);
+        out[hn] = '\0';
+        off = hn;
+    }
     for (uint32_t i = 0; i < g_vsl.n_drivers && i < 16; i++) {
         const VSL_DRV *d = &g_vsl.drivers[i];
         int w = snprintf(out + off, cap - off,

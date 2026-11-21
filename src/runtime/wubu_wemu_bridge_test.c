@@ -7,6 +7,7 @@
 #include "wubu_wemu_bridge.h"
 #include "wubu_vsl.h"
 #include "vsl/vsl_driver.h"
+#include "wubu_drv.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -330,6 +331,23 @@ int main(void) {
     /* ---- D4: the guest can read the VSL driver inventory ---- */
     {
         if (vsl_init() != 0) FAIL("D4: vsl_init\n");
+
+        /* D4b: publish the REAL OS driver registry summary as the host
+         * section, then verify a WEMU guest can read it via cat. */
+        wubu_drv_init();
+        wubu_drv_dev_t hd;
+        memset(&hd, 0, sizeof(hd));
+        hd.bus = WUBU_DRV_BUS_PCI;
+        hd.vendor = 0x144d; hd.device = 0xa80a;
+        hd.class_code = 0x01; hd.subclass = 0x08;
+        hd.bar0 = 0xFC000000ULL;
+        if (wubu_drv_add_device(&hd) < 0) FAIL("D4b: add host device\n");
+        wubu_drv_probe();
+        char host_summary[2048];
+        if (wubu_drv_summary(host_summary, sizeof(host_summary)) != 1)
+            FAIL("D4b: host summary line count\n");
+        vsl_driver_inventory_set_host(host_summary);
+
         int id = vsl_register_driver(VSL_DRV_BLOCK, 0x1000,
                                      0x20000000, 0x1000, 11);
         if (id < 0) FAIL("D4: vsl_register_driver\n");
@@ -338,13 +356,29 @@ int main(void) {
         report("cat-drivers", &cap);
         if (cap.exit_code != 0)
             FAIL("D4: cat exit %d\n", cap.exit_code);
-        const char *want = "drv0 type=BLOCK active=0 io=0x1000 "
-                           "mem=0x20000000 size=4096 irq=11\n";
-        if (!cap.out || strcmp(cap.out, want) != 0)
-            FAIL("D4: inventory=[%s] want [%s]\n",
-                 cap.out ? cap.out : "(null)", want);
-        printf("ok: WEMU guest reads the exact VSL driver inventory\n");
+        if (!cap.out || !strstr(cap.out, "type=BLOCK"))
+            FAIL("D4: inventory=[%s] missing VSL driver\n",
+                 cap.out ? cap.out : "(null)");
+        if (!strstr(cap.out, "[drv] 144d:a80a") ||
+            !strstr(cap.out, "-> nvme"))
+            FAIL("D4b: guest cannot see the host driver summary: [%s]\n",
+                 cap.out ? cap.out : "(null)");
+        printf("ok: WEMU guest reads VSL driver + host registry inventory\n");
         wubu_wemu_capture_free(&cap);
+
+        /* Differential: clear the host section; the VSL line remains. */
+        vsl_driver_inventory_set_host(NULL);
+        {
+            char *argv2[] = { "busybox", "cat", "/proc/wubu/drivers", NULL };
+            run_applet(argv2, &cap);
+            if (cap.exit_code != 0 || !cap.out) FAIL("D4b: second cat\n");
+            if (strstr(cap.out, "[drv] 144d:a80a"))
+                FAIL("D4b: host section persisted after clear\n");
+            if (!strstr(cap.out, "type=BLOCK"))
+                FAIL("D4b: VSL section lost after host clear\n");
+            printf("ok: host section clears, VSL driver stays\n");
+            wubu_wemu_capture_free(&cap);
+        }
     }
 
     printf("WEMU BUSYBOX GATE PASS (real static applets, exact output)\n");

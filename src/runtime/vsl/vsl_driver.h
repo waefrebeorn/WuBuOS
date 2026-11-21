@@ -52,6 +52,10 @@ VSL_DRV *vsl_get_driver(VSL_DRV_TYPE type);
  * This is what a guest sees at /proc/wubu/drivers. */
 int vsl_driver_inventory(char *out, size_t cap);
 
+/* D4b: host-supplied inventory text (e.g. the OS driver registry summary)
+ * is rendered BEFORE the VSL's own drivers. NULL/"" clears it. */
+void vsl_driver_inventory_set_host(const char *text);
+
 /* Driver accessors */
 VSL_DRV_TYPE vsl_drv_get_type(const VSL_DRV *drv);
 bool vsl_drv_is_active(const VSL_DRV *drv);
