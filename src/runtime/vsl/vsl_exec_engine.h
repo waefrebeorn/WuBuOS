@@ -209,7 +209,7 @@ typedef struct {
      * writes its top chunk to the returned address faults (0x3000008). */
     uint32_t mmap_backed;       /* guest mmaps materialized with host pages */
     uint64_t mmap_backed_bytes; /* total guest bytes backed this run */
-    char     mmap_failure[160]; /* exact reason a guest mmap was refused */
+    char     mmap_failure[160]; /* exact reason a guest mmap (anon or file) was refused */
     /* Bounded stdout/FILE model (opt-in; zero otherwise). */
     uint32_t stdout_writes;     /* bounded host stdout writes this run */
     uint64_t stdout_bytes;      /* exact bytes emitted by the bounded model */
@@ -431,21 +431,25 @@ int      vsl_dyn_stdout_model(void);
 int      vsl_stdout_shape_ok(uint64_t fd, uint64_t count,
                              char *diag, size_t diag_cap);
 
-/* Bounded host backing for guest MAP_PRIVATE|MAP_ANONYMOUS mmap, OFF by
- * default (pre-change registry-only behaviour).  VSL's mmap syscall records a
- * range in the process registry but maps no host pages; a real glibc malloc
- * then faults writing its arena's top chunk at the returned address.  When
- * ON, a successful guest anonymous mmap is materialized as zeroed host pages
- * with MAP_FIXED_NOREPLACE at the SAME guest address.  Only anonymous private
- * maps are modelled; a file-backed / non-anonymous map keeps the legacy
- * registry-only semantics and is never counted as backed.
+/* Bounded host backing for guest mmap, OFF by default (pre-change
+ * registry-only behaviour).  VSL's mmap syscall records a range in the
+ * process registry but maps no host pages; a real glibc malloc then faults
+ * writing its arena's top chunk at the returned address.  When ON, a
+ * successful guest mmap is materialized with MAP_FIXED_NOREPLACE at the SAME
+ * guest address, so no host pointer is ever handed to the guest:
+ *   - MAP_PRIVATE|MAP_ANONYMOUS (fd -1) is backed with zeroed host pages;
+ *   - MAP_PRIVATE with a VSL-opened REGULAR file fd is backed by the file's
+ *     bytes at the EXACT page-aligned offset/length, so guest reads are
+ *     byte-exact against the file.  Any other flag/fd/file shape is refused.
  *
- * The feature is bounded by a fixed 32-entry table, a 16 MiB per-map limit and
- * a 64 MiB total byte ceiling.  Any overrun, occupied host range, failed host
- * mmap or out-of-window range is FAIL-CLOSED: the registry entry is rolled
- * back, the guest sees -ENOMEM instead of an unbacked success, and the exact
- * reason is reported in VslExecResult.mmap_failure.  Backed host pages are
- * unmapped at the end of each run, so guest state cannot leak across runs. */
+ * Both shapes share the SAME fixed 32-entry owner table, 16 MiB per-map limit
+ * and 64 MiB total byte ceiling.  Any overrun, occupied host range, failed
+ * host mmap, out-of-window range, unsupported flags, non-regular file,
+ * unaligned offset or length beyond the file is FAIL-CLOSED: the registry
+ * entry is rolled back, the guest sees -ENOMEM instead of an unbacked success,
+ * and the exact reason (with fd/offset for file maps) is reported in
+ * VslExecResult.mmap_failure.  Backed host pages are unmapped at the end of
+ * each run, so guest state cannot leak across runs. */
 #define VSL_MMAP_BACK_CEILING (64ULL * 1024 * 1024)
 #define VSL_MMAP_BACK_SINGLE  (16ULL * 1024 * 1024)
 void     vsl_dyn_set_mmap_backing(int on);

@@ -60,6 +60,7 @@
 #include <linux/seccomp.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
+#include <sys/stat.h>
 
 extern VSL_STATE g_vsl;
 
@@ -108,6 +109,7 @@ static void ex_seed_tcb(uint64_t base);
  * Every limit is fixed and every refusal is fail-closed and diagnosed. */
 #define EX_MMAP_BACK_MAX   32u
 #define EX_MAP_ANONYMOUS   0x20u          /* Linux x86-64 MAP_ANONYMOUS */
+#define EX_MAP_PRIVATE     0x02u          /* Linux x86-64 MAP_PRIVATE */
 #define EX_MAP_FIXED_NOREPLACE 0x100000u  /* fail if a host range is occupied */
 #define EX_MMAP_FAIL_MAX   160u
 
@@ -143,7 +145,26 @@ static void ex_back_fail(const char *why, uint64_t a, uint64_t b) {
     ex_bappend_hex(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, b);
 }
 
-static int      g_stdout_model;                     /* opt-in, default OFF */
+/* File-backed variant: keep the same async-signal-safe, bounded formatter
+ * and append the exact file descriptor and offset that were refused.  Used
+ * only on the file-backed leg; the anonymous leg keeps its byte-identical
+ * "guest mmap backing: ..." / addr= / size= diagnostic. */
+static void ex_back_fail_file(const char *why, uint64_t a, uint64_t b,
+                              uint64_t fd, uint64_t off) {
+    size_t n = 0;
+    g_mmap_back_fail[0] = 0;
+    ex_bappend(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, why);
+    ex_bappend(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, " addr=");
+    ex_bappend_hex(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, a);
+    ex_bappend(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, " size=");
+    ex_bappend_hex(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, b);
+    ex_bappend(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, " fd=");
+    ex_bappend_hex(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, fd);
+    ex_bappend(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, " off=");
+    ex_bappend_hex(g_mmap_back_fail, EX_MMAP_FAIL_MAX, &n, off);
+}
+
+static int g_stdout_model;                     /* opt-in, default OFF */
 static uint32_t g_stdout_writes;
 static uint64_t g_stdout_bytes;
 static char     g_stdout_failure[160];
@@ -231,48 +252,119 @@ static int ex_install_filter(void) {
     return 0;
 }
 
-/* Materialize a successful guest anonymous mmap at the SAME guest address.
- * Returns the guest-visible return value: the original success, or -ENOMEM
- * after rolling the registry entry back when the bounded backing is refused. */
+/* Materialize a successful guest mmap at the SAME guest address so that
+ * guest reads/writes land on real host bytes.  Two shapes are backed:
+ *   - MAP_PRIVATE|MAP_ANONYMOUS, fd == -1  -> zeroed host pages (allocator).
+ *   - MAP_PRIVATE with a VSL-opened regular file fd -> the file's bytes at
+ *     the exact offset, so guest reads are byte-exact (no host pointer is
+ *     ever handed to the guest; the host mapping is at the guest address).
+ * Every limit is fixed and shared with the anonymous leg (same 32-entry
+ * owner array, per-map cap and byte budget).  An unsupported shape fails
+ * closed and rolls the registry entry back; the exact reason is recorded in
+ * g_mmap_back_fail.  Returns the guest-visible return value. */
 static int64_t ex_back_guest_mmap(const uint64_t *regs, int64_t ret) {
     if (!g_mmap_backing || ret < 0) return ret;
     const uint64_t size = regs[1], prot = regs[2];
-    const uint64_t flags = regs[3], fd = regs[4];
-    /* Only MAP_PRIVATE|MAP_ANONYMOUS with no file can be modelled as zero
-     * pages.  Everything else keeps the legacy registry-only semantics.
-     * The dispatcher widens the syscall's int fd to uint64_t without sign
+    const uint64_t flags = regs[3], fd = regs[4], offset = regs[5];
+    /* The dispatcher widens the syscall's int fd to uint64_t WITHOUT sign
      * extension, so MAP_ANON's -1 arrives as 0x00000000ffffffff. */
-    if ((uint32_t)fd != 0xffffffffu || !(flags & EX_MAP_ANONYMOUS)) return ret;
+    const int anon = ((uint32_t)fd == 0xffffffffu) && (flags & EX_MAP_ANONYMOUS);
+    const int file = !anon && ((uint32_t)fd != 0xffffffffu) &&
+                     !(flags & EX_MAP_ANONYMOUS);
+    /* Odd shapes (e.g. fd==-1 without MAP_ANONYMOUS) keep the legacy
+     * registry-only semantics; there is nothing bounded to materialize. */
+    if (!anon && !file) return ret;
+
+    int host_fd = -1;
+    if (file) {
+        /* Exact admission for a file mapping: only MAP_PRIVATE, a VSL fd
+         * (>= 3) that resolves to an open REGULAR file, a page-aligned
+         * offset, and a length that stays inside that file.  Every refusal
+         * names the exact flag/fd/offset/length that was rejected. */
+        if ((flags & ~(uint64_t)EX_MAP_PRIVATE) != 0) {
+            ex_back_fail_file("guest file mmap: unsupported flags",
+                              (uint64_t)ret, size, fd, offset);
+            goto refuse;
+        }
+        if ((uint32_t)fd < 3) {
+            ex_back_fail_file("guest file mmap: unsupported descriptor",
+                              (uint64_t)ret, size, fd, offset);
+            goto refuse;
+        }
+        host_fd = vsl_get_host_fd((int)fd);
+        if (host_fd < 0) {
+            ex_back_fail_file("guest file mmap: unmapped descriptor",
+                              (uint64_t)ret, size, fd, offset);
+            goto refuse;
+        }
+        struct stat st;
+        if (fstat(host_fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+            ex_back_fail_file("guest file mmap: unsupported file type",
+                              (uint64_t)ret, size, fd, offset);
+            goto refuse;
+        }
+        if (offset & 0xfffull) {
+            ex_back_fail_file("guest file mmap: unaligned offset",
+                              (uint64_t)ret, size, fd, offset);
+            goto refuse;
+        }
+        uint64_t fsz = (uint64_t)st.st_size;
+        if (offset > fsz || size > fsz - offset) {
+            ex_back_fail_file("guest file mmap: length exceeds file size",
+                              (uint64_t)ret, size, fd, offset);
+            goto refuse;
+        }
+    }
 
     uint64_t sz = (size + 0xfff) & ~0xfffull;
-    if (size == 0 || sz < size || (uint64_t)ret < EX_WIN_LO ||
-        (uint64_t)ret + sz > EX_WIN_HI) {
-        ex_back_fail("guest mmap backing: invalid range", (uint64_t)ret, sz);
+    /* A kernel mmap result is always page-aligned.  The legacy VSL bump
+     * registry can hand back an unaligned end-of-previous-mapping address;
+     * mapping host pages there would be inconsistent with the file offset,
+     * so refuse it explicitly instead of guessing. */
+    if (size == 0 || sz < size || ((uint64_t)ret & 0xfffull) ||
+        (uint64_t)ret < EX_WIN_LO || (uint64_t)ret + sz > EX_WIN_HI) {
+        if (file) ex_back_fail_file("guest file mmap: invalid range",
+                                    (uint64_t)ret, sz, fd, offset);
+        else      ex_back_fail("guest mmap backing: invalid range",
+                               (uint64_t)ret, sz);
         goto refuse;
     }
     if (sz > VSL_MMAP_BACK_SINGLE) {
-        ex_back_fail("guest mmap backing: 16 MiB per-map cap exceeded",
-                     (uint64_t)ret, sz);
+        if (file) ex_back_fail_file("guest file mmap: 16 MiB per-map cap exceeded",
+                                    (uint64_t)ret, sz, fd, offset);
+        else      ex_back_fail("guest mmap backing: 16 MiB per-map cap exceeded",
+                               (uint64_t)ret, sz);
         goto refuse;
     }
     if (g_mmap_back_n >= EX_MMAP_BACK_MAX) {
-        ex_back_fail("guest mmap backing: 32-entry cap exhausted",
-                     (uint64_t)ret, sz);
+        if (file) ex_back_fail_file("guest file mmap: 32-entry cap exhausted",
+                                    (uint64_t)ret, sz, fd, offset);
+        else      ex_back_fail("guest mmap backing: 32-entry cap exhausted",
+                               (uint64_t)ret, sz);
         goto refuse;
     }
     if (sz > g_mmap_backing_max - g_mmap_back_bytes) {
-        ex_back_fail("guest mmap backing: byte budget exhausted",
-                     (uint64_t)ret, sz);
+        if (file) ex_back_fail_file("guest file mmap: byte budget exhausted",
+                                    (uint64_t)ret, sz, fd, offset);
+        else      ex_back_fail("guest mmap backing: byte budget exhausted",
+                               (uint64_t)ret, sz);
         goto refuse;
     }
     int hp = (int)(prot & 7);             /* PROT_READ/WRITE/EXEC are kernel ABI */
     if (!hp) hp = PROT_READ;
-    void *m = mmap((void *)(uintptr_t)(uint64_t)ret, (size_t)sz, hp,
-                   MAP_PRIVATE | MAP_ANONYMOUS | EX_MAP_FIXED_NOREPLACE, -1, 0);
+    void *m;
+    if (anon)
+        m = mmap((void *)(uintptr_t)(uint64_t)ret, (size_t)sz, hp,
+                 MAP_PRIVATE | MAP_ANONYMOUS | EX_MAP_FIXED_NOREPLACE, -1, 0);
+    else
+        m = mmap((void *)(uintptr_t)(uint64_t)ret, (size_t)sz, hp,
+                 MAP_PRIVATE | EX_MAP_FIXED_NOREPLACE, host_fd, (off_t)offset);
     if (m == MAP_FAILED || (uint64_t)(uintptr_t)m != (uint64_t)ret) {
         if (m != MAP_FAILED) munmap(m, (size_t)sz);
-        ex_back_fail("guest mmap backing: host range unavailable",
-                     (uint64_t)ret, sz);
+        if (file) ex_back_fail_file("guest file mmap: host range unavailable",
+                                    (uint64_t)ret, sz, fd, offset);
+        else      ex_back_fail("guest mmap backing: host range unavailable",
+                               (uint64_t)ret, sz);
         goto refuse;
     }
     int i = (int)g_mmap_back_n++;

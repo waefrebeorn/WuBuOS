@@ -906,7 +906,8 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/glibc_rootfs_reallibc/lib64/libc.so.6 \
 	$(RT)/vsl/exec_guests/glibc_rootfs_bigver/libc.so.6 \
 	$(RT)/vsl/exec_guests/guest_hello.elf \
-	$(RT)/vsl/exec_guests/guest_copy.elf
+	$(RT)/vsl/exec_guests/guest_copy.elf \
+	$(RT)/vsl/exec_guests/guest_filemap.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -1162,7 +1163,7 @@ $(RT)/vsl/exec_guests/guest_copy.elf: \
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
 
-test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_hello.c
+test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_hello.c $(RT)/vsl/probe_filemap.c
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
 		$(VSL_EXEC_OBJS) \
 		-o $(RT)/wubu_vsl_exec_test -ldl -lvulkan -lcuda
@@ -1175,6 +1176,14 @@ test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_h
 		$(RT)/vsl/probe_ifunc_glibc_hello.c \
 		-o $(RT)/wubu_vsl_glibc_hello_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_glibc_hello_test $(RT)/vsl/exec_guests
+	# Bounded file-backed guest mmap also runs in a FRESH process (the big
+	# single-process binary accumulates an unaligned VSL mmap bump base).
+	# This is the byte-exact-read / exact-admission / fail-closed gate.
+	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
+		$(filter-out $(RT)/vsl/vsl_exec_test.o,$(VSL_EXEC_OBJS)) \
+		$(RT)/vsl/probe_filemap.c \
+		-o $(RT)/wubu_vsl_filemap_test -ldl -lvulkan -lcuda
+	$(RT)/wubu_vsl_filemap_test $(RT)/vsl/exec_guests
 
 
 test_vsl_nt: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
