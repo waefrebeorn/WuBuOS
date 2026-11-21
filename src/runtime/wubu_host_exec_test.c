@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/socket.h>
 
 /* wubu_ns_bridge_create lives in the FS core (wubu_ns_fs.c); declare it
@@ -542,6 +543,11 @@ static void test_ns_guests_list(void) {
 static void test_ns_guests_launch_by_write(void) {
     TEST("L9: write-to-launch via /n/guests/<name>/launch");
     char nsroot[] = "/tmp/wubu_l9_launch_XXXXXX";
+    /* Unique per test process: the Styx launch socket is
+     * /tmp/wubu-ct-<name>-styx.sock, so a fixed name can collide with a
+     * stale socket from another parallel gate target (full_test38). */
+    char guest_name[64];
+    snprintf(guest_name, sizeof(guest_name), "launch-test-%d", (int)getpid());
     CHECK(mkdtemp(nsroot) != NULL, "mkdtemp ns root");
     CHECK(wubu_ns_bridge_create(nsroot) == 0, "bridge create");
 
@@ -560,7 +566,7 @@ static void test_ns_guests_launch_by_write(void) {
 
     /* Walk to a guest that is NOT running yet -- the probe seam must let
      * the client reach its launch file. */
-    const char *seg[] = {"guests", "launch-test", "launch"};
+    const char *seg[] = {"guests", guest_name, "launch"};
     styx_build_twalk(l9_tin, &il, 2, 1, 2, seg, 3);
     CHECK(l9_ns_serve(il, &ol) == 0 && l9_tout[4] == STX_RWALK,
           "walk to unregistered guest's launch file");
@@ -581,7 +587,7 @@ static void test_ns_guests_launch_by_write(void) {
      * single immediate sample failed in full_test15 while the isolated
      * gate passed 20/20. */
     for (int i = 0; i < 200; i++) {
-        lc = wubu_ct_registry_find("launch-test");
+        lc = wubu_ct_registry_find(guest_name);
         if (lc && wubu_ct_state(lc) == CT_RUNNING) break;
         usleep(10000);
     }
@@ -604,21 +610,21 @@ static void test_ns_guests_launch_by_write(void) {
     char buf[4096];
     const char *segl[] = {"guests", "list"};
     int n = l9_ns_read_path(1, 3, segl, 2, buf, sizeof(buf));
-    CHECK(n > 0 && strstr(buf, "launch-test") != NULL,
+    CHECK(n > 0 && strstr(buf, guest_name) != NULL,
           "guests/list shows the launched guest");
 
     CHECK(wubu_ct_wait(lc) == 0, "launched guest exits 0");
     /* wait retired it; the guests module reaped (destroyed) its own ct */
-    CHECK(wubu_ct_registry_find("launch-test") == NULL,
+    CHECK(wubu_ct_registry_find(guest_name) == NULL,
           "launched guest unregistered after exit");
     n = l9_ns_read_path(1, 4, segl, 2, buf, sizeof(buf));
-    CHECK(n >= 0 && strstr(buf, "launch-test") == NULL,
+    CHECK(n >= 0 && strstr(buf, guest_name) == NULL,
           "list no longer shows the exited launched guest");
 
     /* The name is free again: relaunch through the same write path. */
-    CHECK(wubu_ns_guests_launch("launch-test", "/bin/sleep 1") == 0,
+    CHECK(wubu_ns_guests_launch(guest_name, "/bin/sleep 1") == 0,
           "relaunch same name after exit (owned slot reaped)");
-    WubuCt *lc2 = wubu_ct_registry_find("launch-test");
+    WubuCt *lc2 = wubu_ct_registry_find(guest_name);
     CHECK(lc2 != NULL, "relaunched guest registered");
     CHECK(wubu_ct_wait(lc2) == 0, "relaunched guest exits 0");
     CHECK(wubu_ct_registry_count() == 0, "registry empty at end");
