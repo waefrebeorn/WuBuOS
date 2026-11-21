@@ -8,8 +8,11 @@
  *                               (used when no mbedTLS dev root is present).
  * With WUBU_EDDSA_FIXED_LADDER the group scalar multiplication in the mbedTLS
  * backend is replaced by the self-contained fixed-width module
- * wubu_ed25519_fixed.c (no mbedTLS bignum in the ladder).  The mbedTLS ladder
- * stays the default fallback; only the ladder leaf is swapped.
+ * wubu_ed25519_fixed.c (no mbedTLS bignum in the ladder).  The package-signing
+ * gate (tools/pkg_ed25519_gate.sh) selects this path by DEFAULT; the documented
+ * legacy override WUBU_EDDSA_FIXED=0 restores the mbedTLS MPI ladder.  Only the
+ * ladder leaf is swapped; source-level builds that define neither macro keep
+ * the mbedTLS ladder as the fallback.
  * Never use MBEDTLS_SSL_H as the feature macro: it is mbedTLS's own guard.
  */
 #ifdef WUBU_EDDSA_USE_BUILD_CONFIG

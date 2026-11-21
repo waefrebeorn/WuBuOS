@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# pkg_ed25519_gate.sh -- opt-in differential Ed25519 package-signature gate.
+# pkg_ed25519_gate.sh -- differential Ed25519 package-signature gate.
+# The DEFAULT ladder is the self-contained bignum-free fixed-width module
+# (src/gui/wubu_ed25519_fixed.c).  Set WUBU_EDDSA_FIXED=0 for the documented
+# legacy override (the mbedTLS MPI ladder).
 # WUBU_MBEDTLS_ROOT must point at an extracted mbedTLS dev package
 # (headers under usr/include, libs under usr/lib/x86_64-linux-gnu).
 # Keys are generated ephemerally in a temp dir and destroyed on exit: no
@@ -55,18 +58,21 @@ if [ "${WUBU_EDDSA_NATIVE:-0}" = "1" ]; then
     NATIVE_LINK="-lcrypto"
     echo "[gate] backend: OpenSSL EVP_PKEY_ED25519 (opt-in native)"
 else
-    echo "[gate] backend: in-repo hardened Montgomery ladder (default)"
+    echo "[gate] backend: in-repo hardened Montgomery ladder (mbedTLS)"
 fi
-# WUBU_EDDSA_FIXED=1 swaps ONLY the scalar-multiplication leaf for the
-# self-contained fixed-width ladder (no mbedTLS bignum).  Hashing, scalar
-# mod-L arithmetic and point encode/decode stay on the mbedTLS path, so the
-# differential checks below still exercise the real package-signing flow.
-FIXED_FLAG=""
-FIXED_SRC=""
-if [ "${WUBU_EDDSA_FIXED:-0}" = "1" ]; then
-    FIXED_FLAG="-DWUBU_EDDSA_FIXED_LADDER"
-    FIXED_SRC="$ROOT/src/gui/wubu_ed25519_fixed.c"
-    echo "[gate] ladder: fixed-width bignum-free (WUBU_EDDSA_FIXED_LADDER)"
+# DEFAULT: the self-contained fixed-width ladder (no mbedTLS bignum).  The
+# documented LEGACY override is WUBU_EDDSA_FIXED=0, which restores the mbedTLS
+# MPI ladder.  Hashing, scalar mod-L arithmetic and point encode/decode stay
+# on the mbedTLS path in BOTH modes, so the differential checks below still
+# exercise the real package-signing flow.
+FIXED_FLAG="-DWUBU_EDDSA_FIXED_LADDER"
+FIXED_SRC="$ROOT/src/gui/wubu_ed25519_fixed.c"
+if [ "${WUBU_EDDSA_FIXED:-1}" = "1" ]; then
+    echo "[gate] ladder: fixed-width bignum-free (DEFAULT; WUBU_EDDSA_FIXED_LADDER)"
+else
+    FIXED_FLAG=""
+    FIXED_SRC=""
+    echo "[gate] ladder: LEGACY mbedTLS MPI (override: WUBU_EDDSA_FIXED=0)"
 fi
 INCLUDES="-I$ROOT -I$ROOT/include -I$ROOT/src -I$ROOT/src/gui -I$ROOT/src/runtime -I$ROOT/src/kernel -I$MB/include"
 SRCS="$ROOT/src/runtime/wubu_crc32.c \

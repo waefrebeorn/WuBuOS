@@ -7,16 +7,30 @@ assert a property we cannot see through, this leg builds the scalar
 multiplication leaf we **do** own end to end: a self-contained fixed-width
 (4 x 64-bit limbs, mod `q = 2^255 - 19`) Edwards ladder with no mbedTLS bignum,
 and a proof-style gate over the shipped source AND its real gcc `-O2` machine
-code.  The existing mbedTLS ladder stays the default; the new path is opt-in.
+code.  The package-signing gate now uses that bignum-free leaf BY DEFAULT;
+the mbedTLS ladder remains available as an explicit legacy override.
 
 | target | what it runs |
 |---|---|
 | `make test_ed25519_fixed_ladder` | full gate: negative control, source contract, `-O2` disassembly audit, 14 RFC 8032 vectors |
 | `make test_ed25519_fixed_ladder_negctl` | standalone injected-branch non-vacuity control |
-| `make test_pkg_ed25519_fixed` | real package-signing gate with only the scalar-mult leaf swapped (`WUBU_EDDSA_FIXED=1`) |
+| `make test_pkg_ed25519` | real package-signing gate — **default** backend is the fixed-width ladder |
+| `make test_pkg_ed25519_fixed` | same gate with the fixed ladder forced (`WUBU_EDDSA_FIXED=1`) |
+| `make test_pkg_ed25519_legacy` | same gate through the **legacy override** (`WUBU_EDDSA_FIXED=0`, mbedTLS MPI ladder) |
+| `make test_ed25519_fixed_ladder_default` | default-tier adapter: full gate when python3/gcc/objdump exist, explicit `SKIP` otherwise (wired into `test_medium_other`) |
 
-All three fail closed (exit 1, never a fake PASS) on a missing tool or an
-unmet obligation.  They are opt-in: default gates keep using the mbedTLS path.
+`make test_ed25519_fixed_ladder` and `test_ed25519_fixed_ladder_negctl` stay
+strict (fail closed on a missing tool); only the default-tier adapter skips.
+The opt-in crypto gates still need an mbedTLS dev root, but the proof-style
+CT gate itself is root-independent and now runs in the default tier where the
+toolchain permits.
+
+Set `WUBU_EDDSA_FIXED=0` in the environment of `tools/pkg_ed25519_gate.sh`
+(and via `make test_pkg_ed25519_legacy`) to return to the legacy mbedTLS bignum
+ladder.  Any other value — including unset — selects the fixed-width ladder.
+
+All gates fail closed (exit 1, never a fake PASS) on a missing tool or an
+unmet obligation; the default-tier adapter is the sole, explicit `SKIP` path.
 
 ## What is machine-checked
 
@@ -108,12 +122,14 @@ Out of scope for this increment, unchanged from the mbedTLS path and explicitly
 ## STATUS and remaining gaps
 
 **CLOSED at this increment's boundary:** a real bignum-free ladder exists, is
-used by package signing when opted in, and is gated by source + machine-code +
-non-vacuity + independent-oracle evidence with a green mbedTLS default.
+the DEFAULT backend for package signing, and is gated by source + machine-code +
+non-vacuity + independent-oracle evidence.  The legacy mbedTLS bignum ladder is
+retained behind the documented `WUBU_EDDSA_FIXED=0` override and still passes
+the same end-to-end differential.
 
-1. The fixed path is opt-in; the shipped default still uses the mbedTLS bignum
-   ladder whose value-independence is a verified negative.  Promoting the
-   fixed path to default requires closing items 2-3 below.
+1. The fixed path is the signing default, but `WUBU_EDDSA_FIXED=0` still selects
+   the mbedTLS bignum ladder whose value-independence is a verified negative;
+   that override exists for compatibility and is deliberately not removed.
 2. End-to-end constant-time signing still needs fixed-width SHA-512 and
    scalar-mod-`L` arithmetic; only the group scalar multiplication is
    bignum-free today.
