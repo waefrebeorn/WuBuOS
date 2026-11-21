@@ -8,8 +8,8 @@
 
 #define FW 64
 #define FH 40
-#define GOLDEN UINT64_C(0xf033e41e476c7255)   /* canonical start frame, 64x40 */
-#define GOLDEN_ASCII UINT64_C(0xe660e37a200d33ec)   /* canonical ASCII frame */
+#define GOLDEN UINT64_C(0xd58dd1ee00987cfb)   /* canonical start frame, 64x40 */
+#define GOLDEN_ASCII UINT64_C(0x418d801631aed259)   /* canonical ASCII frame */
 
 static int fails;
 #define CHECK(c, m) do { if (!(c)) { \
@@ -59,6 +59,38 @@ int main(int argc, char **argv)
     CHECK(s.p.dir_x == 1.0 && s.p.dir_y == 0.0, "left turn restores east");
     CHECK(s.steps == 0, "turning does not count as a move");
 
+    /* Objective: three gems, a score, and an exit that needs them all. */
+    for (int i = 0; i < WUBU_MAZE_NGEMS; i++) {
+        double gx, gy;
+        CHECK(wubu_maze_gem(i, &gx, &gy) == 0, "gem accessor");
+        CHECK(wubu_maze_cell((int)gx, (int)gy) == 0, "gem sits on open cell");
+    }
+    CHECK(wubu_maze_gem(WUBU_MAZE_NGEMS, NULL, NULL) != 0,
+          "bad gem index rejected");
+
+    wubu_maze_init(&s);
+    for (int i = 0; i < WUBU_MAZE_NGEMS; i++) {
+        double gx, gy;
+        (void)wubu_maze_gem(i, &gx, &gy);
+        s.p.x = gx; s.p.y = gy;
+        CHECK(wubu_maze_tick(&s) == 1, "gem collected");
+        CHECK(wubu_maze_tick(&s) == 0, "gem is not double-counted");
+    }
+    CHECK(s.gems == WUBU_MAZE_NGEMS && s.score == 300,
+          "score is 100 per gem");
+    double ex, ey;
+    wubu_maze_exit(&ex, &ey);
+    s.p.x = ex; s.p.y = ey;
+    (void)wubu_maze_tick(&s);
+    CHECK(s.won == 1, "exit wins once every gem is held");
+    printf("  PASS: 3 gems -> 300 points, exit wins (won=%d)\n", s.won);
+
+    /* Win needs ALL gems: a fresh state at the exit must not win. */
+    wubu_maze_init(&s);
+    s.p.x = ex; s.p.y = ey;
+    (void)wubu_maze_tick(&s);
+    CHECK(s.won == 0, "exit alone does not win");
+
     /* Deterministic golden frame: same state -> byte-identical RGB. */
     wubu_maze_init(&s);
     uint8_t f1[FW * FH * 3], f2[FW * FH * 3];
@@ -83,6 +115,28 @@ int main(int argc, char **argv)
            (unsigned long long)ah, (unsigned long long)GOLDEN_ASCII);
     CHECK(GOLDEN_ASCII != 0, "ASCII golden hash has been pinned");
     CHECK(ah == GOLDEN_ASCII, "golden ASCII frame matches");
+
+    /* Sprite differential: a gem is drawn before pickup and gone after. */
+    int yellow = 0;
+    for (size_t i = 0; i + 2 < sizeof(f1); i += 3)
+        if (f1[i] == 255 && f1[i + 1] == 220 && f1[i + 2] == 60) yellow++;
+    CHECK(yellow > 0, "gem sprite is rendered");
+    wubu_maze_state cleared;
+    wubu_maze_init(&cleared);
+    for (int i = 0; i < WUBU_MAZE_NGEMS; i++) {
+        double gx, gy;
+        (void)wubu_maze_gem(i, &gx, &gy);
+        cleared.p.x = gx; cleared.p.y = gy;
+        (void)wubu_maze_tick(&cleared);
+    }
+    uint8_t f3[FW * FH * 3];
+    wubu_maze_render(&cleared, f3, FW, FH);
+    int yellow2 = 0;
+    for (size_t i = 0; i + 2 < sizeof(f3); i += 3)
+        if (f3[i] == 255 && f3[i + 1] == 220 && f3[i + 2] == 60) yellow2++;
+    CHECK(yellow2 == 0, "collected gems no longer render");
+    printf("  PASS: billboard sprite %d px -> %d px after pickup\n",
+           yellow, yellow2);
 
     /* Human inspection: --ppm path writes the frame; never committed. */
     for (int i = 1; i < argc; i++) {

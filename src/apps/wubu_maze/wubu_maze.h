@@ -15,6 +15,8 @@
 #define WUBU_MAZE_MAP_W 16
 #define WUBU_MAZE_MAP_H 16
 
+#define WUBU_MAZE_NGEMS 3
+
 typedef struct {
     double x, y;             /* player position */
     double dir_x, dir_y;     /* view direction (length irrelevant) */
@@ -25,7 +27,22 @@ typedef struct {
     wubu_maze_player p;
     uint32_t steps;          /* successful moves */
     uint32_t blocked;        /* attempted wall moves */
+    uint32_t score;          /* 100 per gem */
+    uint32_t gems;           /* collected count */
+    uint8_t  gem_taken[WUBU_MAZE_NGEMS];
+    int won;                 /* all gems + exit tile reached */
 } wubu_maze_state;
+
+/* Fixed gem position. Returns -1 for a bad index.
+ * Per-run collected flags live in wubu_maze_state.gem_taken. */
+int wubu_maze_gem(int i, double *x, double *y);
+
+/* Exit tile position (only wins once every gem is collected). */
+void wubu_maze_exit(double *x, double *y);
+
+/* Call after movement: collects gems in reach and detects the win.
+ * Returns the number of gems collected by this call. */
+int wubu_maze_tick(wubu_maze_state *s);
 
 /* Cell value: 0 = open, >0 = wall type (also colours the stripe). */
 int wubu_maze_cell(int x, int y);

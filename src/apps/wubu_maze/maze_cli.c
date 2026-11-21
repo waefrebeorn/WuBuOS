@@ -18,8 +18,10 @@ static void draw(const wubu_maze_state *s)
     wubu_maze_render_ascii(s, buf, VW, VH);
     for (int y = 0; y < VH; y++)
         printf("%.*s\n", VW, buf + (size_t)y * VW);
-    printf("[pos %.2f,%.2f  steps=%u blocked=%u  W/S move  A/D turn  Q quit]\n",
-           s->p.x, s->p.y, s->steps, s->blocked);
+    printf("[pos %.2f,%.2f  steps=%u blocked=%u  gems=%u/3 score=%u%s]\n"
+           "[W/S move  A/D turn  Q quit]\n",
+           s->p.x, s->p.y, s->steps, s->blocked, s->gems, s->score,
+           s->won ? "  *** MAZE CLEARED ***" : "");
 }
 
 static void apply(wubu_maze_state *s, char c)
@@ -31,6 +33,7 @@ static void apply(wubu_maze_state *s, char c)
     case 'd': case 'D': (void)wubu_maze_walk(s,  0,  1); break;
     default: break;
     }
+    (void)wubu_maze_tick(s);
 }
 
 int main(int argc, char **argv)
@@ -39,9 +42,12 @@ int main(int argc, char **argv)
     wubu_maze_init(&s);
 
     if (argc > 1 && strcmp(argv[1], "--tour") == 0) {
-        /* A fixed script: forward, right, forward, left, forward. */
+        /* A fixed script: walk east to the first gem, then explore. */
+        static char east[41];
+        memset(east, 'w', 40);
+        east[40] = '\0';
         static const char *script[] = {
-            "wwwwwwww", "dwwww", "a", "wwwwww", NULL
+            east, "dwwww", "a", "wwwwww", NULL
         };
         printf("=== WUBU MAZE scripted tour ===\n");
         for (int k = 0; script[k]; k++) {

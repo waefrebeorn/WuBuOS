@@ -19,8 +19,10 @@ Example opening frame (one char per cell):
 ==============
 ```
 
-`=` and `#` are x-side walls (lit), `x`/`X` are y-side walls (shadowed),
-`O` and `+` are the coloured inner blocks, `.` is floor, blank is ceiling.
+Objective: collect three glowing gems (`*`, 100 points each) then reach the
+exit tile. The exit only wins once all gems are held. Gems are billboard
+sprites projected through the inverse camera matrix and clipped per column
+against the wall z-buffer, so walls correctly occlude them.
 
 ## Gate
 

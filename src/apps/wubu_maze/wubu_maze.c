@@ -21,6 +21,46 @@ int wubu_maze_cell(int x, int y)
     return 0;
 }
 
+/* Objective: three fixed gems and one exit tile. All positions are on
+ * open cells; the exit only wins after all gems are collected. */
+static const double g_gem_x[WUBU_MAZE_NGEMS] = { 12.5, 1.5, 14.5 };
+static const double g_gem_y[WUBU_MAZE_NGEMS] = {  1.5, 13.5, 6.5 };
+static const double g_exit_x = 7.5, g_exit_y = 13.5;
+
+int wubu_maze_gem(int i, double *x, double *y)
+{
+    if (i < 0 || i >= WUBU_MAZE_NGEMS) return -1;
+    if (x) *x = g_gem_x[i];
+    if (y) *y = g_gem_y[i];
+    return 0;
+}
+
+void wubu_maze_exit(double *x, double *y)
+{
+    if (x) *x = g_exit_x;
+    if (y) *y = g_exit_y;
+}
+
+int wubu_maze_tick(wubu_maze_state *s)
+{
+    if (!s) return 0;
+    int got = 0;
+    for (int i = 0; i < WUBU_MAZE_NGEMS; i++) {
+        if (s->gem_taken[i]) continue;
+        double dx = s->p.x - g_gem_x[i], dy = s->p.y - g_gem_y[i];
+        if (dx * dx + dy * dy < 0.36) {       /* pickup radius 0.6 */
+            s->gem_taken[i] = 1;
+            s->gems++;
+            s->score += 100;
+            got++;
+        }
+    }
+    double ex = s->p.x - g_exit_x, ey = s->p.y - g_exit_y;
+    if (s->gems == WUBU_MAZE_NGEMS && ex * ex + ey * ey < 0.36)
+        s->won = 1;
+    return got;
+}
+
 void wubu_maze_init(wubu_maze_state *s)
 {
     if (!s) return;
@@ -98,13 +138,57 @@ double wubu_maze_cast(const wubu_maze_state *s, double camera_x,
     return dist;
 }
 
+/* Sprite pass: project uncollected gems as billboards using the inverse
+ * camera matrix, clipped per column against the wall z-buffer. Follows the
+ * standard transform (Lode's raycasting III): transformY is depth, so it
+ * is compared directly with the perpendicular wall distance. */
+#define MAZE_MAX_SPRITE_W 512
+
+static void maze_sprites(const wubu_maze_state *s, double *zbuf,
+                         int w, int h, uint8_t *rgb, char *ascii)
+{
+    if (w <= 0 || w > MAZE_MAX_SPRITE_W) return;
+    double det = s->p.plane_x * s->p.dir_y - s->p.dir_x * s->p.plane_y;
+    if (det == 0.0) return;
+    double inv = 1.0 / det;
+    for (int i = 0; i < WUBU_MAZE_NGEMS; i++) {
+        if (s->gem_taken[i]) continue;
+        double sx = g_gem_x[i] - s->p.x, sy = g_gem_y[i] - s->p.y;
+        double tx = inv * (s->p.dir_y * sx - s->p.dir_x * sy);
+        double ty = inv * (-s->p.plane_y * sx + s->p.plane_x * sy);
+        if (ty <= 0.05) continue;                    /* behind the camera */
+        int screen_x = (int)((w / 2.0) * (1.0 + tx / ty));
+        int size = (int)((double)h / ty);
+        if (size < 1) size = 1;
+        if (size > h * 3) size = h * 3;
+        int x0 = -size / 2 + screen_x, x1 = size / 2 + screen_x;
+        int y0 = -size / 2 + h / 2, y1 = size / 2 + h / 2;
+        if (x0 < 0) x0 = 0;
+        if (x1 >= w) x1 = w - 1;
+        if (y0 < 0) y0 = 0;
+        if (y1 >= h) y1 = h - 1;
+        for (int x = x0; x <= x1; x++) {
+            if (ty >= zbuf[x]) continue;             /* wall is closer */
+            for (int y = y0; y <= y1; y++) {
+                if (rgb) {
+                    size_t off = ((size_t)y * (size_t)w + (size_t)x) * 3u;
+                    rgb[off] = 255; rgb[off + 1] = 220; rgb[off + 2] = 60;
+                }
+                if (ascii) ascii[(size_t)y * (size_t)w + (size_t)x] = '*';
+            }
+        }
+    }
+}
+
 void wubu_maze_render(const wubu_maze_state *s, uint8_t *rgb, int w, int h)
 {
-    if (!s || !rgb || w <= 0 || h <= 0) return;
+    if (!s || !rgb || w <= 0 || h <= 0 || w > MAZE_MAX_SPRITE_W) return;
+    double zbuf[MAZE_MAX_SPRITE_W];
     for (int x = 0; x < w; x++) {
         double cam = 2.0 * (double)x / (double)w - 1.0;
         int side = 0, cell = 0;
         double dist = wubu_maze_cast(s, cam, &side, &cell);
+        zbuf[x] = dist;
         int line = (int)((double)h / dist);
         int top = -line / 2 + h / 2;
         int bot =  line / 2 + h / 2;
@@ -129,15 +213,18 @@ void wubu_maze_render(const wubu_maze_state *s, uint8_t *rgb, int w, int h)
             rgb[off] = r; rgb[off + 1] = g; rgb[off + 2] = b;
         }
     }
+    maze_sprites(s, zbuf, w, h, rgb, NULL);
 }
 
 void wubu_maze_render_ascii(const wubu_maze_state *s, char *out, int w, int h)
 {
-    if (!s || !out || w <= 0 || h <= 0) return;
+    if (!s || !out || w <= 0 || h <= 0 || w > MAZE_MAX_SPRITE_W) return;
+    double zbuf[MAZE_MAX_SPRITE_W];
     for (int x = 0; x < w; x++) {
         double cam = 2.0 * (double)x / (double)w - 1.0;
         int side = 0, cell = 0;
         double dist = wubu_maze_cast(s, cam, &side, &cell);
+        zbuf[x] = dist;
         int line = (int)((double)h / dist);
         int top = -line / 2 + h / 2;
         int bot =  line / 2 + h / 2;
@@ -159,6 +246,7 @@ void wubu_maze_render_ascii(const wubu_maze_state *s, char *out, int w, int h)
             out[(size_t)y * (size_t)w + (size_t)x] = c;
         }
     }
+    maze_sprites(s, zbuf, w, h, NULL, out);
 }
 
 uint64_t wubu_maze_hash(const uint8_t *data, size_t n)
