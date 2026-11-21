@@ -201,7 +201,20 @@ test_ed25519_fixed_full:
 test_ed25519_fixed_full_negctl:
 	bash tools/ed25519_fixed_full_negctl.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_fixed test_pkg_ed25519_legacy test_ed25519_fixed_ladder test_ed25519_fixed_ladder_default test_ed25519_fixed_ladder_negctl test_ed25519_fixed_full test_ed25519_fixed_full_negctl test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_bignum_value test_ed25519_bignum_value_negctl test_default_optin test_default_crypto_negative_control
+# Dudect-style timing gate for the SHIPPED DEFAULT bignum-free fixed EdDSA
+# path (WUBU_EDDSA_FIXED_LADDER).  Self-contained probe, no mbedTLS bignum and
+# no fetch: same-run interleaved Welch t against a deliberately secret-dependent
+# double-and-add control, fixed thresholds, non-vacuous.  FAILS CLOSED when the
+# compiler/toolchain is absent (no SKIP, no fabricated PASS).
+test_ed25519_fixed_timing:
+	bash tools/ed25519_fixed_timing_gate.sh
+
+# Standalone negative control: require the detector to FLAG the deliberately
+# secret-dependent path.  Also fails closed when the toolchain is absent.
+test_ed25519_fixed_timing_negctl:
+	bash tools/ed25519_fixed_timing_negctl.sh
+
+.PHONY: mbedtls-devroot test_pkg_ed25519_fixed test_pkg_ed25519_legacy test_ed25519_fixed_ladder test_ed25519_fixed_ladder_default test_ed25519_fixed_ladder_negctl test_ed25519_fixed_full test_ed25519_fixed_full_negctl test_ed25519_fixed_timing test_ed25519_fixed_timing_negctl test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_bignum_value test_ed25519_bignum_value_negctl test_default_optin test_default_crypto_negative_control
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds
