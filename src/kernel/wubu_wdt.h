@@ -35,6 +35,21 @@ static inline uint16_t wdt_ms_to_count(uint32_t ms)
     return (uint16_t)ticks;
 }
 
+/* Hardware window: the 8254 is only a 16-bit liveness timer (~55 ms max).
+ * The REAL deadline is counted in ticks by wubu_wdt_logic.c. */
+#define WUBU_WDT_HW_WINDOW_MS 50u
+
+/* Pure deadline arithmetic (one owner, host-testable). */
+uint32_t wdt_deadline_ticks(uint32_t ms, uint32_t tick_ms);
+void wdt_logic_feed(uint32_t *remaining, uint32_t ms, uint32_t tick_ms);
+int wdt_logic_tick(uint32_t *remaining);
+
+/* Set the tick period in ms (default 1). 0 is refused. */
+void wdt_set_tick_ms(uint32_t tick_ms);
+
+/* Advance the software deadline from the timer ISR. */
+void wdt_tick(void);
+
 /* Arm the watchdog (one-shot, ms timeout). 0 on success. */
 int wdt_arm(uint32_t ms);
 

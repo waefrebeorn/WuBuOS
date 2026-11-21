@@ -302,8 +302,8 @@ void wubu_clock_tick(void)
 {
     task_timer_tick();
     /* Gap E7: feed the 8254 watchdog every tick (2s window). */
-    extern void wdt_feed(uint32_t);
-    wdt_feed(2000);
+    extern void wdt_tick(void);
+    wdt_tick();
     /* Gap H6: refresh the vDSO counters every tick. */
     extern void wubu_vdso_update(uint64_t, uint64_t, uint32_t);
     wubu_vdso_update(wubu_agi_kernel_uptime_ms(wubu_agi_kernel_global()),

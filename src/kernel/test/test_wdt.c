@@ -28,6 +28,24 @@ int main(void)
     /* the mode word: ch2 (10), LSB/MSB (11), mode 0, binary = 0xB0 */
     CHECK(WUBU_WDT_MODE0 == 0xB0);
 
+    /* The old 55 ms clamp must not be the real deadline. */
+    CHECK(WUBU_WDT_HW_WINDOW_MS == 50);
+    CHECK(wdt_ms_to_count(WUBU_WDT_HW_WINDOW_MS) < 65535);
+    CHECK(wdt_ms_to_count(2000) == 65535);   /* documents the old clamp */
+
+    /* Software deadline: 2 s at 1 ms ticks, or 200 at 10 ms ticks. */
+    CHECK(wdt_deadline_ticks(2000, 1) == 2000);
+    CHECK(wdt_deadline_ticks(2000, 10) == 200);
+    CHECK(wdt_deadline_ticks(2000, 0) == 1);  /* tick 0 fails closed */
+
+    uint32_t remaining = 0;
+    wdt_logic_feed(&remaining, 2000, 10);
+    CHECK(remaining == 200);
+    for (int i = 0; i < 199; i++) CHECK(!wdt_logic_tick(&remaining) || i == 198);
+    CHECK(remaining == 1);
+    CHECK(wdt_logic_tick(&remaining) == 1);
+    CHECK(wdt_logic_tick(&remaining) == 1);  /* stays expired */
+
     if (failures == 0) printf("test_wdt: ALL PASS\n");
     else printf("test_wdt: %d FAILURES\n", failures);
     return failures ? 1 : 0;

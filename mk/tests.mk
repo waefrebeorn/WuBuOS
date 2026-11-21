@@ -3102,6 +3102,7 @@ test_ns_effect:
 # 8254 watchdog helpers (gap E7): count conversion + mode word
 test_wdt:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
+		$(KERNEL)/wubu_wdt_logic.c \
 		$(KERNEL)/test/test_wdt.c \
 		-o $(KERNEL)/test_wdt
 	$(KERNEL)/test_wdt
@@ -4345,7 +4346,7 @@ test_hw_eq: $(KERNEL)/test/wubu_eq_selftest.c $(KERNEL)/wubu_eq.c $(KERNEL)/wubu
 	$(TEST_BIN)/test_hw_eq
 test_hw_fantml: $(KERNEL)/test/wubu_fantml_selftest.c $(KERNEL)/wubu_fantml.c $(KERNEL)/wubu_test_stubs.c $(CACHE)/libc.o $(CACHE)/libc_string.o $(CACHE)/memory.o $(CACHE)/klog.o $(CACHE)/wubu_pci.o
 	@mkdir -p $(TEST_BIN)
-	$(CC) -O0 -g -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -no-pie -I$(KERNEL)  -Iinclude  $(RT)/wubu_crc32.c \
+	$(CC) -O0 -g -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -include wubu_gnu_compat.h -no-pie -I$(KERNEL)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(KERNEL)/test/wubu_fantml_selftest.c \
 		$(KERNEL)/wubu_fantml.c \
 		$(KERNEL)/wubu_test_stubs.c \
