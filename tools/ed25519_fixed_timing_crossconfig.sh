@@ -38,6 +38,13 @@ MODE=gate
 [ -z "${1:-}" ] || [ "${1:-}" = "--negctl" ] || {
     echo "usage: ed25519_fixed_timing_crossconfig.sh [--negctl]" >&2; exit 2; }
 
+# The full `make -k -j24 test` gate runs this target alongside dozens of
+# other CPU-bound jobs; 64 samples were measured to go vacuous there
+# (control |t|=7.014 < 10).  Raise the SAMPLE COUNT only -- the decision
+# thresholds stay fixed at |t_shipped|<=10, |t_control|>10, one pass, no
+# retries.  Independent standalone runs keep the probe's 64-sample default.
+export WUBU_TIMING_NSAMP="${WUBU_TIMING_NSAMP:-256}"
+
 TIMING_GATE="$ROOT/tools/ed25519_fixed_timing_gate.sh"
 TIMING_NEGCTL="$ROOT/tools/ed25519_fixed_timing_negctl.sh"
 PROBE_SRC="$ROOT/tools/ed25519_fixed_timing_probe.c"

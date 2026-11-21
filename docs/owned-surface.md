@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 3721
-- OWNED (appear in a test target recipe): 874
-- VENDORED / unproven (no test-target recipe reference): 2847
+- product source modules: 3777
+- OWNED (appear in a test target recipe): 899
+- VENDORED / unproven (no test-target recipe reference): 2878
 
 ## OWNED modules (tested)
 
@@ -76,10 +76,25 @@ the kernel/driver build or nowhere in the test recipes).
 - `fat32_file.c`  -- tests: test_fat32
 - `fat32_format.c`  -- tests: test_fat32
 - `fat32_name.c`  -- tests: test_fat32
+- `fork_clone.c`  -- tests: test_wemu_sandbox
 - `fs_persist_fuzz.c`  -- tests: test_fs_persist_fuzz
 - `getting_started.c`  -- tests: test_first_run
-- `guest_dtneeded.c`  -- tests: test_wemu_protect;test_wemu_protect
-- `guest_dyn.c`  -- tests: test_wemu_protect
+- `guest_copy.c`  -- tests: test_wemu_sandbox
+- `guest_ctor_budget.c`  -- tests: test_wemu_sandbox
+- `guest_dtneeded.c`  -- tests: test_wemu_sandbox;test_wemu_sandbox
+- `guest_dyn.c`  -- tests: test_wemu_sandbox
+- `guest_glibc_dyn.c`  -- tests: test_wemu_sandbox
+- `guest_hello.c`  -- tests: test_wemu_sandbox
+- `guest_imgdep.c`  -- tests: test_wemu_sandbox
+- `guest_imgdep_a.c`  -- tests: test_wemu_sandbox
+- `guest_imgdep_b.c`  -- tests: test_wemu_sandbox
+- `guest_interp.c`  -- tests: test_wemu_sandbox;test_wemu_sandbox
+- `guest_libc_big.c`  -- tests: test_wemu_sandbox
+- `guest_libc_shim.c`  -- tests: test_wemu_sandbox;test_wemu_sandbox;test_wemu_sandbox;test_wemu_sandbox
+- `guest_strongundef.c`  -- tests: test_wemu_sandbox
+- `guest_symver.c`  -- tests: test_wemu_sandbox
+- `guest_verdep_a.c`  -- tests: test_wemu_sandbox
+- `guest_verdep_b.c`  -- tests: test_wemu_sandbox
 - `guests_panel.c`  -- tests: test_guests_panel
 - `gui_blend.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
 - `gui_blur.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
@@ -135,10 +150,19 @@ the kernel/driver build or nowhere in the test recipes).
 - `oci_registry.c`  -- tests: test_oci
 - `oci_runtime_spec.c`  -- tests: test_oci
 - `physics.c`  -- tests: test_worldsim;test_bridge
+- `pie_dynamic.c`  -- tests: test_wemu_sandbox
+- `pie_hello.c`  -- tests: test_wemu_sandbox
+- `pie_nohandler.c`  -- tests: test_wemu_sandbox
+- `pie_signal.c`  -- tests: test_wemu_sandbox
+- `pie_unlisted.c`  -- tests: test_wemu_sandbox
+- `probe_filemap.c`  -- tests: test_vsl_exec
+- `probe_ifunc_glibc_hello.c`  -- tests: test_vsl_exec
+- `probe_mmap_align.c`  -- tests: test_vsl_exec
 - `quick_settings.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `regedit.c`  -- tests: test_apps
 - `render.c`  -- tests: test_worldsim;test_bridge
 - `repl.c`  -- tests: test_apps
+- `sandbox_probe.c`  -- tests: test_wemu_sandbox
 - `screenshot.c`  -- tests: test_screenshot
 - `seccomp_registry.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `service_mgr.c`  -- tests: test_service_mgr
@@ -194,6 +218,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_synth.c`  -- tests: test_synth
 - `test_tandem.c`  -- tests: test_tandem
 - `test_thermal_read.c`  -- tests: test_thermal_read
+- `test_usermode_native.c`  -- tests: test_wemu_sandbox
 - `test_win32_core.c`  -- tests: test_win32_core
 - `test_worldsim.c`  -- tests: test_worldsim
 - `test_wubu_audio_backend.c`  -- tests: test_audio_backend
@@ -1356,6 +1381,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `check_weights.c`
 - `check_weights2.c`
 - `cite.c`
+- `clone3_thread.c`
 - `codefold.c`
 - `col.c`
 - `comfy.c`
@@ -1522,6 +1548,9 @@ the kernel/driver build or nowhere in the test recipes).
 - `epub.c`
 - `eqnum.c`
 - `eval.c`
+- `exec_chain.c`
+- `exec_fork.c`
+- `exec_script.c`
 - `exp.c`
 - `exp2poly_probe.c`
 - `exp_png.c`
@@ -1618,9 +1647,13 @@ the kernel/driver build or nowhere in the test recipes).
 - `guest_exit42.c`
 - `guest_exit_group.c`
 - `guest_fault.c`
+- `guest_filemap.c`
+- `guest_fs_tcb.c`
 - `guest_getpid.c`
 - `guest_initplt.c`
+- `guest_mmap_align.c`
 - `guest_uname.c`
+- `guest_weakundef.c`
 - `guest_write.c`
 - `happy.c`
 - `harness_argparser.c`
@@ -1659,6 +1692,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `inspect_model_types.c`
 - `interrupt_exceptions.c`
 - `interrupt_pic.c`
+- `isolate_negctl.c`
+- `isolate_probe.c`
 - `jit_audit.c`
 - `jit_gap_analysis.c`
 - `json.c`
@@ -1772,6 +1807,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `model_odt.c`
 - `model_rtf.c`
 - `moondream_cli.c`
+- `mpk_negctl.c`
 - `multicursor.c`
 - `multiteach_selftest.c`
 - `nesttab.c`
@@ -1866,11 +1902,13 @@ the kernel/driver build or nowhere in the test recipes).
 - `safetensors_writer.c`
 - `sample_plugin.c`
 - `sandbox.c`
+- `sandbox_negctl.c`
 - `scan_expert_offsets.c`
 - `scan_weights.c`
 - `scope.c`
 - `screen.c`
 - `script.c`
+- `script_interp.c`
 - `sd_eps_probe.c`
 - `sd_gemm_probe.c`
 - `sd_gemm_probe2.c`
@@ -2001,6 +2039,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_bwd_gqa_trace.c`
 - `test_bwd_model.c`
 - `test_cache_advice.c`
+- `test_call_gate_priv.c`
 - `test_canvas.c`
 - `test_capacity_wall.c`
 - `test_capgate.c`
@@ -2324,6 +2363,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_layer_parity.c`
 - `test_layer_skip.c`
 - `test_layout.c`
+- `test_ldt.c`
 - `test_legacy_pdf.c`
 - `test_lex_fold.c`
 - `test_lex_multi.c`
@@ -2613,6 +2653,9 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_sys_tune.c`
 - `test_table_styles.c`
 - `test_tandem_gamebud.c`
+- `test_task_gates.c`
+- `test_task_gpr.c`
+- `test_task_switch.c`
 - `test_tbl_styles_e2e.c`
 - `test_tempo_detect.c`
 - `test_tensor_store.c`
@@ -2652,6 +2695,13 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_user_sim.c`
 - `test_userfs.c`
 - `test_usermode.c`
+- `test_usermode_clone3.c`
+- `test_usermode_exec.c`
+- `test_usermode_exec2.c`
+- `test_usermode_execfd.c`
+- `test_usermode_isolate.c`
+- `test_usermode_mpk.c`
+- `test_usermode_threadexec.c`
 - `test_uuid.c`
 - `test_vars.c`
 - `test_vec_dot_types.c`
@@ -2767,7 +2817,9 @@ the kernel/driver build or nowhere in the test recipes).
 - `testharness.c`
 - `testquit.c`
 - `text.c`
+- `thread_exec.c`
 - `thread_pool.c`
+- `threaded_guest.c`
 - `tile_manager.c`
 - `toast.c`
 - `toc.c`
@@ -3213,6 +3265,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wemu_mem.c`
 - `wemu_sse.c`
 - `wemu_string.c`
+- `wemu_usermode.c`
 - `wemu_x87.c`
 - `wibu_mips_interp.c`
 - `windows_process.c`
@@ -3330,6 +3383,9 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_early_exit.c`
 - `wubu_ecosystem.c`
 - `wubu_ecs.c`
+- `wubu_ed25519_fixed.c`
+- `wubu_ed25519_fixed_sign.c`
+- `wubu_eddsa_policy.c`
 - `wubu_edid_dump.c`
 - `wubu_enc_fs.c`
 - `wubu_enc_h3.c`

@@ -37,8 +37,18 @@
 #define T_MAX_SHIPPED 10.0
 #define T_MIN_CONTROL 10.0
 
-enum { NSAMP = 64, REPS = 24, TRIALS = 3, EQ_N = 24 };
+enum { REPS = 24, TRIALS = 3, EQ_N = 24 };
 enum { PC_LOW = 8, PC_HIGH = 255 };
+/* Fixed default; the cross-config driver may raise it under heavy parallel
+ * CI load.  The DECISION thresholds never change and there are no retries. */
+static int timing_nsamp(void) {
+    const char *s = getenv("WUBU_TIMING_NSAMP");
+    if (!s || !*s) return 64;
+    char *end = NULL;
+    long v = strtol(s, &end, 10);
+    if (*end || v < 64 || v > 1024) return 64;
+    return (int)v;
+}
 
 static uint64_t rng_s = 0x9e3779b97f4a7c15ULL;
 static uint32_t rnd32(void) {
@@ -153,6 +163,7 @@ static void range(const double *v, int n, double *lo, double *hi) {
 
 int main(int argc, char **argv) {
     int negctl = (argc > 1 && strcmp(argv[1], "--negctl") == 0);
+    int nsamp = timing_nsamp();
 
     /* Functional equivalence: the variable control must compute the SAME
      * group element as the shipped ladder (so it is a fair baseline, not a
@@ -173,12 +184,12 @@ int main(int argc, char **argv) {
     /* Same-run, interleaved, deterministic-shuffled sampling of both paths
      * and both secret classes, so monotonic clock drift cannot manufacture a
      * Hamming-weight signal. */
-    double sh_lo[NSAMP], sh_hi[NSAMP], vc_lo[NSAMP], vc_hi[NSAMP];
+    double sh_lo[nsamp], sh_hi[nsamp], vc_lo[nsamp], vc_hi[nsamp];
     int valid = 1;
     uint8_t slo[32], shi[32];
     scalar_with_popcount(slo, PC_LOW);
     scalar_with_popcount(shi, PC_HIGH);
-    for (int i = 0; i < NSAMP; ++i) {
+    for (int i = 0; i < nsamp; ++i) {
         int order[4] = { 0, 1, 2, 3 };
         for (int k = 3; k > 0; --k) {
             int j = (int)(rnd32() % (uint32_t)(k + 1));
@@ -196,16 +207,16 @@ int main(int argc, char **argv) {
         }
     }
 
-    double t_sh = welch_t(sh_lo, sh_hi, NSAMP);
-    double t_vc = welch_t(vc_lo, vc_hi, NSAMP);
+    double t_sh = welch_t(sh_lo, sh_hi, nsamp);
+    double t_vc = welch_t(vc_lo, vc_hi, nsamp);
     double sh_ll, sh_lh, sh_hl, sh_hh, vc_ll, vc_lh, vc_hl, vc_hh;
-    range(sh_lo, NSAMP, &sh_ll, &sh_lh);
-    range(sh_hi, NSAMP, &sh_hl, &sh_hh);
-    range(vc_lo, NSAMP, &vc_ll, &vc_lh);
-    range(vc_hi, NSAMP, &vc_hl, &vc_hh);
+    range(sh_lo, nsamp, &sh_ll, &sh_lh);
+    range(sh_hi, nsamp, &sh_hl, &sh_hh);
+    range(vc_lo, nsamp, &vc_ll, &vc_lh);
+    range(vc_hi, nsamp, &vc_hl, &vc_hh);
 
     printf("fixed_timing_nsamps=%d reps=%d trials=%d pc=%d/%d interleaved=1\n",
-           NSAMP, REPS, TRIALS, PC_LOW, PC_HIGH);
+           nsamp, REPS, TRIALS, PC_LOW, PC_HIGH);
     printf("fixed_timing_shipped_t=%+.3f low=%.0f..%.0f high=%.0f..%.0f\n",
            t_sh, sh_ll, sh_lh, sh_hl, sh_hh);
     printf("fixed_timing_control_t=%+.3f low=%.0f..%.0f high=%.0f..%.0f\n",
