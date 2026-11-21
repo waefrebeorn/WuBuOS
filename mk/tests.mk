@@ -2697,6 +2697,12 @@ test_thermal_spd5:
 		$(KERNEL)/test_thermal_spd5.c -ldl -lm -o $(KERNEL)/test_thermal_spd5
 	$(KERNEL)/test_thermal_spd5
 
+# Root helper for the thermal-watch cron job: real DDR5 SPD hub temperature.
+spd_read_one:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Iinclude -I$(KERNEL) -I$(RT) \
+		$(KERNEL)/wubu_thermal_read.c $(KERNEL)/wubu_drv_thermal.c \
+		tools/spd_read_one.c -ldl -lm -o tools/spd_read_one
+
 # Opt-in LIVE parity gate. Requires root: reads Intel PCH SMBus I/O ports.
 test_spd_parity:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Iinclude -I$(KERNEL) -I$(RT) \
