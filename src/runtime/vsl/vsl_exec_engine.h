@@ -54,9 +54,14 @@
  *   - vsl_dyn_set_init_fini(1): DT_INIT / DT_INIT_ARRAY are invoked after
  *     relocation and before the entry point, DT_FINI_ARRAY (reverse order) /
  *     DT_FINI on unload, across the main image and its DT_NEEDED deps.  Array
- *     entries are read from the RELOCATED in-memory arrays.  Both phases are
- *     guarded by the engine's fault handler; counts are reported in the
- *     result.  These are freestanding constructors, NOT glibc __libc_csu_init.
+ *     entries are read from the RELOCATED in-memory arrays.  Every target is
+ *     BOUND to the declaring image's live mapped source window and charged to
+ *     an explicit per-run call budget (VSL_EXEC_CTOR_CALL_BUDGET): a relocated
+ *     target that lands outside that window -- e.g. a tampered array addend --
+ *     fails closed with VSL_EXEC_ERR_RELOC before anything is called.  Both
+ *     phases are guarded by the engine's fault handler; counts are reported
+ *     in the result.  These are freestanding constructors, NOT glibc
+ *     __libc_csu_init.
  * ELF symbol versioning (DT_VERSYM/DT_VERNEED/DT_VERDEF) is parsed from raw
  * gABI bytes.  A versioned import is satisfied ONLY by a definition carrying
  * the same version NAME; in the hardened mode (vsl_exec_image with all legacy
@@ -132,6 +137,10 @@
 #define VSL_EXEC_OUTPUT_MAX 65536
 #define VSL_TLS_BLOCK_MAX   256u   /* host-provided TLS bytes per image */
 #define VSL_INTERP_PATH_MAX 256u   /* bounded PT_INTERP path length */
+/* Fixed, explicit per-run budget for DT_INIT/DT_INIT_ARRAY/DT_FINI_ARRAY/
+ * DT_FINI calls when init/fini handling is opted in.  A run that would
+ * exceed it is rejected with VSL_EXEC_ERR_RELOC, never partially executed. */
+#define VSL_EXEC_CTOR_CALL_BUDGET 64u
 
 /* Run status / engine error codes (also the function return value). */
 enum {
@@ -176,6 +185,7 @@ typedef struct {
     uint32_t plt_resolves;      /* first-call resolver invocations this run */
     uint32_t init_called;       /* DT_INIT/INIT_ARRAY functions invoked */
     uint32_t fini_called;       /* DT_FINI_ARRAY/FINI functions invoked */
+    uint32_t ctor_calls;        /* total calls charged to the per-run budget */
     /* PT_INTERP / guest-rootfs / auxv diagnostics (opt-in; zero otherwise) */
     uint32_t interp_present;    /* main image carries PT_INTERP */
     uint32_t interp_resolved;   /* bounded path resolved inside the rootfs */

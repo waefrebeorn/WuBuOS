@@ -861,6 +861,7 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/libvsldep.so \
 	$(RT)/vsl/exec_guests/guest_dtneeded.elf \
 	$(RT)/vsl/exec_guests/guest_initplt.elf \
+	$(RT)/vsl/exec_guests/guest_ctor_budget.elf \
 	$(RT)/vsl/exec_guests/libvslverA.so \
 	$(RT)/vsl/exec_guests/libvslverB.so \
 	$(RT)/vsl/exec_guests/guest_symver.elf \
@@ -932,6 +933,15 @@ $(RT)/vsl/exec_guests/guest_dtneeded.elf: \
 # .fini_array entries that write markers via raw syscalls.  NOT -N: the
 # JUMP_SLOT / array relocations must live in ordinary PT_LOADs.
 $(RT)/vsl/exec_guests/guest_initplt.elf: $(RT)/vsl/exec_guests/guest_initplt.c
+	$(CC) -O0 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start $< -o $@
+
+# Explicit constructor-call-budget fixture: 40 init + 40 fini entries, each
+# phase under the 64-entry cap but 80 calls in total, so the shared per-run
+# budget must stop collection at exactly 64 and fail closed.
+$(RT)/vsl/exec_guests/guest_ctor_budget.elf: \
+		$(RT)/vsl/exec_guests/guest_ctor_budget.c
 	$(CC) -O0 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
 		-fno-stack-protector -fno-asynchronous-unwind-tables \
 		-Wl,--build-id=none -Wl,-e,_start $< -o $@

@@ -760,31 +760,95 @@ static uint8_t *ex_plt_stub(uint32_t slot) {
 #define EX_DT_FINI_ARRAYSZ 28ULL
 #define EX_CTOR_MAX        64u
 
-static uint64_t g_init_fns[EX_CTOR_MAX];
+/* A constructor is never a bare guest address: it is BOUND to the live
+ * mapped source window of the image that declared it.  The window travels
+ * with the entry so the call site can re-check it (defence in depth). */
+typedef struct {
+    uint64_t fn;                 /* relocated target inside the source */
+    uint64_t src_lo;             /* declaring image's mapped [lo,hi) */
+    uint64_t src_hi;
+} VslCtor;
+
+static VslCtor g_init_ctors[EX_CTOR_MAX];
 static uint32_t g_init_count;
-static uint64_t g_fini_fns[EX_CTOR_MAX];
+static VslCtor g_fini_ctors[EX_CTOR_MAX];
 static uint32_t g_fini_count;
+static uint32_t g_ctor_calls;             /* charged to the explicit budget */
 static int      g_run_init_fini;          /* opt-in, default OFF */
 
 void vsl_dyn_set_init_fini(int on) { g_run_init_fini = on ? 1 : 0; }
 
 static void ex_ctors_reset(void) {
     g_init_count = g_fini_count = 0;
+    g_ctor_calls = 0;
 }
 
-/* Call guest init/fini functions with the engine's fault/SIGSYS handlers
- * active (the guest code lives in the trap window and may issue syscalls).
- * Returns 0 on normal completion, -1 if one of them faulted. */
-static int ex_call_ctors(const uint64_t *fns, uint32_t n, int reverse) {
+/* Bind ONE constructor to the declaring image's live mapping and charge it
+ * to the explicit per-run budget.  A relocated array entry is DATA, not
+ * authority: it is followed only while it lands inside the source that
+ * declared it.  Anything else (NULL, host address, another DSO, an unmapped
+ * hole) fails closed BEFORE any call, with a diagnostic in g_ex_reloc_fail. */
+static int ex_bind_ctor(uint64_t fn, uint64_t src_lo, uint64_t src_hi,
+                        const char *kind, uint64_t declared_at,
+                        VslCtor *dst, uint32_t *count) {
+    if (fn == 0 || fn < EX_WIN_LO || fn >= EX_WIN_HI ||
+        fn < src_lo || fn >= src_hi ||
+        (declared_at != 0 && (declared_at < EX_WIN_LO ||
+                              declared_at > EX_WIN_HI))) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "%s constructor target 0x%llx at 0x%llx is outside source "
+                 "window [0x%llx,0x%llx)", kind,
+                 (unsigned long long)fn, (unsigned long long)declared_at,
+                 (unsigned long long)src_lo, (unsigned long long)src_hi);
+        return -1;
+    }
+    if (*count >= EX_CTOR_MAX) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "%s constructor count exceeds the fixed %u-entry cap",
+                 kind, EX_CTOR_MAX);
+        return -1;
+    }
+    if (g_ctor_calls >= VSL_EXEC_CTOR_CALL_BUDGET) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "constructor call budget %u exhausted before %s",
+                 VSL_EXEC_CTOR_CALL_BUDGET, kind);
+        return -1;
+    }
+    dst[*count].fn = fn;
+    dst[*count].src_lo = src_lo;
+    dst[*count].src_hi = src_hi;
+    (*count)++;
+    g_ctor_calls++;
+    return 0;
+}
+
+/* Call bound constructors with the engine's fault/SIGSYS handlers active
+ * (the guest code lives in the trap window and may issue syscalls).  Every
+ * target is re-checked against its source window immediately before the
+ * indirect call.  Returns 0 on normal completion, -1 if one was refused or
+ * faulted (g_ex.fault_addr carries si_addr for the latter). */
+static int ex_call_ctors(const VslCtor *fns, uint32_t n, int reverse) {
     if (!n) return 0;
+    for (uint32_t k = 0; k < n; k++) {
+        if (fns[k].fn < fns[k].src_lo || fns[k].fn >= fns[k].src_hi ||
+            fns[k].fn < EX_WIN_LO || fns[k].fn >= EX_WIN_HI) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "bound constructor 0x%llx left its source window "
+                     "[0x%llx,0x%llx) before invocation",
+                     (unsigned long long)fns[k].fn,
+                     (unsigned long long)fns[k].src_lo,
+                     (unsigned long long)fns[k].src_hi);
+            return -1;
+        }
+    }
     g_ex.active = 1;
     if (sigsetjmp(g_ex.jb, 1) == 0) {
         if (reverse) {
             for (uint32_t i = n; i > 0; i--)
-                ((void (*)(void))(uintptr_t)fns[i - 1])();
+                ((void (*)(void))(uintptr_t)fns[i - 1].fn)();
         } else {
             for (uint32_t i = 0; i < n; i++)
-                ((void (*)(void))(uintptr_t)fns[i])();
+                ((void (*)(void))(uintptr_t)fns[i].fn)();
         }
         g_ex.active = 0;
         return 0;
@@ -830,10 +894,10 @@ static int ex_collect_ctors(const uint8_t *f, size_t fsz,
         default: break;
         }
     }
-    if (init && g_init_count < EX_CTOR_MAX)
-        g_init_fns[g_init_count++] = bias + init;
-    if (fini && g_fini_count < EX_CTOR_MAX)
-        g_fini_fns[g_fini_count++] = bias + fini;
+    if (init && ex_bind_ctor(bias + init, map_lo, map_hi, "DT_INIT", 0,
+                             g_init_ctors, &g_init_count) != 0) return -1;
+    if (fini && ex_bind_ctor(bias + fini, map_lo, map_hi, "DT_FINI", 0,
+                             g_fini_ctors, &g_fini_count) != 0) return -1;
 
     if (ia && iasz) {
         if (iasz % 8 || iasz / 8 > EX_CTOR_MAX) return -1;
@@ -842,8 +906,9 @@ static int ex_collect_ctors(const uint8_t *f, size_t fsz,
         for (uint64_t k2 = 0; k2 < iasz / 8; k2++) {
             uint64_t fn;
             memcpy(&fn, (const void *)(uintptr_t)(alo + k2 * 8), 8);
-            if (fn == 0 || g_init_count >= EX_CTOR_MAX) return -1;
-            g_init_fns[g_init_count++] = fn;
+            if (ex_bind_ctor(fn, map_lo, map_hi, "DT_INIT_ARRAY",
+                             alo + k2 * 8, g_init_ctors, &g_init_count) != 0)
+                return -1;
         }
     }
     if (fa && faz) {
@@ -853,8 +918,9 @@ static int ex_collect_ctors(const uint8_t *f, size_t fsz,
         for (uint64_t k2 = 0; k2 < faz / 8; k2++) {
             uint64_t fn;
             memcpy(&fn, (const void *)(uintptr_t)(alo + k2 * 8), 8);
-            if (fn == 0 || g_fini_count >= EX_CTOR_MAX) return -1;
-            g_fini_fns[g_fini_count++] = fn;
+            if (ex_bind_ctor(fn, map_lo, map_hi, "DT_FINI_ARRAY",
+                             alo + k2 * 8, g_fini_ctors, &g_fini_count) != 0)
+                return -1;
         }
     }
     return 0;
@@ -3383,6 +3449,8 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         if (ex_collect_ctors(elf_data, elf_size, e_phnum, e_phentsize, e_phoff,
                              load_bias, lo, hi) != 0) {
             rc = VSL_EXEC_ERR_RELOC;
+            snprintf(out->reloc_failure, sizeof(out->reloc_failure),
+                     "%s", g_ex_reloc_fail);
             goto cleanup;
         }
         if (skipped) { rc = VSL_EXEC_ERR_RELOCTYPE; goto cleanup; }
@@ -3444,7 +3512,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
      * leaf-first), then main.  Runs on the host stack while fds are captured
      * and the SIGSYS/fault handlers are live, so guest writes are recorded. */
     if (g_init_count) {
-        if (ex_call_ctors(g_init_fns, g_init_count, 0) != 0) {
+        if (ex_call_ctors(g_init_ctors, g_init_count, 0) != 0) {
             out->status = VSL_EXEC_ERR_FAULT;
             out->fault_addr = g_ex.fault_addr;
             rc = out->status;
@@ -3513,7 +3581,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
      * handlers are still live.  Reverse order: main first, then dependencies
      * in reverse load order.  A fini fault downgrades the run to ERR_FAULT. */
     if (rc == VSL_EXEC_OK && g_fini_count) {
-        if (ex_call_ctors(g_fini_fns, g_fini_count, 1) != 0) {
+        if (ex_call_ctors(g_fini_ctors, g_fini_count, 1) != 0) {
             out->status = VSL_EXEC_ERR_FAULT;
             out->fault_addr = g_ex.fault_addr;
             rc = out->status;
@@ -3525,6 +3593,7 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
 cleanup:
     g_ex.active = 0;
     g_ex.running = 0;
+    out->ctor_calls = g_ctor_calls;   /* bounded calls charged this run */
     /* A guest may have installed its own %fs base; host libc here needs the
      * original one back before it runs again. */
     if ((g_fs_tls || g_glibc_startup) && g_ex.host_fs_base &&

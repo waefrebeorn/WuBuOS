@@ -625,6 +625,63 @@ static int rename_version(uint8_t *img, size_t n, const char *from, char to) {
     return 0;
 }
 
+/* Retarget the R_X86_64_RELATIVE addend that fills the FIRST slot of a
+ * constructor array in a COPY of a fixture.  The engine still performs the
+ * relocation normally; only the relocated target is out of its source
+ * window.  This isolates the source-binding check from the array-bounds
+ * checks and proves a tampered target cannot be followed. */
+#define EX_TEST_DT_INIT_ARRAY     25u
+#define EX_TEST_DT_FINI_ARRAY     26u
+#define EX_TEST_DT_RELA           7u
+#define EX_TEST_DT_RELASZ         8u
+#define EX_TEST_DT_RELAENT        9u
+#define EX_TEST_R_X86_64_RELATIVE 8u
+static int patch_ctor_reloc(uint8_t *img, size_t n, uint64_t array_tag,
+                            uint64_t bad_addend) {
+    if (n < 64 || img[0] != 0x7f || memcmp(img + 1, "ELF", 3) != 0) return 0;
+    uint64_t phoff; uint16_t phentsize, phnum;
+    memcpy(&phoff, img + 32, 8);
+    memcpy(&phentsize, img + 54, 2);
+    memcpy(&phnum, img + 56, 2);
+    if (phentsize < 56 || phoff > n ||
+        (uint64_t)phnum * phentsize > n - phoff) return 0;
+    uint64_t doff = 0, dsz = 0;
+    for (uint16_t i = 0; i < phnum; i++) {
+        const uint8_t *ph = img + phoff + (uint64_t)i * phentsize;
+        uint32_t t; memcpy(&t, ph, 4);
+        if (t != 2) continue;                     /* PT_DYNAMIC */
+        memcpy(&doff, ph + 8, 8);
+        memcpy(&dsz, ph + 32, 8);
+        break;
+    }
+    if (doff > n || dsz < 16 || dsz > n - doff) return 0;
+    uint64_t target = 0, rela = 0, relasz = 0, relaent = 24;
+    for (uint64_t k = 0; k + 16 <= dsz; k += 16) {
+        uint64_t tag, val;
+        memcpy(&tag, img + doff + k, 8);
+        memcpy(&val, img + doff + k + 8, 8);
+        if (tag == 0) break;
+        if (tag == array_tag) target = val;
+        else if (tag == EX_TEST_DT_RELA) rela = val;
+        else if (tag == EX_TEST_DT_RELASZ) relasz = val;
+        else if (tag == EX_TEST_DT_RELAENT) relaent = val;
+    }
+    if (!target || !rela || relasz < 24 || relaent < 24 ||
+        rela > n || relasz > n - rela) return 0;
+    for (uint64_t off = 0; off + 24 <= relasz; off += relaent) {
+        const uint8_t *r = img + rela + off;
+        uint64_t r_offset, r_info;
+        memcpy(&r_offset, r, 8);
+        memcpy(&r_info, r + 8, 8);
+        if (r_offset == target &&
+            (uint32_t)r_info == EX_TEST_R_X86_64_RELATIVE) {
+            memcpy(img + rela + off + 16, &bad_addend, 8);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Hand-assemble a tiny ET_DYN with IMPORTED symbols (DT_HASH + DT_SYMTAB
  * + DT_STRTAB).  Three relocations exercise the bounded resolver:
  *   [0] R_X86_64_GLOB_DAT   sym=vsl_test_shim  -> slot @0x1100
@@ -1940,6 +1997,116 @@ int main(int argc, char **argv) {
             CHECK(a2 == 0x56534c53484d4949ULL && b2 == 0x56534c53484d4949ULL,
                   "negative control: eager JUMP_SLOT still calls shim twice");
 
+            free(img);
+        }
+    }
+
+    /* (q2) Bounded constructor SOURCE BINDING.  The clean fixture proves the
+     *      exact init_array -> main body -> fini_array order.  Two copies
+     *      with ONE constructor-array RELATIVE addend retargeted outside the
+     *      source window must be refused with ERR_RELOC and invoke nothing:
+     *      the relocated array slot is still in bounds, so only target
+     *      binding can reject it. */
+    {
+        size_t n = 0;
+        snprintf(path, sizeof(path), "%s/guest_initplt.elf", dir);
+        uint8_t *img = read_test_file(path, &n);
+        CHECK(img != NULL, "source-binding fixture readable");
+        if (img) {
+            uint8_t *bad = malloc(n);
+            CHECK(bad != NULL, "tamper copy allocated");
+            if (bad) {
+                const uint64_t away = 0x700000000000ULL;
+                uint64_t m1 = 0, m2 = 0;
+                vsl_dyn_set_lazy_plt(0);
+                vsl_dyn_set_init_fini(1);
+                rc = vsl_exec_elf_bytes(img, n, &r);
+                if (r.output_len >= 25) {
+                    memcpy(&m1, r.output + 9, 8);
+                    memcpy(&m2, r.output + 17, 8);
+                }
+                printf("[gate q2] clean ctor order: rc=%d exit=%d init=%u "
+                       "fini=%u calls=%u out_len=%zu out=\"%.*s\"\n",
+                       rc, r.exit_code, r.init_called, r.fini_called,
+                       r.ctor_calls, r.output_len, (int)r.output_len, r.output);
+                CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                      "clean ctor fixture runs to exit(0)");
+                CHECK(r.output_len == 34 &&
+                      memcmp(r.output, "VSL-INIT\n", 9) == 0 &&
+                      m1 == 0x56534c53484d4949ULL &&
+                      m2 == 0x56534c53484d4949ULL &&
+                      memcmp(r.output + 25, "VSL-FINI\n", 9) == 0,
+                      "ctor order: init_array, then main body, then fini_array");
+                CHECK(r.init_called == 1 && r.fini_called == 1 &&
+                      r.ctor_calls == 2 &&
+                      r.ctor_calls <= VSL_EXEC_CTOR_CALL_BUDGET,
+                      "both ctors charged to the explicit call budget");
+
+                memcpy(bad, img, n);
+                CHECK(patch_ctor_reloc(bad, n, EX_TEST_DT_INIT_ARRAY, away),
+                      "init_array RELATIVE addend retargeted out of window");
+                rc = vsl_exec_elf_bytes(bad, n, &r);
+                printf("[gate q2] tampered INIT target: rc=%d status=%d "
+                       "init=%u calls=%u out_len=%zu reloc_failure=\"%s\"\n",
+                       rc, r.status, r.init_called, r.ctor_calls, r.output_len,
+                       r.reloc_failure);
+                CHECK(rc == VSL_EXEC_ERR_RELOC,
+                      "out-of-window init target refused (ERR_RELOC, not a fault)");
+                CHECK(strstr(r.reloc_failure,
+                             "DT_INIT_ARRAY constructor target") != NULL &&
+                      strstr(r.reloc_failure, "outside source window") != NULL,
+                      "failure names the exact source-binding rule");
+                CHECK(r.init_called == 0 && r.output_len == 0,
+                      "tampered init target invoked nothing: fail closed");
+
+                memcpy(bad, img, n);
+                CHECK(patch_ctor_reloc(bad, n, EX_TEST_DT_FINI_ARRAY, away + 1),
+                      "fini_array RELATIVE addend retargeted out of window");
+                rc = vsl_exec_elf_bytes(bad, n, &r);
+                printf("[gate q2] tampered FINI target: rc=%d status=%d "
+                       "fini=%u calls=%u out_len=%zu reloc_failure=\"%s\"\n",
+                       rc, r.status, r.fini_called, r.ctor_calls, r.output_len,
+                       r.reloc_failure);
+                CHECK(rc == VSL_EXEC_ERR_RELOC &&
+                      strstr(r.reloc_failure,
+                             "DT_FINI_ARRAY constructor target") != NULL,
+                      "out-of-window fini target refused by source binding");
+                CHECK(r.fini_called == 0 && r.output_len == 0,
+                      "tampered fini target invoked nothing: fail closed");
+                vsl_dyn_set_init_fini(0);
+                free(bad);
+            }
+            free(img);
+        }
+    }
+
+    /* (q3) Explicit per-run call budget.  40 init + 40 fini entries stay
+     *      under the per-phase cap but exceed the shared 64-call budget. */
+    {
+        size_t n = 0;
+        snprintf(path, sizeof(path), "%s/guest_ctor_budget.elf", dir);
+        uint8_t *img = read_test_file(path, &n);
+        CHECK(img != NULL, "call-budget fixture readable");
+        if (img) {
+            vsl_dyn_set_init_fini(1);
+            rc = vsl_exec_elf_bytes(img, n, &r);
+            printf("[gate q3] budget overrun: rc=%d status=%d calls=%u "
+                   "out_len=%zu reloc_failure=\"%s\"\n",
+                   rc, r.status, r.ctor_calls, r.output_len, r.reloc_failure);
+            CHECK(rc == VSL_EXEC_ERR_RELOC,
+                  "80 ctors refused before any ran (ERR_RELOC)");
+            CHECK(strstr(r.reloc_failure, "call budget 64 exhausted") != NULL,
+                  "failure names the exact explicit budget");
+            CHECK(r.ctor_calls == VSL_EXEC_CTOR_CALL_BUDGET,
+                  "collection stopped at exactly the 64-call budget");
+            CHECK(r.output_len == 0 && r.init_called == 0 && r.fini_called == 0,
+                  "budget overrun invoked nothing: fail closed");
+            vsl_dyn_set_init_fini(0);
+            rc = vsl_exec_elf_bytes(img, n, &r);
+            printf("[gate q3] budget OFF control: rc=%d exit=%d calls=%u\n",
+                   rc, r.exit_code, r.ctor_calls);
+            CHECK(rc == VSL_EXEC_OK && r.exit_code == 0 && r.ctor_calls == 0,
+                  "same fixture runs normally when init/fini is off");
             free(img);
         }
     }
