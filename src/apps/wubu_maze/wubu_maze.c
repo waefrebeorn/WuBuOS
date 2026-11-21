@@ -251,11 +251,22 @@ void wubu_maze_render(const wubu_maze_state *s, uint8_t *rgb, int w, int h)
         }
         if (side == 1) { wr /= 2; wg /= 2; wb /= 2; }
 
+        double rdx = s->p.dir_x + s->p.plane_x * cam;
+        double rdy = s->p.dir_y + s->p.plane_y * cam;
         for (int y = 0; y < h; y++) {
             uint8_t r, g, b;
-            if (y < top)       { r = 28; g = 40; b = 64; }
-            else if (y > bot)  { r = 64; g = 52; b = 40; }
-            else               { r = wr; g = wg; b = wb; }
+            if (y < top || y > bot) {
+                /* Floor casting (Lode's scanline formula): rowDistance =
+                 * posZ / p with posZ = h/2 and p the row's offset from the
+                 * horizon. Ceiling mirrors the floor symmetrically. */
+                int p = (y > h / 2) ? (y - h / 2) : (h / 2 - y - 1);
+                double row = (p > 0) ? (0.5 * (double)h) / (double)p : 1e6;
+                int fx = (int)(s->p.x + row * rdx);
+                int fy = (int)(s->p.y + row * rdy);
+                int chk = (fx + fy) & 1;
+                if (y > bot) { r = chk ? 72 : 56; g = chk ? 60 : 46; b = chk ? 46 : 36; }
+                else         { r = chk ? 46 : 20; g = chk ? 64 : 28; b = chk ? 100 : 46; }
+            } else { r = wr; g = wg; b = wb; }
             size_t off = ((size_t)y * (size_t)w + (size_t)x) * 3u;
             rgb[off] = r; rgb[off + 1] = g; rgb[off + 2] = b;
         }
@@ -288,8 +299,18 @@ void wubu_maze_render_ascii(const wubu_maze_state *s, char *out, int w, int h)
             else if (wall == 'O') wall = 'o';
             else if (wall == '+') wall = '*';
         }
+        double rdx = s->p.dir_x + s->p.plane_x * cam;
+        double rdy = s->p.dir_y + s->p.plane_y * cam;
         for (int y = 0; y < h; y++) {
-            char c = (y < top) ? ' ' : (y > bot) ? '.' : wall;
+            char c;
+            if (y < top || y > bot) {
+                int p = (y > h / 2) ? (y - h / 2) : (h / 2 - y - 1);
+                double row = (p > 0) ? (0.5 * (double)h) / (double)p : 1e6;
+                int fx = (int)(s->p.x + row * rdx);
+                int fy = (int)(s->p.y + row * rdy);
+                int chk = (fx + fy) & 1;
+                c = (y > bot) ? (chk ? ',' : '.') : (chk ? '`' : ' ');
+            } else c = wall;
             out[(size_t)y * (size_t)w + (size_t)x] = c;
         }
     }

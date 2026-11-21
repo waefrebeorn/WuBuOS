@@ -8,8 +8,8 @@
 
 #define FW 64
 #define FH 40
-#define GOLDEN UINT64_C(0xd58dd1ee00987cfb)   /* canonical start frame, 64x40 */
-#define GOLDEN_ASCII UINT64_C(0x418d801631aed259)   /* canonical ASCII frame */
+#define GOLDEN UINT64_C(0xccbc07c017fd5eef)   /* canonical start frame, 64x40 */
+#define GOLDEN_ASCII UINT64_C(0x1bc04d6108875a59)   /* canonical ASCII frame */
 
 static int fails;
 #define CHECK(c, m) do { if (!(c)) { \
@@ -133,6 +133,30 @@ int main(int argc, char **argv)
            (unsigned long long)ah, (unsigned long long)GOLDEN_ASCII);
     CHECK(GOLDEN_ASCII != 0, "ASCII golden hash has been pinned");
     CHECK(ah == GOLDEN_ASCII, "golden ASCII frame matches");
+
+    /* Floor casting: checkerboard shades must exist on floor AND ceiling,
+     * not a single flat colour. */
+    int fl = 0, fd = 0, cl = 0;
+    for (size_t i = 0; i + 2 < sizeof(f1); i += 3) {
+        if (f1[i] == 72 && f1[i + 1] == 60 && f1[i + 2] == 46) fl++;
+        else if (f1[i] == 56 && f1[i + 1] == 46 && f1[i + 2] == 36) fd++;
+        else if (f1[i] == 46 && f1[i + 1] == 64 && f1[i + 2] == 100) cl++;
+    }
+    CHECK(fl > 0 && fd > 0, "floor has both checker shades");
+    CHECK(cl > 0, "ceiling has its checker shade");
+    {
+        int dots = 0, commas = 0, ticks = 0;
+        wubu_maze_render_ascii(&s, a1, FW, FH);
+        for (size_t i = 0; i < sizeof(a1); i++) {
+            if (a1[i] == '.') dots++;
+            else if (a1[i] == ',') commas++;
+            else if (a1[i] == '`') ticks++;
+        }
+        CHECK(dots > 0 && commas > 0 && ticks > 0,
+              "ASCII floor/ceiling checker visible");
+    }
+    printf("  PASS: floor/ceiling checker rendered (%d/%d floor, %d ceil)\n",
+           fl, fd, cl);
 
     /* Sprite differential: a gem is drawn before pickup and gone after. */
     int yellow = 0;

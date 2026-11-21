@@ -21,8 +21,8 @@ static uint32_t maze_color(char c)
     case 'X': case 'x': return 0x00DC5A46;   /* red block */
     case 'O': case 'o': return 0x0050B4D2;   /* cyan block */
     case '+': case '*': return 0x0078D264;   /* green block / gem */
-    case '.':           return 0x00403428;   /* floor */
-    default:            return 0x001C2840;   /* ceiling */
+    case '.': case ',': return 0x00403428;   /* floor (both checker shades) */
+    default:            return 0x001C2840;   /* ceiling (incl. '`') */
     }
 }
 

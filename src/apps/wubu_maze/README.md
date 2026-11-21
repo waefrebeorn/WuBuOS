@@ -41,6 +41,8 @@ Asserts:
 - Quarter turns are exact inverses and do not count as moves.
 - RGB24 frame (64x40) and ASCII frame are byte-identical across renders.
 - Both frames match committed FNV-1a golden hashes; no image is stored.
+- Floor and ceiling are checkerboard-cast with the scanline `rowDistance`
+  formula, and the gate asserts both shades are present (not one flat fill).
 - `--ppm <path>` writes a binary P6 frame for human inspection only.
 
 ## On the WuBuOS desktop
