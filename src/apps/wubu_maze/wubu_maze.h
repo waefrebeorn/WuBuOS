@@ -44,6 +44,11 @@ void wubu_maze_exit(double *x, double *y);
  * player. out must hold WUBU_MAZE_MAP_W * WUBU_MAZE_MAP_H chars. */
 void wubu_maze_render_minimap(const wubu_maze_state *s, char *out);
 
+/* BFS cell path from start to target; out holds (x,y) pairs for cells AFTER
+ * the start, up to cap pairs. Returns the number of pairs, or -1. */
+int wubu_maze_path(double sx, double sy, double tx, double ty,
+                   int *out, int cap);
+
 /* Breadth-first reachability over open cells (orthogonal steps).
  * Used by the gate to PROVE start -> every gem -> exit is solvable. */
 int wubu_maze_reachable(double sx, double sy, double tx, double ty);

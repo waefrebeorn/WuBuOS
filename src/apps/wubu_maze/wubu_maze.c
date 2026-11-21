@@ -58,6 +58,53 @@ void wubu_maze_render_minimap(const wubu_maze_state *s, char *out)
         out[(size_t)py * WUBU_MAZE_MAP_W + (size_t)px] = '@';
 }
 
+int wubu_maze_path(double sx, double sy, double tx, double ty,
+                   int *out, int cap)
+{
+    int sxi = (int)sx, syi = (int)sy, txi = (int)tx, tyi = (int)ty;
+    if (!out || cap <= 0 || wubu_maze_cell(sxi, syi) != 0 ||
+        wubu_maze_cell(txi, tyi) != 0) return -1;
+    const int ncells = WUBU_MAZE_MAP_W * WUBU_MAZE_MAP_H;
+    int prev[WUBU_MAZE_MAP_H][WUBU_MAZE_MAP_W];
+    memset(prev, 0xFF, sizeof(prev));
+    int qx[256], qy[256], head = 0, tail = 0;
+    qx[tail] = sxi; qy[tail] = syi; tail++;
+    prev[syi][sxi] = -2;                 /* start marker */
+    static const int dx[4] = { 1, -1, 0, 0 };
+    static const int dy[4] = { 0, 0, 1, -1 };
+    while (head < tail) {
+        int x = qx[head], y = qy[head];
+        head++;
+        if (x == txi && y == tyi) break;
+        for (int k = 0; k < 4; k++) {
+            int nx = x + dx[k], ny = y + dy[k];
+            if (nx < 0 || nx >= WUBU_MAZE_MAP_W ||
+                ny < 0 || ny >= WUBU_MAZE_MAP_H) continue;
+            if (prev[ny][nx] != -1 || wubu_maze_cell(nx, ny) != 0) continue;
+            prev[ny][nx] = y * WUBU_MAZE_MAP_W + x;
+            qx[tail] = nx; qy[tail] = ny; tail++;
+        }
+    }
+    if (prev[tyi][txi] == -1) return -1; /* unreachable */
+
+    /* Reconstruct backwards into a private buffer, then reverse. */
+    int bx[256], by[256], n = 0;
+    int cx = txi, cy = tyi;
+    while (!(cx == sxi && cy == syi) && n < 256) {
+        bx[n] = cx; by[n] = cy; n++;
+        int p = prev[cy][cx];
+        if (p < 0 || p >= ncells) return -1;
+        cx = p % WUBU_MAZE_MAP_W;
+        cy = p / WUBU_MAZE_MAP_W;
+    }
+    if (n > cap) return -1;
+    for (int i = 0; i < n; i++) {
+        out[2 * i]     = bx[n - 1 - i];
+        out[2 * i + 1] = by[n - 1 - i];
+    }
+    return n;
+}
+
 int wubu_maze_reachable(double sx, double sy, double tx, double ty)
 {
     int sxi = (int)sx, syi = (int)sy, txi = (int)tx, tyi = (int)ty;

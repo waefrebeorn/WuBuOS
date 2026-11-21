@@ -198,6 +198,42 @@ int main(int argc, char **argv)
     CHECK(stars == 0, "collected gems vanish from the minimap");
     printf("  PASS: minimap 3 gems -> 0, player + exit markers stable\n");
 
+    /* Full playthrough: BFS paths driven by REAL turn/forward commands,
+     * no teleporting. Proves the level is winnable by playing it. */
+    {
+        wubu_maze_init(&s);
+        double tx[4], ty[4];
+        for (int i = 0; i < WUBU_MAZE_NGEMS; i++) {
+            (void)wubu_maze_gem(i, &tx[i], &ty[i]);
+        }
+        wubu_maze_exit(&tx[3], &ty[3]);
+        for (int leg = 0; leg <= WUBU_MAZE_NGEMS; leg++) {
+            int path[128];
+            int n = wubu_maze_path(s.p.x, s.p.y, tx[leg], ty[leg], path, 64);
+            CHECK(n >= 0, "BFS path to every objective");
+            if (n < 0) break;
+            for (int i = 0; i < n; i++) {
+                int cx = (int)s.p.x, cy = (int)s.p.y;
+                int want_x = path[2 * i] - cx, want_y = path[2 * i + 1] - cy;
+                int guard = 0;
+                while ((int)s.p.dir_x != want_x || (int)s.p.dir_y != want_y) {
+                    (void)wubu_maze_walk(&s, 0, 1);
+                    if (++guard > 4) break;
+                }
+                CHECK(guard <= 4, "quarter turns can face any cardinal");
+                for (int k = 0; k < 4; k++)
+                    (void)wubu_maze_walk(&s, 1, 0);
+                (void)wubu_maze_tick(&s);
+            }
+            CHECK((int)s.p.x == (int)tx[leg] && (int)s.p.y == (int)ty[leg],
+                  "reached each objective by movement");
+        }
+        CHECK(s.gems == WUBU_MAZE_NGEMS && s.won == 1,
+              "full BFS-driven playthrough wins");
+        printf("  PASS: full playthrough won (%u steps, %u blocked)\n",
+               s.steps, s.blocked);
+    }
+
     /* Human inspection: --ppm path writes the frame; never committed. */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--ppm") == 0 && i + 1 < argc) {

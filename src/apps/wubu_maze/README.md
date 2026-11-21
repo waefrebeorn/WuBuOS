@@ -43,6 +43,10 @@ Asserts:
 - Both frames match committed FNV-1a golden hashes; no image is stored.
 - Floor and ceiling are checkerboard-cast with the scanline `rowDistance`
   formula, and the gate asserts both shades are present (not one flat fill).
+- A FULL playthrough gate drives the player with real turn/forward commands
+  along a BFS path through all three gems and the exit — no teleports. It
+  wins in 268 steps with 0 blocked moves, proving the level is actually
+  playable, not just reachable on paper.
 - `--ppm <path>` writes a binary P6 frame for human inspection only.
 
 ## On the WuBuOS desktop
