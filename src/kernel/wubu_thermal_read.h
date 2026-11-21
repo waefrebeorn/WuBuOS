@@ -59,7 +59,12 @@ int wubu_thermal_nvme(void);
  * On such a machine an OEM interface (EC behind WMI, say) is the usual reason
  * vendor software can show a number Linux cannot reach.  WUBU_RAM_TEMP_SYSFS
  * points the reader at any sysfs temperature file so that source can be wired
- * in without pretending the kernel already exposes it. */
+ * in without pretending the kernel already exposes it.
+ *
+ * CORRECTION (2026-11-21): the DIMM hubs were NOT absent -- they hang off the
+ * Intel PCH SMBus controller (PCI 00:1f.4, BAR4 I/O 0xefa0), not the i915
+ * i2c buses.  The reader now interrogates that controller directly, the same
+ * path HWiNFO-class tools use.  `acpitz` is still never substituted. */
 int wubu_thermal_ram(void);
 
 /* Decode one DDR5 SPD5-hub temperature reading.  `res` is MR36[1:0],

@@ -2697,6 +2697,13 @@ test_thermal_spd5:
 		$(KERNEL)/test_thermal_spd5.c -ldl -lm -o $(KERNEL)/test_thermal_spd5
 	$(KERNEL)/test_thermal_spd5
 
+# Opt-in LIVE parity gate. Requires root: reads Intel PCH SMBus I/O ports.
+test_spd_parity:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Iinclude -I$(KERNEL) -I$(RT) \
+		$(KERNEL)/wubu_thermal_read.c $(KERNEL)/wubu_drv_thermal.c \
+		tools/spd_parity.c -ldl -lm -o tools/spd_parity
+	sudo -n ./tools/spd_parity
+
 test_standards:
 	python3 tools/std_audit.py --baseline tools/std_audit_baseline.json
 

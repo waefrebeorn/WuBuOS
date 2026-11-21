@@ -459,7 +459,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_drv_net.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_nvme.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_sd.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
-- `wubu_drv_thermal.c`  -- tests: test_thermal_read;test_thermal_spd5;test_drv;test_machines
+- `wubu_drv_thermal.c`  -- tests: test_thermal_read;test_thermal_spd5;test_spd_parity;test_drv
 - `wubu_drv_usb.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_drv_virtio.c`  -- tests: test_drv;test_machines;test_world;test_ns_world
 - `wubu_dspgraph.c`  -- tests: test_hw_dspgraph

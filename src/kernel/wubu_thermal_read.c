@@ -20,24 +20,163 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 
-/* ---- DDR5 SPD5 hub temperature over SMBus -------------------------- */
+#define WUBU_SPD5_BASE_ADDR   0x50u
+#define WUBU_SPD5_SLOTS       8u
+#define WUBU_SPD5_ID         0x5118u
+#define WUBU_SPD5_MR5         0x05u
+#define WUBU_SPD5_MR11        0x0Bu
+#define WUBU_SPD5_MR26        0x1Au
+#define WUBU_SPD5_MR36        0x24u
+#define WUBU_SPD5_MR49        0x31u
+#define WUBU_SPD5_MR50        0x32u
+
+/* ---- Intel PCH SMBus (the path HWiNFO-class tools use) --------------- */
+/*
+ * Linux i2c-dev sees only the i915 DDC bus on many laptops; the DIMM SPD5
+ * hubs hang off the PCH SMBus controller, reached through its PCI BAR4 I/O
+ * ports.  BIOS often sets SPDWD (write-disable) in host config, so page 0 is
+ * already selected and no write is needed.  We only read MR49/MR50.
+ */
+#define SMB_STS 0
+#define SMB_CNT 2
+#define SMB_CMD 3
+#define SMB_ADD 4
+#define SMB_DAT0 5
+#define SMB_DAT1 6
+#define SMB_BYTE_DONE 0x80u
+#define SMB_INUSE     0x40u
+#define SMB_INTR      0x02u
+#define SMB_HOST_BUSY 0x01u
+#define SMB_ERR_FLAGS 0x1cu
+#define SMB_ALL_FLAGS (SMB_BYTE_DONE | SMB_INTR | SMB_ERR_FLAGS)
+#define SMB_BYTE_XACT 0x04u
+#define SMB_BYTE_DATA 0x08u
+#define SMB_START     0x40u
+
+static int pch_port_base(void)
+{
+    DIR *d = opendir("/sys/bus/pci/devices");
+    if (!d) return -1;
+    struct dirent *e;
+    int port = -1;
+    while ((e = readdir(d)) != NULL && port < 0) {
+        char base[512], cpath[540], rpath[540], cls[64] = {0};
+        snprintf(base, sizeof(base), "/sys/bus/pci/devices/%s", e->d_name);
+        snprintf(cpath, sizeof(cpath), "%s/class", base);
+        FILE *f = fopen(cpath, "r");
+        if (!f) continue;
+        if (!fgets(cls, sizeof(cls), f)) { fclose(f); continue; }
+        fclose(f);
+        /* 0x0c0500 = Serial bus controller / SMBus. */
+        if (strncmp(cls, "0x0c05", 6) != 0) continue;
+
+        snprintf(rpath, sizeof(rpath), "%s/resource", base);
+        f = fopen(rpath, "r");
+        if (!f) continue;
+        unsigned long lo, hi, flags;
+        while (fscanf(f, "%lx %lx %lx", &lo, &hi, &flags) == 3) {
+            if ((flags & 0x101u) == 0x101u) {  /* I/O space, BAR4 */
+                port = (int)(lo & ~3UL);
+                break;
+            }
+        }
+        fclose(f);
+    }
+    closedir(d);
+    return port;
+}
+
+static unsigned char pch_rd(int fd, int port, int off)
+{
+    unsigned char v = 0xff;
+    if (lseek(fd, port + off, SEEK_SET) == port + off && read(fd, &v, 1) != 1)
+        return 0xff;
+    return v;
+}
+
+static void pch_wr(int fd, int port, int off, unsigned char v)
+{
+    if (lseek(fd, port + off, SEEK_SET) == port + off) {
+        ssize_t n = write(fd, &v, 1);
+        (void)n;
+    }
+}
+
+static int pch_wait(int fd, int port)
+{
+    struct timespec ts = { 0, 50000 };
+    for (int i = 0; i < 20000; i++) {
+        unsigned s = pch_rd(fd, port, SMB_STS);
+        if (!(s & SMB_HOST_BUSY)) {
+            if (s & SMB_ERR_FLAGS) return -1;
+            if (s & SMB_INTR) return 0;
+        }
+        nanosleep(&ts, NULL);
+    }
+    return -2;
+}
+
+static int pch_byte_data(int fd, int port, unsigned dev, unsigned char cmd, int write_mode)
+{
+    unsigned s = pch_rd(fd, port, SMB_STS);
+    if (s & SMB_ALL_FLAGS) pch_wr(fd, port, SMB_STS, (unsigned char)s);
+    pch_wr(fd, port, SMB_ADD, (unsigned char)((dev << 1) | (write_mode ? 0 : 1)));
+    pch_wr(fd, port, SMB_CMD, cmd);
+    pch_wr(fd, port, SMB_CNT, SMB_BYTE_DATA);
+    pch_wr(fd, port, SMB_CNT, SMB_BYTE_DATA | SMB_START);
+    if (pch_wait(fd, port) < 0) return -1;
+    unsigned v = pch_rd(fd, port, SMB_DAT0);
+    s = pch_rd(fd, port, SMB_STS);
+    if (s & SMB_ALL_FLAGS) pch_wr(fd, port, SMB_STS, (unsigned char)s);
+    return (int)v;
+}
+
+static int read_pch_spd5_temp(void)
+{
+    int port = pch_port_base();
+    if (port < 0) return -1;
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) return -1;      /* root only: fail closed, never fake 0 C */
+
+    int found = -1;
+    for (unsigned dev = WUBU_SPD5_BASE_ADDR;
+         dev < WUBU_SPD5_BASE_ADDR + 4u && found < 0; dev++) {
+        int lo = pch_byte_data(fd, port, dev, 0x00, 0);
+        int hi = pch_byte_data(fd, port, dev, 0x01, 0);
+        if (lo < 0 || hi < 0) continue;
+        /* Byte-data reads return MR0 first (0x51), then MR1 (0x18):
+         * the hub ID is (first << 8) | second, NOT the smb_word_swapped
+         * convention (which operates on a little-endian 16-bit word). */
+        unsigned type = ((unsigned)lo << 8) | (unsigned)hi;
+        if (type != WUBU_SPD5_ID) continue;        /* 0x5118: hub with TS */
+
+        int cap = pch_byte_data(fd, port, dev, WUBU_SPD5_MR5, 0);
+        if (cap < 0 || !(cap & 0x02) || (cap & 0xfc)) continue;
+        int cfg = pch_byte_data(fd, port, dev, WUBU_SPD5_MR26, 0);
+        if (cfg < 0 || (cfg & ~0x01)) continue;
+        int res = pch_byte_data(fd, port, dev, WUBU_SPD5_MR36, 0);
+        int tlo = pch_byte_data(fd, port, dev, WUBU_SPD5_MR49, 0);
+        int thi = pch_byte_data(fd, port, dev, WUBU_SPD5_MR50, 0);
+        if (res < 0 || tlo < 0 || thi < 0) continue;
+
+        found = wubu_thermal_spd5_decode((unsigned char)(res & 0x03u),
+                                        (unsigned char)tlo,
+                                        (unsigned char)thi);
+    }
+    close(fd);
+    return found;
+}
+
+/* ---- i2c-dev fallback (works when the PCH bus is exposed to userspace) -- */
 /*
  * HWiNFO does not read a magic sysfs node: on DDR5 it asks the SPD hub on the
  * DIMM over SMBus.  The hub's register space lives at I2C address 0x50+slot.
  * We do the same thing here, in C11, with i2c-dev.  No ACPI zone is ever
  * substituted: `acpitz` is a platform sensor, not a DIMM.
  */
-#define WUBU_SPD5_BASE_ADDR   0x50u
-#define WUBU_SPD5_SLOTS       8u
-#define WUBU_SPD5_ID         0x5118u  /* MR0/MR1: hub WITH thermal sensor */
-#define WUBU_SPD5_MR5         0x05u   /* capabilities: bit 1 = TS support */
-#define WUBU_SPD5_MR26        0x1Au   /* TS config: bit 0 = 1 means disabled */
-#define WUBU_SPD5_MR36        0x24u   /* TS resolution, bits [1:0] */
-#define WUBU_SPD5_MR49        0x31u   /* TS current temperature, low byte */
-#define WUBU_SPD5_MR50        0x32u   /* TS current temperature, high byte */
-
 /* MR36[1:0] selects 9/10/11/12-bit two's-complement temperatures.  Datasheet
  * (S34HTS08AB) tables 101-105: right-shift by (3,2,1,0), sign bit at
  * (0x200,0x400,0x800,0x1000), LSB in milli-Celsius (500,250,125,62.5). */
@@ -64,14 +203,59 @@ int wubu_thermal_spd5_decode(unsigned char res, unsigned char lo,
     return c;
 }
 
-/* One byte from the hub's REGISTER space.  Do NOT use a plain DDR4 SPD dump:
- * these registers are behind MR11/MR18 hub routing, not EEPROM page 0. */
-static int spd5_reg(int fd, unsigned char reg)
+/* SMBus transactions, NOT write(fd)+read(fd): the latter inserts a STOP
+ * between pointer and data and resets the SPD5 register pointer.  The kernel
+ * spd5118 driver uses i2c_smbus_* (repeated START), so we do too via the
+ * I2C_SMBUS ioctl.  union i2c_smbus_data.word is little-endian on the wire. */
+static int smb_xfer(int fd, char read_write, unsigned char cmd,
+                    int size, union i2c_smbus_data *data)
 {
-    unsigned char addr = reg, val = 0;
-    if (write(fd, &addr, 1) != 1) return -1;
-    if (read(fd, &val, 1) != 1) return -1;
-    return (int)val;
+    struct i2c_smbus_ioctl_data args;
+    args.read_write = read_write;
+    args.command = cmd;
+    args.size = size;
+    args.data = data;
+    return ioctl(fd, I2C_SMBUS, &args);
+}
+
+static int smb_byte(int fd, unsigned char reg, unsigned char *out)
+{
+    union i2c_smbus_data data;
+    memset(&data, 0, sizeof(data));
+    if (smb_xfer(fd, I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE_DATA, &data) < 0)
+        return -1;
+    *out = data.byte;
+    return 0;
+}
+
+/* The kernel reads MR0:MR1 with read_word_swapped: first byte on the wire is
+ * the high byte.  i2c_smbus_data.word is little-endian, so swap it here. */
+static int smb_word_swapped(int fd, unsigned char reg, unsigned *out)
+{
+    union i2c_smbus_data data;
+    memset(&data, 0, sizeof(data));
+    if (smb_xfer(fd, I2C_SMBUS_READ, reg, I2C_SMBUS_WORD_DATA, &data) < 0)
+        return -1;
+    *out = ((unsigned)data.word << 8) | ((unsigned)data.word >> 8);
+    return 0;
+}
+
+static int smb_word_le(int fd, unsigned char reg, unsigned *out)
+{
+    union i2c_smbus_data data;
+    memset(&data, 0, sizeof(data));
+    if (smb_xfer(fd, I2C_SMBUS_READ, reg, I2C_SMBUS_WORD_DATA, &data) < 0)
+        return -1;
+    *out = (unsigned)data.word;
+    return 0;
+}
+
+static int smb_write_byte(int fd, unsigned char reg, unsigned char val)
+{
+    union i2c_smbus_data data;
+    memset(&data, 0, sizeof(data));
+    data.byte = val;
+    return smb_xfer(fd, I2C_SMBUS_WRITE, reg, I2C_SMBUS_BYTE_DATA, &data);
 }
 
 static int spd5_temp_on_bus(const char *path)
@@ -83,23 +267,38 @@ static int spd5_temp_on_bus(const char *path)
     for (unsigned slot = 0; slot < WUBU_SPD5_SLOTS; slot++) {
         if (ioctl(fd, I2C_SLAVE, WUBU_SPD5_BASE_ADDR + slot) < 0) continue;
 
-        int lo = spd5_reg(fd, 0x00), hi = spd5_reg(fd, 0x01);
-        if (lo < 0 || hi < 0) continue;
-        if ((((unsigned)hi << 8) | (unsigned)lo) != WUBU_SPD5_ID) continue;
+        /* This is the kernel driver's spd5118_i2c_init() sequence. */
+        unsigned type = 0;
+        if (smb_word_swapped(fd, 0x00, &type) < 0) continue;
+        /* Some hubs report 0 until page 0 is selected; accept 0 or 0x5118. */
+        if (type != 0 && type != WUBU_SPD5_ID) continue;
 
-        int cap = spd5_reg(fd, WUBU_SPD5_MR5);
-        if (cap < 0 || !(cap & 0x02)) continue;       /* no TS on this hub */
-        int cfg = spd5_reg(fd, WUBU_SPD5_MR26);
-        if (cfg < 0 || (cfg & 0x01)) continue;        /* TS disabled: no data */
-        int res = spd5_reg(fd, WUBU_SPD5_MR36);
-        if (res < 0) continue;
-        int tlo = spd5_reg(fd, WUBU_SPD5_MR49);
-        int thi = spd5_reg(fd, WUBU_SPD5_MR50);
-        if (tlo < 0 || thi < 0) continue;
+        unsigned char mode = 0;
+        if (smb_byte(fd, WUBU_SPD5_MR11, &mode) < 0) continue;
+        if (mode & 0x08) continue;               /* 2-byte addressing: no */
+        /* Unconditional write both selects page 0 AND proves the controller
+         * is not BIOS-blocked from writing SPD (kernel driver does this). */
+        if (smb_write_byte(fd, WUBU_SPD5_MR11,
+                           (unsigned char)(mode & ~0x07u)) < 0) continue;
 
-        found = wubu_thermal_spd5_decode((unsigned char)res,
-                                        (unsigned char)tlo,
-                                        (unsigned char)thi);
+        if (type == 0 && smb_word_swapped(fd, 0x00, &type) < 0) continue;
+        if (type != WUBU_SPD5_ID) continue;
+
+        unsigned char cap = 0;
+        if (smb_byte(fd, WUBU_SPD5_MR5, &cap) < 0) continue;
+        if (!(cap & 0x02) || (cap & 0xfc)) continue;  /* no TS / unknown bits */
+        unsigned char cfg = 0;
+        if (smb_byte(fd, WUBU_SPD5_MR26, &cfg) < 0) continue;
+        if (cfg & ~0x01) continue;                /* only TS_DISABLE allowed */
+
+        unsigned char res = 0;
+        if (smb_byte(fd, WUBU_SPD5_MR36, &res) < 0) continue;
+        unsigned raw = 0;
+        if (smb_word_le(fd, WUBU_SPD5_MR49, &raw) < 0) continue;
+
+        found = wubu_thermal_spd5_decode((unsigned char)(res & 0x03u),
+                                        (unsigned char)(raw & 0xffu),
+                                        (unsigned char)(raw >> 8));
         break;
     }
     close(fd);
@@ -348,9 +547,11 @@ static int read_ram_temp(void)
     int labelled = read_ram_label_scan();
     if (labelled >= 0) return labelled;
 
-    /* 3. DDR5 SPD hub over SMBus -- this is what HWiNFO reads. The source is
-     *    a DIMM PCB sensor, not the DRAM cells and never an ACPI zone. */
-    int spd = read_spd5_temp();
+    /* 3. DDR5 SPD hub.  Prefer the Intel PCH SMBus path (HWiNFO-class);
+     *    i2c-dev is the fallback for systems that expose the PCH bus. */
+    int spd = read_pch_spd5_temp();
+    if (spd >= 0) return spd;
+    spd = read_spd5_temp();
     if (spd >= 0) return spd;
 
     /* 4. Embedded Controller, at an explicitly configured register offset.
