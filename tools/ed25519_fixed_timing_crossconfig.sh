@@ -43,7 +43,7 @@ MODE=gate
 # (control |t|=7.014 < 10).  Raise the SAMPLE COUNT only -- the decision
 # thresholds stay fixed at |t_shipped|<=10, |t_control|>10, one pass, no
 # retries.  Independent standalone runs keep the probe's 64-sample default.
-export WUBU_TIMING_NSAMP="${WUBU_TIMING_NSAMP:-256}"
+export WUBU_TIMING_NSAMP="${WUBU_TIMING_NSAMP:-512}"
 
 TIMING_GATE="$ROOT/tools/ed25519_fixed_timing_gate.sh"
 TIMING_NEGCTL="$ROOT/tools/ed25519_fixed_timing_negctl.sh"
