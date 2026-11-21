@@ -15,7 +15,11 @@
  * ring, 64 TRBs each.
  */
 #include "wubu_xhci.h"
-#include "wubu_pci.h"   /* wubu_pci_dev_t + the config-space accessors */
+#include "wubu_drv.h"   /* DRV10: the single BAR->VMM mapping owner */
+
+/* xHCI MMIO window. The registry maps the device's BAR0 here (post-vmm-
+ * init); the driver dereferences the VA, never the raw physical BAR. */
+#define WUBU_XHCI_MMIO_VA 0xffffffff8d000000ull
 
 #define XHCI_TRB_SIZE 16
 #define XHCI_RING_TRBS 64
@@ -66,17 +70,16 @@ static uint32_t g_cmd_dequeue;   /* TRB index */
 static uint8_t g_ev_ring[XHCI_EV_TRBS * XHCI_TRB_SIZE] __attribute__((aligned(64)));
 static uint8_t g_erst[16] __attribute__((aligned(64)));
 
-static int xhci_pci_bar0(uint64_t *bar)
+/* D2: find the xHCI device in the registry and take its MAPPED MMIO VA.
+ * The old path read BAR0 from config space and dereferenced the raw
+ * physical address as a VA (broken once paging is on) -- and its
+ * `bar0 & 1` test was inverted: bit 0 SET means I/O space, not MMIO.
+ * No second PCI scan here; the registry owns discovery and mapping. */
+static int xhci_registry_mmio(uint64_t *va)
 {
-    /* scan the bus for the USB controller (class 0x0C/0x03), read BAR0 */
-    wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
-    int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
-    int i = wubu_pci_find_class(devs, n, 0x0C, 0x03);
-    if (i < 0) return -1;
-    uint32_t bar0 = wubu_pci_read32(devs[i].bus, devs[i].dev, devs[i].fn, 0x10);
-    if (!(bar0 & 1)) return -1;                 /* must be MMIO */
-    *bar = bar0 & 0xFFFFFFF0ull;
-    return 0;
+    const wubu_drv_dev_t *dev = wubu_drv_find_class(0x0C, 0x03);
+    if (!dev) return -1;
+    return wubu_drv_map_mmio(dev, WUBU_XHCI_MMIO_VA, va);
 }
 
 int wubu_xhci_probe_regs(uint64_t mmio, wubu_xhci_t *out)
@@ -104,12 +107,10 @@ int wubu_xhci_probe_regs(uint64_t mmio, wubu_xhci_t *out)
 
 int wubu_xhci_probe(wubu_xhci_t *out)
 {
-    uint64_t bar = 0;
-    if (xhci_pci_bar0(&bar) != 0) {
-        if (out) out->present = 0;
-        return 0;
-    }
-    return wubu_xhci_probe_regs(bar, out);
+    uint64_t va = 0;
+    if (out) out->present = 0;
+    if (xhci_registry_mmio(&va) != 0) return 0;
+    return wubu_xhci_probe_regs(va, out);
 }
 
 int wubu_xhci_start(wubu_xhci_t *xh)

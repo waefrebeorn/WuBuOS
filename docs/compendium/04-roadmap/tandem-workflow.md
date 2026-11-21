@@ -72,11 +72,18 @@ phys/flags/VA, no-BAR and I-O-BAR rejection, 64-bit assembly, fail-soft
 failure, and idempotent late pass. `make test_drv` exits 0. Metal boot log
 confirms `WuBuOS: 1 device MMIO BARs mapped` (real behavior, not a no-op).
 
-**D2 — one real consumer of D1.**
-Pick one existing driver (virtio-blk is already the persistence-proven
-path) and have it obtain its MMIO window through `wubu_drv_map_mmio`
-instead of an ad-hoc map. Gate: `make virtio-persist-gate` stays green and
-the gate asserts the window came from the registry owner.
+**D2 — one real consumer of D1 (DELIVERED 2026-11-21, `leg/d2-virtio-consumer`).**
+`wubu_xhci_probe()` was dereferencing a raw physical BAR as a VA (broken
+once paging is on), and its `bar0 & 1` test was inverted — bit 0 SET means
+I/O space, not MMIO. It now finds its device through the one registry
+(`wubu_drv_find_class(0x0C,0x03)`) and obtains a mapped VA via D1's
+`wubu_drv_map_mmio()` at its own high-half slot. The duplicate PCI scan is
+removed, not left as a second path. Gate: `test_xhci` stubs the registry
+owner and asserts `probe()` makes exactly one map call, uses the returned
+VA, and returns clean `absent` with zero map calls when no device exists.
+Note: D1 maps one 4K page per device — sufficient for xHCI capability/
+operational registers, but a driver needing the full BAR aperture must
+extend the owner to map a range (open, not claimed here).
 
 **D3 — contract alignment, not adoption.**
 Add a shared, documented driver-contract header in WuBuKernel that states

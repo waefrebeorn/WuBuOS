@@ -81,6 +81,11 @@ int wubu_drv_probe(void);
 /* DRV7: find a bound device by driver name. */
 const wubu_drv_dev_t *wubu_drv_find(const char *drv_name);
 
+/* DRV7b: find a bound device by its PCI class/subclass (e.g. 0x0C/0x03
+ * for xHCI). Lets a driver obtain its own device from the one registry
+ * instead of running a second PCI scan. */
+const wubu_drv_dev_t *wubu_drv_find_class(uint8_t class_code, uint8_t subclass);
+
 /* DRV8: the boot-log summary. */
 int wubu_drv_summary(char *out, size_t cap);
 

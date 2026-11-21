@@ -229,6 +229,17 @@ const wubu_drv_dev_t *wubu_drv_find(const char *drv_name)
     return NULL;
 }
 
+/* DRV7b: find a bound device by PCI class/subclass. */
+const wubu_drv_dev_t *wubu_drv_find_class(uint8_t class_code, uint8_t subclass)
+{
+    for (int i = 0; i < g_ndev; i++) {
+        if (g_devs[i].class_code == class_code &&
+            (!subclass || g_devs[i].subclass == subclass))
+            return &g_devs[i];
+    }
+    return NULL;
+}
+
 /* DRV8: the boot-log summary. */
 int wubu_drv_summary(char *out, size_t cap)
 {

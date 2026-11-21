@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "wubu_xhci.h"
+#include "wubu_drv.h"
 #include "wubu_xhci.c"
 
 static int failures = 0;
@@ -14,13 +15,27 @@ static int failures = 0;
     printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); failures++; \
 } } while (0)
 
-/* the PCI path is metal-only: stub the real symbols to "no controller"
- * so probe() returns cleanly */
-int wubu_pci_scan(wubu_pci_dev_t *d, int n) { (void)d; (void)n; return 0; }
-int wubu_pci_find_class(wubu_pci_dev_t *d, int n, uint8_t c, uint8_t s)
-{ (void)d; (void)n; (void)c; (void)s; return -1; }
-uint32_t wubu_pci_read32(uint8_t b, uint8_t d, uint8_t f, uint8_t o)
-{ (void)b; (void)d; (void)f; (void)o; return 0; }
+/* D2: stub the registry owner. probe() must go through these, never
+ * dereference a raw physical BAR itself. */
+static wubu_drv_dev_t g_fake_xhci_dev;
+static int g_fake_xhci_present;
+static uint64_t g_fake_map_va;
+static int g_fake_map_calls;
+
+const wubu_drv_dev_t *wubu_drv_find_class(uint8_t c, uint8_t s)
+{
+    (void)c; (void)s;
+    return g_fake_xhci_present ? &g_fake_xhci_dev : NULL;
+}
+
+int wubu_drv_map_mmio(const wubu_drv_dev_t *d, uint64_t va, uint64_t *out)
+{
+    (void)d; (void)va;
+    g_fake_map_calls++;
+    if (!out) return -1;
+    *out = g_fake_map_va;
+    return 0;
+}
 
 int main(void)
 {
@@ -47,6 +62,29 @@ int main(void)
     CHECK(x.op_base == (uint64_t)(uintptr_t)mm + 32);
     CHECK(x.db_off == 0x1000);
     CHECK(x.rt_off == 0x2000);
+
+    /* D2: probe() must obtain its MMIO VA from the registry owner. */
+    memset(&g_fake_xhci_dev, 0, sizeof(g_fake_xhci_dev));
+    g_fake_xhci_dev.class_code = 0x0C;
+    g_fake_xhci_dev.subclass = 0x03;
+    g_fake_xhci_dev.bar0 = (uint64_t)(uintptr_t)mm;  /* raw phys fixture */
+    g_fake_map_va = (uint64_t)(uintptr_t)mm;         /* mapped VA fixture */
+    g_fake_xhci_present = 1;
+    g_fake_map_calls = 0;
+    wubu_xhci_t px;
+    CHECK(wubu_xhci_probe(&px) == 0);
+    CHECK(px.present == 1);
+    CHECK(g_fake_map_calls == 1);
+    CHECK(px.mmio_base == (uint64_t)(uintptr_t)mm);
+    CHECK(px.op_base == (uint64_t)(uintptr_t)mm + 32);
+    /* negative: no registry device -> clean absent, mapper never called */
+    g_fake_xhci_present = 0;
+    g_fake_map_calls = 0;
+    memset(&px, 0, sizeof(px));
+    CHECK(wubu_xhci_probe(&px) == 0);
+    CHECK(px.present == 0);
+    CHECK(g_fake_map_calls == 0);
+    printf("test_xhci: D2 registry->mapped-VA probe PASS\n");
 
     /* the start sequence runs against the synthetic op registers */
     CHECK(wubu_xhci_start(&x) == 0);
