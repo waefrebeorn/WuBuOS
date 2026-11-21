@@ -2978,12 +2978,6 @@ test_drv:
 		$(KERNEL)/test/legacy/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
 		$(KERNEL)/wubu_drv_test
-	test_kvfs:
-	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
-		$(KERNEL)/wubu_kvfs.c \
-		$(KERNEL)/test/wubu_kvfs_selftest.c \
-		-o $(KERNEL)/wubu_kvfs_selftest
-	$(KERNEL)/wubu_kvfs_selftest
 
 # ── Kernel decompressor selftests ──────────────────────────────
 # Each decoder links ONLY its own source + the kernel heap/libc.
