@@ -32,10 +32,15 @@
  * tls_base + S + A (the guest dereferences it directly -- the host block base
  * plays the role of the thread pointer), R_X86_64_DTPMOD64 writes a bounded
  * module id (1 for the main image), and R_X86_64_DTPOFF32 writes S + A as a
- * 32-bit in-block offset.  Every offset is range-checked against the block.
- * STT_TLS symbols are NEVER accepted by the plain-address resolver, and all
- * other TLS models (TLSGD, TLSLD, GOTTPOFF, TPOFF32, TLSDESC, ...) plus
- * undefined/oversized TLS symbols are hard rejects (fail closed).
+ * 32-bit in-block offset.  A SYMBOL-LESS (STN_UNDEF) TPOFF64 -- the form real
+ * glibc libc.so.6 uses for its own early TLS slots -- is bounded by the
+ * DEFINED MODULE TLS BASE instead: S = 0, so the word written is tls_base + A.
+ * Its addend must be a non-negative in-block offset that still holds one word;
+ * out-of-range addends fail closed.  Every offset is range-checked against
+ * the block.  STT_TLS symbols are NEVER accepted by the plain-address
+ * resolver, and all other TLS models (TLSGD, TLSLD, GOTTPOFF, TPOFF32,
+ * TLSDESC, ...) plus undefined/oversized TLS symbols are hard rejects (fail
+ * closed).
  *
  * Two bounded enhancements are available as OPT-IN flags (both OFF by
  * default, so every pre-existing guest behaviour is unchanged):
@@ -62,8 +67,12 @@
  * by EXPLICIT resource limits (per-image total records, raw chain-byte
  * budget, a compile-time VslVerCtx stack bound and per-array caps); the old
  * 32/32 caps are raised so a real-sized glibc table (41 VERDEFs) parses.  A
- * symbol-less TLS relocation from a real glibc provider is still refused
- * with an exact diagnostic -- the bounded TLS ABI is unmodeled.
+ * symbol-less TPOFF64 from a real glibc provider is now applied against the
+ * defined module TLS base; 46 host IRELATIVE resolver entries (42 unique link
+ * addresses) are registered for the same fixture as bounded stand-ins.  The
+ * real glibc libc.so.6 fixture now advances to its NEXT exact boundary: an
+ * unresolved versioned ld.so import (_dl_argv@GLIBC_PRIVATE), which is still
+ * recorded as a verified negative.
  *
  * DT_NEEDED is supported ONLY in this bounded form: DT_NEEDED sonames are a
  * plain basename found in a bounded per-image search-directory list (or the
@@ -176,6 +185,11 @@ uint64_t vsl_dyn_host_symbol(const char *name);
 uint64_t vsl_dyn_shim_call_count(void);   /* vsl_test_shim invocations */
 uint64_t vsl_dyn_write_call_count(void);  /* host write-shim invocations */
 uint64_t vsl_dyn_ifunc_call_count(void);  /* IRELATIVE host resolver calls */
+/* Bounded stand-in value returned for the real-glibc IRELATIVE resolver
+ * addresses registered in the host table.  The real resolvers pick guest
+ * code at run time; the bounded model never runs guest bytes during
+ * relocation, so this fixed value is written instead. */
+uint64_t vsl_dyn_ifunc_libc_value(void);
 
 /* Base of the HOST-provided TLS block used by the main image of the last
  * run (0 before any run).  Exposed so a gate can assert the exact address a

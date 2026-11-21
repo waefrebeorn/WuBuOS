@@ -332,9 +332,42 @@ typedef struct { uint64_t link_addr; VslIfuncResolver fn; } VslIfuncEntry;
 static uint64_t vsl_dyn_ifunc_zero_fn(void) { return 0; }
 #define VSL_LDSO_IRELATIVE_RESOLVER 0x1a8d0ULL
 
+/* REAL glibc libc.so.6 carries 46 IRELATIVE relocations (42 unique resolver
+ * link addresses) that select optimized implementations of internal string
+ * and memory routines from CPU features.  The bounded model never executes
+ * guest bytes during relocation, so each of those link addresses is bound
+ * here to ONE host stand-in that returns a fixed, documented value.  This is
+ * NOT a faithful IFUNC implementation -- the real resolver returns a guest
+ * code address chosen at run time; a guest that actually calls through one
+ * of these GOT slots is outside the bounded model.  Registering the exact
+ * addresses makes the table sufficient to advance the real libc fixture past
+ * these relocations without ever guessing a resolver result. */
+#define VSL_DYN_IFUNC_LIBC_STANDIN 0x56534c4946434c42ULL /* "VSLIFCLB" */
+static uint64_t vsl_dyn_ifunc_libc_fn(void) {
+    g_dyn_ifunc_calls++;
+    return VSL_DYN_IFUNC_LIBC_STANDIN;
+}
+uint64_t vsl_dyn_ifunc_libc_value(void) { return VSL_DYN_IFUNC_LIBC_STANDIN; }
+
+/* Link addresses extracted from the real glibc 2.39 libc.so.6 fixture with
+ * `readelf -rW` (all 42 unique R_X86_64_IRELATIVE addends).  A resolver not
+ * listed here still fails closed. */
+#define VSL_IFUNC_LIBC(addr) { (addr), &vsl_dyn_ifunc_libc_fn },
+
 static const VslIfuncEntry g_ifunc_table[] = {
     { 0x1180ULL,                   &vsl_dyn_ifunc_magic_fn },
     { VSL_LDSO_IRELATIVE_RESOLVER, &vsl_dyn_ifunc_zero_fn  },
+    VSL_IFUNC_LIBC(0x137650ULL) VSL_IFUNC_LIBC(0x137770ULL) VSL_IFUNC_LIBC(0x137890ULL) VSL_IFUNC_LIBC(0x1379b0ULL)
+    VSL_IFUNC_LIBC(0xb16b0ULL) VSL_IFUNC_LIBC(0xb1730ULL) VSL_IFUNC_LIBC(0xb1820ULL) VSL_IFUNC_LIBC(0xb20c0ULL)
+    VSL_IFUNC_LIBC(0xb21e0ULL) VSL_IFUNC_LIBC(0xb2300ULL) VSL_IFUNC_LIBC(0xb2390ULL) VSL_IFUNC_LIBC(0xb2540ULL)
+    VSL_IFUNC_LIBC(0xb25b0ULL) VSL_IFUNC_LIBC(0xb2610ULL) VSL_IFUNC_LIBC(0xb26b0ULL) VSL_IFUNC_LIBC(0xb3120ULL)
+    VSL_IFUNC_LIBC(0xb3190ULL) VSL_IFUNC_LIBC(0xb3210ULL) VSL_IFUNC_LIBC(0xb32a0ULL) VSL_IFUNC_LIBC(0xb43a0ULL)
+    VSL_IFUNC_LIBC(0xb4410ULL) VSL_IFUNC_LIBC(0xb4dc0ULL) VSL_IFUNC_LIBC(0xb4e50ULL) VSL_IFUNC_LIBC(0xb4ef0ULL)
+    VSL_IFUNC_LIBC(0xb4ff0ULL) VSL_IFUNC_LIBC(0xb5090ULL) VSL_IFUNC_LIBC(0xb5150ULL) VSL_IFUNC_LIBC(0xb51e0ULL)
+    VSL_IFUNC_LIBC(0xb5210ULL) VSL_IFUNC_LIBC(0xb53e0ULL) VSL_IFUNC_LIBC(0xc87b0ULL) VSL_IFUNC_LIBC(0xca420ULL)
+    VSL_IFUNC_LIBC(0xca980ULL) VSL_IFUNC_LIBC(0xca9e0ULL) VSL_IFUNC_LIBC(0xcaa90ULL) VSL_IFUNC_LIBC(0xcb9f0ULL)
+    VSL_IFUNC_LIBC(0xcbc20ULL) VSL_IFUNC_LIBC(0xcc450ULL) VSL_IFUNC_LIBC(0xcc4b0ULL) VSL_IFUNC_LIBC(0xd8fb0ULL)
+    VSL_IFUNC_LIBC(0xd9030ULL) VSL_IFUNC_LIBC(0xd90e0ULL)
 };
 
 /* Exact, bounded diagnostic for the FIRST relocation that could not be
@@ -1637,15 +1670,16 @@ static int ex_resolve_tls(const uint8_t *f, size_t fsz,
     return 0;
 }
 
-/* Record the exact reason a bounded TLS relocation could not be applied.  A
- * real glibc libc.so.6 contains e.g. R_X86_64_TPOFF64 against STN_UNDEF
- * (symbol index 0): that form has no defined STT_TLS source for the bounded
- * resolver, so it is rejected with this precise diagnostic instead of an
- * empty ERR_RELOC. */
+/* Record the exact reason a bounded TLS relocation could not be applied.
+ * A symbol-based TLS relocation needs a defined STT_TLS source; a symbol-
+ * less TPOFF64 is instead bounded by the module's TLS base + addend.  Any
+ * other out-of-range / malformed form is rejected with this precise
+ * diagnostic instead of an empty ERR_RELOC. */
 static int ex_tls_fail(uint32_t type, uint32_t symidx, uint64_t r_offset) {
     snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
              "TLS relocation type %u symbol %u at offset 0x%llx has no bounded "
-             "defined STT_TLS source (real glibc TLS ABI unmodeled)",
+             "defined STT_TLS source or in-block addend "
+             "(real glibc TLS ABI unmodeled)",
              type, symidx, (unsigned long long)r_offset);
     return -1;
 }
@@ -1748,9 +1782,21 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
      * model falls through to `default` and fails closed as unsupported. */
     case EX_R_X86_64_TPOFF64: {
         uint64_t off;
-        if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab, syment,
-                           symcount, symidx, addend, vc, &off) != 0)
+        if (symidx == 0) {
+            /* Symbol-less (STN_UNDEF) TPOFF64.  Real glibc libc.so.6 uses
+             * these for its own early TLS slots: there is no Elf64_Sym to
+             * look up, so the DEFINED MODULE TLS BASE is the only source.
+             * S = 0, hence the value written is tls_base + A.  Addend must
+             * be a non-negative in-block offset that still holds one word;
+             * anything else fails closed (no guessed TLS model). */
+            if (addend < 0 || (uint64_t)addend > EX_TLS_BLOCK_MAX - 8)
+                return ex_tls_fail(type, symidx, r_offset);
+            off = (uint64_t)addend;
+        } else if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab,
+                                  syment, symcount, symidx, addend, vc,
+                                  &off) != 0) {
             return ex_tls_fail(type, symidx, r_offset);
+        }
         if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
         /* The host block base plays the thread-pointer role; the guest
          * dereferences this address directly (no %fs, no glibc ABI). */

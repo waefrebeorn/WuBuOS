@@ -17,13 +17,18 @@
  * host bytes into guest memory and whose R_X86_64_IRELATIVE resolves through
  * the bounded host IFUNC table to a real function; copied bytes, resolved
  * function output and call counters are asserted, with the pre-change rule
- * as negative control.
+ * as negative control.  The 42 unique IRELATIVE resolver link addresses of
+ * the real glibc libc.so.6 fixture are also registered in the bounded host
+ * table and each is proven to resolve to a documented stand-in value.
  *
  * TLS leg: a hand-built ET_DYN applies bounded TPOFF64/DTPMOD64/DTPOFF32
  * relocations against a defined STT_TLS symbol and dereferences a HOST-
  * provided TLS block.  Two runs with per-image seeds assert distinct TLS
- * values; the pre-change RELATIVE-only rule rejects the same fixture, and
- * non-TLS symbols / out-of-range offsets / other TLS models fail closed.
+ * values; a symbol-less (STN_UNDEF) TPOFF64 is bounded by the defined module
+ * TLS base (S = 0, word = tls_base + addend) and its exact dereferenced
+ * address is asserted; the pre-change RELATIVE-only rule rejects the same
+ * fixture, and non-TLS symbols / out-of-range offsets / other TLS models /
+ * out-of-range symbol-less addends fail closed.
  *
  * DT_NEEDED leg: a real gcc -shared main object whose DT_NEEDED names a
  * freestanding ET_DYN dependency in the allow-listed guest directory.  The
@@ -1345,6 +1350,56 @@ int main(int argc, char **argv) {
               "unregistered IFUNC resolver rejected (fail closed)");
     }
 
+    /* (n2) Real-glibc IRELATIVE resolver table.  The 42 unique resolver link
+     * addresses from the real libc.so.6 fixture (46 relocations) must each be
+     * bound through the bounded host table -- no guest byte runs at relocate
+     * time.  A single-IRELATIVE hand-built ET_DYN is retargeted to each
+     * address in turn; the guest writes the documented host stand-in value. */
+    {
+        static const uint64_t libc_resolvers[] = {
+            0x137650ULL, 0x137770ULL, 0x137890ULL, 0x1379b0ULL,
+            0xb16b0ULL,  0xb1730ULL,  0xb1820ULL,  0xb20c0ULL,
+            0xb21e0ULL,  0xb2300ULL,  0xb2390ULL,  0xb2540ULL,
+            0xb25b0ULL,  0xb2610ULL,  0xb26b0ULL,  0xb3120ULL,
+            0xb3190ULL,  0xb3210ULL,  0xb32a0ULL,  0xb43a0ULL,
+            0xb4410ULL,  0xb4dc0ULL,  0xb4e50ULL,  0xb4ef0ULL,
+            0xb4ff0ULL,  0xb5090ULL,  0xb5150ULL,  0xb51e0ULL,
+            0xb5210ULL,  0xb53e0ULL,  0xc87b0ULL,  0xca420ULL,
+            0xca980ULL,  0xca9e0ULL,  0xcaa90ULL,  0xcb9f0ULL,
+            0xcbc20ULL,  0xcc450ULL,  0xcc4b0ULL,  0xd8fb0ULL,
+            0xd9030ULL,  0xd90e0ULL
+        };
+        const size_t nres = sizeof(libc_resolvers) / sizeof(libc_resolvers[0]);
+        uint8_t base[0x1600], img[0x1600];
+        size_t bn = build_copy_irelative_elf(base);
+        const uint64_t magic = vsl_dyn_ifunc_libc_value();
+        uint64_t before = vsl_dyn_ifunc_call_count();
+        size_t ok_count = 0;
+        for (size_t i = 0; i < nres; i++) {
+            memcpy(img, base, bn);
+            memcpy(img + 0x1528, &libc_resolvers[i], 8); /* RELA[1] addend */
+            rc = vsl_exec_elf_bytes(img, bn, &r);
+            if (rc == VSL_EXEC_OK && r.exit_code == 0 &&
+                r.output_len == 34 &&
+                memcmp(r.output + 16, &magic, 8) == 0) ok_count++;
+            else
+                printf("[gate n2] resolver 0x%llx: rc=%d status=%d "
+                       "reloc_failure=\"%s\"\n",
+                       (unsigned long long)libc_resolvers[i], rc, r.status,
+                       r.reloc_failure);
+        }
+        printf("[gate n2] real-glibc IFUNC table: %zu/%zu resolvers bound, "
+               "host calls +%llu, standin=0x%llx\n",
+               ok_count, nres,
+               (unsigned long long)(vsl_dyn_ifunc_call_count() - before),
+               (unsigned long long)magic);
+        CHECK(nres == 42, "all 42 unique real-glibc resolver addresses listed");
+        CHECK(ok_count == nres,
+              "every real-glibc IRELATIVE resolver bound via host table");
+        CHECK(vsl_dyn_ifunc_call_count() == before + nres,
+              "one bounded host resolver call per real-glibc resolver entry");
+    }
+
     /* (o) Bounded TLS differential gate.  A hand-built ET_DYN uses TPOFF64
      *     to dereference a host-provided TLS word and also applies DTPMOD64
      *     and DTPOFF32.  The host seeds the block per image; two runs with
@@ -1398,6 +1453,49 @@ int main(int argc, char **argv) {
         }
         CHECK(outA != outB && outA == tagA && outB == tagB,
               "per-image TLS values differ across two runs");
+
+        /* Symbol-less (STN_UNDEF) TPOFF64: the DEFINED MODULE TLS BASE is the
+         * only source (S = 0), so the written word must be tls_base + A.
+         * Mutate RELA[0] of the same fixture to sym 0 / addend 0x40 and seed
+         * that offset: the guest dereferences the exact written address. */
+        {
+            uint8_t symless[0x1600];
+            memcpy(symless, img, n);
+            uint64_t ri = 18;                       /* sym 0, R_X86_64_TPOFF64 */
+            uint64_t add = 0x40;
+            memcpy(symless + 0x1508, &ri, 8);       /* RELA[0].r_info */
+            memcpy(symless + 0x1510, &add, 8);      /* RELA[0].r_addend */
+            uint8_t seed[0x48] = {0};               /* 0x40 + 8-byte tag */
+            const uint64_t tagS = 0x56534c54584c5331ULL; /* "VSLTLS1" */
+            memcpy(seed + 0x40, &tagS, 8);
+            VslImageCfg cfgS = { NULL, 0, 0, seed, sizeof(seed), NULL };
+            rc = vsl_exec_image(symless, n, &cfgS, &r);
+            printf("[gate o] symbol-less TPOFF64: rc=%d exit=%d out_len=%zu "
+                   "tls_relocs=%u seen=0x%llx\n",
+                   rc, r.exit_code, r.output_len, r.tls_relocations,
+                   (unsigned long long)(r.output_len >= 8 ?
+                                        *(uint64_t *)r.output : 0));
+            CHECK(rc == VSL_EXEC_OK && r.exit_code == 0,
+                  "symbol-less TPOFF64 image runs to exit(0)");
+            CHECK(r.output_len == 20 &&
+                  *(uint64_t *)r.output == tagS,
+                  "symbol-less TPOFF64 dereferenced tls_base + addend exactly");
+            CHECK(r.tls_relocations == 3,
+                  "symbol-less TPOFF64 counted as an applied TLS relocation");
+            CHECK(r.tls_base == vsl_tls_base() && r.tls_base != 0,
+                  "symbol-less path uses the defined module TLS base");
+
+            /* Fail closed: an out-of-block addend is not a guessed TLS model. */
+            uint64_t far = 0x200;                   /* > EX_TLS_BLOCK_MAX - 8 */
+            memcpy(symless + 0x1510, &far, 8);
+            rc = vsl_exec_elf_bytes(symless, n, &r);
+            printf("[gate o] symbol-less TPOFF64 out-of-range: rc=%d "
+                   "status=%d reloc_failure=\"%s\"\n",
+                   rc, r.status, r.reloc_failure);
+            CHECK(rc == VSL_EXEC_ERR_RELOC &&
+                  strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") != NULL,
+                  "out-of-range symbol-less TPOFF64 addend fails closed");
+        }
 
         /* Fail-closed: a non-STT_TLS symbol cannot satisfy a TLS relocation. */
         {
@@ -2420,10 +2518,13 @@ int main(int argc, char **argv) {
                 free(mut);
             }
         }
-        /* NEG C: a REAL glibc libc.so.6 provider is refused, so a full
-         * host-libc run is an exact verified negative, not a silent skip.
-         * realroot is searched FIRST for the provider but has no ld.so, so
-         * the interpreter still resolves from the good rootfs. */
+        /* NEG C: a REAL glibc libc.so.6 provider is refused, but now at its
+         * NEXT exact boundary, not at the symbol-less TPOFF64 that this leg
+         * closes.  After the 15 sym-less TPOFF64 relocations are applied
+         * against the defined module TLS base, relocation advances to an
+         * unresolved versioned ld.so import (_dl_argv@GLIBC_PRIVATE).  realroot
+         * is searched FIRST for the provider but has no ld.so, so the
+         * interpreter still resolves from the good rootfs. */
         char realroot[512];
         snprintf(realroot, sizeof(realroot), "%s/glibc_rootfs_reallibc", dir);
         const char *real_first[] = { realroot, root, NULL };
@@ -2434,8 +2535,11 @@ int main(int argc, char **argv) {
                "reloc_failure=\"%s\"\n",
                rc_real, r.status, r.reloc_failure);
         CHECK(rc_real == VSL_EXEC_ERR_RELOC &&
-              strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") != NULL,
-              "real glibc libc.so.6 provider refused at the exact TLS boundary");
+              strstr(r.reloc_failure, "symbol '_dl_argv'") != NULL &&
+              strstr(r.reloc_failure, "is unresolved") != NULL,
+              "real libc advances past symbol-less TPOFF64 to next exact boundary");
+        CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
+              "symbol-less TPOFF64 is no longer the blocking boundary");
 
         vsl_dyn_set_libc_rootfs(0);
         vsl_dyn_set_interp_bind_main(0);
@@ -2454,9 +2558,10 @@ int main(int argc, char **argv) {
  *     GLOB_DAT __libc_start_main@GLIBC_2.34, and guest_copy's COPY
  *     optind@GLIBC_2.2.5 -- all above the old cap;
  *   - the REAL host libc.so.6 provider is then attempted for the SAME hello
- *     world.  It parses past the raised caps and fails at the next exact
- *     boundary (a symbol-less R_X86_64_TPOFF64), recorded as a verified
- *     negative rather than a silent skip. */
+ *     world.  It parses past the raised caps, applies the symbol-less TPOFF64
+ *     relocations against the defined module TLS base, and fails at the next
+ *     exact boundary (the versioned ld.so import _dl_argv@GLIBC_PRIVATE),
+ *     recorded as a verified negative rather than a silent skip. */
 {
     static const char hello[] = "VSL-HELLO-DYNAMIC-WORLD";
     size_t bn = 0, cn2 = 0;
@@ -2507,17 +2612,21 @@ int main(int argc, char **argv) {
             free(cbig);
         }
 
-        /* REAL glibc libc.so.6: exact next failure, verified negative. */
+        /* REAL glibc libc.so.6: exact NEXT failure, verified negative.
+         * The symbol-less TPOFF64 boundary closed by this leg is gone; the
+         * provider now fails at the versioned ld.so import _dl_argv. */
         vsl_dyn_set_libc_rootfs(1);
         VslImageCfg cfg_real = { none, 0, 0, NULL, 0, NULL, real_first };
         int rc_real = vsl_exec_image(hbig, bn, &cfg_real, &r);
         printf("[ac] real libc hello: rc=%d status=%d reloc_failure=\"%s\"\n",
                rc_real, r.status, r.reloc_failure);
         CHECK(rc_real == VSL_EXEC_ERR_RELOC,
-              "real glibc libc.so.6 provider fails closed with ERR_RELOC");
-        CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") != NULL &&
-              strstr(r.reloc_failure, "real glibc TLS ABI unmodeled") != NULL,
-              "next failure is the exact symbol-less TPOFF64 TLS boundary");
+              "real glibc libc.so.6 provider still fails closed with ERR_RELOC");
+        CHECK(strstr(r.reloc_failure, "symbol '_dl_argv'") != NULL &&
+              strstr(r.reloc_failure, "is unresolved") != NULL,
+              "next failure is the exact versioned _dl_argv import boundary");
+        CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
+              "symbol-less TPOFF64 no longer blocks the real glibc provider");
         CHECK(strstr(r.reloc_failure, "32/32") == NULL,
               "real libc parsed PAST the old 32/32 version-table cap");
         vsl_dyn_set_libc_rootfs(0);
