@@ -112,7 +112,16 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
             if (e > next) next = e;
         }
         if (!next) break;
-        alloc_addr = next;
+        /* A colliding mapping can end on a non-page boundary: an earlier
+         * mmap's size need not be page-sized, so `next = s + size` may be
+         * unaligned.  A real kernel mmap always returns a page-aligned
+         * address, and the backed-guest path requires one (an unaligned
+         * return is refused as "invalid range" and the guest faults).
+         * Advance to the page-aligned start of the next free page instead
+         * of handing back the raw end.  Bound BEFORE rounding so a near
+         * arena-end end cannot wrap to 0 and register a bogus mapping. */
+        if (next > arena_end - 0xfff) return (uint64_t)-12;
+        alloc_addr = (next + 0xfff) & ~0xfffull;
         if ((uint64_t)size > arena_end - alloc_addr) return (uint64_t)-12;
     }
 
