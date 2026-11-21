@@ -2588,32 +2588,64 @@ int main(int argc, char **argv) {
                 free(mut);
             }
         }
-        /* NEG C: a REAL glibc libc.so.6 provider is refused, but now at its
-         * NEXT exact boundary, not at any ld.so import.  All 17 remaining
-         * versioned ld.so imports (_dl_argv, __libc_enable_secure,
-         * _dl_allocate_tls, __tunable_get_val, _rtld_global, ...) bind from
-         * the bounded host provider; relocation advances to the merged-export
-         * cap (512), which glibc's ~3000 defined dynsyms overflow.  realroot
-         * is searched FIRST for the provider but has no ld.so, so the
-         * interpreter still resolves from the good rootfs. */
+        /* NEG C: a REAL glibc libc.so.6 provider now merges PAST the raised
+         * export ceiling.  All 17 remaining versioned ld.so imports bind from
+         * the bounded host provider and the main's own versioned imports bind
+         * from the real libc's merged exports, so RELOCATION COMPLETES with an
+         * empty reloc_failure.  The exact NEXT boundary is the guest faulting
+         * on unmodelled glibc startup bytes (VSL_EXEC_ERR_FAULT).  realroot is
+         * searched FIRST but has no ld.so, so the interpreter still resolves
+         * from the good rootfs. */
         char realroot[512];
         snprintf(realroot, sizeof(realroot), "%s/glibc_rootfs_reallibc", dir);
         const char *real_first[] = { realroot, root, NULL };
         VslImageCfg cfg_real = { nodir, 0, 0, NULL, 0, NULL, real_first };
         vsl_dyn_set_libc_rootfs(1);
+        CHECK(vsl_dyn_dep_export_cap() == VSL_DEP_EXPORT_CEILING,
+              "effective export cap starts at the fixed 4096 ceiling");
         int rc_real = vsl_exec_image(cimg, cn, &cfg_real, &r);
+        uint32_t merged = vsl_dyn_dep_export_count();
         printf("[ab] real glibc libc.so.6 provider: rc=%d status=%d "
+               "exit=%d interp=%u deps=%u relocs=%u syms=%u merged=%u cap=%u "
+               "fault=0x%llx syscalls=%llu reloc_failure=\"%s\"\n",
+               rc_real, r.status, r.exit_code, r.interp_loaded, r.deps_loaded,
+               r.relocations_applied, r.symbols_resolved, merged,
+               vsl_dyn_dep_export_cap(), (unsigned long long)r.fault_addr,
+               (unsigned long long)r.syscalls_trapped, r.reloc_failure);
+        CHECK(rc_real == VSL_EXEC_ERR_FAULT && r.reloc_failure[0] == 0,
+              "real libc exports merge + bind; next boundary is a guest fault");
+        CHECK(merged > 512 && merged <= vsl_dyn_dep_export_cap(),
+              "raised cap merged >512 bounded exports from real glibc");
+        CHECK(r.deps_loaded >= 1 && r.symbols_resolved >= 1,
+              "real libc exports bound the main's imports (relocation complete)");
+        CHECK(strstr(r.reloc_failure, "merged export table cap") == NULL &&
+              strstr(r.reloc_failure, "symbol '__libc_enable_secure'") == NULL &&
+              strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL &&
+              strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
+              "no relocation boundary remains (ld.so imports + TPOFF64 bound)");
+
+        /* NEGATIVE CONTROL: the raised cap is still a HARD bound.  Lower the
+         * effective cap to the old 512 ceiling through the bounded setter and
+         * re-run the byte-identical real libc provider: it must fail closed at
+         * the exact old boundary, proving no unbounded growth was introduced. */
+        CHECK(vsl_dyn_set_export_cap(512) == 0 &&
+              vsl_dyn_dep_export_cap() == 512,
+              "bounded setter lowers the effective cap to the old 512 ceiling");
+        CHECK(vsl_dyn_set_export_cap(VSL_DEP_EXPORT_CEILING + 1u) == -1,
+              "setter refuses to grow the cap above the fixed ceiling");
+        int rc_cap = vsl_exec_image(cimg, cn, &cfg_real, &r);
+        printf("[ab] real libc @ old cap 512: rc=%d status=%d "
                "reloc_failure=\"%s\"\n",
-               rc_real, r.status, r.reloc_failure);
-        CHECK(rc_real == VSL_EXEC_ERR_RELOC &&
-              strstr(r.reloc_failure, "merged export table cap") != NULL &&
+               rc_cap, r.status, r.reloc_failure);
+        CHECK(rc_cap == VSL_EXEC_ERR_RELOC &&
+              strstr(r.reloc_failure, "merged export table cap 512") != NULL &&
               strstr(r.reloc_failure, "libc.so.6") != NULL,
-              "real libc binds ALL ld.so imports, then hits the export-cap boundary");
-        CHECK(strstr(r.reloc_failure, "symbol '__libc_enable_secure'") == NULL &&
-              strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL,
-              "no ld.so import is the boundary any more (all 17 bound)");
-        CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
-              "symbol-less TPOFF64 is no longer the blocking boundary");
+              "old-cap negative reproduces the exact 512 merged-export failure");
+        CHECK(rc_real != rc_cap,
+              "differential: raised cap changes the collision boundary");
+        vsl_dyn_set_export_cap(0);   /* restore ceiling */
+        CHECK(vsl_dyn_dep_export_cap() == VSL_DEP_EXPORT_CEILING,
+              "cap restored to the fixed 4096 ceiling after negative control");
 
         vsl_dyn_set_libc_rootfs(0);
         vsl_dyn_set_interp_bind_main(0);
@@ -2636,9 +2668,10 @@ int main(int argc, char **argv) {
  *     relocations against the defined module TLS base, binds ALL 17 remaining
  *     versioned ld.so imports (_dl_argv, __libc_enable_secure,
  *     _dl_allocate_tls, __tunable_get_val, _rtld_global, ...) from the bounded
- *     host provider by exact vn_file, and fails at the NEXT exact boundary --
- *     the 512-entry merged-export cap, which glibc's ~3000 defined dynsyms
- *     overflow -- recorded as a verified negative rather than a silent skip.
+ *     host provider by exact vn_file.  With the merged-export ceiling raised
+ *     to a bounded 4096, the real libc's ~3000 exports merge and bind the
+ *     main's imports, and the NEXT exact boundary is a guest fault (ERR_FAULT
+ *     at 0xa0) on unmodelled glibc startup -- a verified negative.
  *     Retargeting ONLY the fixture's DT_VERNEED vn_file from
  *     ld-linux-x86-64.so.2 to libc.so.6 restores the _dl_argv fault end-to-end
  *     (DT_NEEDED sonames are left byte-identical). */
@@ -2693,26 +2726,37 @@ int main(int argc, char **argv) {
         }
 
         /* REAL glibc libc.so.6: exact NEXT failure, verified negative.
-         * Every versioned ld.so import now binds from the bounded host table;
-         * the provider advances past all of them and fails at the 512-entry
-         * merged-export cap (glibc has ~3000 defined dynsyms). */
+         * With the merged-export ceiling raised to a bounded 4096, every
+         * versioned ld.so import binds from the bounded host table, the real
+         * libc's exports are merged, and the main's imports bind from them.
+         * Relocation completes; the exact NEXT boundary is a guest fault
+         * (VSL_EXEC_ERR_FAULT at 0xa0) executing unmodelled glibc startup. */
         vsl_dyn_set_libc_rootfs(1);
         VslImageCfg cfg_real = { none, 0, 0, NULL, 0, NULL, real_first };
         int rc_real = vsl_exec_image(hbig, bn, &cfg_real, &r);
-        printf("[ac] real libc hello: rc=%d status=%d reloc_failure=\"%s\"\n",
-               rc_real, r.status, r.reloc_failure);
-        CHECK(rc_real == VSL_EXEC_ERR_RELOC,
-              "real glibc libc.so.6 provider still fails closed with ERR_RELOC");
-        CHECK(strstr(r.reloc_failure, "merged export table cap") != NULL &&
-              strstr(r.reloc_failure, "libc.so.6") != NULL,
-              "exact next failure is the bounded merged-export cap, not an ld.so import");
-        CHECK(strstr(r.reloc_failure, "symbol '__libc_enable_secure'") == NULL &&
-              strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL,
-              "no versioned ld.so import blocks the fixture any longer");
-        CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
-              "symbol-less TPOFF64 no longer blocks the real glibc provider");
-        CHECK(strstr(r.reloc_failure, "32/32") == NULL,
-              "real libc parsed PAST the old 32/32 version-table cap");
+        uint32_t merged = vsl_dyn_dep_export_count();
+        printf("[ac] real libc hello: rc=%d status=%d exit=%d interp=%u "
+               "deps=%u relocs=%u syms=%u merged=%u cap=%u fault=0x%llx "
+               "syscalls=%llu out_len=%zu reloc_failure=\"%s\"\n",
+               rc_real, r.status, r.exit_code, r.interp_loaded, r.deps_loaded,
+               r.relocations_applied, r.symbols_resolved, merged,
+               vsl_dyn_dep_export_cap(), (unsigned long long)r.fault_addr,
+               (unsigned long long)r.syscalls_trapped, r.output_len,
+               r.reloc_failure);
+        CHECK(rc_real == VSL_EXEC_ERR_FAULT && r.reloc_failure[0] == 0,
+              "real libc exports bind; next boundary is the guest fault");
+        CHECK(merged > 512 && merged <= vsl_dyn_dep_export_cap(),
+              "real glibc's >512 exports merged within the raised bounded cap");
+        CHECK(r.interp_loaded == 1 && r.deps_loaded >= 1 &&
+              r.symbols_resolved >= 3,
+              "real libc exports bound puts/__libc_start_main/__cxa_finalize");
+        CHECK(r.fault_addr != 0, "guest fault address recorded as exact boundary");
+        CHECK(strstr(r.reloc_failure, "merged export table cap") == NULL &&
+              strstr(r.reloc_failure, "symbol '__libc_enable_secure'") == NULL &&
+              strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL &&
+              strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL &&
+              strstr(r.reloc_failure, "32/32") == NULL,
+              "no earlier boundary (cap, ld.so import, TPOFF64, 32/32) remains");
 
         /* END-TO-END DIFFERENTIAL (exact vn_file): retarget ONLY the DT_VERNEED
          * vn_file of a copy of the real libc.so.6 from ld-linux-x86-64.so.2 to

@@ -76,10 +76,14 @@
  * __tunable_get_val, ...) plus _dl_find_object@GLIBC_2.35 for the synthetic
  * gate -- ONLY on an exact DT_VERNEED name + vn_file match
  * (ld-linux-x86-64.so.2); a wrong vn_file or version fails closed.  With every
- * ld.so import bound, the real glibc fixture now advances to its NEXT exact
- * boundary -- the 512-entry merged-export cap, which glibc's ~3000 defined
- * dynsyms overflow -- a verified negative.  A vn_file retarget to libc.so.6
- * restores the _dl_argv fault end-to-end.
+ * ld.so import bound, the merged-export ceiling was raised from 512 to a
+ * FIXED 4096 (a real glibc libc.so.6 defines 3136 dynsyms) with an explicit
+ * 2 MiB name/byte budget and a 2 MiB static-footprint assertion, so growth
+ * stays bounded.  The real glibc fixture then advances past the cap: its
+ * exports are merged and the main image's versioned imports bind from them;
+ * the exact NEXT boundary is a guest fault (VSL_EXEC_ERR_FAULT at 0xa0) when
+ * unmodelled glibc startup bytes execute -- a verified negative, not a silent
+ * skip.  A vn_file retarget to libc.so.6 restores the _dl_argv fault earlier.
  *
  * DT_NEEDED is supported ONLY in this bounded form: DT_NEEDED sonames are a
  * plain basename found in a bounded per-image search-directory list (or the
@@ -259,6 +263,17 @@ const char *vsl_dyn_dep_name(uint32_t idx);
 /* Runtime address of a symbol exported by a loaded dependency, or 0 if the
  * name is not in the merged (bounded) dependency symbol table. */
 uint64_t vsl_dyn_dep_symbol(const char *name);
+
+/* Bounded merged-export table controls.  The table is a FIXED static array of
+ * VSL_DEP_EXPORT_CEILING entries (covers a real glibc libc.so.6's 3136 defined
+ * dynsyms); a caller can only LOWER the effective cap, never grow the table.
+ * vsl_dyn_set_export_cap(0) restores the ceiling; a value above the ceiling
+ * is rejected (-1).  The two accessors report the last run's state so a gate
+ * can prove the raised bound was actually used and stayed bounded. */
+#define VSL_DEP_EXPORT_CEILING 4096u
+int      vsl_dyn_set_export_cap(uint32_t cap);
+uint32_t vsl_dyn_dep_export_cap(void);
+uint32_t vsl_dyn_dep_export_count(void);
 
 /* Opt-in bounded enhancements.  Both are OFF by default (pre-change
  * behaviour).  Enable before a run; they persist until changed.

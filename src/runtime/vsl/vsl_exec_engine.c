@@ -948,7 +948,19 @@ _Static_assert(sizeof(VslVerCtx) <= 64u * 1024u,
  * Only objects found under the configured allow-listed directory are loaded;
  * nothing from the host's system library paths is ever consulted. */
 #define EX_DEP_MAX         8u     /* max dependencies per image graph */
-#define EX_DEP_SYM_MAX     512u   /* max merged exported symbols */
+/* Merged-export cap.  Raised from 512 to cover a REAL glibc libc.so.6,
+ * which defines 3136 dynsyms (measured with readelf on the fixture).  4096
+ * is a FIXED ceiling: the table below is a static array, so growth is
+ * bounded at compile time, never unbounded.  A run-time knob may only LOWER
+ * it (never exceed this ceiling) for differential/fail-closed gates. */
+#define EX_DEP_SYM_MAX     4096u  /* hard ceiling: max merged exported symbols */
+/* Explicit secondary budget: total bytes of (name+version+owner) copied into
+ * the merged table.  Independent of the symbol COUNT, so a file of maximum-
+ * length names cannot grow the table's footprint without bound.  Worst case
+ * 4096*(128+64+64) = 802816 bytes; the ceiling stays explicit. */
+#define EX_DEP_SYM_BYTES_MAX (2u << 20)  /* 2 MiB merged-export byte budget */
+_Static_assert(EX_DEP_SYM_MAX == VSL_DEP_EXPORT_CEILING,
+               "engine cap and public ceiling must match");
 #define EX_DEP_NAME_MAX    64u    /* max DT_NEEDED soname length */
 #define EX_DEP_PATH_MAX    1024u  /* max allow-list / joined path length */
 #define EX_DEP_FILE_MAX    (8u * 1024u * 1024u)  /* max bytes per dep file */
@@ -1176,13 +1188,34 @@ typedef struct {
     uint64_t size;                      /* st_size; 0 = no bounded source */
 } VslDepSym;
 
+/* Compile-time memory ceiling for the merged export table: the whole table
+ * must stay under 2 MiB of static state.  Raising the count ceiling without
+ * re-examining this footprint is a build error, not a silent growth. */
+_Static_assert(sizeof(VslDepSym) * EX_DEP_SYM_MAX <= (2u << 20),
+               "merged export table static footprint must stay under 2 MiB");
+
 static VslDepObj g_dep_objs[EX_DEP_MAX];
 static uint32_t  g_dep_count;           /* objects loaded (also array used) */
 static VslDepSym g_dep_syms[EX_DEP_SYM_MAX];
 static uint32_t  g_dep_sym_count;
+static uint64_t  g_dep_sym_bytes;        /* explicit name/ver/owner byte budget */
+static uint32_t  g_dep_sym_cap = EX_DEP_SYM_MAX; /* run-time ceiling, <= EX_DEP_SYM_MAX */
 static char      g_dep_order[EX_DEP_MAX][EX_DEP_NAME_MAX + 1];
 static uint32_t  g_dep_order_count;
 static uint64_t  g_dep_bytes;
+
+/* Bounded merged-export controls.  The static table is fixed at
+ * EX_DEP_SYM_MAX; a caller may only LOWER the effective cap (0 restores the
+ * ceiling), so no configuration can grow the table beyond its compile-time
+ * bound.  Used by differential/fail-closed gates. */
+int vsl_dyn_set_export_cap(uint32_t cap) {
+    if (cap == 0) { g_dep_sym_cap = EX_DEP_SYM_MAX; return 0; }
+    if (cap > EX_DEP_SYM_MAX) return -1;
+    g_dep_sym_cap = cap;
+    return 0;
+}
+uint32_t vsl_dyn_dep_export_cap(void)  { return g_dep_sym_cap; }
+uint32_t vsl_dyn_dep_export_count(void) { return g_dep_sym_count; }
 
 int vsl_dyn_set_dep_search_dir(const char *dir) {
     if (!dir || !dir[0]) {
@@ -2542,12 +2575,27 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
             }
             continue;
         }
-        if (g_dep_sym_count >= EX_DEP_SYM_MAX) {
+        if (g_dep_sym_count >= g_dep_sym_cap) {
             snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
                      "merged export table cap %u exceeded by dependency '%s' "
                      "(real glibc libc.so.6 ABI unmodeled)",
-                     (unsigned)EX_DEP_SYM_MAX, owner);
+                     (unsigned)g_dep_sym_cap, owner);
             return -1;
+        }
+        /* Explicit byte budget: bound the copied name/version/owner footprint
+         * independently of the symbol count.  Every source string is already
+         * length-checked above or lives in a fixed-cap version table, so the
+         * summed size can never be unbounded. */
+        {
+            uint64_t nb = (uint64_t)strlen(nm) + strlen(verp) + strlen(owner);
+            if (g_dep_sym_bytes + nb > EX_DEP_SYM_BYTES_MAX) {
+                snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                         "merged export byte budget %u exceeded by dependency "
+                         "'%s' (real glibc libc.so.6 ABI unmodeled)",
+                         (unsigned)EX_DEP_SYM_BYTES_MAX, owner);
+                return -1;
+            }
+            g_dep_sym_bytes += nb;
         }
         VslDepSym *slot = &g_dep_syms[g_dep_sym_count++];
         snprintf(slot->name, sizeof(slot->name), "%s", nm);
@@ -2684,6 +2732,7 @@ static void ex_reset_dep_state(void) {
     memset(g_dep_syms, 0, sizeof(g_dep_syms));
     memset(g_dep_order, 0, sizeof(g_dep_order));
     g_dep_count = g_dep_sym_count = g_dep_order_count = 0;
+    g_dep_sym_bytes = 0;   /* explicit budget is per-run; cap is a config */
 }
 
 /* Backwards-compatible name used by the rollback paths: a failed load leaves
