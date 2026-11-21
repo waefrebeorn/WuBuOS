@@ -1,0 +1,149 @@
+# TANDEM WORKFLOW — WuBuKernel + WuBuOS + WEMU, drivers first
+
+Status: living contract. Owner directive (2026-11-21): *"wubukernel and
+wubuos work reorientation, wemu as well — this is the tandem workflow to get
+a bootable and usable development workflow. Drivers."*
+
+This doc is the reorientation. It does **not** reverse the L21 decision
+(`os-gaps-2026-11-19.md`, L21): WuBuKernel stays a hosted/freestanding
+reference consumed through `test_kernel_bridge`, **not** the running kernel
+core. "Reorientation" here means one contract across three repos, not a
+forced merge of two different driver models. If a future leg adopts
+WuBuKernel objects into `KERNEL_OBJS`, that is a **new, explicitly gated
+decision** that supersedes L21 — never a silent side effect of a driver leg.
+
+## The tandem
+
+| Repo | Role in the tandem | What it must prove |
+|---|---|---|
+| `WuBuKernel` (`/home/wubu/WuBuKernel`, `main`) | the **contract**: device/driver registry, bounded heap, PMM, tick/console | strict-C11 hosted behaviour **and** `-ffreestanding -nostdinc` compile |
+| `wubuos` (`/home/wubu/wubuos`, `main`) | the **body**: the only tree that boots. Owns the real PCI driver registry (`wubu_drv.c` + `wubu_bus.c`), VMM mapper, real storage/net, GUI | `make kernel` + boot gate + hosted full gate |
+| `wemu` (`/home/wubu/wemu`, submodule `src/wemu`) | the **usable**: guest execution of foreign static ELF/tools through the VSL syscall table, so the booted system can run other OSes' tools | full WEMU `make test` + `test_wemu_busybox` through the bridge |
+
+The loop is one direction and one back-edge:
+
+```
+contract (WuBuKernel)  ->  boot (wubuos metal)  ->  use (WEMU guests)
+        ^                       |                       |
+        +------ gate evidence --+------- gate evidence --+
+```
+
+A change in any leg ships with the gate in **its own** repo AND the
+cross-repo gate that proves the seam still works. There is no "it compiles
+in my repo" completion.
+
+## Why drivers are the reorientation's centre
+
+The 2026-11-19 audit measured the honest boundary: the running kernel drives
+APIC/PIT/HPET/RTC, Bochs-VBE, PS/2, COM1, PCI discovery, ACPI/SMBIOS and
+virtio-blk/net; the ~150 `wubu_drv_*` modules are perception/routing tables
+for a hosted Linux host or test-injected register models. The named
+cross-cutting prerequisite is still open:
+
+> `dev->bar0 -> wubu_vmm_map_page -> probe` — the LFB mapping in
+> `metal_main.c` proves the mechanism; `wubu_drv_dev_bar()` exposes the BAR;
+> `wubu_drv_probe()` calls the driver directly. **Nothing connects them.**
+
+Verified in this session:
+- `src/kernel/wubu_drv.h:71` declares `wubu_drv_dev_bar()`.
+- `src/kernel/wubu_drv.c:149` implements it and returns the raw PCI BAR.
+- `src/kernel/wubu_drv.c:160-177` `wubu_drv_probe()` binds and calls
+  `probe(dev)` with **no** BAR mapping step.
+- `src/kernel/wubu_vmm.c:177` is the one real mapper; `metal_main.c:370-377`
+  and `:668-674` show the working LFB/GOP call pattern.
+- `grep -rn 'bar.*vmm\|vmm.*bar\|map_bar' src/kernel` finds no owner.
+
+Making that seam a single owner is drivers leg **D1** below. It is the
+smallest change that turns "registry knows BARs" into "registry can hand a
+driver a mapped MMIO window", without touching the WuBuKernel submodule.
+
+## Drivers-first legs (smallest real increment + behaviour gate)
+
+**D1 — BAR→VMM single owner (start here).**
+Add one owner `wubu_drv_map_mmio(dev, va_page, *va_out)` in `wubu_drv.c`:
+reject no-BAR and I/O-space BARs, mask BAR type bits, call the real
+`wubu_vmm_map_page`, fail soft (a map failure never blocks probe). Expose a
+weak/injectable mapper so the hosted driver gate can record calls without
+linking `wubu_vmm.o`.
+Gate: extend `test_drv` (`mk/tests.mk:2967`) with a device whose BAR is a
+memory window and a driver whose `probe` reads the mapped VA; assert the
+map call happened with the exact physical BAR and that a no-BAR/I-O-BAR
+device is unchanged. Negative control: the pre-change probe path makes no
+map call. Also `make kernel` + boot assert + `kernel-strict`.
+
+**D2 — one real consumer of D1.**
+Pick one existing driver (virtio-blk is already the persistence-proven
+path) and have it obtain its MMIO window through `wubu_drv_map_mmio`
+instead of an ad-hoc map. Gate: `make virtio-persist-gate` stays green and
+the gate asserts the window came from the registry owner.
+
+**D3 — contract alignment, not adoption.**
+Add a shared, documented driver-contract header in WuBuKernel that states
+the device/BAR/lifecycle invariants both registries honour; gate it by
+`test_kernel_bridge` plus an assertion that `wubu_drv.h` and the WuBuKernel
+header agree on the enum/field contract. **No KERNEL_OBJS change** under
+this reorientation.
+
+**D4 — guest-facing driver surface.**
+Expose a bounded `/n/guests`-style view of the bound driver table so a WEMU
+guest (busybox) can query "what hardware does this metal actually drive".
+Gate: a real applet through the VSL bridge prints the exact bound-driver
+summary. This is where the third repo stops being a sidecar.
+
+Each leg gets its own git worktree (`git worktree add .../wubuos-<leg> -b
+leg/<name> main`), one agent per worktree, own branch, commits on the leg.
+The integrator merges sequentially by evidence, never by self-report.
+
+## Workflow rules (unchanged, still binding)
+
+1. Worktree per leg; never two agents in one tree (`make -j` races `.o`).
+2. **Behaviour gate or it didn't happen**: real output, round-trip or
+   on-disk state. Non-crash is not a gate. Metal legs boot under QEMU and
+   keep `ci_boot_assert` green; kernel touches keep `make kernel-strict`
+   clean.
+3. **No theater**: a success-path no-op is a bug. Banners must match bodies.
+4. **One owner per concern**: search the tree before writing anything that
+   smells like a copy. Reuse `wubu_vmm_map_page`, `wubu_drv_dev_bar`, the
+   existing virtqueue core, the VSL syscall table.
+5. Verify by running — `make <target>` then read the real output. Never
+   cite a stale test count.
+6. Docs are testable: new paths named here must exist (`make test_docs`).
+7. Submodules untouched unless the leg IS the submodule (WuBuKernel is
+   public; WEMU legs are pushed from `/home/wubu/wemu` and the pointer
+   bumped in `wubuos`).
+
+## Gate quick-reference (the tandem's definition of green)
+
+```sh
+# contract
+cd /home/wubu/WuBuKernel && make test && make freestanding
+# body: bridge, kernel, boot, hosted
+cd /home/wubu/wubuos && make test_kernel_bridge
+cd /home/wubu/wubuos && make kernel-strict
+cd /home/wubu/wubuos && python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
+cd /home/wubu/wubuos && make -k -j24 test
+# usable: emulator, then the bridge acceptance
+cd /home/wubu/wemu && make test
+cd /home/wubu/wubuos && make test_wemu_busybox
+```
+
+## Baseline measured at contract creation (2026-11-21)
+
+- WuBuKernel `make test`: **PASS** (`[wubukernel] all pass`, `=== PMM tests:
+  all passed ===`); `make freestanding`: **PASS** (3 TUs compiled with
+  `-std=c11 -ffreestanding -nostdinc`).
+- wubuos `make test_kernel_bridge`: **PASS** (`[kernel_bridge] all pass`).
+- wubuos `make kernel` + `ci_boot_assert`: see session log (running at
+  contract creation).
+- WEMU `make test`: see session log (running at contract creation).
+- Last recorded full gate in `os-gaps-2026-11-19.md`: `full_test60.log`,
+  exit 0, "✅ All tests passed (all tiers)"; `test_linux_product` PASS.
+  Those are historical facts about that commit, not a live re-run.
+
+## Honest boundaries
+
+- L21 boundary is intact: no WuBuKernel object in `KERNEL_OBJS`/`kernel.elf`.
+- The BAR→VMM seam (D1) is **open** as of this doc.
+- The 1000-line `driver-bank.md` is a coverage *ledger*, not proof of a
+  bound driver in the running kernel; "wired" there means a perception or
+  routing module, not metal MMIO. Do not cite it as hardware support.
