@@ -789,9 +789,17 @@ static int ex_vaddr_to_off(const uint8_t *f, size_t fsz,
 #define EX_VER_NDX_GLOBAL 1u
 #define EX_VERSYM_HIDDEN  0x8000u          /* non-default version bit */
 #define EX_VER_NAME_MAX   64u
-#define EX_VERDEF_MAX     32u
-#define EX_VERNEED_MAX    32u
-#define EX_VER_AUX_MAX    32u              /* vernaux / verdaux per record */
+/* Version-table resource limits.  Raised from the original 32-entry caps so a
+ * REAL glibc libc.so.6 (41 DT_VERDEF records on this host) can be parsed, with
+ * EXPLICIT budgets that keep the parse bounded no matter how large a count
+ * cap becomes: a per-image total record limit, a raw chain-byte budget, and a
+ * compile-time bound on the engine's stack-resident version context.  Any
+ * overrun is a hard fail-closed rejection, never a silent truncation. */
+#define EX_VERDEF_MAX     128u
+#define EX_VERNEED_MAX    128u
+#define EX_VER_AUX_MAX    128u              /* vernaux / verdaux per record */
+#define EX_VER_TOTAL_MAX  256u              /* defs + needs per image */
+#define EX_VER_CHAIN_BYTES_MAX (16u * 1024u) /* version-chain bytes walked per image */
 
 typedef struct {
     uint16_t ndx;                          /* version index (hidden bit off) */
@@ -805,6 +813,9 @@ typedef struct {
     uint64_t  versym_off;                  /* FILE offset of DT_VERSYM array */
     int       have_versym;
 } VslVerCtx;
+
+_Static_assert(sizeof(VslVerCtx) <= 64u * 1024u,
+               "VslVerCtx must stay bounded on the engine stack");
 
 /* -- bounded DT_NEEDED dependency state --------------------------------
  * All of this is per-run state, reset at the top of vsl_exec_elf_bytes().
@@ -1236,6 +1247,9 @@ static int ex_parse_versions(const uint8_t *f, size_t fsz,
     if (di->versym == 0) return 0;                   /* unversioned image */
     if (symcount == 0 || symcount > EX_SYM_MAX) return -1;
     if (di->strtab == 0 || di->strsz == 0 || di->strsz > EX_STRTAB_MAX) return -1;
+    /* Explicit chain-byte budget: the loops below charge every raw record they
+     * read, so a huge verdefnum/verneednum cannot turn into an unbounded walk. */
+    uint64_t chain_bytes = 0;
     uint64_t voff, stroff;
     if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                         di->versym, (uint64_t)symcount * 2, &voff) != 0) return -1;
@@ -1252,6 +1266,8 @@ static int ex_parse_versions(const uint8_t *f, size_t fsz,
             uint64_t off;
             if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                                 cur, 20, &off) != 0) return -1;
+            chain_bytes += 20;                          /* Elf64_Verdef */
+            if (chain_bytes > EX_VER_CHAIN_BYTES_MAX) return -1;
             uint16_t vr, flags, ndx, cnt;
             uint32_t aux, next;
             memcpy(&vr,    f + off,      2);
@@ -1266,9 +1282,12 @@ static int ex_parse_versions(const uint8_t *f, size_t fsz,
             uint64_t aoff;
             if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                                 cur + aux, 8, &aoff) != 0) return -1;
+            chain_bytes += 8;                           /* Elf64_Verdaux */
+            if (chain_bytes > EX_VER_CHAIN_BYTES_MAX) return -1;
             uint32_t vda_name;
             memcpy(&vda_name, f + aoff, 4);
             if (vc->ndefs >= EX_VERDEF_MAX) return -1;
+            if (vc->ndefs + 1 + vc->nneeds > EX_VER_TOTAL_MAX) return -1;
             VslVerEnt *e = &vc->defs[vc->ndefs++];
             e->ndx = ndx;
             if (ex_ver_name_at(f, stroff, di->strsz, vda_name, e->name) != 0)
@@ -1288,6 +1307,8 @@ static int ex_parse_versions(const uint8_t *f, size_t fsz,
             uint64_t off;
             if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                                 cur, 16, &off) != 0) return -1;
+            chain_bytes += 16;                          /* Elf64_Verneed */
+            if (chain_bytes > EX_VER_CHAIN_BYTES_MAX) return -1;
             uint16_t vr, cnt; uint32_t vn_file, aux, next;
             memcpy(&vr,  f + off,      2);
             memcpy(&cnt, f + off + 2,  2);
@@ -1306,6 +1327,8 @@ static int ex_parse_versions(const uint8_t *f, size_t fsz,
                 uint64_t aoff;
                 if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                                     a, 16, &aoff) != 0) return -1;
+                chain_bytes += 16;                      /* Elf64_Vernaux */
+                if (chain_bytes > EX_VER_CHAIN_BYTES_MAX) return -1;
                 uint16_t flags, other; uint32_t vna_name, vna_next;
                 memcpy(&flags,    f + aoff + 4,  2);
                 memcpy(&other,    f + aoff + 6,  2);
@@ -1315,6 +1338,7 @@ static int ex_parse_versions(const uint8_t *f, size_t fsz,
                 uint16_t ndx = other & (uint16_t)~EX_VERSYM_HIDDEN;
                 if (ndx <= EX_VER_NDX_GLOBAL) return -1;
                 if (vc->nneeds >= EX_VERNEED_MAX) return -1;
+                if (vc->ndefs + vc->nneeds + 1 > EX_VER_TOTAL_MAX) return -1;
                 VslVerEnt *e = &vc->needs[vc->nneeds++];
                 e->ndx = ndx;
                 if (ex_ver_name_at(f, stroff, di->strsz, vna_name, e->name) != 0)
@@ -1613,6 +1637,19 @@ static int ex_resolve_tls(const uint8_t *f, size_t fsz,
     return 0;
 }
 
+/* Record the exact reason a bounded TLS relocation could not be applied.  A
+ * real glibc libc.so.6 contains e.g. R_X86_64_TPOFF64 against STN_UNDEF
+ * (symbol index 0): that form has no defined STT_TLS source for the bounded
+ * resolver, so it is rejected with this precise diagnostic instead of an
+ * empty ERR_RELOC. */
+static int ex_tls_fail(uint32_t type, uint32_t symidx, uint64_t r_offset) {
+    snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+             "TLS relocation type %u symbol %u at offset 0x%llx has no bounded "
+             "defined STT_TLS source (real glibc TLS ABI unmodeled)",
+             type, symidx, (unsigned long long)r_offset);
+    return -1;
+}
+
 /* Apply one relocation.  Returns 0 ok, -1 malformed/unknown symbol,
  * 1 unsupported type (counted as skipped; caller rejects the whole image).
  * map_lo/map_hi is the page-aligned union of mapped PT_LOADs, so every write
@@ -1712,7 +1749,8 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
     case EX_R_X86_64_TPOFF64: {
         uint64_t off;
         if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab, syment,
-                           symcount, symidx, addend, vc, &off) != 0) return -1;
+                           symcount, symidx, addend, vc, &off) != 0)
+            return ex_tls_fail(type, symidx, r_offset);
         if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
         /* The host block base plays the thread-pointer role; the guest
          * dereferences this address directly (no %fs, no glibc ABI). */
@@ -1723,7 +1761,8 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
     case EX_R_X86_64_DTPMOD64: {
         uint64_t off;
         if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab, syment,
-                           symcount, symidx, addend, vc, &off) != 0) return -1;
+                           symcount, symidx, addend, vc, &off) != 0)
+            return ex_tls_fail(type, symidx, r_offset);
         if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
         *where = module_id ? module_id : EX_TLS_MODULE_ID; /* real module id */
         (*tls_relocs)++;
@@ -1732,7 +1771,8 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
     case EX_R_X86_64_DTPOFF32: {
         uint64_t off;
         if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab, syment,
-                           symcount, symidx, addend, vc, &off) != 0) return -1;
+                           symcount, symidx, addend, vc, &off) != 0)
+            return ex_tls_fail(type, symidx, r_offset);
         if (dest > EX_WIN_HI - 4 || dest > map_hi - 4) return -1;
         *(uint32_t *)(uintptr_t)dest = (uint32_t)off;
         (*tls_relocs)++;

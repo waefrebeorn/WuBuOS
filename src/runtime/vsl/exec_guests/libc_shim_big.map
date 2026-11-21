@@ -1,0 +1,121 @@
+GLIBC_2.2.5 {
+    global: shim_puts; puts; shim_cxa_finalize; __cxa_finalize; optind; shim_optind; bigver_00;
+    local: *;
+};
+GLIBC_2.2.6 {
+    global: bigver_01;
+} GLIBC_2.2.5;
+GLIBC_2.3 {
+    global: bigver_02;
+} GLIBC_2.2.6;
+GLIBC_2.3.2 {
+    global: bigver_03;
+} GLIBC_2.3;
+GLIBC_2.3.3 {
+    global: bigver_04;
+} GLIBC_2.3.2;
+GLIBC_2.3.4 {
+    global: bigver_05;
+} GLIBC_2.3.3;
+GLIBC_2.4 {
+    global: bigver_06;
+} GLIBC_2.3.4;
+GLIBC_2.5 {
+    global: bigver_07;
+} GLIBC_2.4;
+GLIBC_2.6 {
+    global: bigver_08;
+} GLIBC_2.5;
+GLIBC_2.7 {
+    global: bigver_09;
+} GLIBC_2.6;
+GLIBC_2.8 {
+    global: bigver_10;
+} GLIBC_2.7;
+GLIBC_2.9 {
+    global: bigver_11;
+} GLIBC_2.8;
+GLIBC_2.10 {
+    global: bigver_12;
+} GLIBC_2.9;
+GLIBC_2.11 {
+    global: bigver_13;
+} GLIBC_2.10;
+GLIBC_2.12 {
+    global: bigver_14;
+} GLIBC_2.11;
+GLIBC_2.13 {
+    global: bigver_15;
+} GLIBC_2.12;
+GLIBC_2.14 {
+    global: bigver_16;
+} GLIBC_2.13;
+GLIBC_2.15 {
+    global: bigver_17;
+} GLIBC_2.14;
+GLIBC_2.16 {
+    global: bigver_18;
+} GLIBC_2.15;
+GLIBC_2.17 {
+    global: bigver_19;
+} GLIBC_2.16;
+GLIBC_2.18 {
+    global: bigver_20;
+} GLIBC_2.17;
+GLIBC_2.22 {
+    global: bigver_21;
+} GLIBC_2.18;
+GLIBC_2.23 {
+    global: bigver_22;
+} GLIBC_2.22;
+GLIBC_2.24 {
+    global: bigver_23;
+} GLIBC_2.23;
+GLIBC_2.25 {
+    global: bigver_24;
+} GLIBC_2.24;
+GLIBC_2.26 {
+    global: bigver_25;
+} GLIBC_2.25;
+GLIBC_2.27 {
+    global: bigver_26;
+} GLIBC_2.26;
+GLIBC_2.28 {
+    global: bigver_27;
+} GLIBC_2.27;
+GLIBC_2.29 {
+    global: bigver_28;
+} GLIBC_2.28;
+GLIBC_2.30 {
+    global: bigver_29;
+} GLIBC_2.29;
+GLIBC_2.31 {
+    global: bigver_30;
+} GLIBC_2.30;
+GLIBC_2.32 {
+    global: bigver_31;
+} GLIBC_2.31;
+GLIBC_2.33 {
+    global: bigver_32;
+} GLIBC_2.32;
+GLIBC_2.34 {
+    global: shim_start; __libc_start_main; bigver_33;
+} GLIBC_2.33;
+GLIBC_2.35 {
+    global: bigver_34;
+} GLIBC_2.34;
+GLIBC_2.36 {
+    global: bigver_35;
+} GLIBC_2.35;
+GLIBC_2.38 {
+    global: bigver_36;
+} GLIBC_2.36;
+GLIBC_2.39 {
+    global: bigver_37;
+} GLIBC_2.38;
+GLIBC_ABI_DT_RELR {
+    global: bigver_38;
+} GLIBC_2.39;
+GLIBC_PRIVATE {
+    global: bigver_39;
+} GLIBC_ABI_DT_RELR;

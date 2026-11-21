@@ -2433,13 +2433,97 @@ int main(int argc, char **argv) {
         printf("[ab] real glibc libc.so.6 provider: rc=%d status=%d "
                "reloc_failure=\"%s\"\n",
                rc_real, r.status, r.reloc_failure);
-        CHECK(rc_real == VSL_EXEC_ERR_RELOC && r.reloc_failure[0] != 0,
-              "real glibc libc.so.6 provider refused with an exact reason");
+        CHECK(rc_real == VSL_EXEC_ERR_RELOC &&
+              strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") != NULL,
+              "real glibc libc.so.6 provider refused at the exact TLS boundary");
 
         vsl_dyn_set_libc_rootfs(0);
         vsl_dyn_set_interp_bind_main(0);
         vsl_dyn_set_interp(0);
         free(cimg);
+    }
+}
+
+/* (ac) Raised version-table bounds + REAL-sized provider binding.
+ *  The old 32/32 VERDEF/VERNEED caps refused a real glibc libc.so.6 (41
+ *  version definitions).  This leg raises them with explicit resource limits
+ *  and proves the raised tables still bind COPY/GLOB_DAT/JUMP_SLOT by exact
+ *  DT_VERNEED name + vn_file:
+ *   - a repo-built minimal libc.so.6 with DT_VERDEFNUM=41 (same shape as the
+ *     host's real libc) binds hello-world's JUMP_SLOT puts@GLIBC_2.2.5 and
+ *     GLOB_DAT __libc_start_main@GLIBC_2.34, and guest_copy's COPY
+ *     optind@GLIBC_2.2.5 -- all above the old cap;
+ *   - the REAL host libc.so.6 provider is then attempted for the SAME hello
+ *     world.  It parses past the raised caps and fails at the next exact
+ *     boundary (a symbol-less R_X86_64_TPOFF64), recorded as a verified
+ *     negative rather than a silent skip. */
+{
+    static const char hello[] = "VSL-HELLO-DYNAMIC-WORLD";
+    size_t bn = 0, cn2 = 0;
+    char root[512], bigdir[512], realroot[512];
+    snprintf(root,     sizeof(root),     "%s/glibc_rootfs", dir);
+    snprintf(bigdir,   sizeof(bigdir),   "%s/glibc_rootfs_bigver", dir);
+    snprintf(realroot, sizeof(realroot), "%s/glibc_rootfs_reallibc", dir);
+    const char *none[]      = { NULL };
+    const char *big_dirs[]  = { bigdir, NULL };
+    const char *real_first[] = { realroot, root, NULL };
+
+    snprintf(path, sizeof(path), "%s/guest_hello.elf", dir);
+    uint8_t *hbig = read_test_file(path, &bn);
+    CHECK(hbig != NULL, "bigver gate: hello fixture readable");
+    if (hbig) {
+        VslImageCfg cfg_big = { big_dirs, 0, 0, NULL, 0, root, NULL };
+        vsl_dyn_set_interp(1);
+        vsl_dyn_set_interp_bind_main(1);
+        vsl_dyn_set_init_fini(0);
+        vsl_dyn_set_libc_rootfs(0);
+
+        int rc_big = vsl_exec_image(hbig, bn, &cfg_big, &r);
+        printf("[ac] 41-verdef hello: rc=%d exit=%d deps=%u relocs=%u syms=%u "
+               "reason=\"%s\" reloc_failure=\"%s\" out_len=%zu out=\"%.*s\"\n",
+               rc_big, r.exit_code, r.deps_loaded, r.relocations_applied,
+               r.symbols_resolved, r.interp_reason, r.reloc_failure,
+               r.output_len,
+               (int)(r.output_len < 64 ? r.output_len : 64), r.output);
+        CHECK(rc_big == VSL_EXEC_OK && r.exit_code == 0,
+              "41-verdef provider binds hello-world end-to-end (exit=0)");
+        CHECK(r.deps_loaded >= 1 && r.symbols_resolved >= 3,
+              "GLOB_DAT + JUMP_SLOT bound from 41-verdef provider by vn_file");
+        CHECK(r.output_len == sizeof(hello) &&
+              memcmp(r.output, hello, sizeof(hello) - 1) == 0 &&
+              r.output[sizeof(hello) - 1] == '\n',
+              "exact hello bytes written by GUEST puts through VSL");
+
+        /* COPY from the same >32-cap provider. */
+        snprintf(path, sizeof(path), "%s/guest_copy.elf", dir);
+        uint8_t *cbig = read_test_file(path, &cn2);
+        CHECK(cbig != NULL, "bigver gate: COPY fixture readable");
+        if (cbig) {
+            int rc_copy = vsl_exec_image(cbig, cn2, &cfg_big, &r);
+            printf("[ac] 41-verdef COPY: rc=%d exit=%d reloc_failure=\"%s\"\n",
+                   rc_copy, r.exit_code, r.reloc_failure);
+            CHECK(rc_copy == VSL_EXEC_OK && r.exit_code == 0x5a,
+                  "COPY optind@GLIBC_2.2.5 bound from 41-verdef provider");
+            free(cbig);
+        }
+
+        /* REAL glibc libc.so.6: exact next failure, verified negative. */
+        vsl_dyn_set_libc_rootfs(1);
+        VslImageCfg cfg_real = { none, 0, 0, NULL, 0, NULL, real_first };
+        int rc_real = vsl_exec_image(hbig, bn, &cfg_real, &r);
+        printf("[ac] real libc hello: rc=%d status=%d reloc_failure=\"%s\"\n",
+               rc_real, r.status, r.reloc_failure);
+        CHECK(rc_real == VSL_EXEC_ERR_RELOC,
+              "real glibc libc.so.6 provider fails closed with ERR_RELOC");
+        CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") != NULL &&
+              strstr(r.reloc_failure, "real glibc TLS ABI unmodeled") != NULL,
+              "next failure is the exact symbol-less TPOFF64 TLS boundary");
+        CHECK(strstr(r.reloc_failure, "32/32") == NULL,
+              "real libc parsed PAST the old 32/32 version-table cap");
+        vsl_dyn_set_libc_rootfs(0);
+        vsl_dyn_set_interp_bind_main(0);
+        vsl_dyn_set_interp(0);
+        free(hbig);
     }
 }
 

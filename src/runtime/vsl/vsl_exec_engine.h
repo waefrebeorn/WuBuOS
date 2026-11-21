@@ -58,7 +58,12 @@
  * flags clear) the definition must ALSO come from the DT_VERNEED vn_file, so
  * a version required from libA cannot be satisfied by libB.  An undefined
  * WEAK symbol with no definition binds to address 0 in hardened mode; a
- * strong undefined symbol always fails closed.
+ * strong undefined symbol always fails closed.  Version tables are bounded
+ * by EXPLICIT resource limits (per-image total records, raw chain-byte
+ * budget, a compile-time VslVerCtx stack bound and per-array caps); the old
+ * 32/32 caps are raised so a real-sized glibc table (41 VERDEFs) parses.  A
+ * symbol-less TLS relocation from a real glibc provider is still refused
+ * with an exact diagnostic -- the bounded TLS ABI is unmodeled.
  *
  * DT_NEEDED is supported ONLY in this bounded form: DT_NEEDED sonames are a
  * plain basename found in a bounded per-image search-directory list (or the

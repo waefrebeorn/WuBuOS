@@ -784,6 +784,7 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/glibc_rootfs/lib64/libc.so.6 \
 	$(RT)/vsl/exec_guests/glibc_rootfs_badver/libc.so.6 \
 	$(RT)/vsl/exec_guests/glibc_rootfs_reallibc/lib64/libc.so.6 \
+	$(RT)/vsl/exec_guests/glibc_rootfs_bigver/libc.so.6 \
 	$(RT)/vsl/exec_guests/guest_hello.elf \
 	$(RT)/vsl/exec_guests/guest_copy.elf
 
@@ -1006,6 +1007,21 @@ $(RT)/vsl/exec_guests/glibc_rootfs_reallibc/lib64/libc.so.6:
 	else \
 		printf 'vsl: no host libc available\n' > $@; \
 	fi
+
+# A repo-built MINIMAL libc.so.6 with a REAL-SIZED version table: 40 GLIBC
+# version nodes copied from the host's real libc.so.6 (old cap was 32).  This
+# proves the raised, explicitly-bounded version tables can bind COPY/GLOB_DAT/
+# JUMP_SLOT by DT_VERNEED name + vn_file with a table above the old cap, using
+# only freestanding guest bytes (no host libc, ld.so, TLS or IFUNC).
+$(RT)/vsl/exec_guests/glibc_rootfs_bigver/libc.so.6: \
+		$(RT)/vsl/exec_guests/guest_libc_big.c \
+		$(RT)/vsl/exec_guests/libc_shim_big.map \
+		$(RT)/vsl/exec_guests/guest_libc_shim.c
+	mkdir -p $(dir $@)
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-soname,libc.so.6 \
+		-Wl,--version-script=$(RT)/vsl/exec_guests/libc_shim_big.map $< -o $@
 
 # A REAL dynamically linked binary with a genuine R_X86_64_COPY of optind
 # (libc data) into the main image.  Plain $(CC): PT_INTERP ld-linux, DT_NEEDED
