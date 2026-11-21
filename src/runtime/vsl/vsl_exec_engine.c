@@ -119,6 +119,10 @@ static struct { uint64_t addr, size; } g_mmap_back[EX_MMAP_BACK_MAX];
 static uint32_t g_mmap_back_n;
 static uint64_t g_mmap_back_bytes;
 static char     g_mmap_back_fail[EX_MMAP_FAIL_MAX];
+/* Mid-run munmap release (ON by default) + exact per-run release evidence. */
+static int      g_munmap_release = 1;
+static uint64_t g_mmap_back_released_bytes;
+static uint32_t g_mmap_back_released_ranges;
 
 /* Reserved ELF-image host pages: the image is materialized unconditionally
  * (the guest must execute), so it is charged to its OWN fixed partition of
@@ -399,6 +403,93 @@ static void ex_release_mmap_backing(void) {
     g_mmap_back_bytes = 0;
 }
 
+/* -- release host backing pages on a mid-run guest munmap -------------
+ * A guest munmap must free the REAL host pages materialized for that range,
+ * not just the registry entry.  Runs in SIGSYS immediately after the VSL
+ * munmap handler succeeds.  The fix-up is atomic: it first PLANS the whole
+ * operation (overlap, byte total, slots needed for middle splits) and
+ * refuses to touch anything if the plan would overdraw the byte budget or
+ * overflow the fixed owner table.  A refusal leaves every page mapped and
+ * tracked, so a later MAP_FIXED reuse fails closed (no alias) and exit
+ * cleanup still frees each charged page exactly once (no double-free). */
+static void ex_back_guest_munmap(const uint64_t *regs, int64_t ret) {
+    if (!g_mmap_backing || !g_munmap_release || ret != 0 || !g_mmap_back_n)
+        return;
+    const uint64_t addr = regs[0];
+    const uint64_t size = regs[1];
+    if (!size || (addr & 0xfffull)) return;   /* vsl_munmap succeeded => valid */
+    uint64_t end = addr + ((size + 0xfff) & ~0xfffull);
+    if (end <= addr || addr < EX_WIN_LO || end > EX_WIN_HI) return;
+
+    /* Plan: exact bytes to release and extra owner slots for middle splits. */
+    uint64_t plan = 0;
+    uint32_t extra = 0;
+    for (uint32_t i = 0; i < g_mmap_back_n; i++) {
+        uint64_t s = g_mmap_back[i].addr;
+        uint64_t e = s + g_mmap_back[i].size;
+        uint64_t os = addr > s ? addr : s;
+        uint64_t oe = end < e ? end : e;
+        if (oe <= os) continue;
+        plan += (oe - os);
+        if (os > s && oe < e) extra++;       /* one entry becomes two */
+    }
+    if (!plan) return;                        /* no materialized page overlapped */
+    if (plan > g_mmap_back_bytes ||
+        (uint64_t)g_mmap_back_n + extra > EX_MMAP_BACK_MAX) {
+        ex_back_fail("guest munmap backing: release plan refused", addr, size);
+        return;                               /* fail closed: no mutation */
+    }
+
+    /* Apply: build the surviving set in a scratch array (a middle split adds
+     * an entry, so writing in place could clobber an unread neighbor).  Host
+     * ranges and the requested range are all page-aligned, so every munmap
+     * length is page-granular.  Only bytes actually freed by a successful
+     * host munmap are charged back to the budget. */
+    struct { uint64_t addr, size; } next[EX_MMAP_BACK_MAX];
+    uint64_t released = 0;
+    uint32_t ranges = 0, w = 0;
+    for (uint32_t i = 0; i < g_mmap_back_n; i++) {
+        uint64_t s = g_mmap_back[i].addr;
+        uint64_t e = s + g_mmap_back[i].size;
+        uint64_t os = addr > s ? addr : s;
+        uint64_t oe = end < e ? end : e;
+        if (oe <= os) {                       /* untouched entry */
+            next[w].addr = g_mmap_back[i].addr;
+            next[w++].size = g_mmap_back[i].size;
+            continue;
+        }
+        if (munmap((void *)(uintptr_t)os, (size_t)(oe - os)) != 0) {
+            /* Keep this entry tracked: exit cleanup retries it exactly once.
+             * Do not charge bytes the host did not actually release. */
+            ex_back_fail("guest munmap backing: host unmap failed", os, oe - os);
+            next[w].addr = g_mmap_back[i].addr;
+            next[w++].size = g_mmap_back[i].size;
+            continue;
+        }
+        released += (oe - os);
+        ranges++;
+        if (os == s && oe == e) continue;     /* fully released: drop entry */
+        if (os > s && oe < e) {               /* middle: two survivors */
+            next[w].addr = s;  next[w++].size = (size_t)(os - s);
+            next[w].addr = oe; next[w++].size = (size_t)(e - oe);
+            continue;
+        }
+        if (os == s) {                        /* left overlap: trim left */
+            next[w].addr = oe; next[w++].size = (size_t)(e - oe);
+        } else {                              /* right overlap: trim right */
+            next[w].addr = s;  next[w++].size = (size_t)(os - s);
+        }
+    }
+    for (uint32_t i = 0; i < w; i++) {
+        g_mmap_back[i].addr = next[i].addr;
+        g_mmap_back[i].size = next[i].size;
+    }
+    g_mmap_back_n = w;
+    g_mmap_back_bytes -= released;
+    g_mmap_back_released_bytes += released;
+    g_mmap_back_released_ranges += ranges;
+}
+
 /* Charge the materialized image union to the reserved host-backing partition.
  * Fail-closed: page-aligned in-window range, per-map cap, entry cap and total
  * ceiling are enforced BEFORE the entry is added; a refusal returns -1 with
@@ -506,9 +597,11 @@ static __attribute__((no_stack_protector)) void ex_sigsys(int sig, siginfo_t *si
     } else {
         ret = vsl_syscall_dispatch(nr, regs);
     }
-    /* Advance the real glibc allocator: back a successful guest anonymous
-     * mmap with host pages at the same address, or fail closed. */
+    /* Back a successful guest anonymous/file mmap with host pages at the
+     * same address (fail closed), and on a successful guest munmap release
+     * the matching host pages with exact byte-budget decrements. */
     if (nr == VSL_SYS_MMAP) ret = ex_back_guest_mmap(regs, ret);
+    else if (nr == VSL_SYS_MUNMAP) ex_back_guest_munmap(regs, ret);
     g_ex.trapped++;
     g[REG_RAX] = (greg_t)ret;
     /* Advance past the 2-byte syscall ONLY if RIP still points at it;
@@ -1540,6 +1633,8 @@ int vsl_dyn_set_mmap_backing_max(uint64_t max_bytes) {
     return 0;
 }
 uint64_t vsl_dyn_mmap_backing_max(void) { return g_mmap_backing_max; }
+void     vsl_dyn_set_munmap_release(int on) { g_munmap_release = on ? 1 : 0; }
+int      vsl_dyn_munmap_release(void) { return g_munmap_release; }
 uint64_t vsl_dyn_tcb_base(void) { return (uint64_t)(uintptr_t)&g_tcb_hdr[0]; }
 uint32_t vsl_dyn_module_id(uint32_t idx) {
     return idx < g_tls_mod_count ? g_tls_mods[idx].id : 0;
@@ -3896,6 +3991,8 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     g_mmap_back_fail[0] = 0;
     g_mmap_back_n = 0;
     g_mmap_back_bytes = 0;
+    g_mmap_back_released_bytes = 0;
+    g_mmap_back_released_ranges = 0;
     g_stdout_writes = 0;
     g_stdout_bytes = 0;
     g_stdout_failure[0] = 0;
@@ -3957,6 +4054,8 @@ cleanup:
     out->ctor_calls = g_ctor_calls;   /* bounded calls charged this run */
     out->mmap_backed = g_mmap_back_n;
     out->mmap_backed_bytes = g_mmap_back_bytes;
+    out->mmap_released_ranges = g_mmap_back_released_ranges;
+    out->mmap_released_bytes = g_mmap_back_released_bytes;
     /* Capture the reserved-region exact byte totals BEFORE release clears
      * them.  They are 0 when the negative-control switch is off. */
     out->image_registry_bytes = vsl_reserved_bytes_kind(VSL_MMAP_RESERVED_IMAGE);

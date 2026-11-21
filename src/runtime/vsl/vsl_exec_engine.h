@@ -221,6 +221,12 @@ typedef struct {
     uint32_t stdout_writes;     /* bounded host stdout writes this run */
     uint64_t stdout_bytes;      /* exact bytes emitted by the bounded model */
     char     stdout_failure[160]; /* exact reason an unsupported shape refused */
+    /* Host backing pages released on a MID-RUN guest munmap (opt-in, ON by
+     * default with mmap backing).  The mmap_backed / mmap_backed_bytes
+     * fields above are the LIVE totals captured after these releases, so
+     * the two deltas prove the budget was charged back exactly (no leak). */
+    uint32_t mmap_released_ranges;  /* host ranges munmap'd mid-run */
+    uint64_t mmap_released_bytes;   /* exact bytes removed from the budget */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
@@ -464,6 +470,14 @@ void     vsl_dyn_set_mmap_backing(int on);
  * Returns 0 on success, -1 for an out-of-range value.  0 refuses ALL backing. */
 int      vsl_dyn_set_mmap_backing_max(uint64_t max_bytes);
 uint64_t vsl_dyn_mmap_backing_max(void);
+/* Mid-run guest-munmap host-page release, ON by default.  When enabled, a
+ * successful guest munmap frees the REAL host pages materialized for that
+ * range and charges the exact bytes back to the budget (trim/split/full
+ * release, bounded owner table, no double-free or alias).  OFF reproduces
+ * the pre-change behaviour: the registry entry is removed but host pages
+ * survive until end-of-run cleanup — the non-vacuous negative control. */
+void     vsl_dyn_set_munmap_release(int on);
+int      vsl_dyn_munmap_release(void);
 
 /* Reserved ELF-image/brk ranges are registered in the allocator registry and
  * their real host pages charged to a SEPARATE bounded partition of the host
