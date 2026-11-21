@@ -711,7 +711,9 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/dirB/libvslimgdep.so \
 	$(RT)/vsl/exec_guests/guest_imgdep.elf \
 	$(RT)/vsl/exec_guests/guest_glibc_dyn.elf \
+	$(RT)/vsl/exec_guests/guest_fs_tcb.elf \
 	$(RT)/vsl/exec_guests/glibc_rootfs/libvslinterp.so \
+	$(RT)/vsl/exec_guests/glibc_rootfs2/libvslinterp.so \
 	$(RT)/vsl/exec_guests/glibc_rootfs/lib64/ld-linux-x86-64.so.2
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
@@ -848,6 +850,15 @@ $(RT)/vsl/exec_guests/guest_glibc_dyn.elf: \
 	$(CC) -O2 -Wl,--build-id=none $< -o $@
 
 $(RT)/vsl/exec_guests/glibc_rootfs/libvslinterp.so: \
+		$(RT)/vsl/exec_guests/guest_interp.c
+	mkdir -p $(dir $@)
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-e,_start $< -o $@
+
+# Second rootfs for the ORDERED rootfs-search gate: the same freestanding
+# interpreter is placed here only; the gate searches an empty dir first.
+$(RT)/vsl/exec_guests/glibc_rootfs2/libvslinterp.so: \
 		$(RT)/vsl/exec_guests/guest_interp.c
 	mkdir -p $(dir $@)
 	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \

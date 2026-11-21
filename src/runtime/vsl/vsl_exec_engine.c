@@ -74,7 +74,29 @@ static struct {
     volatile int reason;            /* 1 = exit, 2 = fault */
     volatile uint64_t trapped;
     volatile uint64_t fault_addr;
+    /* arch_prctl(ARCH_SET_FS) state, touched by ex_sigsys on the guest's
+     * thread.  host_fs_base is captured before setcontext and restored on
+     * every unwind so host libc keeps its own TLS. */
+    volatile uint64_t fs_base;      /* guest-requested %fs base (0 = unset) */
+    volatile uint64_t host_fs_base; /* host thread's original %fs base */
+    volatile sig_atomic_t fs_set;   /* guest issued a successful ARCH_SET_FS */
+    volatile uint64_t fs_syscalls;  /* arch_prctl calls handled this run */
+    volatile uint64_t stack_lo, stack_hi; /* guest stack range (GET_FS dst) */
 } g_ex;
+
+/* Read/write this thread's FS base with the raw kernel syscall (host code:
+ * outside the seccomp trap window, so the filter ALLOWs it). */
+static __attribute__((no_stack_protector)) uint64_t ex_get_fs(void) {
+    uint64_t v = 0;
+    syscall(SYS_arch_prctl, VSL_ARCH_GET_FS, &v);
+    return v;
+}
+static __attribute__((no_stack_protector)) void ex_set_fs(uint64_t v) {
+    syscall(SYS_arch_prctl, VSL_ARCH_SET_FS, v);
+}
+/* Defined in the TLS-layout section below; the SIGSYS handler needs both. */
+static int g_fs_tls;                /* opt-in arch_prctl/TCB, default OFF */
+static void ex_seed_tcb(uint64_t base);
 
 static int g_filter_installed;
 static struct sigaction g_old_sigsys, g_old_sigsegv, g_old_sigbus;
@@ -113,7 +135,7 @@ static int ex_install_filter(void) {
 }
 
 /* -- signal handlers ------------------------------------------------- */
-static void ex_sigsys(int sig, siginfo_t *si, void *ucv) {
+static __attribute__((no_stack_protector)) void ex_sigsys(int sig, siginfo_t *si, void *ucv) {
     (void)sig;
     ucontext_t *uc = (ucontext_t *)ucv;
     if (!g_ex.active) {
@@ -131,16 +153,59 @@ static void ex_sigsys(int sig, siginfo_t *si, void *ucv) {
         (uint64_t)g[REG_R10], (uint64_t)g[REG_R8],  (uint64_t)g[REG_R9],
     };
 
+    /* The guest runs with its own %fs base once it has issued ARCH_SET_FS.
+     * Host libc (vsl_syscall_dispatch) needs the real host TLS, so swap back
+     * to it on entry and restore the guest base just before returning to the
+     * guest.  A raw arch_prctl from host text is ALLOWed by the IP-scoped
+     * seccomp filter. */
+    int guest_fs = g_ex.fs_set && (ex_get_fs() == (uint64_t)g_ex.fs_base);
+    if (guest_fs) ex_set_fs((uint64_t)g_ex.host_fs_base);
+
     if (nr == VSL_SYS_EXIT || nr == VSL_SYS_EXIT_GROUP) {
         /* The REAL handler records ZOMBIE + exit_code on the VSL_PROC;
-         * then unwind to the engine caller instead of dying. */
+         * then unwind to the engine caller instead of dying.  Engine C code
+         * resumes via siglongjmp, so KEEP the host fs base here. */
         (void)vsl_syscall_dispatch(nr, regs);
         g_ex.trapped++;
         g_ex.reason = 1;
         siglongjmp(g_ex.jb, 1);
     }
 
-    int64_t ret = vsl_syscall_dispatch(nr, regs);
+    int restore_guest_fs = guest_fs;
+    int64_t ret;
+    if (g_fs_tls && nr == VSL_SYS_ARCH_PRCTL) {
+        uint64_t opt = regs[0];
+        ret = -22;                                  /* -EINVAL, fail closed */
+        if (opt == VSL_ARCH_SET_FS) {
+            uint64_t addr = regs[1];
+            /* A guest TCB must live inside the VSL user window.  Host
+             * pointers are refused: the engine never writes host memory. */
+            if (addr >= EX_WIN_LO && addr + 16 <= EX_WIN_HI) {
+                ex_seed_tcb(addr);
+                g_ex.fs_base = addr;
+                g_ex.fs_set = 1;
+                ret = 0;
+                restore_guest_fs = 1;               /* apply the NEW base */
+            }
+        } else if (opt == VSL_ARCH_GET_FS) {
+            uint64_t *dst = (uint64_t *)(uintptr_t)regs[1];
+            /* The kernel writes to a user pointer, so accept the VSL window
+             * (image mappings) AND the private guest stack; a bad pointer
+             * faults into the engine's fail-closed fault handler. */
+            int in_window = dst && (uint64_t)dst >= EX_WIN_LO &&
+                            (uint64_t)dst + 8 <= EX_WIN_HI;
+            int in_stack = dst && (uint64_t)dst >= g_ex.stack_lo &&
+                           (uint64_t)dst + 8 <= g_ex.stack_hi;
+            if (in_window || in_stack) {
+                *dst = g_ex.fs_set ? (uint64_t)g_ex.fs_base
+                                   : (uint64_t)g_ex.host_fs_base;
+                ret = 0;
+            }
+        }
+        g_ex.fs_syscalls++;
+    } else {
+        ret = vsl_syscall_dispatch(nr, regs);
+    }
     g_ex.trapped++;
     g[REG_RAX] = (greg_t)ret;
     /* Advance past the 2-byte syscall ONLY if RIP still points at it;
@@ -148,9 +213,10 @@ static void ex_sigsys(int sig, siginfo_t *si, void *ucv) {
     unsigned char *rip = (unsigned char *)g[REG_RIP];
     if (rip[0] == 0x0f && rip[1] == 0x05)
         g[REG_RIP] = (greg_t)((uint64_t)g[REG_RIP] + 2);
+    if (restore_guest_fs) ex_set_fs((uint64_t)g_ex.fs_base);
 }
 
-static void ex_fault(int sig, siginfo_t *si, void *ucv) {
+static __attribute__((no_stack_protector)) void ex_fault(int sig, siginfo_t *si, void *ucv) {
     (void)ucv;
     if (!g_ex.active) {
         struct sigaction *old = (sig == SIGSEGV) ? &g_old_sigsegv : &g_old_sigbus;
@@ -158,6 +224,9 @@ static void ex_fault(int sig, siginfo_t *si, void *ucv) {
         raise(sig);
         return;
     }
+    /* Engine C code resumes via siglongjmp: keep the HOST fs base. */
+    if (g_ex.fs_set && ex_get_fs() == (uint64_t)g_ex.fs_base)
+        ex_set_fs((uint64_t)g_ex.host_fs_base);
     g_ex.fault_addr = (uint64_t)(uintptr_t)si->si_addr;
     g_ex.reason = 2;
     siglongjmp(g_ex.jb, 2);
@@ -188,7 +257,7 @@ static int ex_range_free(uint64_t lo, uint64_t hi) {
 static uint64_t ex_build_stack(uint8_t *base, size_t size, uint64_t entry,
                                uint64_t phdr_addr, uint16_t phentsize,
                                uint16_t phnum, uint64_t interp_bias,
-                               uint64_t *out_auxv_count) {
+                               uint32_t *out_auxv_count) {
     uint64_t top = (uint64_t)(uintptr_t)base + size;
     /* AT_RANDOM: 16 bytes at the very top, kernel-style. */
     uint8_t *rnd = (uint8_t *)(top - 16);
@@ -709,6 +778,26 @@ static int  g_dep_dir_set;
 static char g_rootfs_dir[EX_DEP_PATH_MAX];
 static int  g_rootfs_dir_set;
 
+/* Ordered guest-rootfs search list (LD_LIBRARY_PATH-like).  vsl_dyn_add_rootfs
+ * appends in call order; the first confinement-passing hit during interpreter
+ * resolution wins.  Capped and bounded like the dependency search list. */
+#define EX_ROOTFS_LIST_MAX 8u
+static char     g_rootfs_list[EX_ROOTFS_LIST_MAX][EX_DEP_PATH_MAX];
+static uint32_t g_rootfs_list_count;
+
+int vsl_dyn_add_rootfs(const char *dir) {
+    if (!dir || !dir[0]) return -1;
+    size_t n = strlen(dir);
+    if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
+    if (g_rootfs_list_count >= EX_ROOTFS_LIST_MAX) return -1;
+    memcpy(g_rootfs_list[g_rootfs_list_count++], dir, n + 1);
+    return 0;
+}
+void vsl_dyn_clear_rootfs_list(void) {
+    memset(g_rootfs_list, 0, sizeof(g_rootfs_list));
+    g_rootfs_list_count = 0;
+}
+
 int vsl_dyn_set_rootfs(const char *dir) {
     if (!dir || !dir[0]) { g_rootfs_dir[0] = 0; g_rootfs_dir_set = 0; return 0; }
     size_t n = strlen(dir);
@@ -718,16 +807,71 @@ int vsl_dyn_set_rootfs(const char *dir) {
     return 0;
 }
 
-/* -- HOST-PROVIDED TLS BLOCKS ------------------------------------------
+/* -- HOST-PROVIDED TLS BLOCKS + REAL MODULE-ID LAYOUT -------------------
  * One fixed-size block per image: index 0 = main image, 1..EX_DEP_MAX =
- * DT_NEEDED dependencies.  Static, bounded host memory -- no guest-supplied
- * sizes, no mmap, no glibc.  The main block is seeded from VslImageCfg at
- * run start; dependency blocks are zeroed when their image is mapped. */
-static uint8_t g_tls_blocks[EX_DEP_MAX + 1][EX_TLS_BLOCK_MAX];
+ * DT_NEEDED dependencies, EX_TLS_INTERP_SLOT = the PT_INTERP interpreter.
+ * Static, bounded host memory -- no guest-supplied sizes, no mmap, no glibc.
+ * Each loaded image is registered in g_tls_mods with a stable module id
+ * (main = 1, interpreter = 2, dependencies = 3+ in load order).  The TCB the
+ * guest installs through arch_prctl(ARCH_SET_FS) points at a bounded dtv
+ * array (g_tcb_dtv) whose entries are those real module TLS bases. */
+static uint8_t g_tls_blocks[EX_DEP_MAX + 2][EX_TLS_BLOCK_MAX];
+#define EX_TLS_INTERP_SLOT (EX_DEP_MAX + 1)
 static uint64_t ex_tls_base(uint32_t idx) {
+    if (idx > EX_TLS_INTERP_SLOT) idx = EX_TLS_INTERP_SLOT;
     return (uint64_t)(uintptr_t)g_tls_blocks[idx];
 }
 uint64_t vsl_tls_base(void) { return ex_tls_base(0); }
+
+#define EX_TLS_MODULE_MAX (EX_DEP_MAX + 2)
+typedef struct {
+    uint32_t id;                        /* real module id (main = 1) */
+    uint64_t tls_base;                  /* this module's TLS block base */
+    char     name[EX_DEP_NAME_MAX + 1];
+} VslTlsModule;
+static VslTlsModule g_tls_mods[EX_TLS_MODULE_MAX];
+static uint32_t g_tls_mod_count;
+static uint64_t g_tcb_dtv[EX_TLS_MODULE_MAX + 1];   /* [0]=count, [i]=module i */
+static uint64_t g_tcb_hdr[4];                       /* host TCB backing store */
+
+void vsl_dyn_set_fs_tls(int on) { g_fs_tls = on ? 1 : 0; }
+uint64_t vsl_dyn_tcb_base(void) { return (uint64_t)(uintptr_t)&g_tcb_hdr[0]; }
+uint32_t vsl_dyn_module_id(uint32_t idx) {
+    return idx < g_tls_mod_count ? g_tls_mods[idx].id : 0;
+}
+
+/* Reset the module-id/TLS layout at run start and register the main image as
+ * module 1.  Interpreter/deps register as they load (ids 2, 3, ...). */
+static void ex_tls_layout_reset(void) {
+    memset(g_tls_mods, 0, sizeof(g_tls_mods));
+    memset(g_tcb_dtv, 0, sizeof(g_tcb_dtv));
+    memset(g_tcb_hdr, 0, sizeof(g_tcb_hdr));
+    g_tls_mod_count = 0;
+    memset(g_tls_blocks, 0, sizeof(g_tls_blocks));
+}
+static uint32_t ex_tls_register(const char *name, uint64_t tls_base) {
+    if (g_tls_mod_count >= EX_TLS_MODULE_MAX) return 0;
+    uint32_t i = g_tls_mod_count++;
+    g_tls_mods[i].id = i + 1;
+    g_tls_mods[i].tls_base = tls_base;
+    snprintf(g_tls_mods[i].name, sizeof(g_tls_mods[i].name), "%s",
+             name ? name : "");
+    return g_tls_mods[i].id;
+}
+
+/* Seed a minimal x86-64 TCB header at the guest's chosen FS base: self
+ * pointer at %fs:0 and a dtv pointer at %fs:8.  The dtv is a bounded host
+ * array: [0] is the module count, [i] is module i's real TLS block base. */
+static void ex_seed_tcb(uint64_t base) {
+    g_tcb_dtv[0] = g_tls_mod_count;
+    for (uint32_t i = 0; i < g_tls_mod_count && i + 1 < EX_TLS_MODULE_MAX + 1; i++)
+        g_tcb_dtv[i + 1] = g_tls_mods[i].tls_base;
+    uint64_t *h = (uint64_t *)(uintptr_t)base;
+    h[0] = base;                                       /* tcb (self pointer) */
+    h[1] = (uint64_t)(uintptr_t)&g_tcb_dtv[0];         /* dtv */
+    g_tcb_hdr[0] = base;                               /* host diagnostic copy */
+    g_tcb_hdr[1] = (uint64_t)(uintptr_t)&g_tcb_dtv[0];
+}
 
 /* -- per-image configuration (set at the top of each run, never global) --
  * These replace the single process-wide allow-list for callers that use
@@ -738,6 +882,11 @@ static int      g_run_legacy_ver_any_file;
 static int      g_run_legacy_weak_fail;
 static char     g_run_rootfs[EX_DEP_PATH_MAX];
 static int      g_run_rootfs_set;
+static char     g_run_rootfs_list[EX_ROOTFS_LIST_MAX][EX_DEP_PATH_MAX];
+static uint32_t g_run_rootfs_count;
+/* Set only while relocating the interpreter: versioned imports then prefer
+ * this image's own exported definitions (ld.so self-relocation). */
+static const char *g_self_owner;
 
 /* Copy one run's configuration; no directory is ever written to a global
  * allow-list.  Returns 0 ok, -1 on an invalid/oversized path or too many
@@ -746,27 +895,50 @@ static int ex_set_run_config(const VslImageCfg *cfg) {
     g_run_dir_count = 0;
     g_run_legacy_ver_any_file = 0;
     g_run_legacy_weak_fail = 0;
-    /* Seed this image's HOST-provided TLS block (rest zeroed).  Legacy
-     * callers (cfg == NULL) get an all-zero block, preserving old behaviour. */
-    memset(g_tls_blocks[0], 0, sizeof(g_tls_blocks[0]));
+    g_self_owner = NULL;
+
+    /* Reset the real module-id/TLS layout and register the main image as
+     * module 1 (DTPMOD64 in the main image stays id 1).  Seed the main TLS
+     * block from VslImageCfg.tls_init before any interp/dep is loaded. */
+    ex_tls_layout_reset();
     if (cfg && cfg->tls_init_len > sizeof(g_tls_blocks[0])) return -1;
     if (cfg && cfg->tls_init && cfg->tls_init_len)
         memcpy(g_tls_blocks[0], cfg->tls_init, cfg->tls_init_len);
+    if (!ex_tls_register("main", ex_tls_base(0))) return -1;
+
     g_run_rootfs[0] = 0;
     g_run_rootfs_set = 0;
-    if (cfg && cfg->rootfs && cfg->rootfs[0]) {
+    g_run_rootfs_count = 0;
+    /* Ordered per-run rootfs list.  Precedence: per-image ordered list,
+     * per-image single rootfs, process-wide ordered list, process-wide single
+     * rootfs.  Each dir is bounded; the first confinement-passing hit wins. */
+    if (cfg && cfg->rootfs_dirs) {
+        for (uint32_t i = 0; i < EX_ROOTFS_LIST_MAX; i++) {
+            const char *d = cfg->rootfs_dirs[i];
+            if (!d) break;
+            size_t n = strlen(d);
+            if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
+            memcpy(g_run_rootfs_list[g_run_rootfs_count++], d, n + 1);
+        }
+    } else if (cfg && cfg->rootfs && cfg->rootfs[0]) {
         size_t n = strlen(cfg->rootfs);
         if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
+        memcpy(g_run_rootfs_list[g_run_rootfs_count++], cfg->rootfs, n + 1);
         memcpy(g_run_rootfs, cfg->rootfs, n + 1);
+        g_run_rootfs_set = 1;
+    } else if (g_rootfs_list_count) {
+        for (uint32_t i = 0; i < g_rootfs_list_count; i++)
+            memcpy(g_run_rootfs_list[g_run_rootfs_count++], g_rootfs_list[i],
+                   strlen(g_rootfs_list[i]) + 1);
+    } else if (g_rootfs_dir_set) {
+        size_t n = strlen(g_rootfs_dir);
+        memcpy(g_run_rootfs_list[g_run_rootfs_count++], g_rootfs_dir, n + 1);
+        memcpy(g_run_rootfs, g_rootfs_dir, n + 1);
         g_run_rootfs_set = 1;
     }
     if (!cfg) {                              /* legacy entry point */
         g_run_legacy_ver_any_file = 1;      /* old: ignore vn_file */
         g_run_legacy_weak_fail = 1;         /* old: weak UNDEF fails closed */
-        if (!g_run_rootfs_set && g_rootfs_dir_set) {
-            memcpy(g_run_rootfs, g_rootfs_dir, strlen(g_rootfs_dir) + 1);
-            g_run_rootfs_set = 1;
-        }
         if (g_dep_dir_set && g_dep_dir[0]) {
             size_t n = strlen(g_dep_dir);
             if (n == 0 || n >= EX_DEP_PATH_MAX) return -1;
@@ -777,10 +949,6 @@ static int ex_set_run_config(const VslImageCfg *cfg) {
     }
     g_run_legacy_ver_any_file = cfg->legacy_version_any_file ? 1 : 0;
     g_run_legacy_weak_fail    = cfg->legacy_weak_undef_fail ? 1 : 0;
-    if (!g_run_rootfs_set && g_rootfs_dir_set) {
-        memcpy(g_run_rootfs, g_rootfs_dir, strlen(g_rootfs_dir) + 1);
-        g_run_rootfs_set = 1;
-    }
     if (!cfg->dirs) return 0;                /* isolated image: no deps */
     for (uint32_t i = 0; i < VSL_IMAGE_DIRS_MAX; i++) {
         const char *d = cfg->dirs[i];
@@ -840,9 +1008,13 @@ uint64_t vsl_dyn_dep_symbol(const char *name) {
 }
 
 /* Rank a candidate definition: strong beats weak, default version beats a
- * hidden (non-default) alias; ties keep link order (first definition wins). */
+ * hidden (non-default) alias; ties keep link order (first definition wins).
+ * While relocating the interpreter, its OWN exported definitions outrank
+ * everything else: a real ld.so self-relocates using its own versioned
+ * symbols first. */
 static int ex_dep_rank(const VslDepSym *s) {
-    return (!s->weak ? 2 : 0) + (s->is_default ? 1 : 0);
+    int self = (g_self_owner && strcmp(s->owner, g_self_owner) == 0) ? 8 : 0;
+    return self + (!s->weak ? 2 : 0) + (s->is_default ? 1 : 0);
 }
 
 /* Look up an exported symbol.  `ver` non-NULL requires an EXACT version-name
@@ -1145,7 +1317,12 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     if (vi > EX_VER_NDX_GLOBAL) {
         const VslVerEnt *need = ex_ver_find(vc->needs, vc->nneeds, vi);
         if (need) {
-            const char *file = g_run_legacy_ver_any_file ? NULL : need->file;
+            /* While the interpreter self-relocates, let its own versioned
+             * definitions satisfy a need regardless of the DT_VERNEED
+             * vn_file; ex_dep_rank prefers its own owner.  Otherwise hardened
+             * mode still requires the exact vn_file. */
+            const char *file = (g_run_legacy_ver_any_file || g_self_owner)
+                             ? NULL : need->file;
             found = ex_dep_lookup_ver(name, need->name, file, &addr);
         }
     } else {
@@ -1273,7 +1450,8 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
                         const VslVerCtx *vc,
                         uint64_t r_offset, uint64_t r_info, int64_t addend,
                         int has_addend, int lazy_plt, uint32_t *resolved,
-                        uint64_t tls_base, uint32_t *tls_relocs) {
+                        uint64_t tls_base, uint32_t module_id,
+                        uint32_t *tls_relocs) {
     uint32_t type   = (uint32_t)(r_info & 0xffffffffu);
     uint32_t symidx = (uint32_t)(r_info >> 32);
     uint64_t dest = bias + r_offset;
@@ -1356,7 +1534,7 @@ static int ex_apply_one(const uint8_t *f, size_t fsz, uint64_t bias,
         if (ex_resolve_tls(f, fsz, phnum, phentsize, phoff, symtab, syment,
                            symcount, symidx, addend, vc, &off) != 0) return -1;
         if (dest > EX_WIN_HI - 8 || dest > map_hi - 8) return -1;
-        *where = EX_TLS_MODULE_ID;                 /* bounded module id */
+        *where = module_id ? module_id : EX_TLS_MODULE_ID; /* real module id */
         (*tls_relocs)++;
         return 0;
     }
@@ -1384,7 +1562,8 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                 uint16_t phnum, uint16_t phentsize, uint64_t phoff,
                                 uint32_t *out_applied, uint32_t *out_skipped,
                                 uint32_t *out_resolved, int lazy_plt,
-                                uint64_t tls_base, uint32_t *out_tls) {
+                                uint64_t tls_base, uint32_t module_id,
+                                uint32_t *out_tls) {
     *out_applied = *out_skipped = *out_resolved = *out_tls = 0;
 
     /* Locate PT_DYNAMIC and read its file bytes. */
@@ -1511,7 +1690,7 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                      &vc,                                     \
                                      ro, ri, (int64_t)ra, HAS_ADDEND,         \
                                      lazy_plt, out_resolved,                  \
-                                     tls_base, out_tls);                      \
+                                     tls_base, module_id, out_tls);            \
                 if (vr < 0) return -1;                                       \
                 if (vr > 0) (*out_skipped)++; else (*out_applied)++;          \
             }                                                                \
@@ -1877,13 +2056,14 @@ static int ex_load_dependencies(const uint8_t *f, size_t fsz,
         obj->map = dmap; obj->map_lo = dlo; obj->map_hi = dhi;
         snprintf(g_dep_order[g_dep_order_count++], EX_DEP_NAME_MAX + 1,
                  "%s", name);
-        /* Each dependency gets its OWN zeroed host TLS block. */
-        memset(g_tls_blocks[dep_slot + 1], 0, sizeof(g_tls_blocks[dep_slot + 1]));
+        /* Each dependency gets its OWN zeroed host TLS block and a real
+         * module id (main = 1, interpreter = 2, deps = 3+ in load order). */
+        uint32_t dep_mod = ex_tls_register(name, ex_tls_base(dep_slot + 1));
         uint32_t applied = 0, skipped = 0, resolved = 0, dtls = 0;
         int rr = ex_apply_relocations(df, dsz, dbias, dlo, dhi,
                                       dphnum, dphentsize, dphoff,
                                       &applied, &skipped, &resolved, 0,
-                                      ex_tls_base(dep_slot + 1), &dtls);
+                                      ex_tls_base(dep_slot + 1), dep_mod, &dtls);
         if (rr != 0 || skipped ||
             ex_register_exports(df, dsz, dphnum, dphentsize, dphoff,
                                 &ddi, dbias, name) != 0 ||
@@ -1938,7 +2118,7 @@ static void ex_unload_dependencies(void) {
  * rootfs.  realpath() confinement means a symlink can never escape it. */
 static char *ex_resolve_rootfs_path(const char *root, const char *abs,
                                     char *reason, size_t reason_sz) {
-    if (!g_run_rootfs_set || !root || !root[0]) {
+    if (!root || !root[0]) {
         snprintf(reason, reason_sz, "no guest rootfs configured for PT_INTERP");
         return NULL;
     }
@@ -1969,15 +2149,32 @@ static char *ex_resolve_rootfs_path(const char *root, const char *abs,
     return rp;                                  /* caller frees */
 }
 
+/* Search the ordered per-run rootfs list IN ORDER; the first confinement-
+ * passing hit wins (an LD_LIBRARY_PATH-like rootfs search).  Each miss counts
+ * toward rootfs_tried so the gate can prove the order was really walked. */
+static char *ex_resolve_interp_path(const char *abs, VslExecResult *out) {
+    if (g_run_rootfs_count == 0) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "no guest rootfs configured for PT_INTERP");
+        return NULL;
+    }
+    for (uint32_t i = 0; i < g_run_rootfs_count; i++) {
+        out->rootfs_tried = i + 1;
+        char *p = ex_resolve_rootfs_path(g_run_rootfs_list[i], abs,
+                                        out->interp_reason,
+                                        sizeof(out->interp_reason));
+        if (p) return p;
+    }
+    return NULL;                        /* last miss left the exact reason */
+}
+
 /* Load the interpreter with the SAME bounded ET_DYN machinery as a
  * dependency: map its PT_LOAD union, apply the same relocation set, merge
  * its exports and collect its DT_INIT/DT_FINI into the existing owner.  A
  * real glibc ld.so fails here (unsupported relocations / unknown symbols)
  * and is classified as an infeasible ABI with the exact reason. */
 static int ex_load_interpreter(VslExecResult *out) {
-    char *path = ex_resolve_rootfs_path(g_run_rootfs, out->interp_path,
-                                        out->interp_reason,
-                                        sizeof(out->interp_reason));
+    char *path = ex_resolve_interp_path(out->interp_path, out);
     if (!path) return -1;
     out->interp_resolved = 1;
     FILE *fp = fopen(path, "rb");
@@ -2033,22 +2230,34 @@ static int ex_load_interpreter(VslExecResult *out) {
                  "interpreter PT_LOAD union cannot be mapped in VSL window");
         free(f); return -1;
     }
+    /* Register the interpreter's OWN exports BEFORE relocating it so its
+     * versioned self-imports resolve to its own definitions (real ld.so
+     * self-relocation).  It also gets its own module id and TLS block. */
+    uint32_t interp_mod = ex_tls_register("ld-interp",
+                                          ex_tls_base(EX_TLS_INTERP_SLOT));
+    if (ex_register_exports(f, (size_t)sz, phnum, phentsize, phoff,
+                            &di, g_interp_bias, "ld-interp") != 0) {
+        snprintf(out->interp_reason, sizeof(out->interp_reason),
+                 "interpreter exports out of bounds");
+        free(f); return -1;
+    }
     uint32_t applied = 0, skipped = 0, resolved = 0, tls = 0;
-    if (ex_apply_relocations(f, (size_t)sz, g_interp_bias,
-                             g_interp_lo, g_interp_hi, phnum, phentsize, phoff,
-                             &applied, &skipped, &resolved, 0,
-                             ex_tls_base(0), &tls) != 0 || skipped) {
+    g_self_owner = "ld-interp";
+    int rr = ex_apply_relocations(f, (size_t)sz, g_interp_bias,
+                                  g_interp_lo, g_interp_hi, phnum, phentsize, phoff,
+                                  &applied, &skipped, &resolved, 0,
+                                  ex_tls_base(EX_TLS_INTERP_SLOT), interp_mod, &tls);
+    g_self_owner = NULL;
+    if (rr != 0 || skipped) {
         snprintf(out->interp_reason, sizeof(out->interp_reason),
                  "interpreter needs unsupported relocations/symbols "
                  "(glibc ld.so ABI unmodeled)");
         free(f); return -1;
     }
-    if (ex_register_exports(f, (size_t)sz, phnum, phentsize, phoff,
-                            &di, g_interp_bias, "ld-interp") != 0 ||
-        ex_collect_ctors(f, (size_t)sz, phnum, phentsize, phoff,
+    if (ex_collect_ctors(f, (size_t)sz, phnum, phentsize, phoff,
                          g_interp_bias, g_interp_lo, g_interp_hi) != 0) {
         snprintf(out->interp_reason, sizeof(out->interp_reason),
-                 "interpreter exports/constructors out of bounds");
+                 "interpreter constructors out of bounds");
         free(f); return -1;
     }
     g_interp_entry = entry;
@@ -2063,6 +2272,14 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
                    const VslImageCfg *cfg, VslExecResult *out) {
     if (!out) return VSL_EXEC_ERR_ARGS;
     memset(out, 0, sizeof(*out));
+    /* Capture the host TLS base BEFORE any guest runs, so every unwind path
+     * can put it back even if a guest installed its own %fs base. */
+    g_ex.host_fs_base = ex_get_fs();
+    g_ex.fs_set = 0;
+    g_ex.fs_base = 0;
+    g_ex.fs_syscalls = 0;
+    g_ex.stack_lo = 0;
+    g_ex.stack_hi = 0;
     /* Per-image config first: the DT_NEEDED loader below consults g_run_*. */
     if (ex_set_run_config(cfg) != 0) {
         out->status = VSL_EXEC_ERR_ARGS;
@@ -2297,7 +2514,9 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         if (ex_apply_relocations(elf_data, elf_size, load_bias, lo, hi, e_phnum,
                                  e_phentsize, e_phoff,
                                  &applied, &skipped, &resolved,
-                                 g_lazy_plt, ex_tls_base(0), &tls_count) != 0) {
+                                 g_lazy_plt, ex_tls_base(0),
+                                 g_tls_mods[0].id ? g_tls_mods[0].id : 1,
+                                 &tls_count) != 0) {
             rc = VSL_EXEC_ERR_RELOC;
             goto cleanup;
         }
@@ -2386,6 +2605,8 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
     stack = mmap(NULL, EX_STACK_SIZE, PROT_READ | PROT_WRITE,
                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
     if (stack == MAP_FAILED) { stack = NULL; rc = VSL_EXEC_ERR_MAP; goto cleanup; }
+    g_ex.stack_lo = (uint64_t)(uintptr_t)stack;
+    g_ex.stack_hi = g_ex.stack_lo + EX_STACK_SIZE;
     sp = ex_build_stack(stack, EX_STACK_SIZE, entry, e_phoff + load_bias,
                         e_phentsize, e_phnum, g_interp_bias,
                         &out->auxv_entries);
@@ -2419,6 +2640,10 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
 
     out->syscalls_trapped = g_ex.trapped;
     out->plt_resolves = g_plt_resolves_run;   /* first-call binds this run */
+    out->fs_syscalls = (uint32_t)g_ex.fs_syscalls;
+    out->fs_base = g_ex.fs_set ? (uint64_t)g_ex.fs_base : 0;
+    out->tcb_base = vsl_dyn_tcb_base();
+    out->tls_modules = g_tls_mod_count;
     if (g_ex.reason == 1) {
         out->status = VSL_EXEC_OK;
         out->exit_code = proc->exit_code;  /* set by the REAL vsl_sys_exit */
@@ -2444,6 +2669,10 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
 cleanup:
     g_ex.active = 0;
     g_ex.running = 0;
+    /* A guest may have installed its own %fs base; host libc here needs the
+     * original one back before it runs again. */
+    if (g_fs_tls && g_ex.host_fs_base && ex_get_fs() != (uint64_t)g_ex.host_fs_base)
+        ex_set_fs((uint64_t)g_ex.host_fs_base);
     /* Restore stdio first so diagnostics below go to the real console. */
     if (save1 >= 0) { dup2(save1, 1); close(save1); }
     if (save2 >= 0) { dup2(save2, 2); close(save2); }

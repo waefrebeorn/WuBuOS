@@ -111,6 +111,9 @@
 #define VSL_SYS_PRLIMIT64   302
 #define VSL_SYS_ALARM       37
 #define VSL_SYS_UNAME       63
+#define VSL_SYS_ARCH_PRCTL  158
+#define VSL_ARCH_SET_FS     0x1002
+#define VSL_ARCH_GET_FS     0x1003
 /* x86-64 time-of-day: 96 gettimeofday, 201 time. The old header had
  * i386-relic numbers here (fchmod 94 / lchown 95 / fchown 96), which
  * made guest gettimeofday dispatch into fchown — busybox date printed

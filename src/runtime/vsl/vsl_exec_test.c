@@ -235,6 +235,138 @@ static size_t build_interp_main_elf(uint8_t *buf) {
     return 0x800;
 }
 
+/* Hand-build a freestanding ET_DYN "interpreter" with a versioned self
+ * definition (vsl_selfsym@VSL_SELF, defined at vaddr 0x600) and a versioned
+ * self-import (same name/version, UNDEF) carrying a GLOB_DAT relocation.  The
+ * need names a different file (libfake.so), so the import is satisfiable ONLY
+ * when the interpreter's own exported definition is preferred during its own
+ * relocation.  Its entry dereferences the relocated GOT slot and writes the
+ * 8-byte self-symbol magic to fd 1, then exits(0). */
+#define SELF_MAGIC 0x56534c53454c4631ULL
+/* String-table-RELATIVE offsets (DT_STRTAB is at vaddr/file 0x300). */
+#define SELF_STR_REL       0x01u   /* file 0x301: "vsl_selfsym" */
+#define SELF_VER_REL       0x0du   /* file 0x30d: "VSL_SELF" (verdef) */
+#define SELF_NEED_VER_REL  0x16u   /* file 0x316: "VSL_SELF" (verneed) */
+#define SELF_FILE_REL      0x1fu   /* file 0x31f: "libfake.so" */
+#define SELF_NEED_VER_FILE 0x316u  /* file offset mutated by the control */
+#define SELF_STRSZ   0x2au
+static size_t build_selfsym_interp_elf(uint8_t *buf) {
+    memset(buf, 0, 0x900);
+    buf[0] = 0x7f; buf[1] = 'E'; buf[2] = 'L'; buf[3] = 'F';
+    buf[4] = 2; buf[5] = 1; buf[6] = 1;
+    uint16_t u16; uint32_t u32; uint64_t u64;
+    u16 = 3;    memcpy(buf + 16, &u16, 2);        /* ET_DYN */
+    u16 = 0x3e; memcpy(buf + 18, &u16, 2);
+    u32 = 1;    memcpy(buf + 20, &u32, 4);
+    u64 = 0x100; memcpy(buf + 24, &u64, 8);       /* e_entry */
+    u64 = 64;   memcpy(buf + 32, &u64, 8);        /* e_phoff */
+    u16 = 64;   memcpy(buf + 52, &u16, 2);
+    u16 = 56;   memcpy(buf + 54, &u16, 2);
+    u16 = 2;    memcpy(buf + 56, &u16, 2);        /* 2 phdrs */
+    /* phdr[0] PT_LOAD: vaddr == file offset, whole 0x900 RWX */
+    u32 = 1;    memcpy(buf + 64,  &u32, 4);
+    u32 = 7;    memcpy(buf + 68,  &u32, 4);
+    u64 = 0;    memcpy(buf + 72,  &u64, 8);       /* p_offset */
+    u64 = 0;    memcpy(buf + 80,  &u64, 8);       /* p_vaddr */
+    u64 = 0;    memcpy(buf + 88,  &u64, 8);
+    u64 = 0x900;memcpy(buf + 96,  &u64, 8);       /* filesz */
+    u64 = 0x900;memcpy(buf + 104, &u64, 8);       /* memsz */
+    u64 = 0x1000;memcpy(buf + 112, &u64, 8);
+    /* phdr[1] PT_DYNAMIC @0x800, 14 pairs (224 bytes) */
+    u32 = 2;    memcpy(buf + 120, &u32, 4);
+    u32 = 6;    memcpy(buf + 124, &u32, 4);
+    u64 = 0x800;memcpy(buf + 128, &u64, 8);
+    u64 = 0x800;memcpy(buf + 136, &u64, 8);
+    u64 = 0x800;memcpy(buf + 144, &u64, 8);
+    u64 = 224;  memcpy(buf + 152, &u64, 8);
+    u64 = 224;  memcpy(buf + 160, &u64, 8);
+    u64 = 8;    memcpy(buf + 168, &u64, 8);
+    /* Entry @0x100: deref relocated GOT slot @0x500 -> magic @0x600, write
+     * 8 bytes to fd 1, exit(0).  RIP-relative LEA is base-independent. */
+    static const uint8_t code[] = {
+        0x48,0x8d,0x35,0xf9,0x03,0x00,0x00,       /* lea 0x500(%rip),%rsi */
+        0x48,0x8b,0x06,                           /* mov (%rsi),%rax */
+        0x48,0x8b,0x00,                           /* mov (%rax),%rax */
+        0x50,                                     /* push %rax */
+        0xb8,0x01,0x00,0x00,0x00,                 /* mov $1,%eax */
+        0xbf,0x01,0x00,0x00,0x00,                 /* mov $1,%edi */
+        0x48,0x89,0xe6,                           /* mov %rsp,%rsi */
+        0xba,0x08,0x00,0x00,0x00,                 /* mov $8,%edx */
+        0x0f,0x05,                                /* syscall */
+        0x58,                                     /* pop %rax */
+        0xb8,0x3c,0x00,0x00,0x00,                 /* mov $60,%eax */
+        0x31,0xff,                               /* xor %edi,%edi */
+        0x0f,0x05                                /* syscall (exit 0) */
+    };
+    memcpy(buf + 0x100, code, sizeof(code));
+    /* Strings */
+    memcpy(buf + 0x300 + SELF_STR_REL,      "vsl_selfsym", 11); /* + NUL */
+    memcpy(buf + 0x300 + SELF_VER_REL,      "VSL_SELF", 8);
+    memcpy(buf + 0x300 + SELF_NEED_VER_REL, "VSL_SELF", 8);
+    memcpy(buf + 0x300 + SELF_FILE_REL,     "libfake.so", 10);
+    /* The versioned self-symbol's data. */
+    u64 = SELF_MAGIC; memcpy(buf + 0x600, &u64, 8);
+    /* dynsym @0x400: null, defined@0x418, undef@0x430 */
+    {
+        uint8_t *d = buf + 0x418;
+        u32 = SELF_STR_REL; memcpy(d, &u32, 4);
+        d[4] = 0x11; d[5] = 0;                    /* GLOBAL | OBJECT */
+        u16 = 1; memcpy(d + 6, &u16, 2);          /* defined */
+        u64 = 0x600; memcpy(d + 8, &u64, 8);      /* st_value */
+        u64 = 8;     memcpy(d + 16, &u64, 8);     /* st_size */
+        d = buf + 0x430;
+        u32 = SELF_STR_REL; memcpy(d, &u32, 4);
+        d[4] = 0x11; d[5] = 0;
+        u16 = 0; memcpy(d + 6, &u16, 2);          /* SHN_UNDEF */
+        u64 = 0; memcpy(d + 8, &u64, 8);
+        u64 = 8; memcpy(d + 16, &u64, 8);
+    }
+    /* versym @0x460: {local, def=2, need=3} */
+    u16 = 0; memcpy(buf + 0x460, &u16, 2);
+    u16 = 2; memcpy(buf + 0x462, &u16, 2);
+    u16 = 3; memcpy(buf + 0x464, &u16, 2);
+    /* verdef @0x480 -> verdaux @0x494 */
+    u16 = 1; memcpy(buf + 0x480, &u16, 2);        /* vd_version */
+    u16 = 1; memcpy(buf + 0x482, &u16, 2);        /* vd_flags */
+    u16 = 2; memcpy(buf + 0x484, &u16, 2);        /* vd_ndx */
+    u16 = 1; memcpy(buf + 0x486, &u16, 2);        /* vd_cnt */
+    u32 = 20;memcpy(buf + 0x48c, &u32, 4);        /* vd_aux */
+    u32 = 0; memcpy(buf + 0x490, &u32, 4);        /* vd_next */
+    u32 = SELF_VER_REL; memcpy(buf + 0x494, &u32, 4);
+    u32 = 0; memcpy(buf + 0x498, &u32, 4);
+    /* verneed @0x4a0 -> vernaux @0x4b0 */
+    u16 = 1; memcpy(buf + 0x4a0, &u16, 2);        /* vn_version */
+    u16 = 1; memcpy(buf + 0x4a2, &u16, 2);        /* vn_cnt */
+    u32 = SELF_FILE_REL; memcpy(buf + 0x4a4, &u32, 4); /* vn_file */
+    u32 = 16;memcpy(buf + 0x4a8, &u32, 4);        /* vn_aux */
+    u32 = 0; memcpy(buf + 0x4ac, &u32, 4);        /* vn_next */
+    u16 = 3; memcpy(buf + 0x4b6, &u16, 2);        /* vna_other = 3 */
+    u32 = SELF_NEED_VER_REL; memcpy(buf + 0x4b8, &u32, 4);
+    u32 = 0; memcpy(buf + 0x4bc, &u32, 4);
+    /* DT_HASH @0x4c0: nbucket=1, nchain=3 */
+    u32 = 1; memcpy(buf + 0x4c0, &u32, 4);
+    u32 = 3; memcpy(buf + 0x4c4, &u32, 4);
+    u32 = 1; memcpy(buf + 0x4c8, &u32, 4);        /* bucket[0] */
+    u32 = 2; memcpy(buf + 0x4d4, &u32, 4);        /* chain[1] */
+    /* R_X86_64_GLOB_DAT @0x700: symidx=2, type=6 */
+    u64 = 0x500;               memcpy(buf + 0x700, &u64, 8);
+    u64 = (2ULL << 32) | 6ULL; memcpy(buf + 0x708, &u64, 8);
+    /* dynamic @0x800 */
+    const uint64_t tags[14][2] = {
+        { 4, 0x4c0 }, { 5, 0x300 }, { 6, 0x400 },
+        { 7, 0x700 }, { 8, 24 }, { 9, 24 },
+        { 10, SELF_STRSZ }, { 11, 24 },
+        { 0x6ffffff0ULL, 0x460 }, { 0x6ffffffcULL, 0x480 },
+        { 0x6ffffffdULL, 1 }, { 0x6ffffffeULL, 0x4a0 },
+        { 0x6fffffffULL, 1 }, { 0, 0 }
+    };
+    for (int i = 0; i < 14; i++) {
+        memcpy(buf + 0x800 + (uint64_t)i * 16, &tags[i][0], 8);
+        memcpy(buf + 0x808 + (uint64_t)i * 16, &tags[i][1], 8);
+    }
+    return 0x900;
+}
+
 /* Pre-change loader rule: PT_INTERP was ignored and the main e_entry was
  * called directly.  A synthetic image that writes 'M'/exits(77) at its
  * entry proves the differential with the interpreter-driven new path. */
@@ -1833,6 +1965,204 @@ int main(int argc, char **argv) {
     }
     vsl_dyn_set_interp(0);
     vsl_dyn_set_init_fini(0);
+}
+
+/* (x) arch_prctl(ARCH_SET_FS) + TCB + real module-id TLS layout.  A
+ *     freestanding guest installs its own %fs base with the real syscall,
+ *     then reads the engine-seeded TCB (self ptr @%fs:0, dtv @%fs:8) and the
+ *     dtv's module-id table.  fs_tls OFF is the negative control. */
+{
+    snprintf(path, sizeof(path), "%s/guest_fs_tcb.elf", dir);
+    vsl_dyn_set_fs_tls(0);
+    rc = vsl_exec_elf(path, &r);
+    printf("[gate x] fs_tls off: rc=%d exit=%d out_len=%zu fs_syscalls=%u fs_base=0x%llx\n",
+           rc, r.exit_code, r.output_len, r.fs_syscalls,
+           (unsigned long long)r.fs_base);
+    CHECK(rc == VSL_EXEC_OK && r.exit_code == 0, "guest runs with fs_tls off");
+    CHECK(r.fs_syscalls == 0 && r.fs_base == 0,
+          "fs_tls off: arch_prctl not handled, no FS base recorded");
+    if (r.output_len >= 8) {
+        int64_t off_rc = 0;
+        memcpy(&off_rc, r.output, 8);
+        CHECK(off_rc != 0,
+              "negative control: ARCH_SET_FS unhandled (no TCB installed)");
+    }
+
+    vsl_dyn_set_fs_tls(1);
+    rc = vsl_exec_elf(path, &r);
+    printf("[gate x] fs_tls on: rc=%d exit=%d out_len=%zu fs_syscalls=%u "
+           "fs_base=0x%llx tcb=0x%llx modules=%u\n",
+           rc, r.exit_code, r.output_len, r.fs_syscalls,
+           (unsigned long long)r.fs_base, (unsigned long long)r.tcb_base,
+           r.tls_modules);
+    CHECK(rc == VSL_EXEC_OK && r.exit_code == 0, "guest exits 0 with fs_tls on");
+    CHECK(r.fs_syscalls == 2, "SET + GET arch_prctl calls trapped+handled");
+    CHECK(r.fs_base != 0, "guest FS base recorded in the result");
+    CHECK(r.tls_modules == 1, "main image registered as TLS module 1");
+    CHECK(r.tcb_base != 0, "host TCB backing store exposed for the gate");
+    if (r.output_len >= 56) {
+        int64_t set_rc = 0;
+        uint64_t self = 0, dtv = 0, got = 0, tcb_addr = 0, cnt = 0, mod1 = 0;
+        memcpy(&set_rc, r.output, 8);
+        memcpy(&self, r.output + 8, 8);
+        memcpy(&dtv, r.output + 16, 8);
+        memcpy(&got, r.output + 24, 8);
+        memcpy(&tcb_addr, r.output + 32, 8);
+        memcpy(&cnt, r.output + 40, 8);
+        memcpy(&mod1, r.output + 48, 8);
+        printf("[gate x] set_rc=%lld self=0x%llx dtv=0x%llx got=0x%llx "
+               "tcb=0x%llx cnt=%llu mod1=0x%llx\n",
+               (long long)set_rc, (unsigned long long)self,
+               (unsigned long long)dtv, (unsigned long long)got,
+               (unsigned long long)tcb_addr, (unsigned long long)cnt,
+               (unsigned long long)mod1);
+        CHECK(set_rc == 0, "ARCH_SET_FS succeeded inside the guest");
+        CHECK(self == tcb_addr && self == r.fs_base,
+              "%fs:0 reads the self pointer at the guest-chosen FS base");
+        CHECK(dtv != 0, "%fs:8 dtv pointer seeded by the engine");
+        CHECK(got == r.fs_base, "ARCH_GET_FS returns the recorded guest base");
+        CHECK(r.fs_base == tcb_addr, "result FS base equals the guest TCB address");
+        CHECK(cnt == 1, "dtv module count reflects the real module layout");
+        CHECK(mod1 == vsl_tls_base(), "dtv[1] is the real module-1 TLS block base");
+    }
+    CHECK(getpid() > 0, "host libc still works after a guest switched %fs");
+    vsl_dyn_set_fs_tls(0);
+}
+
+/* (z) Ordered rootfs search list.  The same PT_INTERP fixture is placed in
+ *     a SECOND rootfs dir only; an ordered list searches an empty dir first
+ *     and must walk both before finding it.  Reversed order and a list with
+ *     no interpreter are fail-closed/one-hit controls.  The process-wide
+ *     vsl_dyn_add_rootfs() list is exercised too. */
+{
+    uint8_t img[0x800];
+    size_t n = build_interp_main_elf(img);
+    const char *none[] = { NULL };
+    char dirA[512], rootfs2[512];
+    snprintf(dirA, sizeof(dirA), "%s/dirA", dir);        /* no libvslinterp.so */
+    snprintf(rootfs2, sizeof(rootfs2), "%s/glibc_rootfs2", dir);
+    const char *ordered[]   = { dirA, rootfs2, NULL };
+    const char *onlyA[]     = { dirA, NULL };
+    const char *reversed[]  = { rootfs2, dirA, NULL };
+    VslImageCfg cfgZ   = { none, 0, 0, NULL, 0, NULL, ordered };
+    VslImageCfg cfgRev = { none, 0, 0, NULL, 0, NULL, reversed };
+    VslImageCfg cfgNo  = { none, 0, 0, NULL, 0, NULL, onlyA };
+    VslImageCfg cfgP   = { none, 0, 0, NULL, 0, NULL, NULL };
+
+    vsl_dyn_set_interp(1);
+    vsl_dyn_set_init_fini(1);
+    rc = vsl_exec_image(img, n, &cfgZ, &r);
+    printf("[gate z] ordered(dirA,rootfs2): rc=%d interp=%u tried=%u path=\"%s\"\n",
+           rc, r.interp_loaded, r.rootfs_tried, r.interp_path);
+    CHECK(rc == VSL_EXEC_OK && r.interp_loaded == 1,
+          "interpreter found via the ordered rootfs list");
+    CHECK(r.rootfs_tried == 2, "empty first dir searched, hit on second dir");
+    CHECK(strcmp(r.interp_path, "/libvslinterp.so") == 0,
+          "bounded interp path intact after the run (auxv count width)");
+
+    rc = vsl_exec_image(img, n, &cfgRev, &r);
+    printf("[gate z] reversed(rootfs2,dirA): rc=%d tried=%u\n",
+           rc, r.rootfs_tried);
+    CHECK(rc == VSL_EXEC_OK && r.rootfs_tried == 1,
+          "reversed order hits on the first dir only");
+
+    rc = vsl_exec_image(img, n, &cfgNo, &r);
+    printf("[gate z] no-interp list: rc=%d tried=%u reason=\"%s\"\n",
+           rc, r.rootfs_tried, r.interp_reason);
+    CHECK(rc == VSL_EXEC_ERR_INTERP && r.rootfs_tried == 1,
+          "list with no interpreter fails closed after one search");
+
+    vsl_dyn_clear_rootfs_list();
+    CHECK(vsl_dyn_add_rootfs(dirA) == 0 && vsl_dyn_add_rootfs(rootfs2) == 0,
+          "process-wide ordered rootfs list accepts two dirs");
+    rc = vsl_exec_image(img, n, &cfgP, &r);
+    printf("[gate z] process-wide list: rc=%d interp=%u tried=%u\n",
+           rc, r.interp_loaded, r.rootfs_tried);
+    CHECK(rc == VSL_EXEC_OK && r.interp_loaded == 1 && r.rootfs_tried == 2,
+          "process-wide ordered list searched in call order");
+    vsl_dyn_clear_rootfs_list();
+    vsl_dyn_set_interp(0);
+    vsl_dyn_set_init_fini(0);
+}
+
+/* (y) DT_VERSYM preference for the interpreter's own symbols.  The
+ *     hand-built interpreter has a versioned self-definition AND a versioned
+ *     self-import whose DT_VERNEED names a different file; it can only be
+ *     relocated if its OWN exported version is preferred.  A copy with a
+ *     mismatched need-version is the fail-closed control. */
+{
+    uint8_t interp[0x900];
+    size_t ni = build_selfsym_interp_elf(interp);
+    CHECK(ni == 0x900, "selfsym interpreter fixture assembled");
+    uint8_t main[0x800];
+    size_t nm = build_interp_main_elf(main);
+    CHECK(nm == 0x800, "interp-main fixture assembled (selfsym gate)");
+
+    char root[512], ipath[512], bpath[512], mpath[512], bmain[512];
+    snprintf(root, sizeof(root), "%s/glibc_rootfs", dir);
+    snprintf(ipath, sizeof(ipath), "%s/libvslself.so", root);
+    snprintf(bpath, sizeof(bpath), "%s/libvslself2.so", root);
+    snprintf(mpath, sizeof(mpath), "%s/libvslself.so", dir);
+    snprintf(bmain, sizeof(bmain), "%s/libvslself2.so", dir);
+
+    /* Write both the good and the version-mismatched interpreter images. */
+    uint8_t bad[0x900];
+    memcpy(bad, interp, ni);
+    bad[SELF_NEED_VER_FILE] = 'X';       /* need "XSL_SELF", def "VSL_SELF" */
+    int wok = 1;
+    FILE *fp = fopen(ipath, "wb");
+    if (fp) { wok &= fwrite(interp, 1, ni, fp) == ni; fclose(fp); } else wok = 0;
+    fp = fopen(bpath, "wb");
+    if (fp) { wok &= fwrite(bad, 1, ni, fp) == ni; fclose(fp); } else wok = 0;
+    CHECK(wok, "selfsym interpreter fixtures written to the guest rootfs");
+
+    const char *none[] = { NULL };
+    VslImageCfg cfg = { none, 0, 0, NULL, 0, root, NULL };
+    vsl_dyn_set_interp(1);
+    vsl_dyn_set_init_fini(0);
+
+    /* Good interpreter: versioned self-import resolves to its OWN def. */
+    memset(main + 0x600, 0, 17);
+    memcpy(main + 0x600, "/libvslself.so", 15);
+    fp = fopen(mpath, "wb");
+    if (fp) { fwrite(main, 1, nm, fp); fclose(fp); }
+    {
+        size_t mn = 0;
+        uint8_t *mb = read_test_file(mpath, &mn);
+        CHECK(mb != NULL, "selfsym main fixture readable");
+        rc = vsl_exec_image(mb, mn, &cfg, &r);
+        free(mb);
+    }
+    printf("[gate y] selfsym interp: rc=%d exit=%d interp=%u out_len=%zu "
+           "magic=0x%llx\n", rc, r.exit_code, r.interp_loaded, r.output_len,
+           r.output_len >= 8 ? (unsigned long long)*(uint64_t *)r.output : 0ULL);
+    CHECK(rc == VSL_EXEC_OK && r.exit_code == 0 && r.interp_loaded == 1,
+          "interpreter self-relocated its versioned import");
+    CHECK(r.output_len == 8, "interpreter emitted the 8-byte self-symbol magic");
+    if (r.output_len >= 8) {
+        uint64_t magic = 0;
+        memcpy(&magic, r.output, 8);
+        CHECK(magic == SELF_MAGIC,
+              "versioned self-import bound to the interpreter's OWN definition");
+    }
+
+    /* Bad need-version: DT_VERNEED no longer matches the self definition. */
+    memset(main + 0x600, 0, 17);
+    memcpy(main + 0x600, "/libvslself2.so", 16);
+    fp = fopen(bmain, "wb");
+    if (fp) { fwrite(main, 1, nm, fp); fclose(fp); }
+    {
+        size_t bn = 0;
+        uint8_t *bb = read_test_file(bmain, &bn);
+        CHECK(bb != NULL, "bad-version main fixture readable");
+        rc = vsl_exec_image(bb, bn, &cfg, &r);
+        free(bb);
+    }
+    printf("[gate y] bad need-version: rc=%d status=%d reason=\"%s\"\n",
+           rc, r.status, r.interp_reason);
+    CHECK(rc == VSL_EXEC_ERR_INTERP,
+          "version-mismatched self-import fails closed (ERR_INTERP)");
+    vsl_dyn_set_interp(0);
 }
 
 /* (h) host syscalls still real after all runs (filter ALLOW path) */

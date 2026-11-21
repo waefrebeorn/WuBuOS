@@ -24,7 +24,7 @@
  * names, unregistered IFUNC resolvers and any other relocation type are hard
  * rejects (VSL_EXEC_ERR_RELOC / VSL_EXEC_ERR_RELOCTYPE) -- never guessed.
  *
- * BOUNDED TLS MODEL (no glibc ABI, no ld.so, no %fs/TCB): the HOST provides
+ * BOUNDED TLS MODEL (no glibc ABI, no ld.so): the HOST provides
  * one fixed-size TLS block per image (VSL_TLS_BLOCK_MAX bytes; main image is
  * seeded from VslImageCfg.tls_init, dependencies get a zeroed block).  An
  * STT_TLS symbol's st_value is an offset into that block.  Only three TLS
@@ -143,6 +143,12 @@ typedef struct {
     uint32_t auxv_entries;      /* auxv pairs built on the guest stack */
     char     interp_path[VSL_INTERP_PATH_MAX];   /* bounded path from PT_INTERP */
     char     interp_reason[128]; /* exact reason a glibc interpreter was refused */
+    /* arch_prctl(ARCH_SET_FS) + TCB / real module-id TLS layout (opt-in) */
+    uint64_t fs_base;           /* last ARCH_SET_FS base applied to the guest */
+    uint64_t tcb_base;          /* address of the TCB header the engine seeded */
+    uint32_t fs_syscalls;       /* arch_prctl calls trapped and handled this run */
+    uint32_t tls_modules;       /* TLS modules with a real assigned module id */
+    uint32_t rootfs_tried;      /* rootfs dirs searched for the interpreter */
 } VslExecResult;
 
 /* Run an in-memory ELF image to completion.  Returns VSL_EXEC_OK (0) when
@@ -200,6 +206,11 @@ typedef struct {
      * enabled).  Appended at the END so older positional initialisers stay
      * source-compatible. */
     const char *rootfs;
+    /* Ordered guest-rootfs search list (NULL-terminated), searched IN ORDER
+     * for the PT_INTERP path; the first confinement-passing hit wins.  When
+     * non-NULL this takes precedence over the single `rootfs` above and the
+     * process-wide list.  Appended at the END for source compatibility. */
+    const char *const *rootfs_dirs;
 } VslImageCfg;
 
 /* Hardened per-image run.  Returns the same codes as vsl_exec_elf_bytes();
@@ -246,8 +257,28 @@ void vsl_dyn_set_interp(int on);
 /* Process-wide guest rootfs allow-list (NULL clears it).  A per-image cfg
  * rootfs takes precedence; both refuse paths escaping the directory. */
 int  vsl_dyn_set_rootfs(const char *dir);
+/* Ordered guest-rootfs search list (LD_LIBRARY_PATH-like).  Directories are
+ * appended in call order and searched in that order for the PT_INTERP path;
+ * the first confinement-passing hit wins.  Each dir is bounded and copied.
+ * Returns 0 on success, -1 on a bad/oversized path or a full list. */
+int  vsl_dyn_add_rootfs(const char *dir);
+void vsl_dyn_clear_rootfs_list(void);
 /* Lifetime count of first-call PLT resolver invocations (for differential
  * gates).  Per-run count is in VslExecResult.plt_resolves. */
 uint64_t vsl_dyn_plt_resolve_count(void);
+
+/* Opt-in arch_prctl(ARCH_SET_FS)/TCB + real module-id TLS layout.  OFF by
+ * default (pre-change behaviour).  When ON, a guest `arch_prctl` trapping
+ * into the engine can set its own %fs base: the engine validates the base is
+ * inside the VSL user window, seeds a minimal TCB header there (self pointer
+ * at %fs:0, dtv pointer at %fs:8) and switches the running thread's FS base
+ * for the duration of guest execution (host libc runs on the saved host FS).
+ * ARCH_GET_FS returns the recorded guest base.  Unknown arch_prctl options
+ * fail closed with -EINVAL. */
+void vsl_dyn_set_fs_tls(int on);
+/* Address of the host TCB/dtv backing store used by the LAST run (for gates). */
+uint64_t vsl_dyn_tcb_base(void);
+/* Module id assigned at index idx in the last run's TLS layout, or 0. */
+uint32_t vsl_dyn_module_id(uint32_t idx);
 
 #endif /* WUBUOS_VSL_EXEC_ENGINE_H */
