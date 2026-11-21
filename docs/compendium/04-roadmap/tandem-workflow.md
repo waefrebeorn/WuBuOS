@@ -173,14 +173,20 @@ cd /home/wubu/wubuos && make test_wemu_busybox
   cpuid/sse2/usermode/shld/x87). Note: local checkout is `leg/user-mode-vsl`
   at `775bf40`; the `wubuos/src/wemu` submodule pointer is a different leg
   (`leg/nested-signals` at `2ce67c0`) — reconcile before any WEMU leg.
-- Last recorded full gate in `os-gaps-2026-11-19.md`: `full_test60.log`,
-  exit 0, "✅ All tests passed (all tiers)"; `test_linux_product` PASS.
-  Those are historical facts about that commit, not a live re-run.
+- Final integrated run at `95ac08cf`: `make -k -j24 test` exit 0,
+  "✅ All tests passed (all tiers)" (`guest_host_full.log`);
+  `env -u DISPLAY -u WAYLAND_DISPLAY make test_linux_product` PASS —
+  1 headless boot + 5 distinct real-GUI frames (`guest_host_product.log`).
+  Local evidence only: `gh` is not authenticated here, so CI run status was
+  not checked and is not claimed.
 
 ## Honest boundaries
 
 - L21 boundary is intact: no WuBuKernel object in `KERNEL_OBJS`/`kernel.elf`.
-- The BAR→VMM seam (D1) is **open** as of this doc.
+- The BAR→VMM seam (D1) is **closed**, with DRV10b range mapping and DRV10c
+  rollback; xHCI consumes a two-page aperture. The guest inventory includes
+  a host-supplied snapshot from `wubu_drv_summary()`, but there is no live
+  metal→guest syscall channel.
 - The 1000-line `driver-bank.md` is a coverage *ledger*, not proof of a
   bound driver in the running kernel; "wired" there means a perception or
   routing module, not metal MMIO. Do not cite it as hardware support.
