@@ -42,6 +42,10 @@ FW       = src/firmware
 WUBU_EDDSA_BUILD_DIR := build
 $(shell mkdir -p $(WUBU_EDDSA_BUILD_DIR) && bash tools/detect_native_eddsa.sh --out-dir $(WUBU_EDDSA_BUILD_DIR) --quiet)
 include $(WUBU_EDDSA_BUILD_DIR)/native_eddsa.mk
+# The product links the SAME fully bignum-free EdDSA path the package-signing
+# gate tests by default.  The legacy mbedTLS MPI backend remains available to
+# the opt-in gate via WUBU_EDDSA_FIXED=0; the shipped product never selects it.
+WUBU_EDDSA_HOSTED_CFLAGS += -DWUBU_EDDSA_FIXED_LADDER
 
 # ── Hosted TLS configuration gate ─────────────────────────────────────────
 # Build-time probe, NO network fetch. When an mbedTLS dev root is ALREADY

@@ -162,6 +162,8 @@ HOSTED_LIBS = -no-pie -fopenmp -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd
 # backend flags, so the product links the SAME backend the gates test.  Other
 # targets keep using the plain GUI objects (fail-closed, no new link deps).
 HOSTED_EDDSA_OBJS := $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_pkg_sign.o $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_pkg_ed25519.o \
+                     $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_ed25519_fixed.o \
+                     $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_ed25519_fixed_sign.o \
                      $(WUBU_EDDSA_BUILD_DIR)/hosted/wubu_eddsa_policy.o
 HOSTED_GUI_OBJS := $(filter-out $(GUI)/wubu_pkg_sign.o $(GUI)/wubu_pkg_ed25519.o,$(GUI_OBJS)) $(HOSTED_EDDSA_OBJS)
 hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_EXTRA) $(HOSTED_GLUE) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(HOSTED_GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) $(HOSTED_LINK_ONLY) $(WUBU_EDDSA_BUILD_DIR)/native_eddsa_config.h

@@ -35,21 +35,24 @@
 
 #ifdef WUBU_HAVE_MBEDTLS
 #include <mbedtls/sha512.h>
-#if !defined(WUBU_EDDSA_FIXED_LADDER) || defined(WUBU_HAVE_OPENSSL_EDDSA)
-/* The bignum header is compiled ONLY for the legacy MPI ladder and for the
- * opt-in OpenSSL hybrid.  The default fixed path never includes it. */
+#if !defined(WUBU_EDDSA_FIXED_LADDER)
+/* The fixed path never includes the bignum header, including when an
+ * OpenSSL backend is also detected; preferring the fixed path must not
+ * silently reintroduce mbedTLS MPI. */
 #include <mbedtls/bignum.h>
 #endif
 #ifdef WUBU_HAVE_OPENSSL_EDDSA
 #include <openssl/evp.h>
 #endif
 
-#if defined(WUBU_EDDSA_FIXED_LADDER) && !defined(WUBU_HAVE_OPENSSL_EDDSA)
+#if defined(WUBU_EDDSA_FIXED_LADDER)
 /* -- DEFAULT: fully bignum-free EdDSA package-signing path --------------- *
  * All group/scalar arithmetic is in wubu_ed25519_fixed.c; SHA-512 (a hash,
  * not a bignum) is the only mbedTLS primitive used.  No mbedtls_mpi symbol is
- * compiled on this path.  The legacy MPI backend below remains selectable via
- * WUBU_EDDSA_FIXED=0 and is untouched.
+ * compiled on this path.  This path takes precedence over the detected
+ * OpenSSL backend in the product build and in the package-signing gate.
+ * The legacy MPI backend below remains selectable via WUBU_EDDSA_FIXED=0 and
+ * is untouched.
  */
 static int hex_to_32(const char *hex, uint8_t out[32]) {
     static const char digits[] = "0123456789abcdef";
