@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 extern VSL_STATE g_vsl;
 
@@ -1264,6 +1265,36 @@ int main(int argc, char **argv) {
         size_t n = build_dynsym_elf(img);
         CHECK(vsl_dyn_host_symbol("no_such_sym_xx") == 0,
               "host table refuses an unknown symbol name");
+        /* (m2) Differential gate: the bounded ld.so provider binds a
+         * versioned import ONLY on an exact (name, DT_VERNEED version,
+         * DT_VERNEED vn_file) triple.  Every near-miss fails closed. */
+        {
+            uint64_t exact = vsl_dyn_host_symbol_ver(
+                "_dl_argv", "GLIBC_PRIVATE", "ld-linux-x86-64.so.2");
+            uint64_t wrong_file = vsl_dyn_host_symbol_ver(
+                "_dl_argv", "GLIBC_PRIVATE", "libc.so.6");
+            uint64_t wrong_ver = vsl_dyn_host_symbol_ver(
+                "_dl_argv", "GLIBC_2.2.5", "ld-linux-x86-64.so.2");
+            uint64_t unversioned = vsl_dyn_host_symbol("_dl_argv");
+            printf("[gate m2] versioned ld.so provider: exact=%llx "
+                   "wrong_file=%llx wrong_ver=%llx unversioned=%llx\n",
+                   (unsigned long long)exact, (unsigned long long)wrong_file,
+                   (unsigned long long)wrong_ver,
+                   (unsigned long long)unversioned);
+            CHECK(exact != 0,
+                  "_dl_argv@GLIBC_PRIVATE binds from exact ld.so vn_file");
+            CHECK(wrong_file == 0,
+                  "wrong vn_file fails closed (exact vn_file matching)");
+            CHECK(wrong_ver == 0, "wrong version name fails closed");
+            CHECK(unversioned == 0,
+                  "unversioned lookup cannot reach the versioned ld.so entry");
+            CHECK(vsl_dyn_host_symbol_ver("__libc_stack_end", "GLIBC_2.2.5",
+                                          "ld-linux-x86-64.so.2") != 0,
+                  "__libc_stack_end@GLIBC_2.2.5 binds from exact ld.so vn_file");
+            CHECK(vsl_dyn_host_symbol_ver("_dl_find_object", "GLIBC_2.35",
+                                          "ld-linux-x86-64.so.2") != 0,
+                  "_dl_find_object@GLIBC_2.35 binds from exact ld.so vn_file");
+        }
         /* Same length, unknown name: vsl_test_shim -> no_such_sym_xx. */
         memcpy(img + 0x1281, "no_such_sym_xx", 13);
         rc = vsl_exec_elf_bytes(img, n, &r);
@@ -2521,8 +2552,9 @@ int main(int argc, char **argv) {
         /* NEG C: a REAL glibc libc.so.6 provider is refused, but now at its
          * NEXT exact boundary, not at the symbol-less TPOFF64 that this leg
          * closes.  After the 15 sym-less TPOFF64 relocations are applied
-         * against the defined module TLS base, relocation advances to an
-         * unresolved versioned ld.so import (_dl_argv@GLIBC_PRIVATE).  realroot
+         * against the defined module TLS base, relocation binds the bounded
+         * versioned ld.so import _dl_argv@GLIBC_PRIVATE and advances to the
+         * NEXT exact boundary (__libc_enable_secure@GLIBC_PRIVATE).  realroot
          * is searched FIRST for the provider but has no ld.so, so the
          * interpreter still resolves from the good rootfs. */
         char realroot[512];
@@ -2535,9 +2567,11 @@ int main(int argc, char **argv) {
                "reloc_failure=\"%s\"\n",
                rc_real, r.status, r.reloc_failure);
         CHECK(rc_real == VSL_EXEC_ERR_RELOC &&
-              strstr(r.reloc_failure, "symbol '_dl_argv'") != NULL &&
+              strstr(r.reloc_failure, "symbol '__libc_enable_secure'") != NULL &&
               strstr(r.reloc_failure, "is unresolved") != NULL,
-              "real libc advances past symbol-less TPOFF64 to next exact boundary");
+              "real libc binds _dl_argv and advances to the next exact boundary");
+        CHECK(strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL,
+              "versioned _dl_argv@GLIBC_PRIVATE is no longer the boundary");
         CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
               "symbol-less TPOFF64 is no longer the blocking boundary");
 
@@ -2559,9 +2593,13 @@ int main(int argc, char **argv) {
  *     optind@GLIBC_2.2.5 -- all above the old cap;
  *   - the REAL host libc.so.6 provider is then attempted for the SAME hello
  *     world.  It parses past the raised caps, applies the symbol-less TPOFF64
- *     relocations against the defined module TLS base, and fails at the next
- *     exact boundary (the versioned ld.so import _dl_argv@GLIBC_PRIVATE),
- *     recorded as a verified negative rather than a silent skip. */
+ *     relocations against the defined module TLS base, binds the bounded
+ *     versioned ld.so import _dl_argv@GLIBC_PRIVATE from the host provider by
+ *     exact vn_file, and fails at the NEXT exact boundary
+ *     (__libc_enable_secure@GLIBC_PRIVATE), recorded as a verified negative
+ *     rather than a silent skip.  Retargeting ONLY the fixture's DT_VERNEED
+ *     vn_file from ld-linux-x86-64.so.2 to libc.so.6 restores the _dl_argv
+ *     fault end-to-end (DT_NEEDED sonames are left byte-identical). */
 {
     static const char hello[] = "VSL-HELLO-DYNAMIC-WORLD";
     size_t bn = 0, cn2 = 0;
@@ -2613,8 +2651,9 @@ int main(int argc, char **argv) {
         }
 
         /* REAL glibc libc.so.6: exact NEXT failure, verified negative.
-         * The symbol-less TPOFF64 boundary closed by this leg is gone; the
-         * provider now fails at the versioned ld.so import _dl_argv. */
+         * The symbol-less TPOFF64 boundary is gone and the bounded versioned
+         * ld.so import _dl_argv@GLIBC_PRIVATE now binds from the host table;
+         * the provider fails at the next ld.so import __libc_enable_secure. */
         vsl_dyn_set_libc_rootfs(1);
         VslImageCfg cfg_real = { none, 0, 0, NULL, 0, NULL, real_first };
         int rc_real = vsl_exec_image(hbig, bn, &cfg_real, &r);
@@ -2622,13 +2661,60 @@ int main(int argc, char **argv) {
                rc_real, r.status, r.reloc_failure);
         CHECK(rc_real == VSL_EXEC_ERR_RELOC,
               "real glibc libc.so.6 provider still fails closed with ERR_RELOC");
-        CHECK(strstr(r.reloc_failure, "symbol '_dl_argv'") != NULL &&
+        CHECK(strstr(r.reloc_failure, "symbol '__libc_enable_secure'") != NULL &&
               strstr(r.reloc_failure, "is unresolved") != NULL,
-              "next failure is the exact versioned _dl_argv import boundary");
+              "next failure is the exact versioned __libc_enable_secure import");
+        CHECK(strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL,
+              "versioned _dl_argv@GLIBC_PRIVATE no longer blocks the fixture");
         CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
               "symbol-less TPOFF64 no longer blocks the real glibc provider");
         CHECK(strstr(r.reloc_failure, "32/32") == NULL,
               "real libc parsed PAST the old 32/32 version-table cap");
+
+        /* END-TO-END DIFFERENTIAL (exact vn_file): retarget ONLY the DT_VERNEED
+         * vn_file of a copy of the real libc.so.6 from ld-linux-x86-64.so.2 to
+         * libc.so.6.  patch_verneed_file rewrites just the 4-byte vn_file
+         * pointer -- DT_NEEDED sonames stay byte-identical.  The bounded host
+         * provider must then refuse _dl_argv@GLIBC_PRIVATE and the fault must
+         * return to that exact boundary. */
+        snprintf(path, sizeof(path),
+                 "%s/glibc_rootfs_reallibc/lib64/libc.so.6", dir);
+        size_t badsz = 0;
+        uint8_t *badlibc = read_test_file(path, &badsz);
+        CHECK(badlibc != NULL, "vn_file differential: real libc.so.6 readable");
+        if (badlibc) {
+            CHECK(patch_verneed_file(badlibc, badsz,
+                                     "ld-linux-x86-64.so.2", "libc.so.6") == 1,
+                  "vn_file differential: only DT_VERNEED vn_file retargeted");
+            char tmpl[] = "/tmp/vsl-dlavg-XXXXXX";
+            char *tmpdir = mkdtemp(tmpl);
+            CHECK(tmpdir != NULL, "vn_file differential: temp rootfs created");
+            if (tmpdir) {
+                snprintf(path, sizeof(path), "%s/libc.so.6", tmpdir);
+                FILE *fp = fopen(path, "wb");
+                CHECK(fp != NULL, "vn_file differential: patched provider opened");
+                if (fp) {
+                    size_t wrote = fwrite(badlibc, 1, badsz, fp);
+                    fclose(fp);
+                    CHECK(wrote == badsz,
+                          "vn_file differential: full patched provider written");
+                    const char *bad_first[] = { tmpdir, root, NULL };
+                    VslImageCfg cfg_bad = { none, 0, 0, NULL, 0, NULL, bad_first };
+                    vsl_dyn_set_libc_rootfs(1);
+                    int rc_bad = vsl_exec_image(hbig, bn, &cfg_bad, &r);
+                    printf("[ac] wrong-vn_file libc: rc=%d reloc_failure=\"%s\"\n",
+                           rc_bad, r.reloc_failure);
+                    CHECK(rc_bad == VSL_EXEC_ERR_RELOC &&
+                          strstr(r.reloc_failure, "symbol '_dl_argv'") != NULL &&
+                          strstr(r.reloc_failure, "is unresolved") != NULL,
+                          "wrong vn_file restores the exact _dl_argv failure");
+                    vsl_dyn_set_libc_rootfs(0);
+                    unlink(path);
+                    rmdir(tmpdir);
+                }
+            }
+            free(badlibc);
+        }
         vsl_dyn_set_libc_rootfs(0);
         vsl_dyn_set_interp_bind_main(0);
         vsl_dyn_set_interp(0);

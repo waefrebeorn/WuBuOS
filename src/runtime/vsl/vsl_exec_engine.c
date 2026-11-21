@@ -381,6 +381,11 @@ typedef struct {
     const char *name;
     uint64_t addr;
     uint64_t copy_sz;   /* max bytes a COPY relocation may take from addr */
+    /* Optional version binding.  When ver/file are set, the entry can satisfy
+     * ONLY a versioned import whose DT_VERNEED version name AND vn_file match
+     * EXACTLY.  Unversioned lookups never see a versioned entry. */
+    const char *ver;
+    const char *file;
 } VslDynHostSym;
 
 /* Host storage / shim backing the minimal _dl_* symbol surface below. */
@@ -392,33 +397,72 @@ static int64_t vsl_dl_find_object_shim(void *addr, void *result) {
     (void)addr; (void)result; return 1;
 }
 
+/* The ld.so soname the real glibc fixture names as the vn_file of its
+ * GLIBC_PRIVATE / GLIBC_2.2.5 / GLIBC_2.35 ld.so imports (verified with
+ * readelf -V on lib64/libc.so.6).  A host binding is legal ONLY for this
+ * exact vn_file -- a version required from another object is never silently
+ * supplied by the host. */
+#define VSL_LDSO_VNFILE "ld-linux-x86-64.so.2"
+
 static const VslDynHostSym g_dyn_host_syms[] = {
     { "write",         (uint64_t)(uintptr_t)&vsl_dyn_write_shim,   0 },
     { "vsl_test_shim", (uint64_t)(uintptr_t)&vsl_dyn_test_shim_fn, 0 },
     { "vsl_test_data", (uint64_t)(uintptr_t)g_dyn_test_data,       0 },
     { "vsl_copy_data", (uint64_t)(uintptr_t)g_dyn_copy_data,
                        sizeof(g_dyn_copy_data) - 1 },
-    /* Minimal _dl_* surface a glibc dynamic binary pulls from ld.so.  The
-     * REAL ld.so fixture has ZERO undefined dynsyms (verified with readelf),
-     * so these are NOT needed for its self-relocation -- they are the bounded
-     * host surface for the NEXT leg (libc.so.6 / __libc_start_main resolution).
-     * Semantics are honest: _dl_find_object reports "no object" (nonzero),
-     * _dl_argv / __libc_stack_end are real host storage a bounded COPY may
-     * read.  No arbitrary guest code runs. */
-    { "_dl_find_object",  (uint64_t)(uintptr_t)&vsl_dl_find_object_shim, 0 },
-    { "_dl_argv",         (uint64_t)(uintptr_t)&g_dl_argv_host,   sizeof(void *) },
-    { "__libc_stack_end", (uint64_t)(uintptr_t)&g_libc_stack_end_host, sizeof(uint64_t) },
+    /* Bounded ld.so provider for the versioned imports a real glibc
+     * libc.so.6 pulls from its interpreter.  The REAL ld.so fixture has ZERO
+     * undefined dynsyms (verified), so this surface is not needed for its
+     * self-relocation -- it is the bounded host stand-in for libc.so.6's own
+     * PT_INTERP imports.  Each entry carries the exact DT_VERNEED version
+     * name and vn_file it may satisfy; any other (version, file) pair fails
+     * closed.  Semantics are honest: _dl_find_object reports "no object"
+     * (nonzero), _dl_argv / __libc_stack_end are real host storage a bounded
+     * COPY may read.  No arbitrary guest code runs. */
+    { "_dl_find_object",  (uint64_t)(uintptr_t)&vsl_dl_find_object_shim, 0,
+                           "GLIBC_2.35",  VSL_LDSO_VNFILE },
+    { "_dl_argv",         (uint64_t)(uintptr_t)&g_dl_argv_host,
+                           sizeof(void *), "GLIBC_PRIVATE", VSL_LDSO_VNFILE },
+    { "__libc_stack_end", (uint64_t)(uintptr_t)&g_libc_stack_end_host,
+                           sizeof(uint64_t), "GLIBC_2.2.5", VSL_LDSO_VNFILE },
 };
 
+/* Unversioned host lookup: versioned entries are deliberately invisible. */
 static const VslDynHostSym *ex_host_lookup(const char *name) {
     if (!name) return NULL;
-    for (size_t i = 0; i < sizeof(g_dyn_host_syms) / sizeof(g_dyn_host_syms[0]); i++)
-        if (strcmp(name, g_dyn_host_syms[i].name) == 0) return &g_dyn_host_syms[i];
+    for (size_t i = 0; i < sizeof(g_dyn_host_syms) / sizeof(g_dyn_host_syms[0]); i++) {
+        const VslDynHostSym *e = &g_dyn_host_syms[i];
+        if (!e->ver && strcmp(name, e->name) == 0) return e;
+    }
+    return NULL;
+}
+
+/* Versioned ld.so host lookup.  Both the DT_VERNEED version name AND its
+ * vn_file must match exactly; there is NO legacy "any file" bypass here --
+ * the vn_file is the authority for which object may supply the symbol. */
+static const VslDynHostSym *ex_host_lookup_ver(const char *name,
+                                               const char *ver,
+                                               const char *file) {
+    if (!name || !ver || !file) return NULL;
+    for (size_t i = 0; i < sizeof(g_dyn_host_syms) / sizeof(g_dyn_host_syms[0]); i++) {
+        const VslDynHostSym *e = &g_dyn_host_syms[i];
+        if (e->ver && e->file && strcmp(e->name, name) == 0 &&
+            strcmp(e->ver, ver) == 0 && strcmp(e->file, file) == 0) return e;
+    }
     return NULL;
 }
 
 uint64_t vsl_dyn_host_symbol(const char *name) {
     const VslDynHostSym *e = ex_host_lookup(name);
+    return e ? e->addr : 0;
+}
+
+/* Differential gate hook: exact (name, version, vn_file) provider lookup.
+ * Returns 0 when the caller's version or vn_file does not match the bounded
+ * ld.so provider, so a wrong file or wrong version fails closed. */
+uint64_t vsl_dyn_host_symbol_ver(const char *name, const char *ver,
+                                 const char *file) {
+    const VslDynHostSym *e = ex_host_lookup_ver(name, ver, file);
     return e ? e->addr : 0;
 }
 uint64_t vsl_dyn_shim_call_count(void)   { return g_dyn_shim_calls; }
@@ -1470,6 +1514,16 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
             const char *file = (g_run_legacy_ver_any_file || g_self_owner)
                              ? NULL : need->file;
             found = ex_dep_lookup_ver(name, need->name, file, &addr);
+            if (!found) {
+                /* Bounded ld.so provider: a versioned GLOB_DAT/JUMP_SLOT/64
+                 * import may bind to the host table ONLY when BOTH the
+                 * DT_VERNEED version name and its vn_file match exactly.
+                 * Need->file is used unconditionally here -- no legacy
+                 * any-file bypass for the host provider. */
+                const VslDynHostSym *h =
+                    ex_host_lookup_ver(name, need->name, need->file);
+                if (h) { addr = h->addr; found = 1; }
+            }
         }
     } else {
         found = ex_dep_lookup(name, &addr);     /* merged DT_NEEDED exports first */
@@ -1575,6 +1629,17 @@ static int ex_resolve_copy(const uint8_t *f, size_t fsz,
         *out_addr = src;
         *out_size = st_size;
         return 0;
+    }
+    /* (2b) Bounded ld.so provider for a VERSIONED data COPY: exact DT_VERNEED
+     * version name + vn_file, with the host entry's copy_sz as the source
+     * bound.  `file` here is the real vn_file from ex_ver_find. */
+    if (vi > EX_VER_NDX_GLOBAL) {
+        const VslDynHostSym *hv = ex_host_lookup_ver(name, ver, file);
+        if (hv && hv->copy_sz && st_size <= hv->copy_sz) {
+            *out_addr = hv->addr;
+            *out_size = st_size;
+            return 0;
+        }
     }
     /* (1) Fixed host table: unversioned only (it has no version defs). */
     if (vi > EX_VER_NDX_GLOBAL) {

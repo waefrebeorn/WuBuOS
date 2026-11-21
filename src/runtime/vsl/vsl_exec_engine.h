@@ -70,9 +70,13 @@
  * symbol-less TPOFF64 from a real glibc provider is now applied against the
  * defined module TLS base; 46 host IRELATIVE resolver entries (42 unique link
  * addresses) are registered for the same fixture as bounded stand-ins.  The
- * real glibc libc.so.6 fixture now advances to its NEXT exact boundary: an
- * unresolved versioned ld.so import (_dl_argv@GLIBC_PRIVATE), which is still
- * recorded as a verified negative.
+ * bounded host provider also binds the versioned ld.so imports a real glibc
+ * libc.so.6 pulls from its interpreter (_dl_argv@GLIBC_PRIVATE,
+ * __libc_stack_end@GLIBC_2.2.5, _dl_find_object@GLIBC_2.35) ONLY on an exact
+ * DT_VERNEED name + vn_file match (ld-linux-x86-64.so.2); a wrong vn_file or
+ * version fails closed.  The real glibc fixture now advances past _dl_argv to
+ * its NEXT exact boundary (__libc_enable_secure@GLIBC_PRIVATE), a verified
+ * negative; retargeting the vn_file restores the _dl_argv fault end-to-end.
  *
  * DT_NEEDED is supported ONLY in this bounded form: DT_NEEDED sonames are a
  * plain basename found in a bounded per-image search-directory list (or the
@@ -182,6 +186,12 @@ int vsl_exec_elf(const char *path, VslExecResult *out);
  * provided (the loader then fails closed).  Exposed so the differential
  * gate can assert the EXACT address written into a guest GOT entry. */
 uint64_t vsl_dyn_host_symbol(const char *name);
+/* Exact (name, DT_VERNEED version, DT_VERNEED vn_file) provider lookup used
+ * to bind versioned ld.so imports from the bounded host table.  Returns 0
+ * unless all three match exactly (differential gate: a wrong version or a
+ * wrong vn_file fails closed). */
+uint64_t vsl_dyn_host_symbol_ver(const char *name, const char *ver,
+                                 const char *file);
 uint64_t vsl_dyn_shim_call_count(void);   /* vsl_test_shim invocations */
 uint64_t vsl_dyn_write_call_count(void);  /* host write-shim invocations */
 uint64_t vsl_dyn_ifunc_call_count(void);  /* IRELATIVE host resolver calls */
