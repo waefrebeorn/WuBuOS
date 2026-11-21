@@ -21,6 +21,7 @@ static int g_checks, g_fails;
 /* Kernel/shell stubs.  Types must match wm.h exactly -- the real header is
  * included through wubu_tutorial.h, so a mismatch is a compile error. */
 void wdt_feed(void) {}
+void wdt_tick(void) {}
 void handle_double_fault(void) {}
 void handle_page_fault(void) {}
 void handle_gpf(void) {}

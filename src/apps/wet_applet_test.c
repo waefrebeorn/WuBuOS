@@ -28,6 +28,7 @@ __attribute__((weak)) int  vbe_text_width(const char*s,int sc){(void)s;(void)sc;
  * This test never runs an interrupt or paints a wallpaper, so a quiet stub is
  * honest -- the same pattern apps_test uses. */
 void wdt_feed(void) {}
+void wdt_tick(void) {}
 void handle_double_fault(void) {}
 void handle_page_fault(void) {}
 void handle_gpf(void) {}

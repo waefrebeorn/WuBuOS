@@ -17,6 +17,7 @@
  * designer never runs an interrupt or paints a wallpaper, so a quiet stub is
  * honest -- the same block wet_applet_test.c carries. */
 void wdt_feed(void) {}
+void wdt_tick(void) {}
 void handle_double_fault(void) {}
 void handle_page_fault(void) {}
 void handle_gpf(void) {}

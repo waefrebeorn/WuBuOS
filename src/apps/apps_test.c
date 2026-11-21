@@ -113,6 +113,7 @@ void panic_dump_ring(void) {}
 void syscall_handler(void) {}
 void wdt_feed(void) {}
 
+void wdt_tick(void) {}
 void *wubu_dos_proc_launch(const char *p, int f) { (void)p;(void)f; return NULL; }
 void *wubu_ct_create(void) { return NULL; }
 int wubu_ct_add_payload(void *c, int f, const char *d, size_t n) { (void)c;(void)f;(void)d;(void)n; return 0; }

@@ -21,6 +21,7 @@ static int g_checks, g_fails;
 
 /* Kernel/shell stubs -- the same block the other GUI tests carry. */
 void wdt_feed(void) {}
+void wdt_tick(void) {}
 void handle_double_fault(void) {}
 void handle_page_fault(void) {}
 void handle_gpf(void) {}
