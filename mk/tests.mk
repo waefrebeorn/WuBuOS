@@ -419,7 +419,7 @@ test_high_bear: test_bear_drivers test_jit test_jit_regalloc test_jit_remat test
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_docs test_eddsa_build_config test_eddsa_runtime test_default_optin test_ed25519_ladder_guard test_ed25519_fixed_ladder_default test_ed25519_fixed_full test_ed25519_fixed_full_negctl test_ed25519_fixed_ladder_multitoolchain test_ed25519_fixed_ladder_o0 test_ed25519_fixed_timing_crossconfig test_hosted_hw test_agent test_ns_kv test_ns_worldspace test_wubu_swarm test_wubu_boot_attest test_wubu_boot_attest_relay test_wubu_boot_attest_edr test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_guest_import test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_wubu_edid test_wubu_edid_scan test_wubu_edid_xrandr test_wubu_edid_kms test_wubu_gop_modes test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier test_evdev test_audio_backend test_glottis test_glott_network test_glott_voice test_glott_decimator test_glott_speak test_glott_geom test_glott_artic test_kvfs test_vulkan
+test_medium_other: runtime gui test_docs test_eddsa_build_config test_eddsa_runtime test_default_optin test_ed25519_ladder_guard test_ed25519_fixed_ladder_default test_ed25519_fixed_full test_ed25519_fixed_full_negctl test_ed25519_fixed_ladder_multitoolchain test_ed25519_fixed_ladder_o0 test_ed25519_fixed_timing_crossconfig test_hosted_hw test_agent test_ns_kv test_ns_worldspace test_wubu_swarm test_wubu_boot_attest test_wubu_boot_attest_relay test_wubu_boot_attest_edr test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_guest_import test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_wubu_edid test_wubu_edid_scan test_wubu_edid_xrandr test_wubu_edid_kms test_wubu_gop_modes test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier test_evdev test_audio_backend test_glottis test_glott_network test_glott_voice test_glott_decimator test_glott_speak test_glott_geom test_glott_artic test_kvfs test_vulkan test_wubu_maze
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -2893,6 +2893,20 @@ test_tandem:
 		$(KERNEL)/wubu_bonzi_study.c \
 		-o $(APPS)/tandem/test_tandem -lm
 	$(APPS)/tandem/test_tandem
+
+# WUBU MAZE: DDA raycaster core + deterministic golden-frame gate.
+test_wubu_maze:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(APPS)/wubu_maze -Iinclude \
+		$(APPS)/wubu_maze/wubu_maze.c $(APPS)/wubu_maze/test_wubu_maze.c \
+		-o $(APPS)/wubu_maze/test_wubu_maze
+	$(APPS)/wubu_maze/test_wubu_maze
+
+# The playable terminal front end (W/S/A/D/Q), plus a deterministic tour.
+wubu_maze:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(APPS)/wubu_maze -Iinclude \
+		$(APPS)/wubu_maze/wubu_maze.c $(APPS)/wubu_maze/maze_cli.c \
+		-o $(APPS)/wubu_maze/wubu_maze
+	@echo "built $(APPS)/wubu_maze/wubu_maze -- run it, or use --tour"
 
 # the FS-A block layer (device table + policy selectors, 100 gaps)
 test_blk:

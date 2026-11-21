@@ -1,0 +1,61 @@
+/*
+ * wubu_maze.h -- WUBU MAZE: a tiny, dependency-free C11 raycaster.
+ *
+ * The core is freestanding-safe: no libm, no libc beyond string.h-style
+ * local loops, deterministic for a fixed input script. DDA follows
+ * Lode Vandevenne's canonical grid step (one cell boundary per loop),
+ * so no wall can be skipped between samples.
+ */
+#ifndef WUBU_MAZE_H
+#define WUBU_MAZE_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#define WUBU_MAZE_MAP_W 16
+#define WUBU_MAZE_MAP_H 16
+
+typedef struct {
+    double x, y;             /* player position */
+    double dir_x, dir_y;     /* view direction (length irrelevant) */
+    double plane_x, plane_y; /* camera plane, perpendicular to dir */
+} wubu_maze_player;
+
+typedef struct {
+    wubu_maze_player p;
+    uint32_t steps;          /* successful moves */
+    uint32_t blocked;        /* attempted wall moves */
+} wubu_maze_state;
+
+/* Cell value: 0 = open, >0 = wall type (also colours the stripe). */
+int wubu_maze_cell(int x, int y);
+
+/* Reset to the canonical start: (2.5,1.5), facing east. */
+void wubu_maze_init(wubu_maze_state *s);
+
+/* Move forward/back (forward = +1/-1) and turn by a quarter turn
+ * (turn = +1 right, -1 left, 0 none). Returns 0 on a successful move,
+ * 1 when the wall blocked it. Turning alone always returns 0. */
+int wubu_maze_walk(wubu_maze_state *s, int forward, int turn);
+
+/* Cast one ray for camera_x in [-1,1]. Returns the perpendicular wall
+ * distance (never <= 0), and writes the hit side (0 = x, 1 = y) and
+ * the wall cell type through the optional out pointers. */
+double wubu_maze_cast(const wubu_maze_state *s, double camera_x,
+                      int *side_out, int *cell_out);
+
+/* Render a packed RGB24 buffer of w*h pixels. Pure function of state +
+ * size: same inputs give byte-identical output. */
+void wubu_maze_render(const wubu_maze_state *s, uint8_t *rgb, int w, int h);
+
+/* Terminal renderer: one char per cell, no framebuffer needed. Used by
+ * the interactive CLI and by the ASCII golden-frame gate. */
+void wubu_maze_render_ascii(const wubu_maze_state *s, char *out, int w, int h);
+
+/* FNV-1a 64-bit over a frame, for deterministic golden-hash gates. */
+uint64_t wubu_maze_hash(const uint8_t *data, size_t n);
+
+/* Write a binary P6 PPM (for human inspection, never committed). */
+int wubu_maze_ppm(const char *path, const uint8_t *rgb, int w, int h);
+
+#endif /* WUBU_MAZE_H */
