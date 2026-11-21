@@ -93,7 +93,21 @@ test_ed25519_dudect:
 test_ed25519_ladder_guard:
 	bash tools/eddsa_ladder_guard.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_default_optin test_default_crypto_negative_control
+# COMPILER-IR constant-time gate (next increment after the source guard).
+# Compiles the shipped ladder to LLVM IR at -O2 with a LOCAL clang only and
+# checks the IR for secret-derived branches / memory indices.  FAILS CLOSED
+# (exit 1, never PASS) when clang is unavailable -- so it is deliberately NOT
+# in the default tier; the always-on structural guard above stays there.
+test_ed25519_ir_ct:
+	bash tools/eddsa_ir_ct_gate.sh
+
+# Standalone negative control for the IR checker: injects the `if (swap)`
+# regression, requires both the source guard and the IR detector to go red,
+# restores the source and requires green.  Runs without a compiler.
+test_ed25519_ir_ct_negctl:
+	bash tools/eddsa_ir_ct_negative_control.sh
+
+.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_default_optin test_default_crypto_negative_control
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds
