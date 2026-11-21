@@ -210,6 +210,13 @@ typedef struct {
     uint32_t mmap_backed;       /* guest mmaps materialized with host pages */
     uint64_t mmap_backed_bytes; /* total guest bytes backed this run */
     char     mmap_failure[160]; /* exact reason a guest mmap (anon or file) was refused */
+    /* Reserved-region registry + host-backing partition (ELF image PT_LOAD
+     * union and brk heap).  Exact byte totals captured BEFORE cleanup
+     * releases them; 0 when the registry switch is off (negative control). */
+    uint64_t image_registry_bytes;  /* exact PT_LOAD union bytes registered */
+    uint64_t brk_registry_bytes;    /* exact brk heap bytes registered */
+    uint32_t image_backed;          /* image host ranges charged this run */
+    uint64_t image_backed_bytes;    /* exact host bytes materialized for image */
     /* Bounded stdout/FILE model (opt-in; zero otherwise). */
     uint32_t stdout_writes;     /* bounded host stdout writes this run */
     uint64_t stdout_bytes;      /* exact bytes emitted by the bounded model */
@@ -457,5 +464,18 @@ void     vsl_dyn_set_mmap_backing(int on);
  * Returns 0 on success, -1 for an out-of-range value.  0 refuses ALL backing. */
 int      vsl_dyn_set_mmap_backing_max(uint64_t max_bytes);
 uint64_t vsl_dyn_mmap_backing_max(void);
+
+/* Reserved ELF-image/brk ranges are registered in the allocator registry and
+ * their real host pages charged to a SEPARATE bounded partition of the host
+ * budget (same 32-entry / 16 MiB-per-map / 64 MiB total caps).  The image is
+ * always materialized to execute the guest, so this partition is independent
+ * of the opt-in guest-mmap budget; a zero guest budget still fails closed for
+ * guest mmaps while the image loads.  All image host pages are released on
+ * every exit path.  The switch is ON by default and exists only so a probe
+ * can reproduce pre-fix behaviour as a non-vacuous negative control. */
+void     vsl_dyn_set_reserved_registry(int on);
+int      vsl_dyn_reserved_registry(void);
+uint32_t vsl_dyn_image_back_count(void);   /* live image host ranges (0 after a run) */
+uint64_t vsl_dyn_image_back_bytes(void);   /* live image host bytes (0 after a run) */
 
 #endif /* WUBUOS_VSL_EXEC_ENGINE_H */

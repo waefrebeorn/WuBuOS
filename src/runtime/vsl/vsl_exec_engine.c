@@ -120,6 +120,15 @@ static uint32_t g_mmap_back_n;
 static uint64_t g_mmap_back_bytes;
 static char     g_mmap_back_fail[EX_MMAP_FAIL_MAX];
 
+/* Reserved ELF-image host pages: the image is materialized unconditionally
+ * (the guest must execute), so it is charged to its OWN fixed partition of
+ * the host budget with the same caps.  Independent of the opt-in guest-mmap
+ * budget, exact-byte counted, and fully released on every exit path. */
+static struct { uint64_t addr, size; } g_image_back[EX_MMAP_BACK_MAX];
+static uint32_t g_image_back_n;
+static uint64_t g_image_back_bytes;
+static int      g_image_reg_active;        /* registry entry added this run */
+
 /* Minimal async-signal-safe formatter: the hook runs inside SIGSYS, so no
  * printf/stdio locking is used here. */
 static void ex_bappend(char *d, size_t cap, size_t *n, const char *s) {
@@ -389,6 +398,41 @@ static void ex_release_mmap_backing(void) {
     g_mmap_back_n = 0;
     g_mmap_back_bytes = 0;
 }
+
+/* Charge the materialized image union to the reserved host-backing partition.
+ * Fail-closed: page-aligned in-window range, per-map cap, entry cap and total
+ * ceiling are enforced BEFORE the entry is added; a refusal returns -1 with
+ * the exact reason.  Unlike guest mmaps this does NOT consult the opt-in
+ * guest budget (an image must load even when that budget is zero). */
+static int ex_image_back_add(uint64_t addr, uint64_t sz, const char *why) {
+    (void)why;
+    if (!sz || (sz & 0xfff) || (addr & 0xfff) ||
+        addr < EX_WIN_LO || addr + sz > EX_WIN_HI || sz > VSL_MMAP_BACK_SINGLE)
+        return -1;
+    if (g_image_back_n >= EX_MMAP_BACK_MAX ||
+        sz > VSL_MMAP_BACK_CEILING - g_image_back_bytes)
+        return -1;
+    uint32_t i = g_image_back_n++;
+    g_image_back[i].addr = addr;
+    g_image_back[i].size = sz;
+    g_image_back_bytes += sz;
+    return 0;
+}
+
+/* Release every image host page materialized this run.  Called on ALL exit
+ * paths so no host page survives a run (no leak), including faults. */
+static void ex_release_image_backing(void) {
+    for (uint32_t i = 0; i < g_image_back_n; i++)
+        munmap((void *)(uintptr_t)g_image_back[i].addr,
+               (size_t)g_image_back[i].size);
+    g_image_back_n = 0;
+    g_image_back_bytes = 0;
+    /* g_image_reg_active is cleared by the caller AFTER it unregisters the
+     * allocator entry; clearing it here would leak a stale registry range. */
+}
+
+uint32_t vsl_dyn_image_back_count(void) { return g_image_back_n; }
+uint64_t vsl_dyn_image_back_bytes(void) { return g_image_back_bytes; }
 
 /* -- signal handlers ------------------------------------------------- */
 static __attribute__((no_stack_protector)) void ex_sigsys(int sig, siginfo_t *si, void *ucv) {
@@ -3681,6 +3725,33 @@ int vsl_exec_image(const void *elf_data, size_t elf_size,
         rc = VSL_EXEC_ERR_MAP;
         goto cleanup;
     }
+
+    /* Bring the image into the allocator registry and the host back-budget
+     * table with EXACT bytes.  Both are fail-closed: a refused registration
+     * or an over-cap backing charge aborts the run and leaves no host page
+     * and no registry entry behind.  The reserved-registry switch exists
+     * only for the pre-fix negative control; backing is always charged so
+     * the release path owns every host page on every exit. */
+    if (vsl_dyn_reserved_registry()) {
+        if (vsl_register_reserved(lo, (size_t)(hi - lo),
+                                  VSL_MMAP_RESERVED_IMAGE) != 0) {
+            munmap(map, (size_t)(hi - lo)); map = NULL;
+            rc = VSL_EXEC_ERR_MAP;
+            goto cleanup;
+        }
+        g_image_reg_active = 1;
+    }
+    if (ex_image_back_add(lo, (uint64_t)(hi - lo), "ELF image") != 0) {
+        if (g_image_reg_active) {
+            vsl_unregister_reserved(lo, (size_t)(hi - lo),
+                                    VSL_MMAP_RESERVED_IMAGE);
+            g_image_reg_active = 0;
+        }
+        munmap(map, (size_t)(hi - lo)); map = NULL;
+        rc = VSL_EXEC_ERR_MAP;
+        goto cleanup;
+    }
+
     for (int i = 0; i < e_phnum; i++) {
         const uint8_t *cur = p + e_phoff + (uint64_t)i * e_phentsize;
         uint32_t p_type;
@@ -3886,6 +3957,12 @@ cleanup:
     out->ctor_calls = g_ctor_calls;   /* bounded calls charged this run */
     out->mmap_backed = g_mmap_back_n;
     out->mmap_backed_bytes = g_mmap_back_bytes;
+    /* Capture the reserved-region exact byte totals BEFORE release clears
+     * them.  They are 0 when the negative-control switch is off. */
+    out->image_registry_bytes = vsl_reserved_bytes_kind(VSL_MMAP_RESERVED_IMAGE);
+    out->brk_registry_bytes = vsl_reserved_bytes_kind(VSL_MMAP_RESERVED_BRK);
+    out->image_backed = g_image_back_n;
+    out->image_backed_bytes = g_image_back_bytes;
     snprintf(out->mmap_failure, sizeof(out->mmap_failure), "%s",
              g_mmap_back_fail);
     out->stdout_writes = g_stdout_writes;
@@ -3922,8 +3999,16 @@ cleanup:
     }
     if (kernel_changed && old_kernel[0])
         wubu_kernel_select(old_kernel);
-    if (map && (uint64_t)(uintptr_t)map == lo)
-        munmap(map, (size_t)(hi - lo));
+    /* Release the image host pages through the budget-table owner so every
+     * charged page is unmapped exactly once on every exit path (no leak), and
+     * drop both reserved registry kinds so no stale entry can bias a later
+     * run's collision walk or byte accounting. */
+    ex_release_image_backing();
+    if (g_image_reg_active) {
+        vsl_unregister_reserved(lo, (size_t)(hi - lo), VSL_MMAP_RESERVED_IMAGE);
+        g_image_reg_active = 0;
+    }
+    vsl_clear_reserved(VSL_MMAP_RESERVED_BRK);
     ex_release_dep_mappings();        /* keep load-order/symbol view for gate */
     ex_interp_reset();                /* unmap the bounded interpreter */
     ex_plt_release();                 /* lazy-PLT stubs are per-run */

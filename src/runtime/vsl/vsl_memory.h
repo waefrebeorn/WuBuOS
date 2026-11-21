@@ -40,6 +40,35 @@ int  vsl_dyn_free_coalesce(void);
 uint32_t vsl_free_range_count(void);
 uint64_t vsl_free_range_bytes(void);
 
+/* Reserved (non-bump) guest ranges: ELF-image PT_LOAD union and brk heap.
+ *
+ * These ranges are registered in the SAME allocator registry as guest mmaps
+ * but as fixed, non-recyclable entries.  Two consequences are intentional:
+ *   - the bump allocator's collision walk sees them, so a guest mmap (with
+ *     or without an advisory hint) can never alias the loaded image or the
+ *     heap;
+ *   - their exact page-rounded byte count is queryable, so the host budget
+ *     table can account for real host pages materialized for them and prove
+ *     a full release with no leak.
+ *
+ * Registration is fail-closed: a null/unaligned/out-of-arena range, a full
+ * registry or an alias of an existing live mapping registers NOTHING and
+ * returns -errno.  Reserved entries are never inserted into the coalescing
+ * free table and a guest vsl_munmap cannot trim or remove them. */
+#define VSL_MMAP_RESERVED_IMAGE 0x40000000u
+#define VSL_MMAP_RESERVED_BRK   0x80000000u
+
+int      vsl_register_reserved(uint64_t addr, size_t size, int kind);
+int      vsl_unregister_reserved(uint64_t addr, size_t size, int kind);
+int      vsl_clear_reserved(int kind);          /* all entries of one kind */
+uint32_t vsl_reserved_count(void);
+uint64_t vsl_reserved_bytes(void);              /* exact sum, all kinds */
+uint64_t vsl_reserved_bytes_kind(int kind);     /* exact sum, one kind */
+/* ON by default.  OFF reproduces pre-fix behaviour: vsl_brk does not
+ * register heap growth.  Used by the exec leg's negative control. */
+void     vsl_dyn_set_reserved_registry(int on);
+int      vsl_dyn_reserved_registry(void);
+
 /* mmap region accessors */
 uint64_t vsl_mmap_get_addr(const VSL_MMAP *mm);
 size_t vsl_mmap_get_size(const VSL_MMAP *mm);
