@@ -938,6 +938,7 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/glibc_rootfs_reallibc/lib64/libc.so.6 \
 	$(RT)/vsl/exec_guests/glibc_rootfs_bigver/libc.so.6 \
 	$(RT)/vsl/exec_guests/guest_hello.elf \
+	$(RT)/vsl/exec_guests/guest_fwrite.elf \
 	$(RT)/vsl/exec_guests/guest_copy.elf \
 	$(RT)/vsl/exec_guests/guest_filemap.elf \
 	$(RT)/vsl/exec_guests/guest_mmap_align.elf \
@@ -1148,6 +1149,13 @@ $(RT)/vsl/exec_guests/guest_hello.elf: \
 		$(RT)/vsl/exec_guests/guest_hello.c
 	$(CC) -O0 -Wl,--build-id=none $< -o $@
 
+# Real dynamically linked fwrite fixture (see guest_fwrite.c).  Plain $(CC),
+# like guest_hello.elf: the generic %.elf rule would add -nostdlib and break
+# the versioned fwrite/stdout imports this stream-shape gate needs.
+$(RT)/vsl/exec_guests/guest_fwrite.elf: \
+		$(RT)/vsl/exec_guests/guest_fwrite.c
+	$(CC) -O0 -Wl,--build-id=none $< -o $@
+
 # Real libc provider placed at the standard lib64 path in the guest rootfs.
 # This is the provider found by vsl_dyn_set_libc_rootfs(1) for the COPY leg;
 # it is the SAME bounded guest shim (now exporting optind@@GLIBC_2.2.5) so the
@@ -1199,7 +1207,7 @@ $(RT)/vsl/exec_guests/guest_copy.elf: \
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
 
-test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_hello.c $(RT)/vsl/probe_filemap.c $(RT)/vsl/probe_mmap_align.c $(RT)/vsl/probe_munmap_coalesce.c $(RT)/vsl/probe_image_brk_registry.c $(RT)/vsl/probe_munmap_release.c
+test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_hello.c $(RT)/vsl/probe_stream_writes.c $(RT)/vsl/probe_filemap.c $(RT)/vsl/probe_mmap_align.c $(RT)/vsl/probe_munmap_coalesce.c $(RT)/vsl/probe_image_brk_registry.c $(RT)/vsl/probe_munmap_release.c
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
 		$(VSL_EXEC_OBJS) \
 		-o $(RT)/wubu_vsl_exec_test -ldl -lvulkan -lcuda
@@ -1212,6 +1220,14 @@ test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_h
 		$(RT)/vsl/probe_ifunc_glibc_hello.c \
 		-o $(RT)/wubu_vsl_glibc_hello_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_glibc_hello_test $(RT)/vsl/exec_guests
+	# Bounded fwrite (printf-format-free) stream shape also runs in a FRESH
+	# process: exact-triple selection, byte-exact host oracle, fail-closed
+	# shapes.  Reuses the single puts stream writer/accounting owner.
+	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
+		$(filter-out $(RT)/vsl/vsl_exec_test.o,$(VSL_EXEC_OBJS)) \
+		$(RT)/vsl/probe_stream_writes.c \
+		-o $(RT)/wubu_vsl_stream_writes_test -ldl -lvulkan -lcuda
+	$(RT)/wubu_vsl_stream_writes_test $(RT)/vsl/exec_guests
 	# Bounded file-backed guest mmap also runs in a FRESH process (the big
 	# single-process binary accumulates an unaligned VSL mmap bump base).
 	# This is the byte-exact-read / exact-admission / fail-closed gate.

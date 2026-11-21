@@ -434,7 +434,16 @@ uint32_t vsl_dyn_module_id(uint32_t idx);
  *     missing terminator) with an exact diagnostic and emits NO bytes,
  *   - writes exactly the string bytes plus one newline, and reports the exact
  *     byte count.  No guest FILE state is read or written, so the exit flush
- *     has nothing pending and no bogus write/EFAULT can occur. */
+ *     has nothing pending and no bogus write/EFAULT can occur.
+ *
+ * A second shape, a printf-format-free fwrite(ptr,size,nmemb,stream), is
+ * modelled by the SAME single writer/accounting owner (vsl_stdout_emit) -- no
+ * duplicate FILE/stream model.  It is selected at relocation ONLY by the exact
+ * (name="fwrite", version="GLIBC_2.2.5", vn_file="libc.so.6") triple (or the
+ * unversioned name-only form).  The guest FILE* is never dereferenced; size*
+ * nmemb is overflow-checked and bounded by the same shape validator, and any
+ * NULL/zero/over-cap shape fails closed with no bytes emitted.
+ */
 #define VSL_STDOUT_WRITE_MAX 4096u
 void     vsl_dyn_set_stdout_model(int on);
 int      vsl_dyn_stdout_model(void);
@@ -443,6 +452,17 @@ int      vsl_dyn_stdout_model(void);
  * Used by the fresh-process gate as a fail-closed negative control. */
 int      vsl_stdout_shape_ok(uint64_t fd, uint64_t count,
                              char *diag, size_t diag_cap);
+/* Exact-triple selection probe: returns the bounded writer address only when
+ * the stream model is ON and (name,version,vn_file) is a modelled shape, else
+ * 0.  A wrong version or vn_file is a fail-closed negative control. */
+uint64_t vsl_dyn_stream_impl(const char *name, const char *ver, const char *file);
+/* Direct call into the SAME bounded fwrite impl the relocation binder installs
+ * (for byte-exact host-oracle and fail-closed shape gates).  Returns the item
+ * count on success, 0 on refusal. */
+size_t   vsl_dyn_stream_fwrite(const void *ptr, size_t size, size_t nmemb,
+                               void *stream);
+/* Exact diagnostic from the most recent bounded stream refusal ('' if none). */
+const char *vsl_dyn_stream_failure(void);
 
 /* Bounded host backing for guest mmap, OFF by default (pre-change
  * registry-only behaviour).  VSL's mmap syscall records a range in the

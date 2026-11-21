@@ -184,7 +184,9 @@ static char     g_stdout_failure[160];
 
 /* Bounded stdout/FILE stream shape validator: only fd 1 (stdout) with a
  * non-empty count at or below the fixed per-write cap is modelable.  Any
- * other shape fails closed with an exact diagnostic and emits no bytes. */
+ * other shape fails closed with an exact diagnostic and emits no bytes.
+ * This is the SINGLE shape owner shared by both bounded stream writers
+ * (puts and fwrite): no duplicate FILE/stream model. */
 int vsl_stdout_shape_ok(uint64_t fd, uint64_t count,
                         char *diag, size_t diag_cap) {
     size_t n = 0;
@@ -201,11 +203,34 @@ int vsl_stdout_shape_ok(uint64_t fd, uint64_t count,
 void vsl_dyn_set_stdout_model(int on) { g_stdout_model = on ? 1 : 0; }
 int  vsl_dyn_stdout_model(void) { return g_stdout_model; }
 
-/* Bounded host implementation bound in place of the guest's FUNC-typed puts
- * import when the stdout model is enabled.  The string is bounded by a capped
- * NUL scan; an overlong or unterminated string is an unsupported stream shape
- * and emits nothing.  On success exactly the string bytes and one newline are
- * written, matching the host puts oracle.  No guest FILE state is touched. */
+/* The ONE bounded stdout writer owned by the stream model.  Every modelled
+ * stream symbol (puts, fwrite) funnels through here: shape validation, the
+ * single raw fd-1 write, and the exact byte/write accounting live here only.
+ * No guest FILE state is ever read or written, so there is nothing for the
+ * exit flush to emit and no bogus write/EFAULT can occur. */
+static int64_t vsl_stdout_emit(const void *s, uint64_t n) {
+    char diag[160];
+    if (vsl_stdout_shape_ok(1, n, diag, sizeof(diag)) != 0) {
+        snprintf(g_stdout_failure, sizeof(g_stdout_failure), "%s", diag);
+        return -1;
+    }
+    int64_t w = syscall(SYS_write, 1, s, (size_t)n);
+    if (w != (int64_t)n) {
+        snprintf(g_stdout_failure, sizeof(g_stdout_failure),
+                 "stdout: short/failed fd=1 write want=%llu got=%lld",
+                 (unsigned long long)n, (long long)w);
+        return -1;
+    }
+    g_stdout_writes++;
+    g_stdout_bytes += (uint64_t)w;
+    return w;
+}
+
+/* Bounded host implementation bound for a puts import.  Measure the string
+ * with a capped NUL scan, then emit the bytes and one newline through the
+ * shared writer.  A NULL/empty/overlong/unterminated string is an unsupported
+ * stream shape and emits nothing; on success the exact string + one newline
+ * bytes are written, matching the host puts oracle. */
 static int64_t vsl_stdout_puts(const char *s) {
     if (!s) {
         snprintf(g_stdout_failure, sizeof(g_stdout_failure),
@@ -220,13 +245,45 @@ static int64_t vsl_stdout_puts(const char *s) {
                  n, (unsigned)VSL_STDOUT_WRITE_MAX);
         return -1;
     }
-    int64_t a = syscall(SYS_write, 1, s, n);
-    if (a != (int64_t)n) return -1;
-    int64_t b = syscall(SYS_write, 1, "\n", 1);
-    if (b != 1) return -1;
-    g_stdout_writes += 2;
-    g_stdout_bytes += (uint64_t)(a + b);
+    int64_t a = vsl_stdout_emit(s, n);
+    if (a < 0) return -1;
+    int64_t b = vsl_stdout_emit("\n", 1);
+    if (b < 0) return -1;
     return a + b;
+}
+
+/* Bounded host implementation bound for an fwrite import (a printf-format-free
+ * stream write).  fwrite(ptr, size, nmemb, stream): the guest FILE* is NEVER
+ * dereferenced -- this model covers the stdout shape only.  size*nmemb is
+ * overflow-checked and then bounded by the SAME shared shape validator as
+ * puts.  Unsupported shapes (NULL buffer, zero count, overflow or over-cap)
+ * fail closed with an exact diagnostic and emit no bytes.  Returns the item
+ * count on success and 0 on refusal, like real fwrite. */
+static size_t vsl_stdout_fwrite(const void *ptr, size_t size,
+                                size_t nmemb, void *stream) {
+    (void)stream;                       /* no guest FILE state is modelled */
+    if (!ptr) {
+        snprintf(g_stdout_failure, sizeof(g_stdout_failure),
+                 "stdout: unsupported FILE/stream shape: NULL buffer");
+        return 0;
+    }
+    if (size == 0 || nmemb == 0) {
+        snprintf(g_stdout_failure, sizeof(g_stdout_failure),
+                 "stdout: unsupported FILE/stream shape: zero count size=%zu nmemb=%zu",
+                 size, nmemb);
+        return 0;
+    }
+    if (size > VSL_STDOUT_WRITE_MAX || nmemb > VSL_STDOUT_WRITE_MAX ||
+        size > VSL_STDOUT_WRITE_MAX / nmemb) {
+        snprintf(g_stdout_failure, sizeof(g_stdout_failure),
+                 "stdout: unsupported FILE/stream shape: size*nmemb overflow size=%zu nmemb=%zu",
+                 size, nmemb);
+        return 0;
+    }
+    uint64_t total = (uint64_t)size * (uint64_t)nmemb;
+    int64_t w = vsl_stdout_emit(ptr, total);
+    if (w < 0) return 0;
+    return nmemb;
 }
 
 static int g_filter_installed;
@@ -859,6 +916,50 @@ uint64_t vsl_dyn_ifunc_resolve_named(const char *name, const char *ver,
     return e ? e->impl : 0;
 }
 uint64_t vsl_dyn_ifunc_named_call_count(void) { return g_dyn_ifunc_named_calls; }
+
+/* Bounded stdout/FILE stream shapes.  A stream symbol is modelled ONLY for
+ * one of the exact (name, DT_VERNEED version, vn_file) triples below (or the
+ * unversioned name-only form), never by a near-miss.  This is the SINGLE
+ * source of truth for both relocation-time binding and the exact-triple
+ * negative-control gates; impl is the bounded host writer and touches no
+ * guest FILE state. */
+typedef struct {
+    const char *name, *ver, *file;
+    uint64_t    impl;
+} VslStreamShape;
+static const VslStreamShape g_stream_shapes[] = {
+    { "puts",   "GLIBC_2.2.5", "libc.so.6", (uint64_t)(uintptr_t)&vsl_stdout_puts  },
+    { "fwrite", "GLIBC_2.2.5", "libc.so.6", (uint64_t)(uintptr_t)&vsl_stdout_fwrite },
+    { "puts",   "", NULL, (uint64_t)(uintptr_t)&vsl_stdout_puts   },
+    { "fwrite", "", NULL, (uint64_t)(uintptr_t)&vsl_stdout_fwrite },
+};
+static const VslStreamShape *ex_stream_shape(const char *name,
+                                             const char *ver,
+                                             const char *file) {
+    if (!name || !ver) return NULL;
+    for (size_t i = 0; i < sizeof(g_stream_shapes)/sizeof(g_stream_shapes[0]); i++) {
+        const VslStreamShape *s = &g_stream_shapes[i];
+        if (strcmp(s->name, name) != 0 || strcmp(s->ver, ver) != 0) continue;
+        if (ver[0] && s->file && (!file || strcmp(s->file, file) != 0)) continue;
+        return s;
+    }
+    return NULL;
+}
+/* Exact-triple selection probe for the fail-closed gates: returns the bounded
+ * writer address only when the model is ON and the triple is modelled, else 0. */
+uint64_t vsl_dyn_stream_impl(const char *name, const char *ver, const char *file) {
+    if (!g_stdout_model) return 0;
+    const VslStreamShape *s = ex_stream_shape(name, ver, file);
+    return s ? s->impl : 0;
+}
+/* Direct-call hook for the SAME bounded fwrite impl the relocation binder
+ * installs; used by byte-exact host-oracle and fail-closed shape gates. */
+size_t vsl_dyn_stream_fwrite(const void *ptr, size_t size, size_t nmemb, void *stream) {
+    if (!g_stdout_model) return 0;
+    return vsl_stdout_fwrite(ptr, size, nmemb, stream);
+}
+/* Exact diagnostic from the most recent bounded stream refusal ('' if none). */
+const char *vsl_dyn_stream_failure(void) { return g_stdout_failure; }
 
 /* Exact, bounded diagnostic for the FIRST relocation that could not be
  * resolved in the current image.  Set by ex_apply_one(); copied into
@@ -2221,20 +2322,23 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     }
     uint64_t addr = 0;
     int found = 0;
-    /* Bounded stdout model: route the guest's FUNC-typed puts import to the
-     * bounded host implementation, selected ONLY by the exact version and
-     * vn_file of a real puts@GLIBC_2.2.5 import from libc.so.6.  A different
-     * name/version/file falls through to the normal bounded lookup, so a
-     * malformed import can never silently reach the host writer. */
-    if (g_stdout_model && (st_info & 0x0f) == 2 && strcmp(name, "puts") == 0) {
+    /* Bounded stdout/FILE stream model: route the guest's FUNC-typed puts or
+     * fwrite import to the single bounded host writer, selected ONLY by the
+     * exact (name, DT_VERNEED version, vn_file) triple of a real libc.so.6
+     * import (or an unversioned name-only form).  A different name/version/
+     * file falls through to the normal bounded lookup, so a malformed import
+     * can never silently reach a host writer.  Both symbols share the SAME
+     * writer and accounting owner (vsl_stdout_emit). */
+    if (g_stdout_model && (st_info & 0x0f) == 2 &&
+        (strcmp(name, "puts") == 0 || strcmp(name, "fwrite") == 0)) {
         const char *iver = "", *ifile = NULL;
         if (vi > EX_VER_NDX_GLOBAL) {
             const VslVerEnt *need = ex_ver_find(vc->needs, vc->nneeds, vi);
             if (!need) return -1;
             iver = need->name; ifile = need->file;
         }
-        const VslIfuncByName *ie = ex_ifunc_by_name(name, iver, ifile);
-        if (ie) { *out = (uint64_t)(uintptr_t)&vsl_stdout_puts; return 0; }
+        const VslStreamShape *ss = ex_stream_shape(name, iver, ifile);
+        if (ss) { *out = ss->impl; return 0; }
     }
     /* Versioned import: the index must resolve to a DT_VERNEED entry.  In
      * hardened mode the definition must come from BOTH the exact version
