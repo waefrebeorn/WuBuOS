@@ -1,12 +1,12 @@
-# Narrow overlay: VSL mprotect permission hooks. Generated from the pinned
-# WEMU sources; apply with `patch -p1 -d build/wemu-user` (see mk/wemu_user.mk).
---- a/include/wemu.h
-+++ b/include/wemu.h
-@@ -38,6 +38,19 @@
- /* Guest memory (translation-aware when paging is enabled). */
+# Narrow overlay: VSL mprotect/fetch permission hooks. Generated from the pinned
+# combined WEMU sources (fork/clone + sandbox); apply with patch -p1 -d build/wemu-user.
+diff -ruN clean2/include/wemu.h patched/include/wemu.h
+--- a/include/wemu.h	2026-11-20 21:21:16.000000000 -0500
++++ b/include/wemu.h	2026-11-20 21:22:46.792596311 -0500
+@@ -39,6 +39,19 @@
  int wemu_mem_read(WemuCpu *cpu, uint64_t va, void *dst, size_t len);
  int wemu_mem_write(WemuCpu *cpu, uint64_t va, const void *src, size_t len);
-+
+ 
 +/* Optional guest-memory permission hook (WuBuOS VSL mprotect enforcement).
 + * Return 0 to allow the access; nonzero denies it and WEMU raises #PF with
 + * CR2 = va. A NULL hook (the default) keeps legacy guest RAM permissive.
@@ -19,12 +19,14 @@
 + * executable. */
 +typedef int (*WemuFetchPermFn)(uint64_t va, size_t len, void *ud);
 +void wemu_set_fetch_perm_hook(WemuFetchPermFn fn, void *ud);
- 
++
  /* Paging control: cr3 + CR0.PG. Without it, VA == GPA. */
  void wemu_cpu_set_cr3(WemuCpu *cpu, uint64_t cr3);
---- a/src/wemu_internal.h
-+++ b/src/wemu_internal.h
-@@ -98,6 +98,11 @@
+ void wemu_cpu_enable_paging(WemuCpu *cpu, int on);
+diff -ruN clean2/src/wemu_internal.h patched/src/wemu_internal.h
+--- a/src/wemu_internal.h	2026-11-20 21:21:16.000000000 -0500
++++ b/src/wemu_internal.h	2026-11-20 21:22:46.793609597 -0500
+@@ -135,6 +135,11 @@
                             int is_user, int is_fetch, int *fault);
  uint64_t wemu_translate(WemuCpu *cpu, uint64_t va, int is_write, int is_user,
                          int *fault);
@@ -36,13 +38,13 @@
  /* Instruction-fetch read (wemu_decode.c): same walk with is_fetch=1. */
  int wemu_mem_fetch(WemuCpu *cpu, uint64_t va, void *dst, size_t len);
  
---- a/src/wemu_mem.c
-+++ b/src/wemu_mem.c
-@@ -2,6 +2,24 @@
-  * One concern: address translation and checked memory access. */
+diff -ruN clean2/src/wemu_mem.c patched/src/wemu_mem.c
+--- a/src/wemu_mem.c	2026-11-20 21:21:16.000000000 -0500
++++ b/src/wemu_mem.c	2026-11-20 21:22:46.793720297 -0500
+@@ -3,6 +3,24 @@
  #include "wemu_internal.h"
  #include <stdlib.h>
-+
+ 
 +/* Optional permission hooks. Single owners; NULL means permissive legacy
 + * guest RAM. Installed by the WuBuOS WEMU bridge. */
 +static WemuMemPermFn g_mem_perm_fn;
@@ -60,10 +62,11 @@
 +int wemu_check_fetch_perm(uint64_t va, size_t len) {
 +    return g_fetch_perm_fn && g_fetch_perm_fn(va, len, g_fetch_perm_ud);
 +}
- 
++
  int wemu_gpa_read(WemuCpu *cpu, uint64_t gpa, void *dst, size_t len) {
      if (gpa > cpu->ram_size || len > cpu->ram_size - gpa) {
-@@ -133,6 +152,12 @@
+         cpu->fault = 13; /* #GP: outside guest RAM */
+@@ -133,6 +151,12 @@
          if (f) { cpu->fault = f; return -1; }
          uint64_t chunk = 0x1000 - (va & 0xfff);
          if (chunk > len) chunk = len;
@@ -76,7 +79,7 @@
          if (wemu_gpa_read(cpu, gpa, d, (size_t)chunk) != 0) return -1;
          va += chunk; d += chunk; len -= (size_t)chunk;
      }
-@@ -148,6 +173,13 @@
+@@ -148,6 +172,13 @@
          if (f) { cpu->fault = f; return -1; }
          uint64_t chunk = 0x1000 - (va & 0xfff);
          if (chunk > len) chunk = len;
@@ -90,7 +93,7 @@
          if (wemu_gpa_read(cpu, gpa, d, (size_t)chunk) != 0) return -1;
          va += chunk; d += chunk; len -= (size_t)chunk;
      }
-@@ -162,6 +194,12 @@
+@@ -162,6 +193,12 @@
          if (f) { cpu->fault = f; return -1; }
          uint64_t chunk = 0x1000 - (va & 0xfff);
          if (chunk > len) chunk = len;

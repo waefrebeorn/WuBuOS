@@ -234,7 +234,7 @@ test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib t
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
-test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_vsl_kernel_adapt test_wemu_busybox test_wemu_protect
+test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_vsl_kernel_adapt test_wemu_busybox test_wemu_protect test_wemu_sandbox
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
@@ -706,6 +706,28 @@ test_wemu_protect: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/
 		$(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_prot_test.c \
 		-o $(RT)/wubu_wemu_prot_test $(WEMU_LIB) -ldl -lvulkan -lcuda -lm
 	./$(RT)/wubu_wemu_prot_test
+
+# Hosted WEMU overlay sandbox differential (combined WEMU commit 0fa6b52:
+# fork/clone + sandbox boundary, represented as mk/wemu-mprotect-prot.patch
+# for the VSL permission hooks only). Builds the NATIVE user-mode executor
+# from the patched out-of-tree copy and runs the gate that proves: 45 real
+# static busybox applets + PIE/signal/fork gates stay byte-exact, a PROT_EXEC
+# mmap outside the trapped window is refused (no shellcode), mprotect(RWX)
+# outside the window is refused, an out-of-range guest pointer fails closed
+# with WEMU_UM_ERR_BADPTR before any host syscall, and brk growth is bounded.
+test_wemu_sandbox: $(WEMU_LIB) $(WEMU_BUILD)/tests/test_usermode_native.c
+	$(CC) -static-pie -O2 -o $(WEMU_BUILD)/tests/pie_hello $(WEMU_BUILD)/tests/pie_hello.c
+	$(CC) -static-pie -O2 -o $(WEMU_BUILD)/tests/pie_signal $(WEMU_BUILD)/tests/pie_signal.c
+	$(CC) -static-pie -O2 -o $(WEMU_BUILD)/tests/pie_nohandler $(WEMU_BUILD)/tests/pie_nohandler.c
+	$(CC) -static-pie -O2 -o $(WEMU_BUILD)/tests/pie_unlisted $(WEMU_BUILD)/tests/pie_unlisted.c
+	$(CC) -O2 -o $(WEMU_BUILD)/tests/pie_dynamic $(WEMU_BUILD)/tests/pie_dynamic.c
+	$(CC) -static-pie -O2 -o $(WEMU_BUILD)/tests/fork_clone $(WEMU_BUILD)/tests/fork_clone.c
+	$(CC) -static -nostdlib -no-pie -ffreestanding -fno-builtin -O2 \
+		-o $(WEMU_BUILD)/tests/sandbox_probe $(WEMU_BUILD)/tests/sandbox_probe.c
+	$(CC) -O2 -g -Wall -Wextra -I$(WEMU_BUILD)/include \
+		$(WEMU_BUILD)/tests/test_usermode_native.c \
+		-o $(WEMU_BUILD)/tests/test_usermode_native $(WEMU_LIB) -lm
+	cd $(WEMU_BUILD) && ./tests/test_usermode_native
 
 # L11: VSL EXECUTES. Real in-process engine for static freestanding Linux
 # ELF: entry transfer + seccomp SIGSYS trap into vsl_syscall_dispatch.
