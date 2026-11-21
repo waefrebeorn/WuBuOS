@@ -158,7 +158,28 @@ test_ed25519_bignum_value:
 test_ed25519_bignum_value_negctl:
 	bash tools/eddsa_bignum_value_negctl.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_bignum_value test_ed25519_bignum_value_negctl test_default_optin test_default_crypto_negative_control
+# BIGNUM-FREE FIXED-WIDTH LADDER gate (next increment after the bignum-value
+# verified negative): a self-contained 4x64-limb Ed25519 scalar-mult leaf with
+# NO mbedTLS bignum, swapped in by WUBU_EDDSA_FIXED_LADDER.  Proof-style source
+# + real gcc -O2 machine-code checks, an injected-branch negative control, and
+# 14 RFC 8032 vectors from an independent Python oracle.  Opt-in (needs gcc and
+# objdump): the mbedTLS ladder remains the default so the default tier is
+# unchanged.  The bignum-free path is an ADDITIONAL surface, not a replacement.
+test_ed25519_fixed_ladder:
+	bash tools/ed25519_fixed_ladder_gate.sh
+
+# Standalone negative control for the fixed-width checker: injects a real
+# secret-dependent branch into a temp copy of the shipped ladder (never the
+# working tree), requires both detectors RED, then the shipped source GREEN.
+test_ed25519_fixed_ladder_negctl:
+	bash tools/ed25519_fixed_ladder_negctl.sh
+
+# End-to-end package-signing differential through the fixed-width ladder:
+# the real pkgmgr Ed25519 gate with only the scalar-mult leaf swapped.
+test_pkg_ed25519_fixed:
+	WUBU_EDDSA_FIXED=1 bash tools/pkg_ed25519_gate.sh
+
+.PHONY: mbedtls-devroot test_pkg_ed25519_fixed test_ed25519_fixed_ladder test_ed25519_fixed_ladder_negctl test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_bignum_value test_ed25519_bignum_value_negctl test_default_optin test_default_crypto_negative_control
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds

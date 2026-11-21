@@ -57,6 +57,17 @@ if [ "${WUBU_EDDSA_NATIVE:-0}" = "1" ]; then
 else
     echo "[gate] backend: in-repo hardened Montgomery ladder (default)"
 fi
+# WUBU_EDDSA_FIXED=1 swaps ONLY the scalar-multiplication leaf for the
+# self-contained fixed-width ladder (no mbedTLS bignum).  Hashing, scalar
+# mod-L arithmetic and point encode/decode stay on the mbedTLS path, so the
+# differential checks below still exercise the real package-signing flow.
+FIXED_FLAG=""
+FIXED_SRC=""
+if [ "${WUBU_EDDSA_FIXED:-0}" = "1" ]; then
+    FIXED_FLAG="-DWUBU_EDDSA_FIXED_LADDER"
+    FIXED_SRC="$ROOT/src/gui/wubu_ed25519_fixed.c"
+    echo "[gate] ladder: fixed-width bignum-free (WUBU_EDDSA_FIXED_LADDER)"
+fi
 INCLUDES="-I$ROOT -I$ROOT/include -I$ROOT/src -I$ROOT/src/gui -I$ROOT/src/runtime -I$ROOT/src/kernel -I$MB/include"
 SRCS="$ROOT/src/runtime/wubu_crc32.c \
  $ROOT/src/gui/wubu_pkgmgr.c $ROOT/src/gui/wubu_pkgmgr_verify.c $ROOT/src/gui/wubu_pkg_sign.c $ROOT/src/gui/wubu_pkg_ed25519.c \
@@ -77,7 +88,7 @@ SRCS="$ROOT/src/runtime/wubu_crc32.c \
 
 echo "[gate] compiling mbedTLS-enabled pkgmgr harness"
 # shellcheck disable=SC2086
-gcc $CFLAGS $NATIVE_FLAG $INCLUDES -include "$ROOT/src/runtime/wubu_gnu_compat.h" $SRCS \
+gcc $CFLAGS $NATIVE_FLAG $FIXED_FLAG $INCLUDES -include "$ROOT/src/runtime/wubu_gnu_compat.h" $SRCS $FIXED_SRC \
     -o "$TMP/probe" \
     -L"$MB/lib/x86_64-linux-gnu" -lmbedtls -lmbedx509 -lmbedcrypto \
     -Wl,-rpath,"$MB/lib/x86_64-linux-gnu" -lsqlite3 -lzstd -lm $NATIVE_LINK

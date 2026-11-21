@@ -6,6 +6,10 @@
  *   WUBU_HAVE_OPENSSL_EDDSA  -- OpenSSL EVP Ed25519, with the bignum-free
  *                               verification policy in wubu_eddsa_policy.c
  *                               (used when no mbedTLS dev root is present).
+ * With WUBU_EDDSA_FIXED_LADDER the group scalar multiplication in the mbedTLS
+ * backend is replaced by the self-contained fixed-width module
+ * wubu_ed25519_fixed.c (no mbedTLS bignum in the ladder).  The mbedTLS ladder
+ * stays the default fallback; only the ladder leaf is swapped.
  * Never use MBEDTLS_SSL_H as the feature macro: it is mbedTLS's own guard.
  */
 #ifdef WUBU_EDDSA_USE_BUILD_CONFIG
@@ -18,6 +22,12 @@
 #include "../runtime/wubu_crypto.h"
 
 #include <string.h>
+
+#ifdef WUBU_EDDSA_FIXED_LADDER
+/* Opt-in bignum-free scalar ladder.  Compiled only when explicitly selected;
+ * the mbedTLS MPI ladder below remains the default fallback. */
+#include "wubu_ed25519_fixed.h"
+#endif
 
 #ifdef WUBU_HAVE_MBEDTLS
 #include <mbedtls/sha512.h>
@@ -269,10 +279,21 @@ cleanup:
     return rc;
 }
 
+/* Forward declarations for the opt-in fixed-width ladder adapter; the body is
+ * after ge_tobytes()/ge_frombytes() below.  Only point encode/decode uses
+ * mbedTLS here -- the ladder itself lives in wubu_ed25519_fixed.c. */
+#ifdef WUBU_EDDSA_FIXED_LADDER
+static int ge_frombytes(ge *p, const uint8_t enc[32]);
+static int ge_tobytes(uint8_t enc[32], const ge *p);
+static int ge_mul_fixed(ge *r, const ge *p, const mbedtls_mpi *n);
+#endif
+
 /* Selecting the insecure loop requires BOTH macros: the probe defines the
  * TIMING_PROBE macro itself, so a stray WUBU_ED25519_LEGACY_MUL in a normal
  * build cannot silently put the old code back on the signing path. */
-#if defined(WUBU_ED25519_LEGACY_MUL) && defined(WUBU_ED25519_TIMING_PROBE)
+#if defined(WUBU_EDDSA_FIXED_LADDER)
+#define ge_mul ge_mul_fixed
+#elif defined(WUBU_ED25519_LEGACY_MUL) && defined(WUBU_ED25519_TIMING_PROBE)
 #define ge_mul ge_mul_doubleadd
 #else
 #define ge_mul ge_mul_ladder
@@ -341,6 +362,24 @@ cleanup:
     mbedtls_mpi_free(&inv); mbedtls_mpi_free(&x); mbedtls_mpi_free(&y);
     return rc;
 }
+
+#ifdef WUBU_EDDSA_FIXED_LADDER
+/* Opt-in scalar multiplication through the self-contained fixed-width ladder.
+ * The scalar is written as fixed 32-byte little-endian, the point is encoded
+ * with the existing (public-point) encoder, and the result is decoded back.
+ * No mbedtls_mpi call occurs inside the ladder itself; encode/decode are the
+ * only bignum uses in this adapter and are outside the CT claim (the inputs
+ * are the public base point, the public key, or a published signature R). */
+static int ge_mul_fixed(ge *r, const ge *p, const mbedtls_mpi *n) {
+    uint8_t pbuf[32], rbuf[32], nbuf[32];
+    int rc = mbedtls_mpi_write_binary_le(n, nbuf, sizeof(nbuf));
+    if (rc != 0) return rc;
+    ge_tobytes(pbuf, p);
+    rc = wubu_ed25519_fixed_scalarmult(rbuf, nbuf, pbuf);
+    if (rc != 0) return rc;
+    return ge_frombytes(r, rbuf);
+}
+#endif
 
 static int ge_equal(const ge *a, const ge *b) {
     mbedtls_mpi l, r;
