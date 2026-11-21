@@ -174,6 +174,18 @@ test_ed25519_fixed_ladder:
 test_ed25519_fixed_ladder_negctl:
 	bash tools/ed25519_fixed_ladder_negctl.sh
 
+# second-toolchain / optimization-level structural CT gate: runs the shipped
+# ladder's existing source + real-machine-code checks under gcc 13.3 -O2, -O3
+# and gcc 12.4 -O2, requires identical verdicts, and proves each configuration
+# non-vacuous with an injected secret-dependent branch.  Fails closed with
+# VERIFIED_NEGATIVE evidence if fewer than two distinct compilers are usable.
+test_ed25519_fixed_ladder_multitoolchain:
+	bash tools/ed25519_fixed_ladder_multitoolchain.sh
+
+# Standalone per-configuration injected-branch non-vacuity control.
+test_ed25519_fixed_ladder_multitoolchain_negctl:
+	bash tools/ed25519_fixed_ladder_multitoolchain.sh --negctl
+
 # End-to-end package-signing differential through the fixed-width ladder:
 # the real pkgmgr Ed25519 gate with only the scalar-mult leaf swapped.
 test_pkg_ed25519_fixed:
@@ -214,7 +226,7 @@ test_ed25519_fixed_timing:
 test_ed25519_fixed_timing_negctl:
 	bash tools/ed25519_fixed_timing_negctl.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_fixed test_pkg_ed25519_legacy test_ed25519_fixed_ladder test_ed25519_fixed_ladder_default test_ed25519_fixed_ladder_negctl test_ed25519_fixed_full test_ed25519_fixed_full_negctl test_ed25519_fixed_timing test_ed25519_fixed_timing_negctl test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_bignum_value test_ed25519_bignum_value_negctl test_default_optin test_default_crypto_negative_control
+.PHONY: mbedtls-devroot test_pkg_ed25519_fixed test_pkg_ed25519_legacy test_ed25519_fixed_ladder test_ed25519_fixed_ladder_default test_ed25519_fixed_ladder_negctl test_ed25519_fixed_ladder_multitoolchain test_ed25519_fixed_ladder_multitoolchain_negctl test_ed25519_fixed_full test_ed25519_fixed_full_negctl test_ed25519_fixed_timing test_ed25519_fixed_timing_negctl test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_bignum_value test_ed25519_bignum_value_negctl test_default_optin test_default_crypto_negative_control
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds

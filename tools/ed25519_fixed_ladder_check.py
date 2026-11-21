@@ -186,7 +186,7 @@ def analyze_cswap(cins):
             if base in FLAG_WRITERS: flag_taint = src; last = ins["raw"].strip()
     return findings
 
-def check_asm(path):
+def check_asm(path, label="gcc -O2"):
     funcs = parse_asm(path)
     if LADDER not in funcs: die("no <%s> in objdump output" % LADDER)
     if CSWAP not in funcs: die("no <%s> in objdump output" % CSWAP)
@@ -198,7 +198,7 @@ def check_asm(path):
     ctr = operands(const256[0]["args"])[0].strip().lower()
     dec = [i for i in lins if i["op"] == "sub" and re.search(r"\b%s\s*,\s*0x1\b" % re.escape(ctr), i["args"], re.I)]
     if not dec: die("loop counter %s is not decremented by 1 in compiled ladder" % ctr)
-    print("[fixed_ladder] A1 PASS: `mov %s,0x100` and `sub %s,1` survive gcc -O2" % (ctr, ctr))
+    print("[fixed_ladder] A1 PASS: `mov %s,0x100` and `sub %s,1` survive %s" % (ctr, ctr, label))
     sptr = set()
     for i in lins[:25]:
         if i["op"] == "mov" and re.search(r",\s*rsi\b", i["args"]):
@@ -254,19 +254,33 @@ def check_asm(path):
         die("%d secret-governed branch/index site(s) in compiled ladder" % len(findings))
     print("[fixed_ladder] A2/A3/A4 PASS: %d scalar-bit loads, %d unconditional cswap calls, 0 secret-governed jcc/index" % (secret_loads, cswap_calls))
     ops = {i["op"] for i in cins}
-    if "neg" not in ops or "pand" not in ops or "por" not in ops:
-        die("cswap lacks neg/pand/por mask-select lowering (ops: %s)" % ", ".join(sorted(ops)))
+    # A mask select lowers either to SIMD pand/por (-O2 here) or to GPR
+    # and/or (-O1/-O3, and other toolchains).  Both implement the same
+    # all-ones/all-zeros mask produced by `neg`; accepting both is a
+    # lowering-neutral statement of the SAME CT property, not a weakening:
+    # a genuine mask select still needs `neg` plus >=2 selecting ops per
+    # coordinate pair, and analyze_cswap() below still fails on any
+    # secret-governed branch regardless of lowering.
+    simd_ops = [i for i in cins if i["op"] in ("pand", "por")]
+    gpr_ops = [i for i in cins if i["op"] in ("and", "or")]
+    # SIMD processes two 64-bit limbs per op, GPR one: 4 SIMD selects cover
+    # the 4 coordinate pairs that 8 GPR selects cover.
+    if "neg" not in ops or not ((len(simd_ops) >= 4) or (len(gpr_ops) >= 8)):
+        die("cswap lacks neg + mask-select lowering (simd_selects=%d gpr_selects=%d; ops: %s)"
+            % (len(simd_ops), len(gpr_ops), ", ".join(sorted(ops))))
     cfind = analyze_cswap(cins)
     if cfind:
         for a, kind, raw, who in cfind[:8]:
             print("[fixed_ladder] cswap %s @%s %s | governing=%s" % (kind, a, raw.strip(), who))
         die("secret-dependent branch/index in compiled cswap")
-    print("[fixed_ladder] A5 PASS: cswap lowered to neg+pand+por mask, no secret-governed branch")
-    print("[fixed_ladder] ASM PASS: real gcc -O2 machine code bound")
+    print("[fixed_ladder] A5 PASS: %s mask select, no secret-governed branch" % ("SIMD neg+pand+por" if len(simd_ops) >= 4 else "GPR neg+and+or"))
+    print("[fixed_ladder] ASM PASS: real %s machine code bound" % label)
     return 0
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3 or sys.argv[1] not in ("source", "asm"):
-        print("usage: eddsa_fixed_ladder_check.py {source|asm} <path>")
+    if len(sys.argv) not in (3, 4) or sys.argv[1] not in ("source", "asm"):
+        print("usage: eddsa_fixed_ladder_check.py {source|asm} <path> [config-label]")
         sys.exit(2)
-    sys.exit(check_source(sys.argv[2]) if sys.argv[1] == "source" else check_asm(sys.argv[2]))
+    if sys.argv[1] == "source":
+        sys.exit(check_source(sys.argv[2]))
+    sys.exit(check_asm(sys.argv[2], sys.argv[3] if len(sys.argv) == 4 else "gcc -O2"))
