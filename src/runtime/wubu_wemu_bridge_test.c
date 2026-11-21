@@ -5,6 +5,8 @@
  *
  * Applets: echo, uname, cat, ls, true, false. */
 #include "wubu_wemu_bridge.h"
+#include "wubu_vsl.h"
+#include "vsl/vsl_driver.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -323,6 +325,26 @@ int main(void) {
             wubu_wemu_capture_free(&cap);
         }
         unlink(fx);
+    }
+
+    /* ---- D4: the guest can read the VSL driver inventory ---- */
+    {
+        if (vsl_init() != 0) FAIL("D4: vsl_init\n");
+        int id = vsl_register_driver(VSL_DRV_BLOCK, 0x1000,
+                                     0x20000000, 0x1000, 11);
+        if (id < 0) FAIL("D4: vsl_register_driver\n");
+        char *argv[] = { "busybox", "cat", "/proc/wubu/drivers", NULL };
+        run_applet(argv, &cap);
+        report("cat-drivers", &cap);
+        if (cap.exit_code != 0)
+            FAIL("D4: cat exit %d\n", cap.exit_code);
+        const char *want = "drv0 type=BLOCK active=0 io=0x1000 "
+                           "mem=0x20000000 size=4096 irq=11\n";
+        if (!cap.out || strcmp(cap.out, want) != 0)
+            FAIL("D4: inventory=[%s] want [%s]\n",
+                 cap.out ? cap.out : "(null)", want);
+        printf("ok: WEMU guest reads the exact VSL driver inventory\n");
+        wubu_wemu_capture_free(&cap);
     }
 
     printf("WEMU BUSYBOX GATE PASS (real static applets, exact output)\n");

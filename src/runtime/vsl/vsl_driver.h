@@ -47,6 +47,11 @@ bool vsl_driver_active(VSL_DRV_TYPE type);
 /* Get driver by type. Returns NULL if not found. */
 VSL_DRV *vsl_get_driver(VSL_DRV_TYPE type);
 
+/* D4: render the registered VSL driver inventory as bounded text (one
+ * line per driver, newline-terminated). Returns bytes written, or -1.
+ * This is what a guest sees at /proc/wubu/drivers. */
+int vsl_driver_inventory(char *out, size_t cap);
+
 /* Driver accessors */
 VSL_DRV_TYPE vsl_drv_get_type(const VSL_DRV *drv);
 bool vsl_drv_is_active(const VSL_DRV *drv);

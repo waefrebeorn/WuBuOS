@@ -97,11 +97,17 @@ the WuBuKernel driver model. Gates: WuBuKernel `make test` + `freestanding`
 (4 TUs); wubuos `test_drv`, `test_xhci`, `test_kernel_bridge`, `test_docs`,
 `kernel-strict`, `make kernel` + boot assert — all PASS.
 
-**D4 — guest-facing driver surface.**
-Expose a bounded `/n/guests`-style view of the bound driver table so a WEMU
-guest (busybox) can query "what hardware does this metal actually drive".
-Gate: a real applet through the VSL bridge prints the exact bound-driver
-summary. This is where the third repo stops being a sidecar.
+**D4 — guest-facing driver surface (DELIVERED 2026-11-21, `leg/d4-guest-surface`).**
+The VSL driver inventory is now readable by a real guest at
+`/proc/wubu/drivers` — no new syscall, ordinary `cat`. One owner
+(`vsl_driver_inventory`) renders the registered VSL drivers; one provider
+(`vsl_open_inventory`) turns that snapshot into a real host fd, shared by
+`vsl_open` and `vsl_openat` so the existing read/lseek/close paths work
+unchanged. Gate: `test_wemu_busybox` runs static busybox `cat` inside WEMU
+and asserts the **exact** inventory line, alongside the existing applet
+suite. Note: the source is the VSL driver registry (the guest's own
+personality), not the metal PCI registry -- that remains a separate
+boundary; do not claim the guest sees host hardware.
 
 Each leg gets its own git worktree (`git worktree add .../wubuos-<leg> -b
 leg/<name> main`), one agent per worktree, own branch, commits on the leg.

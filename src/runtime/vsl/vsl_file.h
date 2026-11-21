@@ -43,4 +43,8 @@ const char *vsl_fd_get_path(const VSL_FD *vfd);
 /* Get VSL_FD by FD number */
 VSL_FD *vsl_get_fd(int fd);
 
+/* D4: open a host fd containing the current driver-inventory snapshot.
+ * Shared by vsl_open (direct API) and vsl_openat (guest syscalls). */
+int vsl_open_inventory(void);
+
 #endif /* WUBUOS_VSL_FILE_H */

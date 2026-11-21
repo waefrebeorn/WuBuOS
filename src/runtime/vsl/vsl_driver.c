@@ -271,3 +271,42 @@ uint32_t vsl_drv_get_irq(const VSL_DRV *drv) {
 void *vsl_drv_get_priv(const VSL_DRV *drv) {
     return drv ? drv->priv : NULL;
 }
+
+/* ---- D4: guest-facing driver inventory -------------------------- */
+
+static const char *vsl_drv_type_name(VSL_DRV_TYPE t)
+{
+    switch (t) {
+    case VSL_DRV_GPU_VULKAN: return "GPU_VULKAN";
+    case VSL_DRV_GPU_CUDA:   return "GPU_CUDA";
+    case VSL_DRV_NET:        return "NET";
+    case VSL_DRV_BLOCK:      return "BLOCK";
+    case VSL_DRV_INPUT:      return "INPUT";
+    case VSL_DRV_DISPLAY:    return "DISPLAY";
+    case VSL_DRV_AUDIO:      return "AUDIO";
+    case VSL_DRV_USB:        return "USB";
+    case VSL_DRV_PCI:        return "PCI";
+    default:                 return "NONE";
+    }
+}
+
+int vsl_driver_inventory(char *out, size_t cap)
+{
+    if (!out || !cap) return -1;
+    out[0] = '\0';
+    size_t off = 0;
+    for (uint32_t i = 0; i < g_vsl.n_drivers && i < 16; i++) {
+        const VSL_DRV *d = &g_vsl.drivers[i];
+        int w = snprintf(out + off, cap - off,
+                         "drv%u type=%s active=%d io=0x%llx mem=0x%llx "
+                         "size=%zu irq=%u\n",
+                         i, vsl_drv_type_name(vsl_drv_get_type(d)),
+                         vsl_drv_is_active(d) ? 1 : 0,
+                         (unsigned long long)vsl_drv_get_io_base(d),
+                         (unsigned long long)vsl_drv_get_mem_base(d),
+                         vsl_drv_get_mem_size(d), vsl_drv_get_irq(d));
+        if (w < 0 || (size_t)w >= cap - off) break;
+        off += (size_t)w;
+    }
+    return (int)off;
+}

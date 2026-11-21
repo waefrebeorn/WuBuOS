@@ -5,14 +5,33 @@
 #include "../../egojar.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_file.h"
+#include "vsl/vsl_driver.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
 
 /* Global state */
 extern VSL_STATE g_vsl;
+
+/* D4: the ONE provider of the guest driver-inventory snapshot. Returns a
+ * real host fd (mkstemp + unlink) so the existing read/lseek/close syscall
+ * paths work unchanged -- no second VSL fd kind, no new syscall. */
+int vsl_open_inventory(void)
+{
+    char tmpl[] = "/tmp/wubu-drv-XXXXXX";
+    int fd = mkstemp(tmpl);
+    if (fd < 0) return -1;
+    unlink(tmpl);                      /* anonymous: no residue on disk */
+    char buf[2048];
+    int n = vsl_driver_inventory(buf, sizeof(buf));
+    if (n < 0) { close(fd); return -1; }
+    if (write(fd, buf, (size_t)n) != (ssize_t)n) { close(fd); return -1; }
+    lseek(fd, 0, SEEK_SET);
+    return fd;
+}
 
 /* -- File Operations ---------------------------------------------- */
 
@@ -21,15 +40,17 @@ int vsl_open(const char *path, int flags, int mode) {
     if (g_vsl.n_fds >= VSL_MAX_FDS) return -1;
     if (!path) return -2; /* ENOENT */
 
-    int host_fd = open(path, flags, mode);
+    int host_fd = strcmp(path, VSL_GUEST_DRIVERS_PATH) == 0
+                  ? vsl_open_inventory() : open(path, flags, mode);
     if (host_fd < 0) return -errno;
 
     int vsl_fd = g_vsl.n_fds + 3; /* 0=stdin, 1=stdout, 2=stderr */
     VSL_FD *vfd = &g_vsl.fds[g_vsl.n_fds++];
+    memset(vfd, 0, sizeof(*vfd));
     vfd->fd = vsl_fd;
     vfd->flags = (uint32_t)flags;
     vfd->mode = (uint32_t)mode;
-    vfd->vsl_fd = host_fd; /* Store host fd for delegation */
+    vfd->vsl_fd = host_fd;
     strncpy(vfd->path, path, 255);
     vfd->path[255] = '\0';
 

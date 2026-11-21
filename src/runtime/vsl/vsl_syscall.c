@@ -9,6 +9,7 @@
  */
 
 #include "vsl_syscall_internal.h"
+#include "vsl/vsl_file.h"   /* D4: vsl_open_inventory */
 
 /* -- Syscall Table ------------------------------------------------- */
 
@@ -254,7 +255,8 @@ int vsl_openat(int dirfd, const char *pathname, int flags, mode_t mode) {
     if (!g_vsl.active) return -1;
     if (g_vsl.n_fds >= VSL_MAX_FDS) return -1;
 
-    int fd = openat(dirfd, pathname, flags, mode);
+    int fd = strcmp(pathname ? pathname : "", VSL_GUEST_DRIVERS_PATH) == 0
+             ? vsl_open_inventory() : openat(dirfd, pathname, flags, mode);
     if (fd < 0) return -errno;
 
     int vsl_fd = g_vsl.n_fds + 3;

@@ -7,6 +7,9 @@
 #ifndef WUBUOS_VSL_INTERNAL_H
 #define WUBUOS_VSL_INTERNAL_H
 
+/* D4: the bounded guest-visible view of the VSL driver inventory. */
+#define VSL_GUEST_DRIVERS_PATH "/proc/wubu/drivers"
+
 #include "../../egojar.h"
 #include <stdint.h>
 #include <stddef.h>
