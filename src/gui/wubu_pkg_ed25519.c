@@ -6,12 +6,13 @@
  *   WUBU_HAVE_OPENSSL_EDDSA  -- OpenSSL EVP Ed25519, with the bignum-free
  *                               verification policy in wubu_eddsa_policy.c
  *                               (used when no mbedTLS dev root is present).
- * With WUBU_EDDSA_FIXED_LADDER the group scalar multiplication in the mbedTLS
- * backend is replaced by the self-contained fixed-width module
- * wubu_ed25519_fixed.c (no mbedTLS bignum in the ladder).  The package-signing
- * gate (tools/pkg_ed25519_gate.sh) selects this path by DEFAULT; the documented
- * legacy override WUBU_EDDSA_FIXED=0 restores the mbedTLS MPI ladder.  Only the
- * ladder leaf is swapped; source-level builds that define neither macro keep
+ * With WUBU_EDDSA_FIXED_LADDER the mbedTLS bignum backend is replaced as a
+ * whole by the self-contained fixed-width path: wubu_ed25519_fixed.c supplies
+ * all field/point/scalar arithmetic and wubu_ed25519_fixed_sign.c supplies
+ * RFC 8032 sign/verify (SHA-512 from mbedTLS is a hash, not a bignum).  The
+ * package-signing gate (tools/pkg_ed25519_gate.sh) selects this path by
+ * DEFAULT; the documented legacy override WUBU_EDDSA_FIXED=0 restores the
+ * mbedTLS MPI backend.  Source-level builds that define neither macro keep
  * the mbedTLS ladder as the fallback.
  * Never use MBEDTLS_SSL_H as the feature macro: it is mbedTLS's own guard.
  */
@@ -27,17 +28,149 @@
 #include <string.h>
 
 #ifdef WUBU_EDDSA_FIXED_LADDER
-/* Opt-in bignum-free scalar ladder.  Compiled only when explicitly selected;
- * the mbedTLS MPI ladder below remains the default fallback. */
+/* Bignum-free fixed-width path (the default in the package-signing gate). */
 #include "wubu_ed25519_fixed.h"
+#include "wubu_ed25519_fixed_sign.h"
 #endif
 
 #ifdef WUBU_HAVE_MBEDTLS
 #include <mbedtls/sha512.h>
+#if !defined(WUBU_EDDSA_FIXED_LADDER) || defined(WUBU_HAVE_OPENSSL_EDDSA)
+/* The bignum header is compiled ONLY for the legacy MPI ladder and for the
+ * opt-in OpenSSL hybrid.  The default fixed path never includes it. */
 #include <mbedtls/bignum.h>
+#endif
 #ifdef WUBU_HAVE_OPENSSL_EDDSA
 #include <openssl/evp.h>
 #endif
+
+#if defined(WUBU_EDDSA_FIXED_LADDER) && !defined(WUBU_HAVE_OPENSSL_EDDSA)
+/* -- DEFAULT: fully bignum-free EdDSA package-signing path --------------- *
+ * All group/scalar arithmetic is in wubu_ed25519_fixed.c; SHA-512 (a hash,
+ * not a bignum) is the only mbedTLS primitive used.  No mbedtls_mpi symbol is
+ * compiled on this path.  The legacy MPI backend below remains selectable via
+ * WUBU_EDDSA_FIXED=0 and is untouched.
+ */
+static int hex_to_32(const char *hex, uint8_t out[32]) {
+    static const char digits[] = "0123456789abcdef";
+    if (!hex || !out || strlen(hex) != 64) return -1;
+    for (size_t i = 0; i < 32; i++) {
+        char c = hex[2 * i], d = hex[2 * i + 1];
+        const char *p1 = strchr(digits, c), *p2 = strchr(digits, d);
+        if (!p1 || !p2) return -1;
+        out[i] = (uint8_t)(((p1 - digits) << 4) | (p2 - digits));
+    }
+    return 0;
+}
+
+bool wubu_pkg_sign_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
+                           const char *seed_hex,
+                           uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    uint8_t seed[32];
+    if (!digest || !out_sig || hex_to_32(seed_hex, seed) != 0) {
+        wubu_pkg_sign_set_err(err, errsz, "Ed25519 sign needs a 32-byte seed hex (64 chars)");
+        return false;
+    }
+    if (wubu_ed25519_fixed_sign(digest, seed, out_sig) != 0) {
+        wubu_pkg_sign_set_err(err, errsz, "Ed25519 sign failed (fixed-width bignum-free path)");
+        return false;
+    }
+    return true;
+}
+
+bool wubu_pkg_sign_verify_ed25519(const uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN],
+                                  const char *pubkey_hex,
+                                  const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                                  char *err, size_t errsz) {
+    uint8_t pub[32];
+    if (!digest || !sig || hex_to_32(pubkey_hex, pub) != 0) {
+        wubu_pkg_sign_set_err(err, errsz, "Ed25519 verify needs a 32-byte public key hex (64 chars)");
+        return false;
+    }
+    if (wubu_ed25519_fixed_verify(digest, pub, sig) != 0) {
+        wubu_pkg_sign_set_err(err, errsz, "Ed25519 signature does not verify (bignum-free policy)");
+        return false;
+    }
+    return true;
+}
+
+/* -- Arbitrary-length command signing (revocation CLI) ---------------- */
+static bool command_digest(const char *command,
+                           uint8_t out[WUBU_PKG_SIGN_DIGEST_LEN]) {
+    char hex[2 * WUBU_PKG_SIGN_DIGEST_LEN + 1];
+    if (!command || !out) return false;
+    wubu_sha256_digest(command, strlen(command), hex, sizeof(hex));
+    return hex_to_32(hex, out) == 0;
+}
+
+bool wubu_pkg_sign_command(const char *command, const char *seed_hex,
+                           uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!command_digest(command, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash command for signing");
+        return false;
+    }
+    return wubu_pkg_sign_ed25519(digest, seed_hex, out_sig, err, errsz);
+}
+
+bool wubu_pkg_verify_command(const char *command, const char *pubkey_hex,
+                             const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                             char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!command_digest(command, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash command for verification");
+        return false;
+    }
+    return wubu_pkg_sign_verify_ed25519(digest, pubkey_hex, sig, err, errsz);
+}
+
+/* -- Domain-separated hashing of arbitrary byte buffers (feed import) -- */
+static bool bytes_digest(const uint8_t *data, size_t len, const char *domain,
+                         uint8_t out[WUBU_PKG_SIGN_DIGEST_LEN]) {
+    if (!out || !domain || !domain[0] || (!data && len)) return false;
+    char hdr[128];
+    int hn = snprintf(hdr, sizeof(hdr), "%s\n%zu\n", domain, len);
+    if (hn < 0 || (size_t)hn >= sizeof(hdr)) return false;
+    wubu_SHA256_CTX ctx;
+    wubu_sha256_init(&ctx);
+    wubu_sha256_update(&ctx, hdr, (size_t)hn);
+    if (len) wubu_sha256_update(&ctx, data, len);
+    wubu_sha256_final(&ctx, out);
+    return true;
+}
+
+bool wubu_pkg_sign_bytes(const uint8_t *data, size_t len, const char *domain,
+                         const char *seed_hex,
+                         uint8_t out_sig[WUBU_PKG_SIGNATURE_LEN],
+                         char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!bytes_digest(data, len, domain, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash bytes for signing");
+        return false;
+    }
+    return wubu_pkg_sign_ed25519(digest, seed_hex, out_sig, err, errsz);
+}
+
+bool wubu_pkg_verify_bytes(const uint8_t *data, size_t len, const char *domain,
+                           const char *pubkey_hex,
+                           const uint8_t sig[WUBU_PKG_SIGNATURE_LEN],
+                           char *err, size_t errsz) {
+    uint8_t digest[WUBU_PKG_SIGN_DIGEST_LEN];
+    wubu_pkg_sign_set_err(err, errsz, "");
+    if (!bytes_digest(data, len, domain, digest)) {
+        wubu_pkg_sign_set_err(err, errsz, "cannot hash bytes for verification");
+        return false;
+    }
+    return wubu_pkg_sign_verify_ed25519(digest, pubkey_hex, sig, err, errsz);
+}
+
+#else
+/* -- LEGACY mbedTLS bignum backend (WUBU_EDDSA_FIXED=0) ----------------- */
 
 /* -- Ed25519 (RFC 8032) over mbedTLS SHA-512 + bignum -------------- */
 
@@ -760,6 +893,8 @@ cleanup:
     return rc;
 }
 #endif /* WUBU_EDDSA_CT_PROBE */
+
+#endif /* WUBU_EDDSA_FIXED_LADDER full bignum-free path / legacy bignum backend */
 
 #elif defined(WUBU_HAVE_OPENSSL_EDDSA)
 /* -- Native-only backend: OpenSSL EVP + bignum-free policy ---------------

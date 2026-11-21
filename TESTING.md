@@ -59,7 +59,8 @@ make test                 # every tier, sequentially — the full gate
 ## The gates that guard the tree
 
 Three targets are load-bearing and worth understanding (plus the opt-in
-bignum-value gate, which fails closed with an exact verified negative):
+bignum-value gate and the default-tier full fixed-path gate, both of which fail
+closed with exact verified negatives):
 
 | test | what it proves |
 |---|---|
@@ -67,6 +68,7 @@ bignum-value gate, which fails closed with an exact verified negative):
 | `test_docs` | every file path the front-door docs name still exists; a doc shorter than 200 bytes is a stub, not a doc |
 | `test_vsl_nt_collision` | the NT dispatch table has zero real collisions (only intended stub→real upgrades) |
 | `test_ed25519_bignum_value` | opt-in: bounded audit of shipped mbedTLS bignum callees; `BIGNUM_VALUE_GATE VERIFIED_NEGATIVE` (exit 1) when value-independence cannot be established — see `docs/EDDSA_BIGNUM_VALUE_CHECK.md` and `tools/eddsa_bignum_value_gate.sh` |
+| `test_ed25519_fixed_full` | default tier: the fixed-width signing path compiles zero mbedTLS integer symbols (source **and** preprocessed dispatcher), an injected symbol goes RED, and RFC 8032 signatures cross-check against OpenSSL EVP — see `docs/ED25519_FIXED_FULL.md` and `tools/ed25519_fixed_full_gate.sh` |
 
 ## How to ADD a test (read this before touching `mk/tests.mk`)
 

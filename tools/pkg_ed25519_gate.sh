@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # pkg_ed25519_gate.sh -- differential Ed25519 package-signature gate.
-# The DEFAULT ladder is the self-contained bignum-free fixed-width module
-# (src/gui/wubu_ed25519_fixed.c).  Set WUBU_EDDSA_FIXED=0 for the documented
-# legacy override (the mbedTLS MPI ladder).
+# The DEFAULT path is fully bignum-free: src/gui/wubu_ed25519_fixed.c (field /
+# point / scalar arithmetic) plus src/gui/wubu_ed25519_fixed_sign.c (RFC 8032
+# sign/verify; mbedTLS SHA-512 only).  WUBU_EDDSA_FIXED=0 restores the legacy
+# mbedTLS MPI backend.
 # WUBU_MBEDTLS_ROOT must point at an extracted mbedTLS dev package
 # (headers under usr/include, libs under usr/lib/x86_64-linux-gnu).
 # Keys are generated ephemerally in a temp dir and destroyed on exit: no
@@ -58,15 +59,15 @@ if [ "${WUBU_EDDSA_NATIVE:-0}" = "1" ]; then
     NATIVE_LINK="-lcrypto"
     echo "[gate] backend: OpenSSL EVP_PKEY_ED25519 (opt-in native)"
 else
-    echo "[gate] backend: in-repo hardened Montgomery ladder (mbedTLS)"
+    echo "[gate] backend: in-repo Ed25519 (fixed bignum-free path unless overridden)"
 fi
-# DEFAULT: the self-contained fixed-width ladder (no mbedTLS bignum).  The
+# DEFAULT: the FULLY bignum-free fixed-width path.  wubu_ed25519_fixed.c
+# supplies field/point/scalar arithmetic; wubu_ed25519_fixed_sign.c supplies
+# RFC 8032 sign/verify with mbedTLS SHA-512 (a hash, not a bignum).  The
 # documented LEGACY override is WUBU_EDDSA_FIXED=0, which restores the mbedTLS
-# MPI ladder.  Hashing, scalar mod-L arithmetic and point encode/decode stay
-# on the mbedTLS path in BOTH modes, so the differential checks below still
-# exercise the real package-signing flow.
+# MPI backend.  Both modes run the same end-to-end differential flow.
 FIXED_FLAG="-DWUBU_EDDSA_FIXED_LADDER"
-FIXED_SRC="$ROOT/src/gui/wubu_ed25519_fixed.c"
+FIXED_SRC="$ROOT/src/gui/wubu_ed25519_fixed.c $ROOT/src/gui/wubu_ed25519_fixed_sign.c"
 if [ "${WUBU_EDDSA_FIXED:-1}" = "1" ]; then
     echo "[gate] ladder: fixed-width bignum-free (DEFAULT; WUBU_EDDSA_FIXED_LADDER)"
 else

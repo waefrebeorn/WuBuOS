@@ -63,6 +63,14 @@ static const uint64_t Q[4] = {
     0xffffffffffffffffULL, 0x7fffffffffffffffULL
 };
 
+/* RFC 8032 group order L = 2^252 + 27742317777372353535851937790883648493,
+ * four little-endian 64-bit limbs (little-endian hex of L is
+ * ed d3 f5 5c 1a 63 12 58 6c d7 f7 9c de f9 de 14 00*8 00 00 00 00 00 00 00 10). */
+static const uint64_t LIMBS_L[4] = {
+    0x5812631a5cf5d3edULL, 0x14def9dea2f79cd6ULL,
+    0x0000000000000000ULL, 0x1000000000000000ULL
+};
+
 static void add256(uint64_t r[4], const uint64_t a[4], const uint64_t b[4]) {
     u128 c = 0;
     for (int i = 0; i < 4; i++) {
@@ -343,6 +351,113 @@ int wubu_ed25519_fixed_base_scalarmult(uint8_t out[32],
     ge p, r;
     ge_base(&p);
     wubu_ed25519_fixed_ladder(&r, scalar, &p);
+    ge_tobytes(out, &r);
+    return 0;
+}
+
+/* -- Fixed-width scalar arithmetic modulo L ------------------------------ *
+ * These helpers replace the bignum mod-L calls on the default signing path.
+ * Every loop has a compile-time-fixed trip count and every conditional is a
+ * mask select, so no secret bit governs a branch or a memory index.
+ */
+
+static void load_le4(uint64_t w[4], const uint8_t b[32]) {
+    for (int i = 0; i < 4; i++) {
+        uint64_t v = 0;
+        for (int j = 0; j < 8; j++) v |= (uint64_t)b[8 * i + j] << (8 * j);
+        w[i] = v;
+    }
+}
+
+static void store_le4(uint8_t b[32], const uint64_t w[4]) {
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 8; j++) b[8 * i + j] = (uint8_t)(w[i] >> (8 * j));
+}
+
+/* r = r mod L, by fixed bit-at-a-time long division.  r stays below 2^254,
+ * hence four 64-bit limbs suffice throughout. */
+static void scalar_reduce_le4(uint64_t r[4], const uint8_t in[64], size_t n) {
+    for (int i = 0; i < 4; i++) r[i] = 0;
+    for (size_t k = n * 8; k > 0; --k) {
+        size_t q = k - 1;
+        uint64_t carry = (in[q >> 3] >> (q & 7)) & 1u;
+        for (int j = 0; j < 4; j++) {
+            uint64_t next = r[j] >> 63;
+            r[j] = (r[j] << 1) | carry;
+            carry = next;
+        }
+        uint64_t t[4];
+        int borrow = sub256(t, r, LIMBS_L);
+        uint64_t mask = (uint64_t)0 - (uint64_t)(1 - borrow); /* ~0 iff r >= L */
+        for (int j = 0; j < 4; j++) r[j] = (r[j] & ~mask) | (t[j] & mask);
+    }
+}
+
+int wubu_ed25519_fixed_scalar_reduce(uint8_t out[32], const uint8_t in[64],
+                                     size_t n) {
+    if (!out || !in || (n != 32 && n != 64)) return -1;
+    uint64_t r[4];
+    scalar_reduce_le4(r, in, n);
+    store_le4(out, r);
+    return 0;
+}
+
+/* out = a * b as an exact eight-limb (512-bit) little-endian product. */
+static void mul_256x256(uint64_t out[8], const uint64_t a[4], const uint64_t b[4]) {
+    for (int i = 0; i < 8; i++) out[i] = 0;
+    for (int i = 0; i < 4; i++) {
+        u128 carry = 0;
+        for (int j = 0; j < 4; j++) {
+            u128 t = (u128)a[i] * (u128)b[j] + (u128)out[i + j] + carry;
+            out[i + j] = (uint64_t)t;
+            carry = t >> 64;
+        }
+        out[i + 4] = (uint64_t)carry;
+    }
+}
+
+int wubu_ed25519_fixed_scalar_mul_add(uint8_t out[32], const uint8_t k[32],
+                                      const uint8_t a[32], const uint8_t r[32]) {
+    if (!out || !k || !a || !r) return -1;
+    uint64_t kw[4], aw[4], rw[4], prod[8];
+    load_le4(kw, k);
+    load_le4(aw, a);
+    load_le4(rw, r);
+    mul_256x256(prod, kw, aw);
+    u128 carry = 0;
+    for (int i = 0; i < 4; i++) {
+        u128 t = (u128)prod[i] + (u128)rw[i] + carry;
+        prod[i] = (uint64_t)t;
+        carry = t >> 64;
+    }
+    for (int i = 4; i < 8 && carry; i++) {
+        u128 t = (u128)prod[i] + carry;
+        prod[i] = (uint64_t)t;
+        carry = t >> 64;
+    }
+    uint8_t buf[64];
+    for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 8; j++) buf[8 * i + j] = (uint8_t)(prod[i] >> (8 * j));
+    return wubu_ed25519_fixed_scalar_reduce(out, buf, sizeof(buf));
+}
+
+int wubu_ed25519_fixed_scalar_ltL(const uint8_t s[32]) {
+    if (!s) return 0;
+    uint64_t w[4];
+    load_le4(w, s);
+    uint64_t t[4];
+    return sub256(t, w, LIMBS_L) == 1;
+}
+
+/* -- Encoded-point addition ---------------------------------------------- */
+
+int wubu_ed25519_fixed_add(uint8_t out[32], const uint8_t a[32],
+                           const uint8_t b[32]) {
+    if (!out || !a || !b) return -1;
+    ge p, q, r;
+    if (ge_frombytes(&p, a) != 0) return -1;
+    if (ge_frombytes(&q, b) != 0) return -1;
+    ge_add(&r, &p, &q);
     ge_tobytes(out, &r);
     return 0;
 }
