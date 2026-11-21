@@ -483,6 +483,65 @@ static uint8_t *read_test_file(const char *path, size_t *out_sz) {
     return buf;
 }
 
+/* Locate the R_X86_64_COPY source dynsym in a REAL host-linked fixture by
+ * walking ELF64 section headers (no libelf).  Returns 1 when a dynsym with the
+ * given name and SHN_UNDEF is found; fills the file offset of its st_size and
+ * its DT_VERSYM index.  Used by the bounded-COPY negatives: grow st_size past
+ * the provider's size, and record that the pre-change host-only rule rejected
+ * every versioned COPY (it refused vi > GLOBAL unconditionally). */
+static int copy_dynsym_info(const uint8_t *img, size_t n, const char *name,
+                            uint64_t *size_off, uint16_t *versym) {
+    if (n < 64 || img[0] != 0x7f || memcmp(img + 1, "ELF", 3) != 0) return 0;
+    uint64_t shoff; uint16_t shentsize, shnum;
+    memcpy(&shoff, img + 0x28, 8);
+    memcpy(&shentsize, img + 0x3a, 2);
+    memcpy(&shnum, img + 0x3c, 2);
+    if (shentsize < 64 || shnum == 0 || shoff > n ||
+        (uint64_t)shnum * shentsize > n - shoff) return 0;
+    uint64_t dyn_off = 0, dyn_sz = 0, dyn_ent = 0, vso = 0, vssz = 0;
+    uint32_t str_idx = 0;
+    for (uint16_t i = 0; i < shnum; i++) {
+        const uint8_t *sh = img + shoff + (uint64_t)i * shentsize;
+        uint32_t type; uint64_t off, sz, ent; uint32_t link;
+        memcpy(&type, sh + 4, 4);
+        memcpy(&off, sh + 24, 8);
+        memcpy(&sz, sh + 32, 8);
+        memcpy(&link, sh + 40, 4);
+        memcpy(&ent, sh + 56, 8);
+        if (off > n || sz > n - off) continue;
+        if (type == 11) {                /* SHT_DYNSYM */
+            dyn_off = off; dyn_sz = sz; dyn_ent = ent ? ent : 24; str_idx = link;
+        } else if (type == 0x6fffffffu) { /* SHT_GNU_versym */
+            vso = off; vssz = sz;
+        }
+    }
+    if (!dyn_off || !dyn_sz || dyn_ent < 24 || str_idx >= shnum) return 0;
+    const uint8_t *shs = img + shoff + (uint64_t)str_idx * shentsize;
+    uint64_t stroff, strsz;
+    memcpy(&stroff, shs + 24, 8);
+    memcpy(&strsz, shs + 32, 8);
+    if (stroff > n || strsz > n - stroff) return 0;
+    for (uint64_t i = 0; i < dyn_sz / dyn_ent; i++) {
+        const uint8_t *e = img + dyn_off + i * dyn_ent;
+        uint32_t st_name; uint16_t st_shndx;
+        memcpy(&st_name, e, 4);
+        memcpy(&st_shndx, e + 6, 2);
+        /* A real COPY symbol is defined in .data/.bss; a hand-built one may
+         * be SHN_UNDEF.  Reject only reserved section indices. */
+        if (st_shndx >= 0xff00 || st_name >= strsz) continue;
+        const char *nm = (const char *)(img + stroff + st_name);
+        if (!memchr(nm, 0, (size_t)(strsz - st_name)) || strcmp(nm, name) != 0)
+            continue;
+        if (size_off) *size_off = dyn_off + i * dyn_ent + 16;
+        uint16_t v = 1;                          /* VSYM_GLOBAL default */
+        if (vso && (i + 1) * 2 <= vssz)
+            memcpy(&v, img + vso + i * 2, 2);
+        if (versym) *versym = v;
+        return 1;
+    }
+    return 0;
+}
+
 /* Faithful model of the PRE-CHANGE relocation rule: PT_DYNAMIC's DT_NEEDED
  * tags were ignored (`default: break`) and no dependency was loaded, so an
  * import such as vsl_dep_entry (absent from the fixed host table) failed
@@ -2279,6 +2338,108 @@ int main(int argc, char **argv) {
         vsl_dyn_set_interp_bind_main(0);
         vsl_dyn_set_interp(0);
         free(himg);
+    }
+}
+
+/* (ab) Bounded R_X86_64_COPY of a REAL libc data symbol from a provider
+ *      resolved inside the guest rootfs.  `guest_copy.elf` is host-linked
+ *      (PT_INTERP ld-linux, DT_NEEDED libc.so.6) and emits a genuine
+ *      `COPY optind@GLIBC_2.2.5` of 4 bytes into its main image.  With the
+ *      opt-in rootfs provider resolution ON, VSL finds libc.so.6 under
+ *      <rootfs>/lib64, copies the provider's versioned `optind@@GLIBC_2.2.5`
+ *      bytes (sentinel 0x5a) into the main image and runs to exit(0x5a).
+ * NEG A: resolution OFF -> DT_NEEDED libc.so.6 fails closed.
+ * NEG B: st_size grown past the provider's size -> bounded COPY rejects.
+ * DIFFERENTIAL: the pre-change host-only rule rejected every versioned COPY. */
+{
+    uint8_t *cimg;
+    size_t cn = 0;
+    uint64_t szoff = 0;
+    uint16_t versym = 0;
+    snprintf(path, sizeof(path), "%s/guest_copy.elf", dir);
+    cimg = read_test_file(path, &cn);
+    CHECK(cimg != NULL, "real libc-COPY fixture readable");
+    if (cimg) {
+        char root[512];
+        snprintf(root, sizeof(root), "%s/glibc_rootfs", dir);
+        const char *nodir[] = { NULL };
+        VslImageCfg cfg = { nodir, 0, 0, NULL, 0, root, NULL };
+
+        CHECK(copy_dynsym_info(cimg, cn, "optind", &szoff, &versym) == 1,
+              "real fixture's COPY destination dynsym 'optind' located");
+        printf("[ab] COPY dynsym versym=0x%x size_off=0x%llx\n",
+               (unsigned)versym, (unsigned long long)szoff);
+        CHECK((versym & 0x7fff) > 1,
+              "COPY is versioned: pre-change host-only rule refused it");
+
+        /* NEW: rootfs provider resolution finds libc.so.6 under lib64. */
+        vsl_dyn_set_interp(1);
+        vsl_dyn_set_interp_bind_main(1);
+        vsl_dyn_set_init_fini(0);
+        vsl_dyn_set_libc_rootfs(1);
+        int rc = vsl_exec_image(cimg, cn, &cfg, &r);
+        printf("[ab] rootfs COPY: rc=%d exit=%d interp=%u deps=%u "
+               "relocs=%u syms=%u reason=\"%s\" reloc_failure=\"%s\" "
+               "out_len=%zu out0=0x%02x\n",
+               rc, r.exit_code, r.interp_loaded, r.deps_loaded,
+               r.relocations_applied, r.symbols_resolved,
+               r.interp_reason, r.reloc_failure, r.output_len,
+               r.output_len ? (unsigned char)r.output[0] : 0);
+        CHECK(rc == VSL_EXEC_OK && r.exit_code == 0x5a,
+              "real libc data symbol copied into main image (exit=0x5a)");
+        CHECK(r.interp_loaded == 1 && r.deps_loaded >= 1,
+              "real ld.so mapped and libc.so.6 provider loaded from rootfs");
+        CHECK(r.output_len == 1 && (unsigned char)r.output[0] == 0x5a,
+              "guest wrote the exact copied sentinel byte through VSL");
+        CHECK(r.symbols_resolved >= 1,
+              "versioned GLOB_DAT bound alongside the COPY");
+
+        /* NEG A: resolution OFF -> exact missing-provider diagnostic. */
+        vsl_dyn_set_libc_rootfs(0);
+        int rc_off = vsl_exec_image(cimg, cn, &cfg, &r);
+        printf("[ab] no rootfs provider: rc=%d status=%d reloc_failure=\"%s\"\n",
+               rc_off, r.status, r.reloc_failure);
+        CHECK(rc_off == VSL_EXEC_ERR_RELOC &&
+              strstr(r.reloc_failure, "libc.so.6") != NULL,
+              "without rootfs resolution the provider fails closed (libc.so.6)");
+
+        /* NEG B: grow the COPY st_size past the provider's 4-byte object. */
+        vsl_dyn_set_libc_rootfs(1);
+        if (szoff && szoff + 8 <= cn) {
+            size_t mn = 0;
+            uint8_t *mut = read_test_file(path, &mn);
+            if (mut) {
+                uint64_t bigsz = 8;
+                memcpy(mut + szoff, &bigsz, 8);
+                int rc_big = vsl_exec_image(mut, mn, &cfg, &r);
+                printf("[ab] oversized COPY: rc=%d reloc_failure=\"%s\"\n",
+                       rc_big, r.reloc_failure);
+                CHECK(rc_big == VSL_EXEC_ERR_RELOC &&
+                      strstr(r.reloc_failure, "source bound") != NULL,
+                      "oversized COPY rejected by the provider source bound");
+                free(mut);
+            }
+        }
+        /* NEG C: a REAL glibc libc.so.6 provider is refused, so a full
+         * host-libc run is an exact verified negative, not a silent skip.
+         * realroot is searched FIRST for the provider but has no ld.so, so
+         * the interpreter still resolves from the good rootfs. */
+        char realroot[512];
+        snprintf(realroot, sizeof(realroot), "%s/glibc_rootfs_reallibc", dir);
+        const char *real_first[] = { realroot, root, NULL };
+        VslImageCfg cfg_real = { nodir, 0, 0, NULL, 0, NULL, real_first };
+        vsl_dyn_set_libc_rootfs(1);
+        int rc_real = vsl_exec_image(cimg, cn, &cfg_real, &r);
+        printf("[ab] real glibc libc.so.6 provider: rc=%d status=%d "
+               "reloc_failure=\"%s\"\n",
+               rc_real, r.status, r.reloc_failure);
+        CHECK(rc_real == VSL_EXEC_ERR_RELOC && r.reloc_failure[0] != 0,
+              "real glibc libc.so.6 provider refused with an exact reason");
+
+        vsl_dyn_set_libc_rootfs(0);
+        vsl_dyn_set_interp_bind_main(0);
+        vsl_dyn_set_interp(0);
+        free(cimg);
     }
 }
 

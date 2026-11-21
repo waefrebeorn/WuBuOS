@@ -829,6 +829,14 @@ typedef struct VslDynInfo {
 static char g_dep_dir[EX_DEP_PATH_MAX];
 static int  g_dep_dir_set;
 
+/* OPT-IN: resolve DT_NEEDED providers from the bounded guest rootfs.  When on,
+ * a plain-basename soname (e.g. libc.so.6) is also looked up under each
+ * configured guest rootfs directory in standard library sub-directories, with
+ * the same realpath() confinement as a PT_INTERP path.  Off by default so the
+ * existing dep-dir-only loader (and its fail-closed gates) is unchanged. */
+static int g_libc_rootfs;
+int vsl_dyn_set_libc_rootfs(int on) { g_libc_rootfs = on ? 1 : 0; return 0; }
+
 /* -- bounded guest rootfs for PT_INTERP ------------------------------ */
 static char g_rootfs_dir[EX_DEP_PATH_MAX];
 static int  g_rootfs_dir_set;
@@ -1028,6 +1036,7 @@ typedef struct {
     uint8_t  weak;                      /* STB_WEAK definition */
     uint8_t  is_default;                /* versym hidden bit clear */
     uint64_t addr;                      /* dep_bias + st_value */
+    uint64_t size;                      /* st_size; 0 = no bounded source */
 } VslDepSym;
 
 static VslDepObj g_dep_objs[EX_DEP_MAX];
@@ -1097,6 +1106,31 @@ static int ex_dep_lookup_ver(const char *name, const char *ver,
 /* Base-name diagnostic view (used by the public accessor). */
 static int ex_dep_lookup(const char *name, uint64_t *addr) {
     return ex_dep_lookup_ver(name, NULL, NULL, addr);
+}
+
+/* Resolve a bounded R_X86_64_COPY source from the merged DT_NEEDED export
+ * table (the guest libc provider).  A definition is only a legal COPY source
+ * when it carries a non-zero st_size: the relocation writes that many bytes
+ * into the main image, so an unbounded (size-less) symbol can never be a
+ * source.  Version and vn_file matching use the same hardened rule as a
+ * regular versioned import.  Returns 1 with *addr/*size on a hit, 0 on miss. */
+static int ex_dep_lookup_copy(const char *name, const char *ver,
+                              const char *file, uint64_t *addr,
+                              uint64_t *size) {
+    if (!name || !name[0]) return 0;
+    VslDepSym *best = NULL;
+    for (uint32_t i = 0; i < g_dep_sym_count; i++) {
+        VslDepSym *s = &g_dep_syms[i];
+        if (s->size == 0) continue;                  /* no bounded source */
+        if (strcmp(s->name, name) != 0) continue;
+        if (ver && strcmp(s->ver, ver) != 0) continue;
+        if (file && file[0] && strcmp(s->owner, file) != 0) continue;
+        if (!best || ex_dep_rank(s) > ex_dep_rank(best)) best = s;
+    }
+    if (!best) return 0;
+    *addr = best->addr;
+    *size = best->size;
+    return 1;
 }
 
 /* Determine the dynamic symbol count from DT_HASH (nchain) or DT_GNU_HASH
@@ -1398,25 +1432,29 @@ static int ex_resolve_symbol(const uint8_t *f, size_t fsz,
     return -1;
 }
 
-/* Resolve a R_X86_64_COPY source.  A COPY copies bytes from a definition in
- * another object into this image; here the ONLY legal source is an undefined
- * dynsym name in the fixed host table whose entry declares a byte limit.
- * The guest-supplied st_size must be in [1, min(limit, EX_COPY_MAX)].  This
- * keeps the bulk memcpy both source-bound and destination-bound. */
+/* Resolve one R_X86_64_COPY source.  A COPY copies bytes from a definition in
+ * another object into this image.  Two bounded sources are legal:
+ *   (1) an unversioned name in the fixed host table with a declared copy_sz
+ *       byte limit (the original hand-built fixture path), and
+ *   (2) a versioned (or unversioned) data definition exported by a merged
+ *       DT_NEEDED guest libc provider; that definition's own st_size is the
+ *       source bound.
+ * The main image's st_size is the byte count to write.  It must be non-zero,
+ * <= EX_COPY_MAX, and <= the source's declared size.  The caller bounds every
+ * write to the mapped PT_LOAD union as well.  Failures record an exact
+ * diagnostic in g_ex_reloc_fail. */
 static int ex_resolve_copy(const uint8_t *f, size_t fsz,
                            uint16_t phnum, uint16_t phentsize, uint64_t phoff,
                            uint64_t symtab, uint64_t syment,
                            uint64_t strtab, uint64_t strsz, uint32_t symcount,
                            uint32_t symidx, const VslVerCtx *vc,
                            uint64_t *out_addr, uint64_t *out_size) {
+    g_ex_reloc_fail[0] = 0;
     if (symidx == 0 || symidx >= symcount || symtab == 0 || syment < 24)
         return -1;
     uint16_t vi = EX_VER_NDX_GLOBAL;
     int hidden = 0;
     if (ex_sym_version(f, vc, symidx, &vi, &hidden) != 0) return -1;
-    /* The fixed host table has no version definitions; a versioned COPY
-     * requirement can never be satisfied -> fail closed. */
-    if (vi > EX_VER_NDX_GLOBAL) return -1;
     uint64_t so;
     if (ex_vaddr_to_off(f, fsz, phnum, phentsize, phoff,
                         symtab + (uint64_t)symidx * syment, 24, &so) != 0)
@@ -1429,9 +1467,20 @@ static int ex_resolve_copy(const uint8_t *f, size_t fsz,
     st_info = f[so + 4];
     memcpy(&st_shndx, f + so + 6,  2);
     memcpy(&st_size,  f + so + 16, 8);
-    if ((st_info & 0x0f) == 6) return -1;            /* STT_TLS: no plain addr */
-    if (st_shndx != 0) return -1;                    /* source must be external */
-    if (st_size == 0 || st_size > EX_COPY_MAX) return -1;
+    uint8_t st_type = (uint8_t)(st_info & 0x0f);
+    if (st_type == 6) return -1;                     /* STT_TLS: no plain addr */
+    if (st_type == 2) return -1;                     /* STT_FUNC: not data */
+    /* A real ld-defined COPY symbol is DEFINED in the main image's .data/.bss
+     * (st_shndx points at that section); only a hand-built fixture leaves it
+     * SHN_UNDEF.  Both are legal COPY sources -- the destination bound below
+     * is what confines the write, not the symbol's section. */
+    if (st_shndx >= 0xff00) return -1;                /* reserved/special */
+    if (st_size == 0 || st_size > EX_COPY_MAX) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "COPY size %llu out of bounded range [1,%u]",
+                 (unsigned long long)st_size, EX_COPY_MAX);
+        return -1;
+    }
     if (strtab == 0 || strsz == 0 || strsz > EX_STRTAB_MAX || st_name >= strsz)
         return -1;
     uint64_t stroff;
@@ -1440,8 +1489,52 @@ static int ex_resolve_copy(const uint8_t *f, size_t fsz,
     const char *name = (const char *)(f + stroff + st_name);
     size_t room = (size_t)(strsz - st_name);
     if (!memchr(name, 0, room) || strlen(name) > EX_NAME_MAX) return -1;
+
+    /* (2) Guest libc provider: resolve a versioned COPY from the merged
+     * DT_NEEDED export table using the same DT_VERNEED name + vn_file rule as
+     * a regular versioned import, with the provider's st_size as the bound. */
+    const char *ver = NULL, *file = NULL;
+    if (vi > EX_VER_NDX_GLOBAL) {
+        const VslVerEnt *e = ex_ver_find(vc->needs, vc->nneeds, vi);
+        if (!e) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "COPY symbol '%s' has no DT_VERNEED version %u",
+                     name, (unsigned)vi);
+            return -1;
+        }
+        ver = e->name;
+        file = e->file;                              /* vn_file, e.g. libc.so.6 */
+    }
+    uint64_t src = 0, srcsz = 0;
+    if (ex_dep_lookup_copy(name, ver, file, &src, &srcsz)) {
+        if (st_size > srcsz) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "COPY symbol '%s' requests %llu bytes from provider '%s' "
+                     "with only %llu bytes (source bound)",
+                     name, (unsigned long long)st_size,
+                     file ? file : "(any)", (unsigned long long)srcsz);
+            return -1;
+        }
+        *out_addr = src;
+        *out_size = st_size;
+        return 0;
+    }
+    /* (1) Fixed host table: unversioned only (it has no version defs). */
+    if (vi > EX_VER_NDX_GLOBAL) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "COPY symbol '%s' version '%s' from '%s' is not exported by "
+                 "any bounded DT_NEEDED provider",
+                 name, ver ? ver : "?", file ? file : "(any)");
+        return -1;
+    }
     const VslDynHostSym *h = ex_host_lookup(name);
-    if (!h || h->copy_sz == 0 || st_size > h->copy_sz) return -1;
+    if (!h || h->copy_sz == 0 || st_size > h->copy_sz) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "COPY symbol '%s' is not in the bounded host table or its "
+                 "size %llu exceeds the source limit",
+                 name, (unsigned long long)st_size);
+        return -1;
+    }
     *out_addr = h->addr;
     *out_size = st_size;
     return 0;
@@ -1808,12 +1901,26 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
     if (relrsz && !relr) return -1;
     if (need_syms || vdi.versym) {
         if (ex_symbol_count(f, fsz, phnum, phentsize, phoff,
-                            hash, gnu_hash, &symcount) != 0) return -1;
-        if (symtab == 0 || strtab == 0) return -1;
+                            hash, gnu_hash, &symcount) != 0) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "dynamic symbol table has no bounded hash count "
+                     "(glibc ABI unmodeled)");
+            return -1;
+        }
+        if (symtab == 0 || strtab == 0) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "dynamic symbol/string table missing (glibc ABI unmodeled)");
+            return -1;
+        }
         /* Version tables are validated even for a pure-RELATIVE image that
          * merely carries them; malformed/uncounted version data is refused. */
         if (ex_parse_versions(f, fsz, phnum, phentsize, phoff,
-                              &vdi, symcount, &vc) != 0) return -1;
+                              &vdi, symcount, &vc) != 0) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "dynamic version tables exceed bounded limits "
+                     "(real glibc libc.so.6 ABI unmodeled)");
+            return -1;
+        }
     }
 
     /* Walk one relocation table (RELA has explicit addend, REL does not). */
@@ -1924,12 +2031,27 @@ static int ex_parse_dyn(const uint8_t *f, size_t fsz,
         }
     }
     if (di->needed_count && (di->strtab == 0 || di->strsz == 0 ||
-                             di->strsz > EX_STRTAB_MAX)) return -1;
+                             di->strsz > EX_STRTAB_MAX)) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "DT_NEEDED string table exceeds bounded size (glibc ABI unmodeled)");
+        return -1;
+    }
     /* Any version table needs a bounded string table for its version names. */
     if (di->versym && (di->strtab == 0 || di->strsz == 0 ||
-                       di->strsz > EX_STRTAB_MAX)) return -1;
+                       di->strsz > EX_STRTAB_MAX)) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "version string table exceeds bounded size (glibc ABI unmodeled)");
+        return -1;
+    }
     if ((di->verdef && di->verdefnum > EX_VERDEF_MAX) ||
-        (di->verneed && di->verneednum > EX_VERNEED_MAX)) return -1;
+        (di->verneed && di->verneednum > EX_VERNEED_MAX)) {
+        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                 "provider has %u version definitions / %u needs, above the "
+                 "bounded %u/%u limits (real glibc libc.so.6 ABI unmodeled)",
+                 (unsigned)di->verdefnum, (unsigned)di->verneednum,
+                 (unsigned)EX_VERDEF_MAX, (unsigned)EX_VERNEED_MAX);
+        return -1;
+    }
     return 0;
 }
 
@@ -1996,6 +2118,58 @@ static uint8_t *ex_read_dep_file(const char *name, size_t *out_sz) {
         if (got != (size_t)sz) { free(buf); continue; }
         *out_sz = got;
         return buf;
+    }
+    return NULL;
+}
+
+/* OPT-IN guest-rootfs provider resolution.  Search each configured guest
+ * rootfs directory (the same per-run list used for PT_INTERP) in ORDER, and
+ * within it the conventional library sub-directories, for a plain-basename
+ * DT_NEEDED soname.  The canonical file must be a strict child of the
+ * canonical rootfs directory, so a symlink or ../ cannot escape the tree;
+ * the file-size cap matches the dep-dir path.  This is the bounded equivalent
+ * of an ld.so library search confined to a guest rootfs -- no host path is
+ * ever consulted.  Returns a malloc'd byte buffer (caller frees) or NULL. */
+static uint8_t *ex_read_rootfs_dep_file(const char *name, size_t *out_sz) {
+    if (!g_libc_rootfs || !name || !name[0] || g_run_rootfs_count == 0)
+        return NULL;
+    static const char *const subdirs[] = {
+        "", "lib64", "lib", "usr/lib",
+        "lib/x86_64-linux-gnu", "usr/lib/x86_64-linux-gnu", NULL
+    };
+    for (uint32_t ri = 0; ri < g_run_rootfs_count; ri++) {
+        const char *root = g_run_rootfs_list[ri];
+        char *rcanon = realpath(root, NULL);
+        if (!rcanon) continue;
+        size_t rl = strlen(rcanon);
+        for (uint32_t si = 0; subdirs[si]; si++) {
+            char path[EX_DEP_PATH_MAX];
+            int n = subdirs[si][0]
+                  ? snprintf(path, sizeof(path), "%s/%s/%s", root, subdirs[si], name)
+                  : snprintf(path, sizeof(path), "%s/%s", root, name);
+            if (n < 0 || (size_t)n >= sizeof(path)) continue;
+            char *pcanon = realpath(path, NULL);
+            if (!pcanon) continue;
+            int inside = (strncmp(pcanon, rcanon, rl) == 0 && pcanon[rl] == '/');
+            free(pcanon);
+            if (!inside) continue;
+            FILE *fp = fopen(path, "rb");
+            if (!fp) continue;
+            uint8_t *buf = NULL;
+            if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); continue; }
+            long sz = ftell(fp);
+            if (sz <= 0 || (uint64_t)sz > EX_DEP_FILE_MAX) { fclose(fp); continue; }
+            rewind(fp);
+            buf = malloc((size_t)sz);
+            if (!buf) { fclose(fp); continue; }
+            size_t got = fread(buf, 1, (size_t)sz, fp);
+            fclose(fp);
+            if (got != (size_t)sz) { free(buf); continue; }
+            free(rcanon);
+            *out_sz = got;
+            return buf;
+        }
+        free(rcanon);
     }
     return NULL;
 }
@@ -2103,10 +2277,12 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
                             di->symtab + (uint64_t)i * di->syment, 24, &so) != 0)
             return -1;
         uint32_t st_name; uint8_t st_info; uint16_t st_shndx; uint64_t st_value;
+        uint64_t st_size;
         memcpy(&st_name,  f + so,      4);
         st_info = f[so + 4];
         memcpy(&st_shndx, f + so + 6,  2);
         memcpy(&st_value, f + so + 8,  8);
+        memcpy(&st_size,  f + so + 16, 8);
         if ((st_info & 0x0f) == 6) continue;            /* STT_TLS */
         if (st_shndx == 0 || st_shndx >= 0xff00) continue; /* UND/special */
         if (!have_str || st_name >= di->strsz) return -1;
@@ -2140,6 +2316,7 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
         if (dup) {                                     /* strong replaces weak */
             if (dup->weak && !weak) {
                 dup->addr = bias + st_value;
+                dup->size = st_size;
                 dup->weak = 0;
                 dup->is_default = (uint8_t)is_default;
                 snprintf(dup->owner, sizeof(dup->owner), "%s", owner);
@@ -2154,6 +2331,7 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
         slot->weak = (uint8_t)weak;
         slot->is_default = (uint8_t)is_default;
         slot->addr = bias + st_value;
+        slot->size = st_size;
     }
     return 0;
 }
@@ -2179,10 +2357,12 @@ static int ex_load_dependencies(const uint8_t *f, size_t fsz,
         if (g_dep_count >= EX_DEP_MAX) return -1;
         size_t dsz = 0;
         uint8_t *df = ex_read_dep_file(name, &dsz);
+        if (!df) df = ex_read_rootfs_dep_file(name, &dsz);
         if (!df) {
             snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
                      "DT_NEEDED '%s' not found in the bounded dependency "
-                     "search directory", name);
+                     "search directory%s", name,
+                     g_libc_rootfs ? " or guest rootfs" : "");
             return -1;                            /* missing -> fail closed */
         }
         uint64_t entry = 0;

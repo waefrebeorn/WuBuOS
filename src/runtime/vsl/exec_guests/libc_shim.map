@@ -1,5 +1,5 @@
 GLIBC_2.2.5 {
-    global: shim_puts; puts; shim_cxa_finalize; __cxa_finalize;
+    global: shim_puts; puts; shim_cxa_finalize; __cxa_finalize; optind; shim_optind;
     local: *;
 };
 GLIBC_2.34 {

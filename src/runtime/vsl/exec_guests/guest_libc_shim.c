@@ -65,6 +65,14 @@ int shim_start(vsl_main_fn m, int argc, char **argv,
 
 void shim_cxa_finalize(void *p) { (void)p; }
 
+/* A bounded libc DATA definition for the real R_X86_64_COPY leg.  A genuine
+ * host-linked binary reading `optind` emits `COPY optind@GLIBC_2.2.5`; VSL
+ * copies these 4 bytes into the main image from this guest provider.  The
+ * sentinel value makes a successful, correctly-sized COPY observable as the
+ * guest's exit code. */
+int shim_optind = 0x5a;
+__asm__(".symver shim_optind,optind@@GLIBC_2.2.5");
+
 __asm__(".symver shim_puts,puts@@" VSL_SHIM_PUTS_VER);
 __asm__(".symver shim_start,__libc_start_main@@GLIBC_2.34");
 __asm__(".symver shim_cxa_finalize,__cxa_finalize@@" VSL_SHIM_CXA_VER);

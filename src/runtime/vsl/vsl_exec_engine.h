@@ -275,6 +275,13 @@ int  vsl_dyn_set_rootfs(const char *dir);
  * Returns 0 on success, -1 on a bad/oversized path or a full list. */
 int  vsl_dyn_add_rootfs(const char *dir);
 void vsl_dyn_clear_rootfs_list(void);
+/* OPT-IN: resolve a plain-basename DT_NEEDED provider (e.g. libc.so.6) from
+ * the configured guest rootfs directories in standard library sub-dirs, with
+ * realpath confinement, instead of requiring a dep-search-dir allow-list.
+ * This is how the real COPY-from-libc fixture finds its libc data provider.
+ * OFF by default so the dep-dir-only loader and its fail-closed gates are
+ * unchanged. */
+int  vsl_dyn_set_libc_rootfs(int on);
 /* Lifetime count of first-call PLT resolver invocations (for differential
  * gates).  Per-run count is in VslExecResult.plt_resolves. */
 uint64_t vsl_dyn_plt_resolve_count(void);

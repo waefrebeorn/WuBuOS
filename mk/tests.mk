@@ -767,8 +767,11 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/glibc_rootfs2/libvslinterp.so \
 	$(RT)/vsl/exec_guests/glibc_rootfs/lib64/ld-linux-x86-64.so.2 \
 	$(RT)/vsl/exec_guests/glibc_rootfs/libc.so.6 \
+	$(RT)/vsl/exec_guests/glibc_rootfs/lib64/libc.so.6 \
 	$(RT)/vsl/exec_guests/glibc_rootfs_badver/libc.so.6 \
-	$(RT)/vsl/exec_guests/guest_hello.elf
+	$(RT)/vsl/exec_guests/glibc_rootfs_reallibc/lib64/libc.so.6 \
+	$(RT)/vsl/exec_guests/guest_hello.elf \
+	$(RT)/vsl/exec_guests/guest_copy.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -963,6 +966,39 @@ $(RT)/vsl/exec_guests/glibc_rootfs_badver/libc.so.6: \
 $(RT)/vsl/exec_guests/guest_hello.elf: \
 		$(RT)/vsl/exec_guests/guest_hello.c
 	$(CC) -O0 -Wl,--build-id=none $< -o $@
+
+# Real libc provider placed at the standard lib64 path in the guest rootfs.
+# This is the provider found by vsl_dyn_set_libc_rootfs(1) for the COPY leg;
+# it is the SAME bounded guest shim (now exporting optind@@GLIBC_2.2.5) so the
+# existing dep-dir path at glibc_rootfs/libc.so.6 stays green.
+$(RT)/vsl/exec_guests/glibc_rootfs/lib64/libc.so.6: \
+		$(RT)/vsl/exec_guests/guest_libc_shim.c \
+		$(RT)/vsl/exec_guests/libc_shim.map
+	mkdir -p $(dir $@)
+	$(CC) -O2 -nostdlib -shared -fPIC -ffreestanding -fno-builtin \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,--build-id=none -Wl,-soname,libc.so.6 \
+		-Wl,--version-script=$(RT)/vsl/exec_guests/libc_shim.map $< -o $@
+
+# The REAL host glibc libc.so.6 placed in a guest rootfs ONLY to record an
+# exact verified negative: the bounded loader must refuse it (46 IRELATIVE
+# resolvers, none in the fixed host IFUNC table) instead of running host libc
+# bytes.  Never read from the host root at run time.  A missing host file still
+# yields a fail-closed negative gate.
+$(RT)/vsl/exec_guests/glibc_rootfs_reallibc/lib64/libc.so.6:
+	mkdir -p $(dir $@)
+	@if [ -e /lib/x86_64-linux-gnu/libc.so.6 ]; then \
+		cp -L /lib/x86_64-linux-gnu/libc.so.6 $@; \
+	else \
+		printf 'vsl: no host libc available\n' > $@; \
+	fi
+
+# A REAL dynamically linked binary with a genuine R_X86_64_COPY of optind
+# (libc data) into the main image.  Plain $(CC): PT_INTERP ld-linux, DT_NEEDED
+# libc.so.6.  The generic %.elf rule would add -nostdlib and break the COPY.
+$(RT)/vsl/exec_guests/guest_copy.elf: \
+		$(RT)/vsl/exec_guests/guest_copy.c
+	$(CC) -O0 -fno-stack-protector -Wl,--build-id=none $< -o $@
 
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
