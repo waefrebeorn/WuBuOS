@@ -1,4 +1,4 @@
-# Ed25519 ladder constant-time evidence (2026-11-21T09:00:06Z)
+# Ed25519 ladder constant-time evidence (2026-11-21T09:37:06Z)
 
 **Status: EMPIRICAL STRUCTURAL EVIDENCE — NOT A FORMAL VERIFICATION PROOF.**
 
@@ -99,12 +99,6 @@ counterpart of the fixed 256-iteration schedule.
    secret classes on the shipped ladder and a legacy negative control, with
    FIXED thresholds (|t_ladder| <= 10, |t_legacy| > 10) and NO retries. It is
    still statistical evidence, not a mechanised constant-time proof.
-6. The gates above time the mbedTLS MPI ladder
-   (`src/gui/wubu_pkg_ed25519.c`).  The **shipped default** signing backend is
-   the bignum-free fixed ladder in `src/gui/wubu_ed25519_fixed.c`; its own
-   same-run dudect-style gate (`make test_ed25519_fixed_timing`, documented in
-   `docs/ED25519_FIXED_TIMING.md`) adds fail-closed timing evidence for that
-   path, still non-formal and single-toolchain.
 
 Consequently this document claims **verified structural evidence and a
 reproducible instruction/branch table**, and explicitly does **not** claim
