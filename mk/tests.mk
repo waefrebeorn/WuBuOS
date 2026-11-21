@@ -1959,8 +1959,11 @@ test_wubu_firstboot: $(RT)/wubu_firstboot.c $(RT)/wubu_firstboot.h $(RT)/wubu_in
 # wubu_ns_fs.o + sources, NOT the heavy wubu_ns_bridge.o).
 test_ns_background: $(RT)/wubu_ns_background.c $(RT)/wubu_ns_background.h $(RT)/wubu_session_boot.c $(RT)/wubu_bus.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_logind.c $(RT)/wubu_auth.c $(RT)/wubu_ns_background_test.c
 	$(CC) -O0 -g -std=c11 -Wall -D_GNU_SOURCE -I$(RT) -c $(RT)/wubu_ns_background_test.c -o /tmp/wubu_ns_background_test.o -Iinclude
+	# Link the FS core from source here: other -j24 targets rebuild the shared
+	# wubu_ns_fs.o concurrently, and reading a half-written object produced
+	# spurious ns_mkdir/ns_write undefined references.
 	$(CC) -O0 -g -no-pie -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
-		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_fs.c \
 		$(RT)/wubu_ns_background.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/wubu_logind.c $(RT)/wubu_auth.c \
 		$(RT)/wubu_effect.c $(RT)/wubu_ns_effect.c \
 		/tmp/wubu_ns_background_test.o \

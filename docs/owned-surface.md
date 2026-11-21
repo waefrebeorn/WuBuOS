@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 3777
-- OWNED (appear in a test target recipe): 899
-- VENDORED / unproven (no test-target recipe reference): 2878
+- product source modules: 3790
+- OWNED (appear in a test target recipe): 904
+- VENDORED / unproven (no test-target recipe reference): 2886
 
 ## OWNED modules (tested)
 
@@ -83,6 +83,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `guest_ctor_budget.c`  -- tests: test_wemu_sandbox
 - `guest_dtneeded.c`  -- tests: test_wemu_sandbox;test_wemu_sandbox
 - `guest_dyn.c`  -- tests: test_wemu_sandbox
+- `guest_fwrite.c`  -- tests: test_wemu_sandbox
 - `guest_glibc_dyn.c`  -- tests: test_wemu_sandbox
 - `guest_hello.c`  -- tests: test_wemu_sandbox
 - `guest_imgdep.c`  -- tests: test_wemu_sandbox
@@ -157,7 +158,11 @@ the kernel/driver build or nowhere in the test recipes).
 - `pie_unlisted.c`  -- tests: test_wemu_sandbox
 - `probe_filemap.c`  -- tests: test_vsl_exec
 - `probe_ifunc_glibc_hello.c`  -- tests: test_vsl_exec
+- `probe_image_brk_registry.c`  -- tests: test_vsl_exec
 - `probe_mmap_align.c`  -- tests: test_vsl_exec
+- `probe_munmap_coalesce.c`  -- tests: test_vsl_exec
+- `probe_munmap_release.c`  -- tests: test_vsl_exec
+- `probe_stream_writes.c`  -- tests: test_vsl_exec
 - `quick_settings.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `regedit.c`  -- tests: test_apps
 - `render.c`  -- tests: test_worldsim;test_bridge
@@ -1650,8 +1655,11 @@ the kernel/driver build or nowhere in the test recipes).
 - `guest_filemap.c`
 - `guest_fs_tcb.c`
 - `guest_getpid.c`
+- `guest_image_brk_registry.c`
 - `guest_initplt.c`
 - `guest_mmap_align.c`
+- `guest_munmap_coalesce.c`
+- `guest_munmap_release.c`
 - `guest_uname.c`
 - `guest_weakundef.c`
 - `guest_write.c`
@@ -1843,6 +1851,9 @@ the kernel/driver build or nowhere in the test recipes).
 - `pdfextract.c`
 - `pdfform.c`
 - `pdfsearch.c`
+- `pie_nested.c`
+- `pie_onstack.c`
+- `pie_timer.c`
 - `pkgmgr.c`
 - `plugin.c`
 - `plugin_onnx.c`
@@ -2701,7 +2712,9 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_usermode_execfd.c`
 - `test_usermode_isolate.c`
 - `test_usermode_mpk.c`
+- `test_usermode_nested.c`
 - `test_usermode_threadexec.c`
+- `test_usermode_timer.c`
 - `test_uuid.c`
 - `test_vars.c`
 - `test_vec_dot_types.c`
