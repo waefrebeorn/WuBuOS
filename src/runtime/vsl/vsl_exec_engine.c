@@ -397,6 +397,26 @@ static int64_t vsl_dl_find_object_shim(void *addr, void *result) {
     (void)addr; (void)result; return 1;
 }
 
+/* Bounded host storage for the ld.so DATA imports a real glibc libc.so.6
+ * binds with GLOB_DAT / R_X86_64_64.  All zero-initialised and fixed-size:
+ *   __libc_enable_secure = 0  (not setuid; glibc reads an int),
+ *   _rtld_global / _rtld_global_ro are zeroed stand-in structs, so any
+ *   field glibc reads during startup is a defined zero, never host garbage.
+ * Only the ADDRESS is published; no guest code ever runs here. */
+static int  g_ldso_libc_enable_secure = 0;
+static char g_ldso_rtld_global[1024];
+static char g_ldso_rtld_global_ro[1024];
+
+/* Honest, bounded stand-ins for the versioned FUNCTION imports a real
+ * libc.so.6 pulls from ld.so.  These are glibc's interpreter-reserved
+ * audit/tunable/TLS/error hooks; a normal startup does not call them, but
+ * binding them by exact (version, vn_file) lets relocation advance past the
+ * old boundary.  Every shim returns a defined, safe value -- no arbitrary
+ * guest code and no host link_map/TLS state is fabricated.  A test asserts
+ * each binds ONLY for the exact ld.so vn_file/version. */
+static int64_t vsl_ldso_ret0_shim(void) { return 0; }
+static void    vsl_ldso_void_shim(void) { }
+
 /* The ld.so soname the real glibc fixture names as the vn_file of its
  * GLIBC_PRIVATE / GLIBC_2.2.5 / GLIBC_2.35 ld.so imports (verified with
  * readelf -V on lib64/libc.so.6).  A host binding is legal ONLY for this
@@ -425,6 +445,35 @@ static const VslDynHostSym g_dyn_host_syms[] = {
                            sizeof(void *), "GLIBC_PRIVATE", VSL_LDSO_VNFILE },
     { "__libc_stack_end", (uint64_t)(uintptr_t)&g_libc_stack_end_host,
                            sizeof(uint64_t), "GLIBC_2.2.5", VSL_LDSO_VNFILE },
+    /* Remaining versioned ld.so imports of the REAL glibc libc.so.6
+     * (verified with readelf -V/-r: 19 UND imports, all from vn_file
+     * ld-linux-x86-64.so.2).  Each entry is legal ONLY for the exact
+     * (name, DT_VERNEED version, vn_file) triple; a wrong file or version
+     * fails closed via ex_host_lookup_ver.  Function stand-ins return 0
+     * (the interpreter-reserved audit/tunable/TLS/error hooks are not
+     * exercised on a normal startup); data stand-ins are zeroed host
+     * storage.  No arbitrary guest code runs. */
+#define VSL_LDSO_FN(n, v, f)   { (n), (uint64_t)(uintptr_t)&(f), 0, (v), VSL_LDSO_VNFILE },
+#define VSL_LDSO_DATA(n, v, s) { (n), (uint64_t)(uintptr_t)&(s), sizeof(s), (v), VSL_LDSO_VNFILE },
+    VSL_LDSO_DATA("__libc_enable_secure",      "GLIBC_PRIVATE", g_ldso_libc_enable_secure)
+    VSL_LDSO_DATA("_rtld_global",              "GLIBC_PRIVATE", g_ldso_rtld_global)
+    VSL_LDSO_DATA("_rtld_global_ro",           "GLIBC_PRIVATE", g_ldso_rtld_global_ro)
+    VSL_LDSO_FN   ("_dl_find_dso_for_object",  "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("_dl_deallocate_tls",       "GLIBC_PRIVATE", vsl_ldso_void_shim)
+    VSL_LDSO_FN   ("__tls_get_addr",           "GLIBC_2.3",     vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("_dl_signal_error",         "GLIBC_PRIVATE", vsl_ldso_void_shim)
+    VSL_LDSO_FN   ("_dl_signal_exception",     "GLIBC_PRIVATE", vsl_ldso_void_shim)
+    VSL_LDSO_FN   ("_dl_audit_symbind_alt",    "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("__tunable_is_initialized", "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("_dl_rtld_di_serinfo",      "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("_dl_allocate_tls",         "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("__tunable_get_val",        "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("_dl_catch_exception",      "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("_dl_allocate_tls_init",    "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("__nptl_change_stack_perm", "GLIBC_PRIVATE", vsl_ldso_ret0_shim)
+    VSL_LDSO_FN   ("_dl_audit_preinit",        "GLIBC_PRIVATE", vsl_ldso_void_shim)
+#undef VSL_LDSO_FN
+#undef VSL_LDSO_DATA
 };
 
 /* Unversioned host lookup: versioned entries are deliberately invisible. */
@@ -2097,7 +2146,26 @@ static int ex_apply_relocations(const uint8_t *f, size_t fsz, uint64_t bias,
                                      ro, ri, (int64_t)ra, HAS_ADDEND,         \
                                      lazy_plt, out_resolved,                  \
                                      tls_base, module_id, out_tls);            \
-                if (vr < 0) return -1;                                       \
+                if (vr < 0) {                                                \
+                    /* A bounded reject that set no precise message (TLS/ABI \
+                     * bounds check) must still name the exact relocation. */ \
+                    if (!g_ex_reloc_fail[0]) {                               \
+                        char _sn[EX_NAME_MAX];                               \
+                        ex_sym_name_snip(f, fsz, phnum, phentsize, phoff,     \
+                                         symtab, syment, strtab, strsz,      \
+                                         symcount, (uint32_t)(ri >> 32),     \
+                                         _sn, sizeof(_sn));                  \
+                        snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),   \
+                                 "relocation type %u symbol '%s' (index %u) " \
+                                 "at offset 0x%llx rejected by a bounded "   \
+                                 "TLS/ABI rule",                             \
+                                 (uint32_t)(ri & 0xffffffffu),               \
+                                 _sn[0] ? _sn : "(unnamed)",                 \
+                                 (uint32_t)(ri >> 32),                       \
+                                 (unsigned long long)ro);                    \
+                    }                                                        \
+                    return -1;                                               \
+                }                                                            \
                 if (vr > 0) (*out_skipped)++; else (*out_applied)++;          \
             }                                                                \
         }                                                                    \
@@ -2474,7 +2542,13 @@ static int ex_register_exports(const uint8_t *f, size_t fsz,
             }
             continue;
         }
-        if (g_dep_sym_count >= EX_DEP_SYM_MAX) return -1;
+        if (g_dep_sym_count >= EX_DEP_SYM_MAX) {
+            snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                     "merged export table cap %u exceeded by dependency '%s' "
+                     "(real glibc libc.so.6 ABI unmodeled)",
+                     (unsigned)EX_DEP_SYM_MAX, owner);
+            return -1;
+        }
         VslDepSym *slot = &g_dep_syms[g_dep_sym_count++];
         snprintf(slot->name, sizeof(slot->name), "%s", nm);
         snprintf(slot->ver, sizeof(slot->ver), "%s", verp);
@@ -2555,11 +2629,26 @@ static int ex_load_dependencies(const uint8_t *f, size_t fsz,
                                       dphnum, dphentsize, dphoff,
                                       &applied, &skipped, &resolved, 0,
                                       ex_tls_base(dep_slot + 1), dep_mod, &dtls);
-        if (rr != 0 || skipped ||
-            ex_register_exports(df, dsz, dphnum, dphentsize, dphoff,
-                                &ddi, dbias, name) != 0 ||
-            ex_load_dependencies(df, dsz, dphnum, dphentsize, dphoff,
-                                 depth + 1) != 0) {
+        int reg = rr ? 0 : ex_register_exports(df, dsz, dphnum, dphentsize,
+                                                dphoff, &ddi, dbias, name);
+        int sub = (rr || reg || skipped) ? 0
+                : ex_load_dependencies(df, dsz, dphnum, dphentsize, dphoff,
+                                      depth + 1);
+        if (rr != 0 || skipped || reg != 0 || sub != 0) {
+            if (!g_ex_reloc_fail[0]) {
+                if (reg != 0)
+                    snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                             "dependency '%s' exports are out of bounded range",
+                             name);
+                else if (sub != 0)
+                    snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                             "dependency '%s' has an unmet bounded dependency",
+                             name);
+                else
+                    snprintf(g_ex_reloc_fail, sizeof(g_ex_reloc_fail),
+                             "dependency '%s' relocation rejected by a "
+                             "bounded ABI rule", name);
+            }
             free(df); return -1;
         }
         /* Collect AFTER recursing: a dependency's own dependencies must

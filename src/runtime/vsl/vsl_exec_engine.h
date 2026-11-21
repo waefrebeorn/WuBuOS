@@ -70,13 +70,16 @@
  * symbol-less TPOFF64 from a real glibc provider is now applied against the
  * defined module TLS base; 46 host IRELATIVE resolver entries (42 unique link
  * addresses) are registered for the same fixture as bounded stand-ins.  The
- * bounded host provider also binds the versioned ld.so imports a real glibc
- * libc.so.6 pulls from its interpreter (_dl_argv@GLIBC_PRIVATE,
- * __libc_stack_end@GLIBC_2.2.5, _dl_find_object@GLIBC_2.35) ONLY on an exact
- * DT_VERNEED name + vn_file match (ld-linux-x86-64.so.2); a wrong vn_file or
- * version fails closed.  The real glibc fixture now advances past _dl_argv to
- * its NEXT exact boundary (__libc_enable_secure@GLIBC_PRIVATE), a verified
- * negative; retargeting the vn_file restores the _dl_argv fault end-to-end.
+ * bounded host provider binds the full versioned ld.so surface -- all 19 UND
+ * imports of a real glibc libc.so.6 (_dl_argv, __libc_stack_end,
+ * __libc_enable_secure, _rtld_global, _rtld_global_ro, _dl_allocate_tls,
+ * __tunable_get_val, ...) plus _dl_find_object@GLIBC_2.35 for the synthetic
+ * gate -- ONLY on an exact DT_VERNEED name + vn_file match
+ * (ld-linux-x86-64.so.2); a wrong vn_file or version fails closed.  With every
+ * ld.so import bound, the real glibc fixture now advances to its NEXT exact
+ * boundary -- the 512-entry merged-export cap, which glibc's ~3000 defined
+ * dynsyms overflow -- a verified negative.  A vn_file retarget to libc.so.6
+ * restores the _dl_argv fault end-to-end.
  *
  * DT_NEEDED is supported ONLY in this bounded form: DT_NEEDED sonames are a
  * plain basename found in a bounded per-image search-directory list (or the

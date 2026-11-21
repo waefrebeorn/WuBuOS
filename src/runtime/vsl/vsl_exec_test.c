@@ -1294,6 +1294,45 @@ int main(int argc, char **argv) {
             CHECK(vsl_dyn_host_symbol_ver("_dl_find_object", "GLIBC_2.35",
                                           "ld-linux-x86-64.so.2") != 0,
                   "_dl_find_object@GLIBC_2.35 binds from exact ld.so vn_file");
+            /* (m3) All remaining versioned ld.so imports of the REAL glibc
+             * libc.so.6 bind ONLY on the exact (version, vn_file) triple.
+             * Data imports are zeroed host storage; function imports are
+             * bounded return-0/void stand-ins.  Every near-miss (wrong file
+             * or wrong version) still fails closed. */
+            {
+                static const char *const names[] = {
+                    "__libc_enable_secure", "_rtld_global", "_rtld_global_ro",
+                    "_dl_find_dso_for_object", "_dl_deallocate_tls",
+                    "__tls_get_addr", "_dl_signal_error", "_dl_signal_exception",
+                    "_dl_audit_symbind_alt", "__tunable_is_initialized",
+                    "_dl_rtld_di_serinfo", "_dl_allocate_tls",
+                    "__tunable_get_val", "_dl_catch_exception",
+                    "_dl_allocate_tls_init", "__nptl_change_stack_perm",
+                    "_dl_audit_preinit"
+                };
+                size_t bound = 0;
+                for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+                    const char *ver = (strcmp(names[i], "__tls_get_addr") == 0)
+                                    ? "GLIBC_2.3" : "GLIBC_PRIVATE";
+                    uint64_t a = vsl_dyn_host_symbol_ver(names[i], ver,
+                                                         "ld-linux-x86-64.so.2");
+                    uint64_t wf = vsl_dyn_host_symbol_ver(names[i], ver,
+                                                         "libc.so.6");
+                    uint64_t wv = vsl_dyn_host_symbol_ver(
+                        names[i], "GLIBC_9.99", "ld-linux-x86-64.so.2");
+                    if (a != 0 && wf == 0 && wv == 0) bound++;
+                    else printf("[gate m3] BAD %s a=%llx wf=%llx wv=%llx\n",
+                                names[i], (unsigned long long)a,
+                                (unsigned long long)wf,
+                                (unsigned long long)wv);
+                }
+                printf("[gate m3] remaining ld.so imports bound exactly: "
+                       "%zu/%zu\n", bound,
+                       sizeof(names) / sizeof(names[0]));
+                CHECK(bound == sizeof(names) / sizeof(names[0]),
+                      "all remaining ld.so imports bind by exact "
+                      "(version, vn_file) and fail closed on near-misses");
+            }
         }
         /* Same length, unknown name: vsl_test_shim -> no_such_sym_xx. */
         memcpy(img + 0x1281, "no_such_sym_xx", 13);
@@ -2550,11 +2589,11 @@ int main(int argc, char **argv) {
             }
         }
         /* NEG C: a REAL glibc libc.so.6 provider is refused, but now at its
-         * NEXT exact boundary, not at the symbol-less TPOFF64 that this leg
-         * closes.  After the 15 sym-less TPOFF64 relocations are applied
-         * against the defined module TLS base, relocation binds the bounded
-         * versioned ld.so import _dl_argv@GLIBC_PRIVATE and advances to the
-         * NEXT exact boundary (__libc_enable_secure@GLIBC_PRIVATE).  realroot
+         * NEXT exact boundary, not at any ld.so import.  All 17 remaining
+         * versioned ld.so imports (_dl_argv, __libc_enable_secure,
+         * _dl_allocate_tls, __tunable_get_val, _rtld_global, ...) bind from
+         * the bounded host provider; relocation advances to the merged-export
+         * cap (512), which glibc's ~3000 defined dynsyms overflow.  realroot
          * is searched FIRST for the provider but has no ld.so, so the
          * interpreter still resolves from the good rootfs. */
         char realroot[512];
@@ -2567,11 +2606,12 @@ int main(int argc, char **argv) {
                "reloc_failure=\"%s\"\n",
                rc_real, r.status, r.reloc_failure);
         CHECK(rc_real == VSL_EXEC_ERR_RELOC &&
-              strstr(r.reloc_failure, "symbol '__libc_enable_secure'") != NULL &&
-              strstr(r.reloc_failure, "is unresolved") != NULL,
-              "real libc binds _dl_argv and advances to the next exact boundary");
-        CHECK(strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL,
-              "versioned _dl_argv@GLIBC_PRIVATE is no longer the boundary");
+              strstr(r.reloc_failure, "merged export table cap") != NULL &&
+              strstr(r.reloc_failure, "libc.so.6") != NULL,
+              "real libc binds ALL ld.so imports, then hits the export-cap boundary");
+        CHECK(strstr(r.reloc_failure, "symbol '__libc_enable_secure'") == NULL &&
+              strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL,
+              "no ld.so import is the boundary any more (all 17 bound)");
         CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
               "symbol-less TPOFF64 is no longer the blocking boundary");
 
@@ -2593,13 +2633,15 @@ int main(int argc, char **argv) {
  *     optind@GLIBC_2.2.5 -- all above the old cap;
  *   - the REAL host libc.so.6 provider is then attempted for the SAME hello
  *     world.  It parses past the raised caps, applies the symbol-less TPOFF64
- *     relocations against the defined module TLS base, binds the bounded
- *     versioned ld.so import _dl_argv@GLIBC_PRIVATE from the host provider by
- *     exact vn_file, and fails at the NEXT exact boundary
- *     (__libc_enable_secure@GLIBC_PRIVATE), recorded as a verified negative
- *     rather than a silent skip.  Retargeting ONLY the fixture's DT_VERNEED
- *     vn_file from ld-linux-x86-64.so.2 to libc.so.6 restores the _dl_argv
- *     fault end-to-end (DT_NEEDED sonames are left byte-identical). */
+ *     relocations against the defined module TLS base, binds ALL 17 remaining
+ *     versioned ld.so imports (_dl_argv, __libc_enable_secure,
+ *     _dl_allocate_tls, __tunable_get_val, _rtld_global, ...) from the bounded
+ *     host provider by exact vn_file, and fails at the NEXT exact boundary --
+ *     the 512-entry merged-export cap, which glibc's ~3000 defined dynsyms
+ *     overflow -- recorded as a verified negative rather than a silent skip.
+ *     Retargeting ONLY the fixture's DT_VERNEED vn_file from
+ *     ld-linux-x86-64.so.2 to libc.so.6 restores the _dl_argv fault end-to-end
+ *     (DT_NEEDED sonames are left byte-identical). */
 {
     static const char hello[] = "VSL-HELLO-DYNAMIC-WORLD";
     size_t bn = 0, cn2 = 0;
@@ -2651,9 +2693,9 @@ int main(int argc, char **argv) {
         }
 
         /* REAL glibc libc.so.6: exact NEXT failure, verified negative.
-         * The symbol-less TPOFF64 boundary is gone and the bounded versioned
-         * ld.so import _dl_argv@GLIBC_PRIVATE now binds from the host table;
-         * the provider fails at the next ld.so import __libc_enable_secure. */
+         * Every versioned ld.so import now binds from the bounded host table;
+         * the provider advances past all of them and fails at the 512-entry
+         * merged-export cap (glibc has ~3000 defined dynsyms). */
         vsl_dyn_set_libc_rootfs(1);
         VslImageCfg cfg_real = { none, 0, 0, NULL, 0, NULL, real_first };
         int rc_real = vsl_exec_image(hbig, bn, &cfg_real, &r);
@@ -2661,11 +2703,12 @@ int main(int argc, char **argv) {
                rc_real, r.status, r.reloc_failure);
         CHECK(rc_real == VSL_EXEC_ERR_RELOC,
               "real glibc libc.so.6 provider still fails closed with ERR_RELOC");
-        CHECK(strstr(r.reloc_failure, "symbol '__libc_enable_secure'") != NULL &&
-              strstr(r.reloc_failure, "is unresolved") != NULL,
-              "next failure is the exact versioned __libc_enable_secure import");
-        CHECK(strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL,
-              "versioned _dl_argv@GLIBC_PRIVATE no longer blocks the fixture");
+        CHECK(strstr(r.reloc_failure, "merged export table cap") != NULL &&
+              strstr(r.reloc_failure, "libc.so.6") != NULL,
+              "exact next failure is the bounded merged-export cap, not an ld.so import");
+        CHECK(strstr(r.reloc_failure, "symbol '__libc_enable_secure'") == NULL &&
+              strstr(r.reloc_failure, "symbol '_dl_argv'") == NULL,
+              "no versioned ld.so import blocks the fixture any longer");
         CHECK(strstr(r.reloc_failure, "TLS relocation type 18 symbol 0") == NULL,
               "symbol-less TPOFF64 no longer blocks the real glibc provider");
         CHECK(strstr(r.reloc_failure, "32/32") == NULL,
