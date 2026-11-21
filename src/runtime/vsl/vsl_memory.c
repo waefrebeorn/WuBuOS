@@ -20,6 +20,100 @@ extern VSL_STATE g_vsl;
  * mapping somewhere else. */
 #define VSL_MAP_FIXED 0x10u
 
+/* Bounded coalescing of freed bump-arena ranges.  OPT-IN, default OFF:
+ * with the switch off vsl_mmap/vsl_munmap are byte-identical to the
+ * pre-coalescing allocator, which is what every pre-existing gate runs. */
+static int g_free_coalesce;
+
+/* -- bounded coalesced free-range table ---------------------------- *
+ * Merging touching/overlapping holes turns two adjacent single-page
+ * unmaps into one reusable two-page range; the fixed owner array cannot
+ * grow past VSL_MAX_FREE_RANGES (a full table simply stops tracking new
+ * holes — the registry unmap still succeeds, those bytes are just not
+ * recycled).  free_range_bytes is the exact sum of all tracked holes and
+ * is charged on insert/coalesce and removed on reuse/invalidation. */
+static void vsl_free_insert(uint64_t addr, size_t size) {
+    if (!g_free_coalesce || !size) return;
+    if (addr < VSL_MMAP_FLOOR) return;
+    uint64_t end = addr + (uint64_t)size;   /* callers prove no wrap */
+    if (end <= addr || end <= VSL_MMAP_FLOOR) return;
+
+    for (;;) {
+        int merged = 0;
+        for (uint32_t i = 0; i < g_vsl.n_free_ranges; i++) {
+            uint64_t s = g_vsl.free_ranges[i].addr;
+            uint64_t e = s + (uint64_t)g_vsl.free_ranges[i].size;
+            if (e < addr || s > end) continue;   /* disjoint */
+            if (s < addr) addr = s;
+            if (e > end) end = e;
+            g_vsl.free_range_bytes -= (uint64_t)(e - s);
+            for (uint32_t j = i; j + 1 < g_vsl.n_free_ranges; j++)
+                g_vsl.free_ranges[j] = g_vsl.free_ranges[j + 1];
+            g_vsl.n_free_ranges--;
+            merged = 1;
+            break;
+        }
+        if (!merged) break;
+    }
+    if (g_vsl.n_free_ranges >= VSL_MAX_FREE_RANGES) return; /* bounded */
+    uint32_t k = g_vsl.n_free_ranges++;
+    g_vsl.free_ranges[k].addr = addr;
+    g_vsl.free_ranges[k].size = (size_t)(end - addr);
+    g_vsl.free_range_bytes += (uint64_t)(end - addr);
+}
+
+/* First-fit hole at or above `lower` with room for `size` (page-rounded).
+ * Holes are page-aligned and [floor, mmap_base)-bounded by construction.
+ * Only a hole whose start satisfies `lower` is eligible, so an advisory
+ * hint can never be handed a range below it; addr==0 passes the arena
+ * floor.  Returns 1 with *out set and the hole carved (exact bytes). */
+static int vsl_free_take(uint64_t lower, size_t size, uint64_t *out) {
+    if (!g_free_coalesce || !g_vsl.n_free_ranges || !size) return 0;
+    uint64_t need = ((uint64_t)size + 0xfff) & ~0xfffull;
+    if (need < size) return 0;
+    for (uint32_t i = 0; i < g_vsl.n_free_ranges; i++) {
+        uint64_t s = g_vsl.free_ranges[i].addr;
+        uint64_t e = s + (uint64_t)g_vsl.free_ranges[i].size;
+        if (s < lower || (s & 0xfff)) continue;
+        if ((uint64_t)g_vsl.free_ranges[i].size < need) continue;
+        *out = s;
+        g_vsl.free_range_bytes -= need;   /* exact consumed bytes */
+        if ((uint64_t)g_vsl.free_ranges[i].size == need) {
+            for (uint32_t j = i; j + 1 < g_vsl.n_free_ranges; j++)
+                g_vsl.free_ranges[j] = g_vsl.free_ranges[j + 1];
+            g_vsl.n_free_ranges--;
+        } else {
+            g_vsl.free_ranges[i].addr = s + need;
+            g_vsl.free_ranges[i].size = (size_t)(e - s - need);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/* A MAP_FIXED registration replaces whatever was at [addr,end); remove
+ * that intersection from the free table so a recycled hole can never
+ * alias a live fixed mapping (fail-closed). */
+static void vsl_free_invalidate(uint64_t addr, uint64_t end) {
+    if (!g_free_coalesce) return;
+    for (uint32_t i = 0; i < g_vsl.n_free_ranges; ) {
+        uint64_t s = g_vsl.free_ranges[i].addr;
+        uint64_t e = s + (uint64_t)g_vsl.free_ranges[i].size;
+        if (e <= addr || s >= end) { i++; continue; }
+        g_vsl.free_range_bytes -= (uint64_t)(e - s);
+        if (s < addr) {
+            g_vsl.free_ranges[i].size = (size_t)(addr - s);
+            g_vsl.free_range_bytes += (uint64_t)(addr - s);
+            i++;
+        } else {
+            for (uint32_t j = i; j + 1 < g_vsl.n_free_ranges; j++)
+                g_vsl.free_ranges[j] = g_vsl.free_ranges[j + 1];
+            g_vsl.n_free_ranges--;
+        }
+        /* A right remnant (e > end) is dropped; accounting stays exact. */
+    }
+}
+
 uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
                   int fd, uint64_t offset) {
     /* Failure returns -ENOMEM, NOT 0: the syscall contract is -errno;
@@ -83,6 +177,7 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
         mm->addr = addr; mm->size = size; mm->prot = prot;
         mm->flags = flags; mm->fd = fd; mm->offset = offset;
         if (end > proc->mmap_base) proc->mmap_base = end;
+        vsl_free_invalidate(addr, end);   /* fixed mapping wins over holes */
         return addr;
     }
 
@@ -90,9 +185,26 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
 
     if (g_vsl.n_mmaps >= VSL_MAX_MMAPS) return (uint64_t)-12;
 
+    /* OPT-IN: reuse a coalesced free range before advancing the bump
+     * pointer.  With the switch off this block is a no-op and the code
+     * below is byte-identical to the pre-coalescing allocator. */
+    uint64_t alloc_addr = 0;
+    int from_free = 0;
+    if (g_free_coalesce) {
+        uint64_t lower;
+        if (!addr) {
+            lower = VSL_MMAP_FLOOR;
+        } else {
+            if (addr > arena_end - 0xfff) return (uint64_t)-12;
+            lower = (addr + 0xfff) & ~0xfffull;
+        }
+        if (vsl_free_take(lower, size, &alloc_addr)) from_free = 1;
+    }
+
+    if (!from_free) {
     /* Simple allocation: bump pointer from mmap_base; a non-zero addr is
      * an ADVISORY hint, never a claim on an already-mapped range. */
-    uint64_t alloc_addr = addr ? addr : proc->mmap_base;
+    alloc_addr = addr ? addr : proc->mmap_base;
     if (alloc_addr < VSL_USER_BASE) alloc_addr = VSL_USER_BASE;
     /* Round a huge hint only after bounding it: addr+0xfff wrapped to 0
      * and a huge size wrapped past arena_end, registering a bogus mapping. */
@@ -124,6 +236,7 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
         alloc_addr = (next + 0xfff) & ~0xfffull;
         if ((uint64_t)size > arena_end - alloc_addr) return (uint64_t)-12;
     }
+    } /* !from_free */
 
     VSL_MMAP *mm = &g_vsl.mmaps[g_vsl.n_mmaps++];
     mm->addr = alloc_addr;
@@ -133,7 +246,8 @@ uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
     mm->fd = fd;
     mm->offset = offset;
 
-    proc->mmap_base = alloc_addr + size;
+    /* A recycled hole is below the high-water mark: never move it up. */
+    if (!from_free) proc->mmap_base = alloc_addr + size;
     return alloc_addr;
 }
 
@@ -147,10 +261,12 @@ int vsl_munmap(uint64_t addr, size_t size) {
     if (end <= addr) return -22;
 
     uint32_t splits = 0;
+    int touched = 0;
     for (uint32_t i = 0; i < g_vsl.n_mmaps; i++) {
         uint64_t s = g_vsl.mmaps[i].addr;
         uint64_t e = s + g_vsl.mmaps[i].size;
         if (e <= addr || s >= end) continue;
+        touched = 1;
         if (s < addr && e > end) splits++;
     }
     if ((uint64_t)g_vsl.n_mmaps + splits > VSL_MAX_MMAPS) return -12;
@@ -177,6 +293,17 @@ int vsl_munmap(uint64_t addr, size_t size) {
             r->fd = ofd; r->offset = ooff;
         }
         i++;
+    }
+    /* OPT-IN: record only ranges that really unmapped a registration,
+     * clamped to the recyclable bump arena.  The registry unmap above is
+     * unchanged and always succeeds; the free table is best-effort and
+     * bounded. */
+    if (touched && g_free_coalesce) {
+        uint64_t lo = addr, hi = end;
+        uint64_t arena_end = VSL_USER_BASE + VSL_USER_SIZE;
+        if (lo < VSL_MMAP_FLOOR) lo = VSL_MMAP_FLOOR;
+        if (hi > arena_end) hi = arena_end;
+        if (hi > lo) vsl_free_insert(lo, (size_t)(hi - lo));
     }
     return 0;
 }
@@ -224,3 +351,10 @@ int vsl_mmap_get_fd(const VSL_MMAP *mm) {
 uint64_t vsl_mmap_get_offset(const VSL_MMAP *mm) {
     return mm ? mm->offset : 0;
 }
+
+/* -- bounded free-range controls ----------------------------------- */
+
+void vsl_dyn_set_free_coalesce(int on) { g_free_coalesce = on ? 1 : 0; }
+int vsl_dyn_free_coalesce(void) { return g_free_coalesce; }
+uint32_t vsl_free_range_count(void) { return g_vsl.n_free_ranges; }
+uint64_t vsl_free_range_bytes(void) { return g_vsl.free_range_bytes; }

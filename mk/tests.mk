@@ -932,7 +932,8 @@ VSL_EXEC_GUESTS = \
 	$(RT)/vsl/exec_guests/guest_hello.elf \
 	$(RT)/vsl/exec_guests/guest_copy.elf \
 	$(RT)/vsl/exec_guests/guest_filemap.elf \
-	$(RT)/vsl/exec_guests/guest_mmap_align.elf
+	$(RT)/vsl/exec_guests/guest_mmap_align.elf \
+	$(RT)/vsl/exec_guests/guest_munmap_coalesce.elf
 
 $(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
 	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
@@ -1188,7 +1189,7 @@ $(RT)/vsl/exec_guests/guest_copy.elf: \
 VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
 
-test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_hello.c $(RT)/vsl/probe_filemap.c $(RT)/vsl/probe_mmap_align.c
+test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_hello.c $(RT)/vsl/probe_filemap.c $(RT)/vsl/probe_mmap_align.c $(RT)/vsl/probe_munmap_coalesce.c
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
 		$(VSL_EXEC_OBJS) \
 		-o $(RT)/wubu_vsl_exec_test -ldl -lvulkan -lcuda
@@ -1217,6 +1218,15 @@ test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS) $(RT)/vsl/probe_ifunc_glibc_h
 			$(RT)/vsl/probe_mmap_align.c \
 			-o $(RT)/wubu_vsl_mmap_align_test -ldl -lvulkan -lcuda
 		$(RT)/wubu_vsl_mmap_align_test $(RT)/vsl/exec_guests
+	# Bounded munmap coalescing: two adjacent freed pages must merge into
+	# one reusable two-page range.  Fresh process; allocator controls are
+	# weak-symbol linked so the same probe also serves as the pre-fix
+	# negative control (see the gap-map audit entry).
+	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
+			$(filter-out $(RT)/vsl/vsl_exec_test.o,$(VSL_EXEC_OBJS)) \
+			$(RT)/vsl/probe_munmap_coalesce.c \
+			-o $(RT)/wubu_vsl_coalesce_test -ldl -lvulkan -lcuda
+		$(RT)/wubu_vsl_coalesce_test $(RT)/vsl/exec_guests
 
 
 test_vsl_nt: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o

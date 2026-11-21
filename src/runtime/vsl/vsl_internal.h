@@ -36,6 +36,14 @@
 #define VSL_MAX_FDS         1024
 #define VSL_MAX_MMAPS       512
 
+/* Bounded coalesced free ranges in the mmap bump arena.  Only the upper
+ * [VSL_MMAP_FLOOR, mmap_base) region is ever recycled; ELF-image, brk and
+ * MAP_FIXED mappings below the floor stay outside this table (their
+ * tracking belongs to the WEMU paging leg).  The owner array is fixed-size,
+ * so a burst of munmap calls cannot grow it past VSL_MAX_FREE_RANGES. */
+#define VSL_MMAP_FLOOR      (VSL_USER_BASE + 0x1000000ULL)
+#define VSL_MAX_FREE_RANGES 64u
+
 /* Full VSL_PROC definition (internal - public header has opaque) */
 struct VSL_PROC {
     uint32_t         pid;
@@ -127,6 +135,13 @@ typedef struct {
     /* mmap regions */
     VSL_MMAP         mmaps[VSL_MAX_MMAPS];
     uint32_t         n_mmaps;
+
+    /* Bounded coalesced free ranges in the bump arena.  free_range_bytes
+     * is the exact sum of the tracked ranges and is charged/removed on
+     * every coalesce and reuse, never estimated. */
+    struct { uint64_t addr; size_t size; } free_ranges[VSL_MAX_FREE_RANGES];
+    uint32_t         n_free_ranges;
+    uint64_t         free_range_bytes;
 
     /* Drivers */
     VSL_DRV          drivers[16];

@@ -29,6 +29,17 @@ int64_t vsl_brk(uint64_t new_brk);
 /* Get current brk */
 uint64_t vsl_get_brk(void);
 
+/* Bounded coalescing of the mmap bump arena (OPT-IN, default OFF).
+ * When enabled, a munmap inside [VSL_MMAP_FLOOR, mmap_base) records a
+ * bounded, coalesced free range that a later bump mmap may reuse.  Every
+ * fail-closed admission rule, page alignment and the MAP_FIXED/brk/ELF
+ * isolation are unchanged; with the switch OFF the allocator is
+ * byte-identical to the pre-coalescing behaviour. */
+void vsl_dyn_set_free_coalesce(int on);
+int  vsl_dyn_free_coalesce(void);
+uint32_t vsl_free_range_count(void);
+uint64_t vsl_free_range_bytes(void);
+
 /* mmap region accessors */
 uint64_t vsl_mmap_get_addr(const VSL_MMAP *mm);
 size_t vsl_mmap_get_size(const VSL_MMAP *mm);
