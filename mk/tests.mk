@@ -107,7 +107,25 @@ test_ed25519_ir_ct:
 test_ed25519_ir_ct_negctl:
 	bash tools/eddsa_ir_ct_negative_control.sh
 
-.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_default_optin test_default_crypto_negative_control
+# COMPILED-TREE constant-time gate (next increment after the LLVM-IR gate).
+# Uses the LOCAL gcc we actually have: compiles the shipped ladder at -O2 with
+# -fdump-tree-optimized and checks the real GIMPLE for secret-derived branches
+# / switches / memory indices (intraprocedural, call results modeled public).
+# FAILS CLOSED (exit 1, never PASS) when gcc cannot emit an optimized GIMPLE
+# dump -- so it is opt-in, like the clang-dependent IR gate above.  The
+# always-on structural guard stays in the default tier.
+test_ed25519_gimple_ct:
+	bash tools/eddsa_gimple_ct_gate.sh
+
+# Standalone negative control for the compiled-GIMPLE checker: injects the
+# `if (swap)` regression into the working-tree source, recompiles at -O2, and
+# requires the detector to flag a secret-dependent branch in real GIMPLE;
+# restores and requires green.  Records a verified negative (no fake PASS) if
+# no capable gcc is present.
+test_ed25519_gimple_ct_negctl:
+	bash tools/eddsa_gimple_ct_negative_control.sh
+
+.PHONY: mbedtls-devroot test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_default_optin test_default_crypto_negative_control
 
 # Statistical timing differential for the Ed25519 scalar multiplication
 # (mbedTLS dev root required; NOT in the default `make test` tier).  Builds
