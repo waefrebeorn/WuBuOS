@@ -164,20 +164,30 @@ int wubu_drv_dev_bar(const wubu_drv_dev_t *dev, uint64_t *bar0,
 
 /* DRV10: THE single BAR -> VMM mapping owner. No BAR / I/O-space BAR /
  * absent mapper / map failure all return -1 without side effects. */
-int wubu_drv_map_mmio(const wubu_drv_dev_t *dev, uint64_t va_page,
-                      uint64_t *va_out)
+int wubu_drv_map_mmio_range(const wubu_drv_dev_t *dev, uint64_t va_page,
+                            uint32_t pages, uint64_t *va_out)
 {
     uint64_t bar0 = 0, bar1 = 0, phys;
-    if (!dev || !va_out || (va_page & 0xFFFull)) return -1;
+    if (!dev || !va_out || !pages || pages > WUBU_DRV_MMIO_MAX_PAGES ||
+        (va_page & 0xFFFull)) return -1;
     if (wubu_drv_dev_bar(dev, &bar0, &bar1) != 0) return -1;
     /* BAR decoding has exactly one owner: the shared WuBu driver contract. */
     if (!wubu_contract_is_mmio(bar0)) return -1;   /* I/O-space BAR, not MMIO */
     if (wubu_contract_decode_bar(bar0, bar1, &phys) != 0) return -1;
     if (!wubu_vmm_map_page) return -1;        /* no mapper (hosted gate) */
-    if (wubu_vmm_map_page(va_page, phys, WUBU_CONTRACT_MAP_FLAGS) != 0)
-        return -1;                                          /* fail-soft */
+    for (uint32_t i = 0; i < pages; i++)
+        if (wubu_vmm_map_page(va_page + (uint64_t)i * 4096u,
+                              phys + (uint64_t)i * 4096u,
+                              WUBU_CONTRACT_MAP_FLAGS) != 0)
+            return -1;                                     /* fail-soft */
     *va_out = va_page;
     return 0;
+}
+
+int wubu_drv_map_mmio(const wubu_drv_dev_t *dev, uint64_t va_page,
+                      uint64_t *va_out)
+{
+    return wubu_drv_map_mmio_range(dev, va_page, 1u, va_out);
 }
 
 /* DRV11: the late, idempotent pass. NEVER call from wubu_drv_probe():

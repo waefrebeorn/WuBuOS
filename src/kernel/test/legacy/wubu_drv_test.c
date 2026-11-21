@@ -19,6 +19,7 @@
  *   6. the summary shows the full bus
  */
 #include "wubu_drv.h"
+#include "wubu_driver_contract.h"
 #include "wubu_drv_nvme.h"
 #include "wubu_drv_net.h"
 #include "wubu_drv_hda.h"
@@ -49,10 +50,11 @@ static uint64_t g_map_va[32], g_map_phys[32];
 static uint32_t g_map_flags[32];
 static int      g_map_n;
 static int      g_map_fail;
+static int      g_map_fail_at = -1;
 
 int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
 {
-    if (g_map_fail) return -1;
+    if (g_map_fail || g_map_n == g_map_fail_at) return -1;
     if (g_map_n >= 32) return -1;
     g_map_va[g_map_n] = virt;
     g_map_phys[g_map_n] = phys;
@@ -255,6 +257,46 @@ int main(void)
     if (wubu_drv_map_all_mmio() != 0 || g_map_n != 2)
         FAIL("map_all_mmio is not idempotent");
     printf("  PASS: late pass maps both BARs at distinct slots, idempotently\n");
+
+    /* D1b: multi-page aperture through the SAME owner (no second mapper). */
+    {
+        const uint64_t base = WUBU_DRV_MMIO_VA_BASE + 0x10000ull;
+        g_map_n = 0; g_map_fail = 0; g_map_fail_at = -1;
+        uint64_t range_va = 0;
+        if (wubu_drv_map_mmio_range(&nvme_with_bar, base, 3, &range_va) != 0)
+            FAIL("3-page BAR mapping");
+        if (range_va != base || g_map_n != 3) FAIL("range VA / call count");
+        if (g_map_phys[0] != 0xFC000000ULL ||
+            g_map_phys[1] != 0xFC001000ULL ||
+            g_map_phys[2] != 0xFC002000ULL)
+            FAIL("range physical page sequence");
+        if (g_map_va[1] != base + 0x1000 || g_map_va[2] != base + 0x2000)
+            FAIL("range virtual page sequence");
+        if (g_map_flags[2] != WUBU_CONTRACT_MAP_FLAGS)
+            FAIL("range flags do not come from the shared contract");
+        printf("  PASS: 3-page BAR mapped with exact phys/VA sequence\n");
+
+        /* Invalid page counts / alignment must not call the mapper. */
+        g_map_n = 0;
+        if (wubu_drv_map_mmio_range(&nvme_with_bar, base, 0, &range_va) == 0 ||
+            wubu_drv_map_mmio_range(&nvme_with_bar, base,
+                                    WUBU_DRV_MMIO_MAX_PAGES + 1,
+                                    &range_va) == 0 ||
+            wubu_drv_map_mmio_range(&nvme_with_bar, base + 1, 1,
+                                    &range_va) == 0)
+            FAIL("invalid range arguments accepted");
+        if (g_map_n != 0) FAIL("invalid range called the mapper");
+
+        /* Fail-soft mid-range: second page fails, no fabricated VA. */
+        range_va = 0xDEADBEEFull;
+        g_map_n = 0; g_map_fail_at = 1;
+        if (wubu_drv_map_mmio_range(&nvme_with_bar, base, 3, &range_va) == 0)
+            FAIL("failed range reported success");
+        if (g_map_n != 1 || range_va != 0xDEADBEEFull)
+            FAIL("failed range fabricated a VA or kept mapping");
+        g_map_fail_at = -1;
+        printf("  PASS: bad args rejected, mid-range failure is fail-soft\n");
+    }
 
     /* 3. the network */
     if (!wubu_net_wifi_link()) FAIL("wifi link down");

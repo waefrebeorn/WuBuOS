@@ -81,9 +81,10 @@ I/O space, not MMIO. It now finds its device through the one registry
 removed, not left as a second path. Gate: `test_xhci` stubs the registry
 owner and asserts `probe()` makes exactly one map call, uses the returned
 VA, and returns clean `absent` with zero map calls when no device exists.
-Note: D1 maps one 4K page per device — sufficient for xHCI capability/
-operational registers, but a driver needing the full BAR aperture must
-extend the owner to map a range (open, not claimed here).
+- Note: D1 originally mapped one 4K page per device. DRV10b
+  `wubu_drv_map_mmio_range()` now lifts that limit (up to 16 pages) through
+  the SAME owner; xHCI still uses the one-page wrapper. A mid-range failure
+  returns -1 and leaves earlier pages mapped — the caller discards the window.
 
 **D3 — contract alignment, not adoption (DELIVERED 2026-11-21).**
 WuBuKernel now owns `include/wubu_driver_contract.h` + `src/wubu_driver_contract.c`:
