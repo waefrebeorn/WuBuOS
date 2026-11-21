@@ -13,14 +13,15 @@ trap 'rm -rf "$TMP"' EXIT
 
 fail() { echo "[fixed_timing] FAIL: $*" >&2; exit 1; }
 
-command -v cc >/dev/null 2>&1 || fail "no C compiler (cc); timing gate fails closed"
+CC=${CC:-cc}
+OPT=${EDDSA_TIMING_OPT:--O1}
+command -v "$CC" >/dev/null 2>&1 || fail "no C compiler ($CC); timing gate fails closed"
 [ -f "$ROOT/tools/ed25519_fixed_timing_probe.c" ] || fail "probe source missing"
 [ -f "$ROOT/src/gui/wubu_ed25519_fixed.c" ]        || fail "shipped fixed path missing"
 [ -f "$ROOT/src/gui/wubu_ed25519_fixed.h" ]        || fail "shipped fixed header missing"
 
-CC=${CC:-cc}
-CFLAGS="-w -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L"
-echo "[fixed_timing] compiler: $($CC --version 2>/dev/null | head -1)"
+CFLAGS="-w $OPT -g -std=c11 -D_POSIX_C_SOURCE=200809L"
+echo "[fixed_timing] compiler: $($CC --version 2>/dev/null | head -1) [$OPT]"
 echo "[fixed_timing] building self-contained probe (shipped bignum-free ladder + variable control)"
 if ! $CC $CFLAGS -I"$ROOT/src/gui" \
         "$ROOT/tools/ed25519_fixed_timing_probe.c" -o "$TMP/probe" -lm \

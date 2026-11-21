@@ -69,6 +69,8 @@ closed with exact verified negatives):
 | `test_vsl_nt_collision` | the NT dispatch table has zero real collisions (only intended stub→real upgrades) |
 | `test_ed25519_bignum_value` | opt-in: bounded audit of shipped mbedTLS bignum callees; `BIGNUM_VALUE_GATE VERIFIED_NEGATIVE` (exit 1) when value-independence cannot be established — see `docs/EDDSA_BIGNUM_VALUE_CHECK.md` and `tools/eddsa_bignum_value_gate.sh` |
 | `test_ed25519_fixed_full` | default tier: the fixed-width signing path compiles zero mbedTLS integer symbols (source **and** preprocessed dispatcher), an injected symbol goes RED, and RFC 8032 signatures cross-check against OpenSSL EVP — see `docs/ED25519_FIXED_FULL.md` and `tools/ed25519_fixed_full_gate.sh` |
+| `test_ed25519_fixed_timing_crossconfig` | opt-in: reruns the existing same-run timing gate under >=2 distinct compiler configs (gcc -O1/-O2, gcc-12 where present); shipped ladder flat and control flagged in EACH. `FIXED_TIMING_CROSSCONFIG_GATE VERIFIED_NEGATIVE` (exit 1) if a config is unavailable — see `docs/ED25519_FIXED_TIMING_CROSSCONFIG.md` and `tools/ed25519_fixed_timing_crossconfig.sh` |
+| `test_ed25519_fixed_timing_crossconfig_negctl` | standalone per-config negative control: the detector must flag the secret-dependent path in each config — see `docs/ED25519_FIXED_TIMING_CROSSCONFIG.md` |
 
 ## How to ADD a test (read this before touching `mk/tests.mk`)
 

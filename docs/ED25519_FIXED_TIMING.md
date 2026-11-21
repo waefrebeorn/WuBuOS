@@ -61,8 +61,12 @@ gate, not a waived one.  This differs deliberately from the older
 
 1. Welch's t-test bounds an observable statistical correlation on this host;
    absence of a detected signal is not proof of its absence.
-2. One toolchain and one compiler optimisation level (`cc -O1`) are used.  A
-   second toolchain, and what other compilers emit, are not covered.
+2. A single gate run uses one toolchain and one compiler optimisation level.
+   Cross-configuration evidence now closes the single-`-O1` gap:
+   `tools/ed25519_fixed_timing_crossconfig.sh` reruns THIS gate under gcc
+   -O1/-O2 and gcc-12 -O1/-O2 (see `docs/ED25519_FIXED_TIMING_CROSSCONFIG.md`).
+   Still empirical, still one host: other compilers and architectures are not
+   covered.
 3. Process CPU time is the clock.  microarchitectural / instruction-level
    channels (cache, branch predictor, speculative execution) are not modeled
    by this test.
