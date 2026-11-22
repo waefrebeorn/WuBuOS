@@ -410,6 +410,15 @@ int main(void)
     wubu_drv_summary(summary, sizeof(summary));
     if (!strstr(summary, "bar0=1f0 io"))
         FAIL("summary does not label the I/O BAR");
+
+    /* Truncation control: a 16-byte cap must not underflow cap-off and
+     * write past the caller's window. Canary byte at index 16 stays 'A'. */
+    char tiny[24];
+    memset(tiny, 'A', sizeof(tiny));
+    int tn = wubu_drv_summary(tiny, 16);
+    if (tn < 0 || tn > 1) FAIL("tiny summary returned %d", tn);
+    if (tiny[16] != 'A') FAIL("summary overflowed a short buffer");
+    printf("  PASS: short summary buffer stays in bounds\n");
     printf("  PASS: the boot summary shows the whole bus\n");
     printf("%s", summary);
 

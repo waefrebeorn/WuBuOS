@@ -322,7 +322,7 @@ int wubu_drv_summary(char *out, size_t cap)
                          g_devs[i].class_code, g_devs[i].subclass, name,
                          (unsigned long long)g_devs[i].bar0, space,
                          (unsigned long long)g_devs[i].mmio_va);
-        if (w < 0) break;
+        if (w < 0 || (size_t)w >= cap - off) break;  /* truncated: stop, no underflow */
         off += (size_t)w;
         n++;
     }
