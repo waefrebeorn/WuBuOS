@@ -64,6 +64,23 @@ int main(void)
         FAIL("env lacks the LD_LIBRARY_PATH");
     printf("  PASS: echo > /n/steamrt/env builds the Proton env\n");
 
+    /* Bounded summary: a very long game path overflows the 2 KB readable
+     * summary. It must still be written as a terminated, newline-ended
+     * file rather than reading past an unterminated stack buffer. */
+    {
+        char huge[6000];
+        memset(huge, 'x', sizeof(huge));
+        huge[sizeof(huge) - 1] = '\0';
+        memcpy(huge, "1 ", 2);
+        if (wubu_ns_steamrt_build_env(huge) != 0) FAIL("long env build");
+        snprintf(p, sizeof(p), "%s/steamrt/env", NSROOT);
+        if (!read_file(p, buf, sizeof(buf))) FAIL("long env file missing");
+        size_t len = strlen(buf);
+        if (len == 0 || len >= sizeof(buf) - 1) FAIL("long env not bounded");
+        if (buf[len - 1] != '\n') FAIL("long env not newline-terminated");
+        printf("  PASS: overlong env path stays in bounds (%zu bytes)\n", len);
+    }
+
     /* 3. the verify */
     if (wubu_ns_steamrt_verify("libvulkan1,libdrm2") != 0) FAIL("verify ok");
     snprintf(p, sizeof(p), "%s/steamrt/verify", NSROOT);

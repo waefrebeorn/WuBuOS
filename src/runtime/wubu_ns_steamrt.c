@@ -59,10 +59,11 @@ int wubu_ns_steamrt_build_env(const char *args)
     /* write a readable summary back */
     char buf[2048];
     size_t off = 0;
+    buf[0] = '\0';
     for (int i = 0; i < n && off < sizeof(buf) - 2; i++) {
         int w = snprintf(buf + off, sizeof(buf) - off, "%s=%s\n",
                          env[i].key, env[i].val);
-        if (w < 0) break;
+        if (w < 0 || (size_t)w >= sizeof(buf) - off) break;  /* bounded */
         off += (size_t)w;
     }
     char sub[128];
