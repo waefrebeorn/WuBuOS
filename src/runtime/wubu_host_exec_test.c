@@ -586,13 +586,22 @@ static void test_ns_guests_launch_by_write(void) {
      * the registry like the marker below instead of sampling once — the
      * single immediate sample failed in full_test15 while the isolated
      * gate passed 20/20. */
-    for (int i = 0; i < 200; i++) {
+    /* Under a saturated -j24 gate the child can take longer than 2s to
+     * reach CT_RUNNING. Keep the poll bounded (10s), but fail loudly with
+     * the last observed state so a real launch regression is visible. */
+    for (int i = 0; i < 1000; i++) {
         lc = wubu_ct_registry_find(guest_name);
         if (lc && wubu_ct_state(lc) == CT_RUNNING) break;
         usleep(10000);
     }
     CHECK(lc != NULL, "launch-by-write registered the guest");
-    CHECK(lc && wubu_ct_state(lc) == CT_RUNNING, "launched guest is running");
+    {
+        char state_msg[96];
+        snprintf(state_msg, sizeof(state_msg),
+                 "launched guest is running (last state=%d)",
+                 lc ? (int)wubu_ct_state(lc) : -1);
+        CHECK(lc && wubu_ct_state(lc) == CT_RUNNING, state_msg);
+    }
 
     int seen = 0;
     for (int i = 0; i < 200; i++) {
