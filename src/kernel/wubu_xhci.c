@@ -35,9 +35,19 @@
 
 /* USBSTS bits */
 #define STS_HCH  (1u << 0)
+#define STS_CNR  (1u << 11)
 /* USBCMD bits */
 #define CMD_RUN  (1u << 0)
 #define CMD_RESET (1u << 1)
+
+/* xHCI 1.2b 4.2/5.4.1: no Operational or Runtime register may be written
+ * while HCRST is 1, and no doorbell/op register other than USBSTS until
+ * CNR=0. The wait is behind a hook so a synthetic controller can emulate
+ * clearing those bits; the default polls real MMIO with a bounded limit. */
+typedef struct {
+    int (*reset_wait)(uint64_t op_base);
+} wubu_xhci_hw_t;
+extern wubu_xhci_hw_t wubu_xhci_hw;
 
 static uint32_t xhci_read32(uint64_t a)
 {
@@ -58,6 +68,18 @@ static uint64_t xhci_read64(uint64_t a)
 {
     return *(volatile uint64_t *)(uintptr_t)a;
 }
+
+static int xhci_default_reset_wait(uint64_t op)
+{
+    for (uint32_t t = 0; t < 1000000u; t++) {
+        uint32_t cmd = xhci_read32(op + OP_USBCMD);
+        uint32_t sts = xhci_read32(op + OP_USBSTS);
+        if (!(cmd & CMD_RESET) && !(sts & STS_CNR)) return 0;
+    }
+    return -1;                       /* controller never became ready */
+}
+
+wubu_xhci_hw_t wubu_xhci_hw = { xhci_default_reset_wait };
 
 /* the static command ring (in low memory so the controller can DMA) */
 static uint8_t g_cmd_ring[XHCI_RING_TRBS * XHCI_TRB_SIZE] __attribute__((aligned(64)));
@@ -129,14 +151,16 @@ int wubu_xhci_start(wubu_xhci_t *xh)
     if (!xh || !xh->present) return -1;
     uint64_t op = xh->op_base;
 
-    /* reset the controller: HCH must be set, then CMD_RESET */
-    uint32_t sts = xhci_read32(op + OP_USBSTS);
-    if (sts & STS_HCH) {
-        xhci_write32(op + OP_USBCMD, CMD_RESET);
-        for (uint32_t t = 0; t < 1000000; t++) {
-            if (xhci_read32(op + OP_USBSTS) & STS_HCH) break;
-        }
-    }
+    /* HCRST must be written only while halted, and nothing else may be
+     * programmed until the controller has cleared HCRST and CNR. */
+    xhci_write32(op + OP_USBCMD, xhci_read32(op + OP_USBCMD) & ~CMD_RUN);
+    uint32_t t = 0;
+    for (; t < 1000000u; t++)
+        if (xhci_read32(op + OP_USBSTS) & STS_HCH) break;
+    if (t == 1000000u) return -1;
+    xhci_write32(op + OP_USBCMD, CMD_RESET);
+    if (!wubu_xhci_hw.reset_wait ||
+        wubu_xhci_hw.reset_wait(op) != 0) return -1;
 
     /* the command ring: zero it, point CRCR (RCS=1) */
     for (uint32_t i = 0; i < sizeof(g_cmd_ring); i++) g_cmd_ring[i] = 0;

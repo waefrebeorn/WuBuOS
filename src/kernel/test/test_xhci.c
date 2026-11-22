@@ -40,6 +40,21 @@ int wubu_drv_map_mmio_range(const wubu_drv_dev_t *d, uint64_t va,
     return 0;
 }
 
+/* Synthetic xHCI controller: the hardware clears HCRST and CNR when the
+ * reset completes. The hook also checks that HCRST was actually written. */
+static int g_reset_wait_calls, g_reset_wait_fail;
+static int fake_reset_wait(uint64_t op)
+{
+    g_reset_wait_calls++;
+    if (g_reset_wait_fail) return -1;
+    volatile uint32_t *cmd = (uint32_t *)(uintptr_t)(op + OP_USBCMD);
+    if (!(*cmd & CMD_RESET)) return -1;
+    *cmd = 0;
+    volatile uint32_t *sts = (uint32_t *)(uintptr_t)(op + OP_USBSTS);
+    *sts &= ~STS_CNR;
+    return 0;
+}
+
 int main(void)
 {
     printf("wubu_xhci tests (gap E1)\n");
@@ -104,7 +119,14 @@ int main(void)
     printf("test_xhci: D2 registry->mapped-VA probe PASS\n");
 
     /* the start sequence runs against the synthetic op registers */
+    wubu_xhci_hw.reset_wait = fake_reset_wait;
+    g_reset_wait_calls = 0;
+    g_reset_wait_fail = 0;
+    volatile uint32_t *opsts = (uint32_t *)(uintptr_t)(x.op_base + OP_USBSTS);
+    *opsts = STS_HCH | STS_CNR;       /* halted, controller not ready yet */
     CHECK(wubu_xhci_start(&x) == 0);
+    CHECK(g_reset_wait_calls == 1);
+    CHECK((*opsts & STS_CNR) == 0);   /* waited for CNR before programming */
     CHECK(xhci_read32(x.op_base + OP_USBCMD) & CMD_RUN);
     /* the event ring is programmed: ERSTBA/ERDP point at the static
      * buffers, ERSTSZ = 1 segment */
@@ -118,6 +140,22 @@ int main(void)
     CHECK(slot >= 0);
     /* xHCI 1.2b 6.4.3.2: TRB Type is DW3[15:10], C is DW3 bit 0. */
     CHECK(((uint32_t *)g_cmd_ring)[3] == ((9u << 10) | 1u));
+
+    /* xHCI 1.2b 5.4.1: no HCRST while running, no op/runtime writes until
+     * HCRST and CNR are clear. Both failures must abort before CRCR. */
+    volatile uint32_t *opcmd = (uint32_t *)(uintptr_t)(x.op_base + OP_USBCMD);
+    *opcmd = CMD_RUN;
+    *opsts = 0;                       /* not halted */
+    g_reset_wait_calls = 0;
+    xhci_write64(x.op_base + OP_CRCR, 0);
+    CHECK(wubu_xhci_start(&x) == -1);
+    CHECK(g_reset_wait_calls == 0);
+    CHECK(xhci_read64(x.op_base + OP_CRCR) == 0);
+    *opsts = STS_HCH | STS_CNR;
+    g_reset_wait_fail = 1;
+    CHECK(wubu_xhci_start(&x) == -1);
+    CHECK(xhci_read64(x.op_base + OP_CRCR) == 0);
+    g_reset_wait_fail = 0;
 
     /* NULL is rejected */
     CHECK(wubu_xhci_probe_regs(0, NULL) == -1);
