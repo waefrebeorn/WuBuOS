@@ -382,6 +382,34 @@ int main(void) {
         }
     }
 
+    /* ---- D7: the guest reads the compact registry report ---- */
+    {
+        char reg[128];
+        if (wubu_drv_registry_line(reg, sizeof(reg)) <= 0)
+            FAIL("D7: host registry report empty\n");
+        vsl_registry_snapshot_set(reg);
+
+        char *argv[] = { "busybox", "cat", "/proc/wubu/registry", NULL };
+        run_applet(argv, &cap);
+        report("cat-registry", &cap);
+        if (cap.exit_code != 0)
+            FAIL("D7: cat registry exit %d\n", cap.exit_code);
+        if (!cap.out || !strstr(cap.out, "devices /") ||
+            !strstr(cap.out, "MMIO BARs mapped"))
+            FAIL("D7: guest registry report lacks fields\n");
+        printf("ok: WEMU guest reads the compact driver registry report\n");
+        wubu_wemu_capture_free(&cap);
+
+        /* Differential: clearing the snapshot leaves an empty file. */
+        vsl_registry_snapshot_set(NULL);
+        run_applet(argv, &cap);
+        report("cat-registry-empty", &cap);
+        if (cap.exit_code != 0 || (cap.out && strstr(cap.out, "devices /")))
+            FAIL("D7: cleared registry report persisted\n");
+        printf("ok: registry report clears differentially\n");
+        wubu_wemu_capture_free(&cap);
+    }
+
     printf("WEMU BUSYBOX GATE PASS (real static applets, exact output)\n");
     return 0;
 }

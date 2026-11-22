@@ -9,6 +9,8 @@
 
 /* D4: the bounded guest-visible view of the VSL driver inventory. */
 #define VSL_GUEST_DRIVERS_PATH "/proc/wubu/drivers"
+/* D7: the compact one-line registry report, same formatter as `drv`. */
+#define VSL_GUEST_REGISTRY_PATH "/proc/wubu/registry"
 
 #include "../../egojar.h"
 #include <stdint.h>

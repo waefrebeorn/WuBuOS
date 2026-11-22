@@ -41,10 +41,24 @@ int vsl_open_inventory(void)
     return vsl_snapshot_fd("/tmp/wubu-drv-XXXXXX", buf);
 }
 
+/* D7: bounded one-line registry view. Empty string = no report. */
+static char g_vsl_registry[512];
+
+void vsl_registry_snapshot_set(const char *text)
+{
+    g_vsl_registry[0] = '\0';
+    if (text && *text) {
+        strncpy(g_vsl_registry, text, sizeof(g_vsl_registry) - 1);
+        g_vsl_registry[sizeof(g_vsl_registry) - 1] = '\0';
+    }
+}
+
 /* -2 means "not a virtual path"; -1 means a real provider failure. */
 int vsl_virtual_open(const char *path)
 {
     if (strcmp(path, VSL_GUEST_DRIVERS_PATH) == 0) return vsl_open_inventory();
+    if (strcmp(path, VSL_GUEST_REGISTRY_PATH) == 0)
+        return vsl_snapshot_fd("/tmp/wubu-reg-XXXXXX", g_vsl_registry);
     return -2;
 }
 

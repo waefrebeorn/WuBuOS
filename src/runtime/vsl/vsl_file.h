@@ -47,6 +47,9 @@ VSL_FD *vsl_get_fd(int fd);
  * Shared by vsl_open (direct API) and vsl_openat (guest syscalls). */
 int vsl_open_inventory(void);
 
+/* D7: bounded one-line registry snapshot, published by the host. */
+void vsl_registry_snapshot_set(const char *text);
+
 /* D4c: -2 = not virtual, -1 = provider failed, >=0 = host fd. */
 int vsl_virtual_open(const char *path);
 
