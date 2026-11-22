@@ -314,10 +314,14 @@ int wubu_drv_summary(char *out, size_t cap)
     for (int i = 0; i < g_ndev; i++) {
         const char *name = (g_devs[i].bound && g_devs[i].drv)
                            ? g_devs[i].drv->name : "unbound";
+        const char *space = g_devs[i].bar0_is_io ? " io" : "";
         int w = snprintf(out + off, cap - off,
-                         "[drv] %04x:%04x class %02x/%02x -> %s\n",
+                         "[drv] %04x:%04x class %02x/%02x -> %s "
+                         "bar0=%llx%s va=%llx\n",
                          g_devs[i].vendor, g_devs[i].device,
-                         g_devs[i].class_code, g_devs[i].subclass, name);
+                         g_devs[i].class_code, g_devs[i].subclass, name,
+                         (unsigned long long)g_devs[i].bar0, space,
+                         (unsigned long long)g_devs[i].mmio_va);
         if (w < 0) break;
         off += (size_t)w;
         n++;

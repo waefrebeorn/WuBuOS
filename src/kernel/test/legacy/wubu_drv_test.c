@@ -395,6 +395,21 @@ int main(void)
         !strstr(summary, "sd") || !strstr(summary, "usb-hid") ||
         !strstr(summary, "thermal"))
         FAIL("summary lacks the bound drivers");
+    if (!strstr(summary, "bar0=") || !strstr(summary, "va="))
+        FAIL("summary lacks BAR/VA detail for driver development");
+
+    /* D6b: an I/O-space device must be labelled as such in the same
+     * report (no second formatter, no guest/console drift). */
+    wubu_drv_dev_t legacy;
+    memset(&legacy, 0, sizeof(legacy));
+    legacy.bus = WUBU_DRV_BUS_PCI;
+    legacy.vendor = 0x1AF4u; legacy.device = 0x1001u;
+    legacy.class_code = 0x01u;
+    legacy.bar0 = 0x1F0u; legacy.bar0_is_io = 1;
+    if (wubu_drv_add_device(&legacy) < 0) FAIL("cannot add legacy I/O dev");
+    wubu_drv_summary(summary, sizeof(summary));
+    if (!strstr(summary, "bar0=1f0 io"))
+        FAIL("summary does not label the I/O BAR");
     printf("  PASS: the boot summary shows the whole bus\n");
     printf("%s", summary);
 
