@@ -46,6 +46,36 @@ extern void *memset(void *s, int c, size_t n);   /* kernel libc */
 #define PCI_CONFIG_ADDR 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
 
+static uint64_t parse_hex_field(const char **pp)
+{
+    const char *p = *pp;
+    while (*p == ' ' || *p == '\t') p++;
+    uint64_t v = 0;
+    while (*p) {
+        unsigned d;
+        if (*p >= '0' && *p <= '9') d = (unsigned)(*p - '0');
+        else if (*p >= 'a' && *p <= 'f') d = (unsigned)(*p - 'a') + 10u;
+        else if (*p >= 'A' && *p <= 'F') d = (unsigned)(*p - 'A') + 10u;
+        else break;
+        v = (v << 4) | d;
+        p++;
+    }
+    *pp = p;
+    return v;
+}
+
+uint64_t wubu_pci_resource_extent(const char *line, uint64_t *base,
+                                  uint64_t *size)
+{
+    if (!line) return 0;
+    const char *p = line;
+    uint64_t lo = parse_hex_field(&p);
+    uint64_t hi = parse_hex_field(&p);
+    if (base) *base = lo;
+    if (size) *size = hi >= lo ? (hi - lo) + 1u : 0u;
+    return lo;
+}
+
 /* Config-space I/O.  Provider selected by backend, independent of the
  * scan backend so that a hosted build (which pulls in <stdio.h>) can
  * still link the test-stub fake.
@@ -117,6 +147,32 @@ static uint64_t bar_of(wubu_pci_dev_t *d, int which, uint8_t *is_io)
     return lo & 0xFFFFFFF0u;
 }
 
+/* PCI 3.0 6.2.5.1 / 13.2: write all ones, read the implemented address
+ * bits back, restore the original. mask = ~size + 1. A zero/invalid mask
+ * means "unknown" (0) and callers keep their conservative fallback. */
+static uint64_t bar_size_of(const wubu_pci_dev_t *d, int which,
+                            uint8_t is_io, uint32_t orig_lo)
+{
+    uint8_t off = (uint8_t)(0x10 + which * 4);
+    wubu_pci_write32(d->bus, d->dev, d->fn, off, 0xFFFFFFFFu);
+    uint32_t lo_mask = wubu_pci_read32(d->bus, d->dev, d->fn, off);
+    wubu_pci_write32(d->bus, d->dev, d->fn, off, orig_lo);
+    if (lo_mask == 0 || lo_mask == 0xFFFFFFFFu) return 0;
+    uint64_t mask = is_io ? (lo_mask & 0xFFFFFFFCu)
+                          : (lo_mask & 0xFFFFFFF0u);
+    int is64 = 0;
+    if (!is_io && (orig_lo & 0x6u) == 0x4u) {
+        uint32_t hi_orig = wubu_pci_read32(d->bus, d->dev, d->fn, off + 4);
+        wubu_pci_write32(d->bus, d->dev, d->fn, off + 4, 0xFFFFFFFFu);
+        uint32_t hi_mask = wubu_pci_read32(d->bus, d->dev, d->fn, off + 4);
+        wubu_pci_write32(d->bus, d->dev, d->fn, off + 4, hi_orig);
+        mask |= (uint64_t)hi_mask << 32;
+        is64 = 1;
+    }
+    /* 32-bit BARs wrap at 2^32; only 64-bit BARs use the full complement. */
+    return is64 ? (~mask) + 1u : ((~mask) & 0xFFFFFFFFu) + 1u;
+}
+
 int wubu_pci_scan(wubu_pci_dev_t *out, int max)
 {
     int n = 0;
@@ -135,7 +191,10 @@ int wubu_pci_scan(wubu_pci_dev_t *out, int max)
             d->class_code = (uint8_t)(cls >> 24);
             d->subclass   = (uint8_t)(cls >> 16);
             d->prog_if    = (uint8_t)(cls >> 8);
+            uint32_t bar0_raw = wubu_pci_read32(0, (uint8_t)dev,
+                                                (uint8_t)fn, 0x10);
             d->bar0 = bar_of(d, 0, &d->bar0_is_io);
+            d->bar0_size = bar_size_of(d, 0, d->bar0_is_io, bar0_raw);
             d->bar1 = bar_of(d, 1, NULL);
             n++;
             if (fn == 0 && !(wubu_pci_read32(0, (uint8_t)dev, 0, 0x0C) & 0x00800000u))
@@ -166,9 +225,11 @@ static uint32_t hexval(const char *s)
 /* Parse a sysfs resource file line like
  * 00000000f0000000 00000000f0ffffff 02040000 ... */
 /* sysfs resource line: "0xBASE 0xEND 0xFLAGS"; bit 0 of FLAGS marks I/O. */
-static uint64_t resource_bar(const char *resline, uint8_t *is_io)
+static uint64_t resource_bar(const char *resline, uint8_t *is_io,
+                             uint64_t *size)
 {
-    unsigned long lo = strtoul(resline, NULL, 16);
+    uint64_t lo = 0, sz = 0;
+    wubu_pci_resource_extent(resline, &lo, &sz);
     const char *p = strchr(resline, ' ');
     if (p) {
         while (*p == ' ') p++;
@@ -181,7 +242,8 @@ static uint64_t resource_bar(const char *resline, uint8_t *is_io)
             if ((strtoul(p, NULL, 16) & 1u)) *is_io = 1;
         }
     }
-    return (uint64_t)lo;
+    if (size) *size = sz;
+    return lo;
 }
 
 int wubu_pci_scan(wubu_pci_dev_t *out, int max)
@@ -239,7 +301,8 @@ int wubu_pci_scan(wubu_pci_dev_t *out, int max)
         FILE *fr = fopen(rpath, "r");
         if (fr) {
             if (fgets(buf, sizeof(buf), fr))
-                dp->bar0 = resource_bar(buf, &dp->bar0_is_io);
+                dp->bar0 = resource_bar(buf, &dp->bar0_is_io,
+                                        &dp->bar0_size);
             fclose(fr);
         }
         n++;

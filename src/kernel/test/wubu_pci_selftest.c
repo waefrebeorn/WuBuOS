@@ -31,6 +31,8 @@ static struct {
     uint32_t cmd;    /* offset 0x0C: bit7 (0x80) = multifunction */
     uint32_t bar0;   /* offset 0x10 */
     uint32_t bar1;   /* offset 0x14: separate BAR unless BAR0 is 64-bit */
+    uint32_t mask0, mask1;       /* implemented address bits (write-ones readback) */
+    uint32_t probe0, probe1;     /* last value written by the sizing probe */
 } g_fake[FAKE_NDEV];
 static int g_fake_n = 0;
 
@@ -46,6 +48,16 @@ static void pci_test_seed(uint8_t dev, uint8_t fn, uint32_t ids,
     g_fake[g_fake_n].cmd = cmd;
     g_fake[g_fake_n].bar0 = bar0;
     g_fake[g_fake_n].bar1 = bar1;
+    if (bar0 & 1u) {
+        g_fake[g_fake_n].mask0 = 0xFFFFFFE0u;   /* 32 I/O ports */
+        g_fake[g_fake_n].mask1 = 0;
+    } else if ((bar0 & 0x6u) == 0x4u) {
+        g_fake[g_fake_n].mask0 = 0xFFFFC000u;   /* 64-bit, 16 KB */
+        g_fake[g_fake_n].mask1 = 0xFFFFFFFFu;
+    } else {
+        g_fake[g_fake_n].mask0 = 0xFFFFF000u;   /* 32-bit, 4 KB */
+        g_fake[g_fake_n].mask1 = 0;
+    }
     g_fake_n++;
 }
 
@@ -58,8 +70,10 @@ uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
             case 0x00: return g_fake[i].ids;
             case 0x08: return g_fake[i].cls;
             case 0x0C: return g_fake[i].cmd;
-            case 0x10: return g_fake[i].bar0;
-            case 0x14: return g_fake[i].bar1;
+            case 0x10: return g_fake[i].probe0 == 0xFFFFFFFFu
+                                 ? g_fake[i].mask0 : g_fake[i].bar0;
+            case 0x14: return g_fake[i].probe1 == 0xFFFFFFFFu
+                                 ? g_fake[i].mask1 : g_fake[i].bar1;
             default:   return 0;
             }
         }
@@ -67,9 +81,14 @@ uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
     return 0xFFFFFFFFu;
 }
 
-/* write_config: no-op in the fake config space (read-only test bus). */
+/* write_config models the write-all-ones sizing probe and restores BAR0. */
 void wubu_pci_write_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off, uint32_t val) {
-    (void)bus; (void)dev; (void)fn; (void)off; (void)val;
+    (void)bus;
+    for (int i = 0; i < g_fake_n; i++) {
+        if (g_fake[i].dev != dev || g_fake[i].fn != fn) continue;
+        if (off == 0x10) g_fake[i].probe0 = val;
+        if (off == 0x14) g_fake[i].probe1 = val;
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -114,6 +133,9 @@ int main(void) {
     OK(devs[0].bar0 == 0xF0000000u);
     OK(devs[0].bar1 == 0x0000D000u);   /* BAR1 is separate, not BAR0's high half */
     OK(devs[0].bar0_is_io == 0);
+    OK(devs[0].bar0_size == 0x1000u);   /* 4 KB via write-all-ones */
+    OK(devs[3].bar0_size == 0x4000u);   /* 64-bit, 16 KB */
+    OK(devs[4].bar0_size == 0x20u);     /* 32 I/O ports */
     OK(devs[0].bus == 0 && devs[0].dev == 0x00 && devs[0].fn == 0);
 
     /* multifn: dev1 fn0 + fn1 bit 7 set on fn0 cmd byte */
@@ -142,6 +164,19 @@ int main(void) {
 
     /* find_class: missing class returns -1 */
     OK(wubu_pci_find_class(devs, n, 0x12, 0x34) == -1);
+
+    /* hosted sysfs extent parsing: the same helper the scan uses */
+    uint64_t base = 0, extent = 0;
+    OK(wubu_pci_resource_extent(
+        "00000000f0000000 00000000f0003fff 02040000 0 0 0 0",
+        &base, &extent) == 0xF0000000ull);
+    OK(base == 0xF0000000ull && extent == 0x4000u);
+    OK(wubu_pci_resource_extent(
+        "0000000000001000 000000000000101f 01010000 0 0 0 0",
+        &base, &extent) == 0x1000u);
+    OK(extent == 0x20u);
+    OK(wubu_pci_resource_extent("garbage", &base, &extent) == 0);
+    OK(extent == 1u);
 
     printf("[wubu_pci_selftest] %d passed, %d failed\n", s_pass, s_fail);
     return s_fail == 0 ? 0 : 1;

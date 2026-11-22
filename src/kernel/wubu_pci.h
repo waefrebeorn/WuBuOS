@@ -14,6 +14,9 @@ typedef struct {
     uint8_t  class_code, subclass, prog_if;
     uint64_t bar0;          /* BAR0 base (type bits masked off) */
     uint64_t bar1;
+    /* PCI 3.0 6.2.5.1 write-all-ones size of BAR0, or 0 if unknown.
+     * Hosted sysfs derives it from the resource extent; metal probes it. */
+    uint64_t bar0_size;
     /* BAR0 address space: 1 = I/O ports, 0 = MMIO. The base in bar0 has
      * its type bits masked, so without this flag an I/O BAR is
      * indistinguishable from an MMIO BAR. The registry carries it through
@@ -22,6 +25,11 @@ typedef struct {
 } wubu_pci_dev_t;
 
 #define WUBU_PCI_MAX_DEVS 32
+
+/* Parse "start end flags" from a sysfs resource line. Exported so the
+ * hosted path can be gated with synthetic lines without real hardware. */
+uint64_t wubu_pci_resource_extent(const char *line, uint64_t *base,
+                                  uint64_t *size);
 
 /* Full bus-0 scan; returns the number of devices found. */
 int wubu_pci_scan(wubu_pci_dev_t *out, int max);

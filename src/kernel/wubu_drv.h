@@ -49,6 +49,8 @@ typedef struct wubu_drv_dev {
      * these on real hardware) */
     uint64_t bar0;
     uint64_t bar1;
+    /* size of BAR0 (0 if unknown), propagated from the PCI scan. */
+    uint64_t bar0_size;
     /* BAR0 address space carried from the PCI scan (1 = I/O ports).
      * The MMIO owner rejects these; the I/O owner consumes them. */
     uint8_t  bar0_is_io;

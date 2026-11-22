@@ -99,6 +99,7 @@ int main(void)
     g_fake_xhci_dev.class_code = 0x0C;
     g_fake_xhci_dev.subclass = 0x03;
     g_fake_xhci_dev.bar0 = (uint64_t)(uintptr_t)mm;  /* raw phys fixture */
+    g_fake_xhci_dev.bar0_size = 0x4000u;            /* measured 16 KB BAR */
     g_fake_map_va = (uint64_t)(uintptr_t)mm;         /* mapped VA fixture */
     g_fake_xhci_present = 1;
     g_fake_map_calls = 0;
@@ -107,6 +108,19 @@ int main(void)
     CHECK(px.present == 1);
     CHECK(g_fake_map_calls == 1);
     CHECK(g_fake_map_pages == 4);   /* full 16KB xHCI BAR aperture */
+    /* The BAR size comes from the registry, not a hardcoded constant.
+     * An 8 KB measurement must request exactly two pages; unknown falls
+     * back to four. */
+    g_fake_xhci_dev.bar0_size = 0x2000u;
+    uint64_t va2 = 0;
+    CHECK(xhci_registry_mmio(&va2) == 0);
+    CHECK(g_fake_map_pages == 2);
+    g_fake_xhci_dev.bar0_size = 0u;
+    CHECK(xhci_registry_mmio(&va2) == 0);
+    CHECK(g_fake_map_pages == 4);       /* unknown -> conservative fallback */
+    g_fake_xhci_dev.bar0_size = 0x4000u;
+    CHECK(xhci_registry_mmio(&va2) == 0);
+    CHECK(g_fake_map_pages == 4);
     CHECK(px.mmio_base == (uint64_t)(uintptr_t)mm);
     CHECK(px.op_base == (uint64_t)(uintptr_t)mm + 32);
     /* negative: no registry device -> clean absent, mapper never called */
