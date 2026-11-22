@@ -1,0 +1,17 @@
+cpio_extract.c
+interrupt.c
+interrupt_exceptions.c
+interrupt_pic.c
+libc.c
+memory.c
+metal_main.c
+wubu_apic.c
+wubu_audio.c
+wubu_dram_hedge.c
+wubu_edid_kms.c
+wubu_edid_xrandr.c
+wubu_edid_xrandr_test.c
+wubu_pe_personality.c
+wubu_serial.c
+wubu_smp.c
+wubu_thermal_read.c

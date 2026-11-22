@@ -52,18 +52,19 @@ is an opinion.
 
 | Gate | Command | Catches |
 |---|---|---|
-| Static analysis | `make static_check` (both repos) | GCC `-fanalyzer` path-sensitive C defects, with `-Werror` |
+| Static analysis | `make static_check` (both repos) | GCC `-fanalyzer` path-sensitive C defects, with `-Werror`; `STATIC_ANALYZE_SKIP` may only shrink |
 | Declaration hygiene | `make kernel-strict` (in `tandem_check`) | freestanding declaration/type errors CI sees |
 | Standards ratchet | `make test_standards` | long files, fat headers, literal drift — fails on GROWTH |
 | Tandem one-command check | `make tandem_check` | kernel contract, boot, PCI bridge, modern virtio, guest WEMU, standalone WEMU, static analysis |
 | Statistical non-vacuity | `make test_default_optin` | fixed thresholds, no retries; add samples, never loosen a shipped-path ceiling |
 
 `static_check` is intentionally scoped to sources that parse with a narrow
-include set: WEMU's whole `src/`, and WuBuOS's driver/kernel subset
-(`wubu_drv*.c`, `wubu_virt*.c`, `wubu_pci.c`). Legacy files that cannot be
-parsed standalone are not declared clean — they remain the `kernel-strict`
-campaign's work. This is the ratchet idea: never claim a standard you cannot
-measure.
+include set: WEMU's whole `src/`, and 326 of WuBuOS's kernel sources. The
+17 that cannot be parsed standalone are named in `STATIC_ANALYZE_SKIP` and
+are not declared clean — they remain the `kernel-strict` campaign's work.
+Each skipped file must be removed from that list when its include hygiene
+is fixed; the list may only shrink. This is the ratchet idea: never claim a
+standard you cannot measure.
 
 ## Code rules that pay immediately
 

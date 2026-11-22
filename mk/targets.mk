@@ -311,18 +311,23 @@ kernel-strict:
 
 # Path-sensitive C analysis with the compiler already in the toolchain.
 # GCC's -fanalyzer (GCC manual 3.9/3.10, "Options That Control Static
-# Analysis") needs no clang-tidy/cppcheck install. Scope: WEMU's whole src
-# tree and the WuBuOS driver/kernel files that compile standalone. Legacy
-# files that cannot be parsed with a narrow include set are NOT silently
-# "clean" — they stay in kernel-strict's separate campaign.
-STATIC_ANALYZE_SRCS := $(wildcard src/kernel/wubu_drv*.c) \
-                       $(wildcard src/kernel/wubu_virt*.c) \
-                       src/kernel/wubu_pci.c
+# Analysis") needs no clang-tidy/cppcheck install. Scope: the whole WEMU
+# src tree and every WuBuOS kernel source that parses with the narrow
+# include set. The skip list below is NOT a clean bill of health — those
+# files fail standalone parsing and remain a kernel-strict campaign.
+STATIC_ANALYZE_SKIP := cpio_extract.c interrupt.c interrupt_exceptions.c \
+                      interrupt_pic.c libc.c memory.c metal_main.c \
+                      wubu_apic.c wubu_audio.c wubu_dram_hedge.c \
+                      wubu_edid_kms.c wubu_edid_xrandr.c \
+                      wubu_edid_xrandr_test.c wubu_pe_personality.c \
+                      wubu_serial.c wubu_smp.c wubu_thermal_read.c
+STATIC_ANALYZE_SRCS := $(filter-out $(addprefix src/kernel/,$(STATIC_ANALYZE_SKIP)),$(wildcard src/kernel/*.c))
 static_check:
+	@python3 tools/static_skip_ratchet.py
 	@set -e; for f in $(STATIC_ANALYZE_SRCS); do \
 	    gcc -std=c11 -fanalyzer -Werror -fsyntax-only -Iinclude -Isrc/kernel $$f; \
 	done
-	@echo "STATIC CHECK PASS: gcc -fanalyzer over $(words $(STATIC_ANALYZE_SRCS)) driver/kernel sources"
+	@echo "STATIC CHECK PASS: gcc -fanalyzer over $(words $(STATIC_ANALYZE_SRCS)) kernel sources (skip $(words $(STATIC_ANALYZE_SKIP)) unanalyzable)"
 .PHONY: static_check
 
 # L1 end-to-end gate: write -> reboot -> read-back on a real virtio-blk
