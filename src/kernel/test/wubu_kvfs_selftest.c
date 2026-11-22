@@ -89,6 +89,24 @@ int main(void)
     CHECK(json != NULL && strstr(json, "/kv/in") != NULL, "snapshot contains /kv/in");
     free(json);
 
+    /* Bounded snapshot: one very long mount path exceeds the rough
+     * 80-bytes-per-mount estimate. The old cursor advanced by snprintf's
+     * would-be length and underflowed cap-n on the closing "]}". */
+    char longpath[256];
+    memset(longpath, 'k', sizeof(longpath));
+    longpath[0] = '/';
+    longpath[sizeof(longpath) - 1] = '\0';
+    rc = wubu_kvfs_mount(fs, longpath, 3000, 100);
+    CHECK(rc == 0, "long-path mount accepted");
+    size_t jlen2 = 0;
+    char *json2 = wubu_kvfs_snapshot_json(fs, &jlen2);
+    CHECK(json2 != NULL, "bounded snapshot exists");
+    if (json2) {
+        CHECK(strstr(json2, "]}") != NULL, "bounded snapshot is closed");
+        CHECK(jlen2 == strlen(json2), "bounded snapshot length is real");
+        free(json2);
+    }
+
     /* mount count */
     int mc = wubu_kvfs_mount_count(fs);
     CHECK(mc >= 1, "mount_count >= 1 after unmount");

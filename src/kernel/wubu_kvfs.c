@@ -345,16 +345,23 @@ char *wubu_kvfs_snapshot_json(const wubu_kvfs_t *fs, size_t *out_len) {
     int n = snprintf(buf, cap, "{\"block_size\":%u,\"total_blocks\":%u,"
                          "\"used_blocks\":%u,\"mounts\":[",
                      fs->block_size, fs->total_blocks, fs->used_blocks);
-    for (int i = 0; i < fs->n_mounts && n < (int)cap - 1; i++) {
+    size_t used = (size_t)n;
+    for (int i = 0; i < fs->n_mounts && used + 1 < cap; i++) {
         if (fs->mounts[i].n_blocks == 0) continue;
-        n += snprintf(buf + n, cap - n, "%s{\"path\":\"%s\",\"start\":%u,\"blocks\":%u}",
-                      (n > 0 && buf[n-1] != '[') ? "," : "",
-                      fs->mounts[i].path,
-                      fs->mounts[i].start_block,
-                      fs->mounts[i].n_blocks);
+        int w = snprintf(buf + used, cap - used,
+                         "%s{\"path\":\"%s\",\"start\":%u,\"blocks\":%u}",
+                         (used > 0 && buf[used-1] != '[') ? "," : "",
+                         fs->mounts[i].path,
+                         fs->mounts[i].start_block,
+                         fs->mounts[i].n_blocks);
+        if (w < 0 || (size_t)w >= cap - used) break;  /* bounded, no underflow */
+        used += (size_t)w;
     }
-    n += snprintf(buf + n, cap - n, "]}");
-    if (out_len) *out_len = (size_t)n;
+    {
+        int w = snprintf(buf + used, cap - used, "]}");
+        if (w > 0) used += (size_t)w;
+    }
+    if (out_len) *out_len = used;
     return buf;
 }
 
