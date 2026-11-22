@@ -55,6 +55,29 @@ static int fake_reset_wait(uint64_t op)
     return 0;
 }
 
+/* Synthetic Command Completion Event for the just-posted Enable Slot
+ * command. xHCI 1.2b 4.11.1: slot ID lives in DW3[31:24]. */
+static int g_event_posted, g_event_poll_fail;
+static uint8_t g_event_slot = 7;
+static int fake_event_poll(void)
+{
+    if (g_event_poll_fail) return -1;
+    if (g_event_posted) return 0;
+    uint8_t *e = g_ev_ring + (uint64_t)(g_ev_dequeue % XHCI_EV_TRBS) *
+                             XHCI_TRB_SIZE;
+    uint32_t *w = (uint32_t *)(void *)e;
+    uint64_t pa = (uint64_t)(uintptr_t)
+        (g_cmd_ring + (uint64_t)((g_cmd_dequeue - 1u) % XHCI_RING_TRBS) *
+                      XHCI_TRB_SIZE);
+    w[0] = (uint32_t)pa;
+    w[1] = (uint32_t)(pa >> 32);
+    w[2] = CC_SUCCESS << 24;
+    w[3] = ((uint32_t)g_event_slot << 24) |
+           (TRB_TYPE_CMD_COMPLETION << 10) | 1u;
+    g_event_posted = 1;
+    return 0;
+}
+
 int main(void)
 {
     printf("wubu_xhci tests (gap E1)\n");
@@ -149,11 +172,56 @@ int main(void)
     CHECK(xhci_read64(rt + 0x30) == (uint64_t)(uintptr_t)g_erst);
     CHECK(xhci_read64(rt + 0x38) == (uint64_t)(uintptr_t)g_ev_ring);
 
-    /* slot allocation walks the command ring */
+    /* slot allocation: the slot ID must come from the Command Completion
+     * Event, not from the command ring position (which is 1 here). */
+    wubu_xhci_hw.event_poll = fake_event_poll;
+    g_event_posted = 0;
+    g_event_poll_fail = 0;
+    g_event_slot = 7;
     int slot = wubu_xhci_slot_alloc(&x);
-    CHECK(slot >= 0);
+    CHECK(slot == 7);
+    CHECK(g_ev_dequeue == 1);
+    CHECK(xhci_read64(rt + 0x38) ==
+          (uint64_t)(uintptr_t)(g_ev_ring + XHCI_TRB_SIZE));
     /* xHCI 1.2b 6.4.3.2: TRB Type is DW3[15:10], C is DW3 bit 0. */
     CHECK(((uint32_t *)g_cmd_ring)[3] == ((9u << 10) | 1u));
+
+    /* a failed command completion never yields a slot; the poll hook can
+     * also abort (a device that never answers). */
+    g_event_posted = 0;
+    g_event_slot = 0;
+    CHECK(wubu_xhci_slot_alloc(&x) == -1);
+    g_event_posted = 0;
+    g_event_poll_fail = 1;
+    CHECK(wubu_xhci_slot_alloc(&x) == -1);
+    g_event_poll_fail = 0;
+    wubu_xhci_hw.event_poll = NULL;
+    g_event_slot = 7;
+
+    /* decoder rejects a stale cycle, wrong TRB type, non-success code,
+     * a completion for another command, and slot 0. */
+    uint32_t evw[4] = {0};
+    uint8_t *ev = (uint8_t *)(void *)evw;
+    uint32_t *ew = evw;
+    uint8_t decoded = 0;
+    uint64_t cmd_pa = (uint64_t)(uintptr_t)g_cmd_ring;
+    ew[0] = (uint32_t)cmd_pa;
+    ew[1] = (uint32_t)(cmd_pa >> 32);
+    ew[2] = CC_SUCCESS << 24;
+    ew[3] = (7u << 24) | (TRB_TYPE_CMD_COMPLETION << 10) | 1u;
+    CHECK(xhci_cmd_event_slot(ev, 1u, cmd_pa, &decoded) == 0);
+    CHECK(decoded == 7);
+    CHECK(xhci_cmd_event_slot(ev, 0u, cmd_pa, &decoded) != 0);
+    ew[3] = (7u << 24) | (32u << 10) | 1u;
+    CHECK(xhci_cmd_event_slot(ev, 1u, cmd_pa, &decoded) != 0);
+    ew[3] = (7u << 24) | (TRB_TYPE_CMD_COMPLETION << 10) | 1u;
+    ew[2] = 2u << 24;
+    CHECK(xhci_cmd_event_slot(ev, 1u, cmd_pa, &decoded) != 0);
+    ew[2] = CC_SUCCESS << 24;
+    CHECK(xhci_cmd_event_slot(ev, 1u, cmd_pa + XHCI_TRB_SIZE,
+                              &decoded) != 0);
+    ew[3] = (TRB_TYPE_CMD_COMPLETION << 10) | 1u;
+    CHECK(xhci_cmd_event_slot(ev, 1u, cmd_pa, &decoded) != 0);
 
     /* xHCI 1.2b 5.4.1: no HCRST while running, no op/runtime writes until
      * HCRST and CNR are clear. Both failures must abort before CRCR. */

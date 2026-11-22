@@ -27,6 +27,8 @@
 /* command TRB types (xHCI 1.2b 6.4.3.2: TRB Type lives in DW3[15:10]) */
 #define TRB_CMD_ADDRESS_DEVICE 11u
 #define TRB_CMD_ENABLE_SLOT    9u
+#define TRB_TYPE_CMD_COMPLETION 33u     /* xHCI 1.2b 6.4.1.2, event TRBs */
+#define CC_SUCCESS              1u      /* xHCI 1.2b Table 6-90 */
 
 /* operational registers (offset from op_base) */
 #define OP_USBCMD 0x0u
@@ -46,6 +48,9 @@
  * clearing those bits; the default polls real MMIO with a bounded limit. */
 typedef struct {
     int (*reset_wait)(uint64_t op_base);
+    /* Optional test seam: called once after ringing the command doorbell
+     * so a synthetic controller can post an event TRB before polling. */
+    int (*event_poll)(void);
 } wubu_xhci_hw_t;
 extern wubu_xhci_hw_t wubu_xhci_hw;
 
@@ -91,6 +96,27 @@ static uint32_t g_cmd_dequeue;   /* TRB index */
 #define XHCI_EV_TRBS 16
 static uint8_t g_ev_ring[XHCI_EV_TRBS * XHCI_TRB_SIZE] __attribute__((aligned(64)));
 static uint8_t g_erst[16] __attribute__((aligned(64)));
+static uint32_t g_ev_dequeue;        /* next event TRB to consume */
+static uint32_t g_ev_cycle = 1u;     /* event ring producer/consumer cycle */
+
+/* xHCI 1.2b 4.11.1: every command gets a Command Completion Event.
+ * DW2[31:24] is the completion code; DW3[31:24] is the slot ID;
+ * DW3[15:10] is the TRB type and DW3[0] the cycle bit. Return 0 only
+ * for a current-cycle, successful completion of the given command
+ * pointer (event DW0/DW1; command pointer low bits are reserved). */
+static int xhci_cmd_event_slot(const uint8_t *trb, uint32_t cycle,
+                               uint64_t cmd_pa, uint8_t *slot)
+{
+    const uint32_t *w = (const uint32_t *)(const void *)trb;
+    uint32_t d2 = w[2], d3 = w[3];
+    if ((d3 & 1u) != cycle) return -1;
+    if (((d3 >> 10) & 0x3Fu) != TRB_TYPE_CMD_COMPLETION) return -1;
+    if (((d2 >> 24) & 0xFFu) != CC_SUCCESS) return -1;
+    uint64_t ptr = ((uint64_t)w[1] << 32) | w[0];
+    if ((ptr & ~0xFu) != (cmd_pa & ~0xFu)) return -1;
+    *slot = (uint8_t)((d3 >> 24) & 0xFFu);
+    return (*slot != 0) ? 0 : -1;
+}
 
 /* D2: find the xHCI device in the registry and take its MAPPED MMIO VA.
  * The old path read BAR0 from config space and dereferenced the raw
@@ -183,6 +209,8 @@ int wubu_xhci_start(wubu_xhci_t *xh)
     uint64_t rt = xh->mmio_base + xh->rt_off;
     for (uint32_t i = 0; i < sizeof(g_ev_ring); i++) g_ev_ring[i] = 0;
     for (uint32_t i = 0; i < sizeof(g_erst); i++) g_erst[i] = 0;
+    g_ev_dequeue = 0;
+    g_ev_cycle = 1u;
     *(uint64_t *)&g_erst[0] = (uint64_t)(uintptr_t)g_ev_ring;
     *(uint32_t *)&g_erst[8] = XHCI_EV_TRBS;      /* the segment size */
     xhci_write32(rt + 0x28, 1);                  /* ERSTSZ = 1 segment */
@@ -194,13 +222,39 @@ int wubu_xhci_start(wubu_xhci_t *xh)
     return 0;
 }
 
+static int xhci_wait_cmd_event(wubu_xhci_t *xh, uint64_t cmd_pa,
+                               uint8_t *slot)
+{
+    for (uint32_t spin = 0; spin < 1000000u; spin++) {
+        if (wubu_xhci_hw.event_poll && wubu_xhci_hw.event_poll() != 0)
+            return -1;
+        for (uint32_t n = 0; n < XHCI_EV_TRBS; n++) {
+            uint32_t i = (g_ev_dequeue + n) % XHCI_EV_TRBS;
+            uint8_t *trb = g_ev_ring + (uint64_t)i * XHCI_TRB_SIZE;
+            if (xhci_cmd_event_slot(trb, g_ev_cycle, cmd_pa, slot) == 0) {
+                g_ev_dequeue = (i + 1) % XHCI_EV_TRBS;
+                if (g_ev_dequeue == 0) g_ev_cycle ^= 1u;
+                /* ERDP keeps DESI (bits 2:0) and writes the dequeue
+                 * pointer aligned to the 16-byte TRB boundary. */
+                xhci_write64(xh->mmio_base + xh->rt_off + 0x38,
+                             (uint64_t)(uintptr_t)
+                                 (g_ev_ring + (uint64_t)g_ev_dequeue *
+                                  XHCI_TRB_SIZE));
+                return 0;
+            }
+        }
+    }
+    return -1;                       /* command never completed */
+}
+
 int wubu_xhci_slot_alloc(wubu_xhci_t *xh)
 {
     if (!xh || !xh->present) return -1;
     if (g_cmd_dequeue + 1 >= XHCI_RING_TRBS) return -1;
     /* an Enable Slot command TRB */
     uint8_t *trb = g_cmd_ring + (uint64_t)g_cmd_dequeue * XHCI_TRB_SIZE;
-    uint32_t *w = (uint32_t *)trb;
+    uint64_t cmd_pa = (uint64_t)(uintptr_t)trb;
+    uint32_t *w = (uint32_t *)(void *)trb;
     w[0] = 0;                       /* slot type = 0 (default) */
     w[1] = 0;
     w[2] = 0;
@@ -209,6 +263,9 @@ int wubu_xhci_slot_alloc(wubu_xhci_t *xh)
     /* ring the doorbell 0 (the command doorbell) */
     uint64_t db = xh->mmio_base + xh->db_off;
     xhci_write32(db, 0);
-    return (int)(g_cmd_dequeue);    /* the slot id is the completion's; the
-                                       ring position stands in for it here */
+    /* xHCI 1.2b 4.11.1: the slot ID comes from the Command Completion
+     * Event, never from the command ring position. */
+    uint8_t slot = 0;
+    if (xhci_wait_cmd_event(xh, cmd_pa, &slot) != 0) return -1;
+    return (int)slot;
 }
