@@ -12,8 +12,13 @@ typedef struct {
     uint8_t  bus, dev, fn;
     uint16_t vendor, device;
     uint8_t  class_code, subclass, prog_if;
-    uint64_t bar0;          /* BAR0 (MMIO or IO) */
+    uint64_t bar0;          /* BAR0 base (type bits masked off) */
     uint64_t bar1;
+    /* BAR0 address space: 1 = I/O ports, 0 = MMIO. The base in bar0 has
+     * its type bits masked, so without this flag an I/O BAR is
+     * indistinguishable from an MMIO BAR. The registry carries it through
+     * so the one owner can reject I/O BARs from the MMIO mapper. */
+    uint8_t  bar0_is_io;
 } wubu_pci_dev_t;
 
 #define WUBU_PCI_MAX_DEVS 32

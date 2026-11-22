@@ -22,7 +22,7 @@
 #include "wubu_virtio_blk.h"
 #include "wubu_virtio_ids.h"
 #include "wubu_virtqueue.h"
-#include "wubu_pci.h"
+#include "wubu_drv.h"          /* one registry + the single I/O-BAR owner */
 
 #ifdef MYSEED_METAL
 #include "klog.h"
@@ -181,15 +181,15 @@ static void vblk_teardown(wubu_virtio_blk_t *d)
     wubu_vq_mem.free(d);
 }
 
-static wubu_virtio_blk_t *vblk_init(const wubu_pci_dev_t *pci)
+/* The I/O base comes from the ONE registry's I/O-BAR owner; the driver
+ * must not run its own PCI scan or read BAR0 again. */
+static wubu_virtio_blk_t *vblk_init(uint16_t iobase)
 {
-    uint32_t bar0_raw = wubu_pci_read32(pci->bus, pci->dev, pci->fn, 0x10);
-    if (!(bar0_raw & 1u)) return NULL;           /* need the I/O layout */
-
+    if (!iobase) return NULL;
     wubu_virtio_blk_t *d = (wubu_virtio_blk_t *)wubu_vq_mem.alloc(sizeof(*d));
     if (!d) return NULL;
     memset(d, 0, sizeof(*d));
-    d->iobase  = (uint16_t)(bar0_raw & 0xFFFCu);
+    d->iobase  = iobase;
     /* Legacy config window stays 0x14: it shifts to 0x18 ONLY when the
      * driver ENABLES MSI-X; this driver is polled and never does. */
     d->cfg_off = WUBU_VQ_REG_CONFIG;
@@ -239,20 +239,18 @@ static wubu_virtio_blk_t *vblk_init(const wubu_pci_dev_t *pci)
 
 wubu_virtio_blk_t *wubu_virtio_blk_probe(void)
 {
-    wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
-    memset(devs, 0, sizeof(devs));
-    int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
-    for (int i = 0; i < n; i++) {
-        /* Legacy virtio-blk: canonical ID is 1AF4:1001 (from
-         * wubu_virtio_ids.h); some hypervisors (VirtualBox) use 0x1000.
-         * The mass-storage class disambiguates blk from net. */
-        if (devs[i].vendor == WUBU_VIRTIO_VENDOR_ID &&
-            (devs[i].device == WUBU_VIRTIO_BLK_DEVICE_ID ||
-             devs[i].device == 0x1000u) &&
-            devs[i].class_code == 0x01u) {
-            wubu_virtio_blk_t *d = vblk_init(&devs[i]);
-            if (d) return d;
-        }
+    /* One registry, one I/O-BAR owner. No second PCI scan, no BAR re-read.
+     * Canonical device ID plus the VirtualBox alternate are both accepted;
+     * the mass-storage class disambiguates blk from net. */
+    static const uint16_t ids[] = { WUBU_VIRTIO_BLK_DEVICE_ID, 0x1000u };
+    for (unsigned i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
+        const wubu_drv_dev_t *dev =
+            wubu_drv_find_pci_id(WUBU_VIRTIO_VENDOR_ID, ids[i], 0x01u);
+        if (!dev) continue;
+        uint16_t iobase = 0;
+        if (wubu_drv_io_base(dev, &iobase) != 0) continue;
+        wubu_virtio_blk_t *d = vblk_init(iobase);
+        if (d) return d;
     }
     return NULL;
 }

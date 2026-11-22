@@ -49,6 +49,9 @@ typedef struct wubu_drv_dev {
      * these on real hardware) */
     uint64_t bar0;
     uint64_t bar1;
+    /* BAR0 address space carried from the PCI scan (1 = I/O ports).
+     * The MMIO owner rejects these; the I/O owner consumes them. */
+    uint8_t  bar0_is_io;
     /* bound state */
     int             bound;
     int             probe_rc;
@@ -85,6 +88,17 @@ const wubu_drv_dev_t *wubu_drv_find(const char *drv_name);
  * for xHCI). Lets a driver obtain its own device from the one registry
  * instead of running a second PCI scan. */
 const wubu_drv_dev_t *wubu_drv_find_class(uint8_t class_code, uint8_t subclass);
+
+/* DRV12: find a PCI device in the ONE registry by vendor/device/class.
+ * class_code 0 means "any". Callers loop alternate device IDs themselves. */
+const wubu_drv_dev_t *wubu_drv_find_pci_id(uint16_t vendor, uint16_t device,
+                                            uint8_t class_code);
+
+/* DRV13: the single I/O-BAR owner. The PCI scan masks BAR type bits, so
+ * the registry carries bar0_is_io; this is the ONLY place that turns an
+ * I/O BAR base into a 16-bit port number. Rejects MMIO BARs, zero bases
+ * and 64-bit-ish values. Returns 0 and writes *io_out on success. */
+int wubu_drv_io_base(const wubu_drv_dev_t *dev, uint16_t *io_out);
 
 /* DRV8: the boot-log summary. */
 int wubu_drv_summary(char *out, size_t cap);

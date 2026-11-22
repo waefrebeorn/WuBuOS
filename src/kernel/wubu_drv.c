@@ -149,6 +149,7 @@ int wubu_drv_pci_scan(void)
         dev.subclass = pci[i].subclass;
         dev.bar0 = pci[i].bar0;
         dev.bar1 = pci[i].bar1;
+        dev.bar0_is_io = pci[i].bar0_is_io;
         wubu_drv_add_device(&dev);
     }
     return g_ndev;
@@ -173,10 +174,11 @@ int wubu_drv_map_mmio_range(const wubu_drv_dev_t *dev, uint64_t va_page,
 {
     uint64_t bar0 = 0, bar1 = 0, phys;
     if (!dev || !va_out || !pages || pages > WUBU_DRV_MMIO_MAX_PAGES ||
-        (va_page & 0xFFFull)) return -1;
+        (va_page & 0xFFFull) || dev->bar0_is_io) return -1;
     if (wubu_drv_dev_bar(dev, &bar0, &bar1) != 0) return -1;
-    /* BAR decoding has exactly one owner: the shared WuBu driver contract. */
-    if (!wubu_contract_is_mmio(bar0)) return -1;   /* I/O-space BAR, not MMIO */
+    /* The PCI scan masks BAR type bits. Direct fixtures may still carry the
+     * raw I/O-bit form; reject both spellings before the contract decode. */
+    if ((bar0 & 1u) || !wubu_contract_is_mmio(bar0)) return -1;
     if (wubu_contract_decode_bar(bar0, bar1, &phys) != 0) return -1;
     if (!wubu_vmm_map_page) return -1;        /* no mapper (hosted gate) */
     for (uint32_t i = 0; i < pages; i++)
@@ -258,6 +260,32 @@ const wubu_drv_dev_t *wubu_drv_find_class(uint8_t class_code, uint8_t subclass)
             return &g_devs[i];
     }
     return NULL;
+}
+
+/* DRV12: find a PCI device in the ONE registry by vendor/device/class. */
+const wubu_drv_dev_t *wubu_drv_find_pci_id(uint16_t vendor, uint16_t device,
+                                            uint8_t class_code)
+{
+    for (int i = 0; i < g_ndev; i++) {
+        if (g_devs[i].bus != WUBU_DRV_BUS_PCI) continue;
+        if (g_devs[i].vendor != vendor || g_devs[i].device != device) continue;
+        if (class_code && g_devs[i].class_code != class_code) continue;
+        return &g_devs[i];
+    }
+    return NULL;
+}
+
+/* DRV13: the single I/O-BAR owner. Accepts the registry form (type bits
+ * masked + bar0_is_io) and the raw fixture form (I/O bit set). */
+int wubu_drv_io_base(const wubu_drv_dev_t *dev, uint16_t *io_out)
+{
+    if (!dev || !io_out) return -1;
+    uint64_t bar = dev->bar0;
+    if (!dev->bar0_is_io && !(bar & 1u)) return -1;   /* MMIO, not I/O */
+    bar &= 0xFFFFFFFCull;
+    if (!bar || bar > 0xFFFFull) return -1;
+    *io_out = (uint16_t)bar;
+    return 0;
 }
 
 /* DRV8: the boot-log summary. */

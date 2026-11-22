@@ -97,15 +97,18 @@ void wubu_pci_write32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off,
     wubu_pci_write_config(bus, dev, fn, off, val);
 }
 
-/* Read BAR0/BAR1 as a 64-bit physical address (mask type bits). */
-static uint64_t bar_of(wubu_pci_dev_t *d, int which)
+/* Read BAR0/BAR1 base and report BAR0's address space (1 = I/O ports). */
+static uint64_t bar_of(wubu_pci_dev_t *d, int which, uint8_t *is_io)
 {
     uint8_t off = (uint8_t)(0x10 + which * 4);
     uint32_t lo = wubu_pci_read32(d->bus, d->dev, d->fn, off);
-    if (lo & 1) return lo & 0xFFFCu;                 /* IO space */
+    if (lo & 1) {                                    /* I/O space BAR */
+        if (is_io) *is_io = which == 0 ? 1u : 0u;
+        return lo & 0xFFFCu;
+    }
+    if (is_io) *is_io = 0;
     uint32_t hi = wubu_pci_read32(d->bus, d->dev, d->fn, off + 4);
-    uint64_t v = ((uint64_t)hi << 32) | (lo & 0xFFFFFFF0u);
-    return v;
+    return ((uint64_t)hi << 32) | (lo & 0xFFFFFFF0u);
 }
 
 int wubu_pci_scan(wubu_pci_dev_t *out, int max)
@@ -126,8 +129,8 @@ int wubu_pci_scan(wubu_pci_dev_t *out, int max)
             d->class_code = (uint8_t)(cls >> 24);
             d->subclass   = (uint8_t)(cls >> 16);
             d->prog_if    = (uint8_t)(cls >> 8);
-            d->bar0 = bar_of(d, 0);
-            d->bar1 = bar_of(d, 1);
+            d->bar0 = bar_of(d, 0, &d->bar0_is_io);
+            d->bar1 = bar_of(d, 1, NULL);
             n++;
             if (fn == 0 && !(wubu_pci_read32(0, (uint8_t)dev, 0, 0x0C) & 0x00800000u))
                 break;                                  /* no multifunction */
@@ -156,9 +159,22 @@ static uint32_t hexval(const char *s)
 
 /* Parse a sysfs resource file line like
  * 00000000f0000000 00000000f0ffffff 02040000 ... */
-static uint64_t resource_bar(const char *resline)
+/* sysfs resource line: "0xBASE 0xEND 0xFLAGS"; bit 0 of FLAGS marks I/O. */
+static uint64_t resource_bar(const char *resline, uint8_t *is_io)
 {
     unsigned long lo = strtoul(resline, NULL, 16);
+    const char *p = strchr(resline, ' ');
+    if (p) {
+        while (*p == ' ') p++;
+        p = strchr(p, ' ');              /* second field -> flags field */
+    }
+    if (is_io) {
+        *is_io = 0;
+        if (p) {
+            while (*p == ' ') p++;
+            if ((strtoul(p, NULL, 16) & 1u)) *is_io = 1;
+        }
+    }
     return (uint64_t)lo;
 }
 
@@ -216,7 +232,8 @@ int wubu_pci_scan(wubu_pci_dev_t *out, int max)
         snprintf(rpath, sizeof(rpath), "/sys/bus/pci/devices/%s/resource", de->d_name);
         FILE *fr = fopen(rpath, "r");
         if (fr) {
-            if (fgets(buf, sizeof(buf), fr)) dp->bar0 = resource_bar(buf);
+            if (fgets(buf, sizeof(buf), fr))
+                dp->bar0 = resource_bar(buf, &dp->bar0_is_io);
             fclose(fr);
         }
         n++;

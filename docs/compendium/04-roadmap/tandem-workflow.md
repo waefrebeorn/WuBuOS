@@ -119,6 +119,21 @@ Each leg gets its own git worktree (`git worktree add .../wubuos-<leg> -b
 leg/<name> main`), one agent per worktree, own branch, commits on the leg.
 The integrator merges sequentially by evidence, never by self-report.
 
+**D5 — BAR space correctness + virtio-blk on the one owner (DELIVERED 2026-11-21).**
+The PCI scan always masked BAR type bits, so a legacy virtio I/O-port BAR
+arrived at the registry as a plain address indistinguishable from MMIO —
+`wubu_drv_map_all_mmio()` could map an I/O window as memory. The scan now
+carries `bar0_is_io` from config space (and from sysfs resource flags in the
+hosted path); the MMIO owner rejects that flag, and `wubu_drv_io_base()` is
+the single owner that turns an I/O BAR into a 16-bit port base.
+`wubu_virtio_blk_probe()` no longer runs a second `wubu_pci_scan()` or
+re-reads BAR0: it finds the device with `wubu_drv_find_pci_id()` and gets the
+port base from the I/O owner. Gate: `test_drv` proves a scanned I/O BAR is
+rejected by the MMIO mapper, decoded by the I/O owner, and that MMIO and
+out-of-range bases are refused; `test_virtio_blk` proves probe succeeds only
+when the registry marks the BAR as I/O space. `test_virtio_net`, `test_xhci`,
+kernel boot and `kernel-strict` stay green.
+
 ## Workflow rules (unchanged, still binding)
 
 1. Worktree per leg; never two agents in one tree (`make -j` races `.o`).

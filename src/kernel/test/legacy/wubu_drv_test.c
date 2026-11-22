@@ -234,6 +234,24 @@ int main(void)
         FAIL("I/O-space BAR mapped");
     if (g_map_n != 1) FAIL("I/O BAR called the mapper");
 
+    /* D5: the real PCI scan masks type bits, so an I/O BAR arrives as a
+     * plain base with bar0_is_io set. The MMIO owner must reject it, and
+     * the I/O owner must hand back the same 16-bit base. */
+    wubu_drv_dev_t scan_io = *nvme;
+    scan_io.bar0 = 0x1F0ULL; scan_io.bar0_is_io = 1; scan_io.mmio_va = 0;
+    if (wubu_drv_map_mmio(&scan_io, WUBU_DRV_MMIO_VA_BASE + 0x1000, &mapped) == 0)
+        FAIL("scanned I/O BAR mapped as MMIO");
+    if (g_map_n != 1) FAIL("scanned I/O BAR called the mapper");
+    uint16_t io = 0;
+    if (wubu_drv_io_base(&scan_io, &io) != 0 || io != 0x1F0u)
+        FAIL("I/O owner did not decode the scanned BAR");
+    if (wubu_drv_io_base(nvme, &io) == 0)
+        FAIL("I/O owner accepted an MMIO BAR");
+    scan_io.bar0 = 0x1FC00ULL;             /* beyond 16-bit port space */
+    if (wubu_drv_io_base(&scan_io, &io) == 0)
+        FAIL("I/O owner accepted an out-of-range base");
+    printf("  PASS: scanned I/O BAR rejected by MMIO owner, decoded by I/O owner\n");
+
     /* D1: 64-bit memory BAR uses bar1 as the high dword. */
     wubu_drv_dev_t bar64 = *nvme;
     bar64.bar0 = 0xFC000004ULL; bar64.bar1 = 1; bar64.mmio_va = 0;
