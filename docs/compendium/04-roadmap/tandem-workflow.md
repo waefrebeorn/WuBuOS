@@ -22,12 +22,11 @@ decision** that supersedes L21 — never a silent side effect of a driver leg.
 
 The gates build WEMU **out of tree** from `src/wemu` (`mk/wemu_user.mk`:
 copy into `build/wemu-user`, apply the narrow VSL prot overlay), not from
-any local `/home/wubu/wemu` branch. The local `leg/user-mode-vsl`@`775bf40`
-checkout is not a divergent line: it is an **ancestor** of the pinned
-`2ce67c0` (verified with `merge-base --is-ancestor`), which adds 38 more
-commits including the nested-signal and FP-state work. So the gated and
-booted emulator already contains the local fixes; do not downgrade the
-pointer to the older local branch.
+any local `/home/wubu/wemu` branch. The local checkout was reconciled by a
+fast-forward to the pinned `2ce67c0` (it was a strict ancestor, with no
+local-only commits), so the local tree, the gated out-of-tree copy and
+the booted emulator are now the same revision. Do not downgrade the
+pointer to the older `775bf40` ancestor.
 
 The loop is one direction and one back-edge:
 
@@ -226,9 +225,8 @@ cd /home/wubu/wubuos && make test_wemu_busybox
   `wubu_drv_install.c` are not in `KERNEL_OBJS` — no other leak in the
   freestanding link.
 - WEMU `make test`: **PASS** (all gates: isa/avx/paging/machine/string/
-  cpuid/sse2/usermode/shld/x87). Note: local checkout is `leg/user-mode-vsl`
-  at `775bf40`; the `wubuos/src/wemu` submodule pointer is a different leg
-  (`leg/nested-signals` at `2ce67c0`) — reconcile before any WEMU leg.
+  cpuid/sse2/usermode/shld/x87). The local checkout is now fast-forwarded
+  to the pinned `2ce67c0`; there is no local-only branch left to reconcile.
 - Final integrated run at `95ac08cf`: `make -k -j24 test` exit 0,
   "✅ All tests passed (all tiers)" (`guest_host_full.log`);
   `env -u DISPLAY -u WAYLAND_DISPLAY make test_linux_product` PASS —
