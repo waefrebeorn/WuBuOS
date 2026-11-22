@@ -260,9 +260,8 @@ void wubu_vq_kick(wubu_vq_t *vq)
     if (vq->notify_addr) {
         /* Modern virtio: doorbell is a 16-bit queue-index write at the
          * cap-derived address (OASIS 4.1.5.2), not a legacy port write. */
-        volatile uint8_t *p = (volatile uint8_t *)vq->notify_addr;
-        p[0] = (uint8_t)vq->index;
-        p[1] = (uint8_t)(vq->index >> 8);
+        volatile uint16_t *p = (volatile uint16_t *)vq->notify_addr;
+        *p = vq->index;
         return;
     }
     wubu_vq_io.outw((uint16_t)(vq->iobase + WUBU_VQ_REG_QUEUE_NOTIFY),

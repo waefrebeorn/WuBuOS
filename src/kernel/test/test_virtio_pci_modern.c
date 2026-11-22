@@ -143,6 +143,30 @@ static void test_queue_and_notify(void)
     CHECK(wubu_vpci_notify_addr(0xFE003000u, 3, 4) == 0xFE00300Cu);
     CHECK(wubu_vpci_notify_addr(0xFE003000u, 3, 0) == 0xFE003000u);
     CHECK(wubu_vpci_notify_addr(0xFE003000u, 3, 3) == 0);  /* not a power of 2 */
+
+    /* probe helpers: feature words, queue max, config generation, DRIVER_OK */
+    memset(common_regs, 0, sizeof(common_regs));
+    cp32(WUBU_VPCI_COMMON_DEV_FEAT, (1u << 9) | 1u);
+    uint32_t flo = 0, fhi = 0;
+    wubu_vpci_features_read((uintptr_t)common_regs, &flo, &fhi);
+    CHECK(cg32(WUBU_VPCI_COMMON_DEV_FEAT_SEL) == 1u);
+    CHECK(fhi & WUBU_VPCI_F_VERSION_1);
+    cp16(WUBU_VPCI_COMMON_QUEUE_SIZE, 64);
+    uint16_t qmax = 0;
+    CHECK(wubu_vpci_queue_max((uintptr_t)common_regs, 0, &qmax) == 0 &&
+          qmax == 64);
+    uint64_t v64 = 0;
+    uint8_t cfgdev[8] = { 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11 };
+    common_regs[0x15] = 0;
+    CHECK(wubu_vpci_config_read64((uintptr_t)common_regs,
+                                  (uintptr_t)cfgdev, &v64) == 0);
+    CHECK(v64 == 0x1122334455667788ull);
+    common_regs[WUBU_VPCI_COMMON_STATUS] = WUBU_VPCI_STATUS_ACKNOWLEDGE |
+                                           WUBU_VPCI_STATUS_DRIVER;
+    CHECK(wubu_vpci_driver_ok((uintptr_t)common_regs) == 0);
+    CHECK(common_regs[WUBU_VPCI_COMMON_STATUS] & WUBU_VPCI_STATUS_DRIVER_OK);
+    common_regs[WUBU_VPCI_COMMON_STATUS] = WUBU_VPCI_STATUS_FAILED;
+    CHECK(wubu_vpci_driver_ok((uintptr_t)common_regs) == -1);
 }
 
 int main(void)

@@ -19,7 +19,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ASSERT = os.path.join(HERE, "ci_boot_assert.py")
 LINE = re.compile(
     rb"WuBuOS: modern virtio-blk 1af4:1042 caps=(\d+) common=(\d+) "
-    rb"notify=(\d+) feat_lo=([0-9a-f]+) feat_hi=([0-9a-f]+) status=([0-9a-f]+)")
+    rb"notify=(\d+) feat_lo=([0-9a-f]+) feat_hi=([0-9a-f]+) "
+    rb"status=([0-9a-f]+) qsize=(\d+)")
+LIVE = re.compile(rb"virtio-blk: MODERN \d+ MB \(\d+ sectors, q=\d+\) "
+                  rb"-- persistent disk live")
 
 
 def main():
@@ -57,17 +60,21 @@ def main():
         if not hits:
             print("FAIL: no modern virtio-blk capability line on QEMU")
             return 1
-        caps, common, notify, lo, hi, status = hits[-1]
+        caps, common, notify, lo, hi, status, qsize = hits[-1]
         print("[virtio-modern] caps=%s common=%s notify=%s feat_lo=%s "
-              "feat_hi=%s status=%s" %
+              "feat_hi=%s status=%s qsize=%s" %
               (caps.decode(), common.decode(), notify.decode(), lo.decode(),
-               hi.decode(), status.decode()))
+               hi.decode(), status.decode(), qsize.decode()))
         if int(caps) != 4 or int(common) != 0 or int(notify) == 0 or \
-           int(hi, 16) & 1 == 0:
-            print("FAIL: modern capability layout or VERSION_1 feature missing")
+           int(hi, 16) & 1 == 0 or int(qsize) == 0:
+            print("FAIL: modern capability layout, VERSION_1 or queue size missing")
             return 1
-    print("[virtio-modern] PASS: real QEMU modern-only virtio-blk "
-          "capability/common-config path (read-only, no disk bound)")
+        data = open(serial, "rb").read()
+        if not LIVE.search(data):
+            print("FAIL: modern disk did not complete a real sector read")
+            return 1
+    print("[virtio-modern] PASS: real QEMU modern-only virtio-blk boot "
+          "volume, capability path + live block I/O")
     return 0
 
 

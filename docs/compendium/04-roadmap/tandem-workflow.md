@@ -183,7 +183,7 @@ checked against their primary specs, not just self-tests. xHCI capability
 offsets, byte-offset semantics and TRB encoding follow Intel xHCI 1.2b;
 PCI BAR type/I-O decode follows PCI 3.0 §6.2.5.1; virtio fences, stable
 config reads and FAILED handling follow OASIS VIRTIO 1.0. Unfixed spec
-gaps (modern virtio MMIO transport, PCI subsystem IDs, prefetchable BAR
+gaps (PCI subsystem IDs, prefetchable BAR
 cache policy) are listed in the gap map — do not claim hardware support
 for them from these gates.
 
@@ -203,7 +203,7 @@ cd /home/wubu/wubuos && make kernel-strict
 cd /home/wubu/wubuos && python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
 # real QEMU pci-bridge + disk behind it: registry must gain both devices
 cd /home/wubu/wubuos && make pci-bridge-gate
-# real QEMU modern-only virtio disk: caps + common config (read-only)
+# real QEMU modern-only virtio disk: caps + live FAT32 boot volume
 cd /home/wubu/wubuos && make virtio-modern-gate
 # the boot assertion now also requires >=1 registry-mapped MMIO BAR
 cd /home/wubu/wubuos && make test_ci_boot_assert

@@ -23,6 +23,19 @@
 #include "wubu_virtio_ids.h"
 #include "wubu_virtqueue.h"
 #include "wubu_drv.h"          /* one registry + the single I/O-BAR owner */
+#include "wubu_virtio_pci_modern.h"
+
+/* Modern helpers live in wubu_virtio_pci_modern.c. Weak here so the
+ * legacy-only unit gate can include this TU without linking that module. */
+#pragma weak wubu_vpci_caps_read
+#pragma weak wubu_vpci_feature_handshake
+#pragma weak wubu_vpci_features_read
+#pragma weak wubu_vpci_queue_max
+#pragma weak wubu_vpci_queue_setup
+#pragma weak wubu_vpci_config_read64
+#pragma weak wubu_vpci_driver_ok
+#pragma weak wubu_vpci_notify_addr
+#pragma weak wubu_drv_map_bar_range
 
 #ifdef MYSEED_METAL
 #include "klog.h"
@@ -244,6 +257,111 @@ static wubu_virtio_blk_t *vblk_init(uint16_t iobase,
     return d;
 }
 
+/* Modern virtio-pci (OASIS 1.0): ID 1AF4:1042 with capability BAR4 and
+ * no legacy I/O window. Reuses the one ring implementation and the one
+ * BAR mapper; fail-soft in exactly the same way as the legacy path. */
+#define VBLK_MODERN_TRACE(fmt, ...) \
+    VBLK_LOG("virtio-blk modern: " fmt, ##__VA_ARGS__)
+
+static wubu_virtio_blk_t *vblk_init_modern(const wubu_drv_dev_t *dev)
+{
+    if (!dev || !dev->bar4 || !wubu_vpci_caps_read ||
+        !wubu_drv_map_bar_range) return NULL;
+
+    wubu_vpci_caps_t caps;
+    if (wubu_vpci_caps_read(dev->bus, dev->pci_dev, dev->pci_fn, &caps) != 0 ||
+        !caps.have_common || !caps.have_notify) {
+        VBLK_MODERN_TRACE("cap walk failed\n");
+        return NULL;
+    }
+
+    /* Reuse the diagnostic's one page-table window so the late map needs
+     * no fresh PT allocation (the VMM pool is tight at this point). */
+    uint64_t slot = WUBU_DRV_MMIO_VA_BASE + 0x100000ull;
+    uint32_t pages = dev->bar4_size ? (uint32_t)(dev->bar4_size / 4096u) : 4u;
+    if (!pages || pages > 16u) pages = 4u;
+    uint64_t va = 0;
+    if (wubu_drv_map_bar_range(dev, 4u, slot, pages, &va) != 0) {
+        VBLK_MODERN_TRACE("BAR4 map failed (dev=%u size=%u slot=%u pages=%u)\n",
+                          (unsigned)dev->bar4, (unsigned)dev->bar4_size,
+                          (unsigned)slot, pages);
+        return NULL;
+    }
+
+    uintptr_t common = (uintptr_t)va + caps.common.offset;
+    uintptr_t notify = (uintptr_t)va + caps.notify.offset;
+    uintptr_t devcfg = (uintptr_t)va + caps.device.offset;
+
+    if (wubu_vpci_feature_handshake(common, VBLK_F_FLUSH) != 0) {
+        VBLK_MODERN_TRACE("feature handshake failed\n");
+        return NULL;
+    }
+
+    uint16_t qmax = 0, q;
+    if (wubu_vpci_queue_max(common, 0, &qmax) != 0) {
+        VBLK_MODERN_TRACE("queue max failed (qmax=%u status=%u)\n",
+                          (unsigned)qmax,
+                          (unsigned)(*(volatile uint8_t *)(common + 0x14u)));
+        return NULL;
+    }
+    q = qmax > VBLK_MAX_Q ? VBLK_MAX_Q : qmax;
+
+    wubu_virtio_blk_t *d = (wubu_virtio_blk_t *)wubu_vq_mem.alloc(sizeof(*d));
+    if (!d) return NULL;
+    memset(d, 0, sizeof(*d));
+    uint32_t tail_bytes = (uint32_t)(sizeof(vblk_req_hdr_t) + 1u);
+    if (wubu_vq_setup_ring(&d->vq, 0, q, tail_bytes) != 0) {
+        vblk_teardown(d); return NULL;
+    }
+    uint16_t noff = 0;
+    if (wubu_vpci_queue_setup(common, 0, q,
+                              (uint64_t)(uintptr_t)d->vq.ring,
+                              (uint64_t)(uintptr_t)d->vq.avail,
+                              (uint64_t)(uintptr_t)d->vq.used,
+                              &noff) != 0) {
+        VBLK_MODERN_TRACE("queue setup failed\n");
+        vblk_teardown(d); return NULL;
+    }
+    d->vq.notify_addr = wubu_vpci_notify_addr(notify, noff,
+                                              caps.notify_off_multiplier);
+    if (!d->vq.notify_addr) {
+        VBLK_MODERN_TRACE("notify address failed\n");
+        vblk_teardown(d); return NULL;
+    }
+    d->hdr = (vblk_req_hdr_t *)wubu_vq_tail(&d->vq);
+    d->status = (volatile uint8_t *)(wubu_vq_tail(&d->vq) +
+                                     sizeof(vblk_req_hdr_t));
+
+    uint64_t cap = 0;
+    if (wubu_vpci_config_read64(common, devcfg, &cap) != 0 || !cap) {
+        VBLK_MODERN_TRACE("capacity read failed\n");
+        vblk_teardown(d); return NULL;
+    }
+    if (wubu_vpci_driver_ok(common) != 0) {
+        VBLK_MODERN_TRACE("DRIVER_OK failed\n");
+        vblk_teardown(d); return NULL;
+    }
+
+    d->capacity = cap;
+    d->bounce = (uint8_t *)wubu_vq_mem.alloc(VBLK_BOUNCE_SECT * VBLK_SECTOR);
+    if (!d->bounce ||
+        !wubu_vq_dma_ok((uint64_t)(uintptr_t)d->bounce,
+                        VBLK_BOUNCE_SECT * VBLK_SECTOR)) {
+        vblk_teardown(d); return NULL;
+    }
+    d->ready = 1;
+    uint8_t probe_buf[VBLK_SECTOR];
+    if (wubu_virtio_blk_read(d, 0, 1, probe_buf) != 0) {
+        VBLK_MODERN_TRACE("sector-0 read failed\n");
+        d->ready = 0;
+        vblk_teardown(d); return NULL;
+    }
+    VBLK_LOG("virtio-blk: MODERN %u MB (%u sectors, q=%u) -- persistent "
+             "disk live\n", (unsigned)(d->capacity >> 11),
+             (unsigned)d->capacity, (unsigned)d->vq.qsize);
+    return d;
+}
+
 wubu_virtio_blk_t *wubu_virtio_blk_probe(void)
 {
     /* One registry, one I/O-BAR owner. No second PCI scan, no BAR re-read.
@@ -259,6 +377,20 @@ wubu_virtio_blk_t *wubu_virtio_blk_probe(void)
         if (wubu_drv_io_base(dev, &iobase) != 0) continue;
         wubu_virtio_blk_t *d = vblk_init(iobase, dev);
         if (d) return d;
+    }
+    /* Modern non-transitional functions have no I/O BAR. Weak seams mean
+     * legacy-only builds still link with no modern module present. */
+    if (wubu_vpci_caps_read && wubu_drv_map_bar_range) {
+        VBLK_MODERN_TRACE("probing modern ID %u\n",
+                          (unsigned)WUBU_VIRTIO_BLK_MODERN_ID);
+        static const uint16_t modern_ids[] = { WUBU_VIRTIO_BLK_MODERN_ID };
+        for (unsigned i = 0; i < sizeof(modern_ids) / sizeof(modern_ids[0]); i++) {
+            const wubu_drv_dev_t *dev =
+                wubu_drv_find_pci_id(WUBU_VIRTIO_VENDOR_ID, modern_ids[i], 0x01u);
+            if (!dev) continue;
+            wubu_virtio_blk_t *d = vblk_init_modern(dev);
+            if (d) return d;
+        }
     }
     return NULL;
 }

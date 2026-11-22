@@ -84,15 +84,12 @@ static uint8_t mw_read8(uintptr_t base, uint32_t off)
 
 static uint16_t mw_read16(uintptr_t base, uint32_t off)
 {
-    const volatile uint8_t *p = (const volatile uint8_t *)(base + off);
-    return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
+    return *(volatile uint16_t *)(base + off);
 }
 
 static uint32_t mw_read32(uintptr_t base, uint32_t off)
 {
-    const volatile uint8_t *p = (const volatile uint8_t *)(base + off);
-    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
-           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+    return *(volatile uint32_t *)(base + off);
 }
 
 static void mw_write8(uintptr_t base, uint32_t off, uint8_t v)
@@ -102,18 +99,12 @@ static void mw_write8(uintptr_t base, uint32_t off, uint8_t v)
 
 static void mw_write16(uintptr_t base, uint32_t off, uint16_t v)
 {
-    volatile uint8_t *p = (volatile uint8_t *)(base + off);
-    p[0] = (uint8_t)v;
-    p[1] = (uint8_t)(v >> 8);
+    *(volatile uint16_t *)(base + off) = v;
 }
 
 static void mw_write32(uintptr_t base, uint32_t off, uint32_t v)
 {
-    volatile uint8_t *p = (volatile uint8_t *)(base + off);
-    p[0] = (uint8_t)v;
-    p[1] = (uint8_t)(v >> 8);
-    p[2] = (uint8_t)(v >> 16);
-    p[3] = (uint8_t)(v >> 24);
+    *(volatile uint32_t *)(base + off) = v;
 }
 
 static void mw_write64(uintptr_t base, uint32_t off, uint64_t v)
@@ -184,6 +175,64 @@ uintptr_t wubu_vpci_notify_addr(uintptr_t notify_base, uint16_t notify_off,
     return notify_base + (uintptr_t)notify_off * (uintptr_t)multiplier;
 }
 
+/* ---- helpers for the modern block probe --------------------------- */
+void wubu_vpci_features_read(uintptr_t common_base, uint32_t *lo, uint32_t *hi)
+{
+    if (!common_base) return;
+    mw_write32(common_base, WUBU_VPCI_COMMON_DEV_FEAT_SEL, 0);
+    if (lo) *lo = mw_read32(common_base, WUBU_VPCI_COMMON_DEV_FEAT);
+    mw_write32(common_base, WUBU_VPCI_COMMON_DEV_FEAT_SEL, 1);
+    if (hi) *hi = mw_read32(common_base, WUBU_VPCI_COMMON_DEV_FEAT);
+}
+
+int wubu_vpci_queue_max(uintptr_t common_base, uint16_t idx, uint16_t *max_out)
+{
+    uint16_t q;
+    if (!common_base || !max_out) return -1;
+    mw_write16(common_base, WUBU_VPCI_COMMON_QUEUE_SEL, idx);
+    q = mw_read16(common_base, WUBU_VPCI_COMMON_QUEUE_SIZE);
+    if (!q) return -1;
+    *max_out = q;
+    return 0;
+}
+
+int wubu_vpci_config_read64(uintptr_t common_base, uintptr_t devcfg,
+                            uint64_t *out)
+{
+    uint8_t b[8];
+    uint8_t g1, g2;
+    int tries;
+
+    if (!common_base || !devcfg || !out) return -1;
+    for (tries = 0; tries < 8; tries++) {
+        g1 = mw_read8(common_base, 0x15u);        /* config_generation */
+        for (int i = 0; i < 8; i++) b[i] = mw_read8(devcfg, (uint32_t)i);
+        g2 = mw_read8(common_base, 0x15u);
+        if (g1 == g2 && !(g1 & 1u)) break;
+    }
+    if (tries == 8) return -1;
+    uint64_t v = 0;
+    for (int i = 7; i >= 0; i--) v = (v << 8) | b[i];
+    *out = v;
+    return 0;
+}
+
+int wubu_vpci_driver_ok(uintptr_t common_base)
+{
+    uint8_t st;
+    if (!common_base) return -1;
+    st = mw_read8(common_base, WUBU_VPCI_COMMON_STATUS);
+    if (st & (WUBU_VPCI_STATUS_FAILED | 0x40u)) return -1;
+    mw_write8(common_base, WUBU_VPCI_COMMON_STATUS,
+              (uint8_t)(st | WUBU_VPCI_STATUS_DRIVER_OK));
+    st = mw_read8(common_base, WUBU_VPCI_COMMON_STATUS);
+    if (!(st & WUBU_VPCI_STATUS_DRIVER_OK) ||
+        (st & WUBU_VPCI_STATUS_FAILED)) return -1;
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+
 #ifdef MYSEED_METAL
 void wubu_vpci_modern_debug_probe(void)
 {
@@ -210,11 +259,13 @@ void wubu_vpci_modern_debug_probe(void)
     mw_write32(c, WUBU_VPCI_COMMON_DEV_FEAT_SEL, 1);
     hi = mw_read32(c, WUBU_VPCI_COMMON_DEV_FEAT);
     st = mw_read8(c, WUBU_VPCI_COMMON_STATUS);
+    uint16_t dbg_q = 0;
+    (void)wubu_vpci_queue_max(c, 0, &dbg_q);
     klog_printf("WuBuOS: modern virtio-blk 1af4:1042 caps=%u common=%u "
-                "notify=%u feat_lo=%x feat_hi=%x status=%x\n",
+                "notify=%u feat_lo=%x feat_hi=%x status=%x qsize=%u\n",
                 (unsigned)(caps.have_common + caps.have_notify +
                            caps.have_isr + caps.have_device),
                 (unsigned)caps.common.offset, (unsigned)caps.notify.offset,
-                (unsigned)lo, (unsigned)hi, (unsigned)st);
+                (unsigned)lo, (unsigned)hi, (unsigned)st, (unsigned)dbg_q);
 }
 #endif

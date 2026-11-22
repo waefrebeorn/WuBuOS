@@ -39,7 +39,7 @@ typedef struct {
     uint32_t length;    /* length of the mapped structure */
 } wubu_vpci_cap_t;
 
-typedef struct {
+typedef struct wubu_vpci_caps {
     wubu_vpci_cap_t common;
     wubu_vpci_cap_t notify;
     wubu_vpci_cap_t isr;
@@ -77,5 +77,12 @@ uintptr_t wubu_vpci_notify_addr(uintptr_t notify_base, uint16_t notify_off,
 /* Metal-only boot diagnostic: read a modern-only virtio disk's capability
  * list and common config; logs one line, binds no device. */
 void wubu_vpci_modern_debug_probe(void);
+
+/* Extra register helpers used by the modern block probe. */
+void wubu_vpci_features_read(uintptr_t common_base, uint32_t *lo, uint32_t *hi);
+int  wubu_vpci_queue_max(uintptr_t common_base, uint16_t idx, uint16_t *max_out);
+int  wubu_vpci_config_read64(uintptr_t common_base, uintptr_t devcfg,
+                             uint64_t *out);
+int  wubu_vpci_driver_ok(uintptr_t common_base);
 
 #endif
