@@ -100,9 +100,10 @@ VA, and returns clean `absent` with zero map calls when no device exists.
   `wubu_drv_map_mmio_range()` now lifts that limit (up to 16 pages) through
   the SAME owner. A mid-range failure rolls back already-mapped pages via a
   weak-seamed `wubu_vmm_unmap` and returns -1 with no fabricated VA.
-- xHCI consumes the range form: it requests a two-page aperture, so
-  capability/operational/doorbell registers that cross a 4K boundary are
-  covered. `test_xhci` asserts pages == 2.
+- xHCI consumes the range form: it requests a four-page (16 KB) aperture,
+  covering the whole typical xHCI BAR0 — capability/operational, runtime,
+  doorbells and the MSI-X region — through the same owner. `test_xhci`
+  asserts pages == 4.
 
 **D3 — contract alignment, not adoption (DELIVERED 2026-11-21).**
 WuBuKernel now owns `include/wubu_driver_contract.h` + `src/wubu_driver_contract.c`:
@@ -236,10 +237,10 @@ cd /home/wubu/wubuos && make test_wemu_busybox
 
 - L21 boundary is intact: no WuBuKernel object in `KERNEL_OBJS`/`kernel.elf`.
 - The BAR→VMM seam (D1) is **closed**, with DRV10b range mapping and DRV10c
-  rollback; xHCI consumes a two-page aperture. The guest inventory includes
-  a host-supplied snapshot from `wubu_drv_summary()`, but there is no live
-  metal→guest syscall channel. The compact one-line report is also visible
-  to a guest at `/proc/wubu/registry`, using the same formatter.
+  rollback; xHCI consumes a four-page 16 KB aperture. The guest inventory
+  includes a host-supplied snapshot from `wubu_drv_summary()`, but there is
+  no live metal→guest syscall channel. The compact one-line report is also
+  visible to a guest at `/proc/wubu/registry`, using the same formatter.
 - The 1000-line `driver-bank.md` is a coverage *ledger*, not proof of a
   bound driver in the running kernel; "wired" there means a perception or
   routing module, not metal MMIO. Do not cite it as hardware support.

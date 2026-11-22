@@ -78,7 +78,7 @@ int main(void)
     CHECK(wubu_xhci_probe(&px) == 0);
     CHECK(px.present == 1);
     CHECK(g_fake_map_calls == 1);
-    CHECK(g_fake_map_pages == 2);   /* two-page MMIO aperture */
+    CHECK(g_fake_map_pages == 4);   /* full 16KB xHCI BAR aperture */
     CHECK(px.mmio_base == (uint64_t)(uintptr_t)mm);
     CHECK(px.op_base == (uint64_t)(uintptr_t)mm + 32);
     /* negative: no registry device -> clean absent, mapper never called */

@@ -75,9 +75,13 @@ static uint8_t g_erst[16] __attribute__((aligned(64)));
  * physical address as a VA (broken once paging is on) -- and its
  * `bar0 & 1` test was inverted: bit 0 SET means I/O space, not MMIO.
  * No second PCI scan here; the registry owns discovery and mapping. */
-/* xHCI capability + operational + doorbell registers can cross a 4K
- * boundary, so request a two-page aperture through the range owner. */
-#define WUBU_XHCI_MMIO_PAGES 2u
+/* xHCI BAR0 is typically 16 KB: capability/operational at +0x0000,
+ * runtime at +0x1000, doorbells at +0x2000 and MSI-X at +0x3000/+0x3800
+ * (Intel xHCI spec 1.2b, sections 5.3-5.6). Request the full four-page
+ * aperture through the range owner so none of those windows can cross a
+ * page boundary. The driver is polled and never enables MSI-X, but the
+ * mapping should still cover the whole declared BAR. */
+#define WUBU_XHCI_MMIO_PAGES 4u
 
 static int xhci_registry_mmio(uint64_t *va)
 {
