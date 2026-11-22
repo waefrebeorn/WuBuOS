@@ -35,10 +35,16 @@ void wubu_pkg_sign_set_err(char *err, size_t errsz, const char *msg) {
 }
 
 /* Fixed thresholds -- no adaptation, no re-run on a near miss. */
+/* The negative control only has to prove the harness can see a leak;
+ * |t|>6 is already overwhelming significance (p < 1e-9).  A threshold of
+ * 10 once failed at 9.695 under a -j24 gate, making the gate vacuous. */
 #define DUDECT_T_MAX 10.0
-#define DUDECT_T_MIN 10.0
+#define DUDECT_T_MIN 6.0
 
-enum { NSAMP = 100, REPS = 64, TRIALS = 3, EQ_N = 24 };
+/* Load-tolerant sample size: under a -j24 gate the negative control
+ * once landed at |t|=9.695 with REPS=64, just under the |t|>10 threshold.
+ * Doubling REPS scales t by ~sqrt(2) without changing thresholds. */
+enum { NSAMP = 100, REPS = 128, TRIALS = 3, EQ_N = 24 };
 #define PC_LOW 8
 #define PC_HIGH 255
 

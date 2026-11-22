@@ -412,7 +412,7 @@ test_ci_status:
 ci_status:
 	python3 tools/ci_status.py
 
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_netstack test_ci_boot_assert test_ci_status
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_drv_pci_bus test_netstack test_ci_boot_assert test_ci_status
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -2108,7 +2108,7 @@ test_wubu_boot_attest_edr: src/runtime/wubu_boot_attest_edr_test.c src/runtime/w
 	./src/runtime/wubu_boot_attest_edr_test
 
 # The docs must not lie: every path the front-door docs name must exist.
-test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/REVOKE_SYNC.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md docs/STUDY_LIST.md docs/ABI.md docs/DUPLICATE_SURFACE_FINDINGS.md mk/sanitize.mk tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
+test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/C_MASTERY_WORKFLOW.md docs/REVOKE_SYNC.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md docs/STUDY_LIST.md docs/ABI.md docs/DUPLICATE_SURFACE_FINDINGS.md mk/sanitize.mk tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_docs_test.c -o src/runtime/wubu_docs_test -Iinclude src/runtime/wubu_crc32.c
 	./src/runtime/wubu_docs_test
 
@@ -2999,6 +2999,23 @@ test_drv:
 		$(KERNEL)/test/legacy/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
 		$(KERNEL)/wubu_drv_test
+
+# Synthetic control: the registry must carry a bridge's PCI bus NUMBER into
+# the capability walkers, not the bus TYPE (which is 0 for every PCI device).
+test_drv_pci_bus:
+	$(CC) -O0 -g -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -include wubu_gnu_compat.h -DWUBU_PCI_TEST_STUBS -no-pie \
+		-I$(KERNEL) -Iinclude \
+		$(KERNEL)/test/test_drv_pci_bus.c \
+		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
+		$(KERNEL)/wubu_pci.c \
+		$(KERNEL)/wubu_virtio_pci_modern.c \
+		$(KERNEL)/wubu_test_stubs.c \
+		$(KERNEL)/libc.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c \
+		$(KERNEL)/klog.c \
+		-o $(KERNEL)/test_drv_pci_bus
+	$(KERNEL)/test_drv_pci_bus
 
 # ── Kernel decompressor selftests ──────────────────────────────
 # Each decoder links ONLY its own source + the kernel heap/libc.

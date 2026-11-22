@@ -309,6 +309,22 @@ holyd-verify:
 kernel-strict:
 	$(MAKE) -B kernel KERNEL_CFLAGS="-Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -march=x86-64 -mtune=generic -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=implicit-function-declaration"
 
+# Path-sensitive C analysis with the compiler already in the toolchain.
+# GCC's -fanalyzer (GCC manual 3.9/3.10, "Options That Control Static
+# Analysis") needs no clang-tidy/cppcheck install. Scope: WEMU's whole src
+# tree and the WuBuOS driver/kernel files that compile standalone. Legacy
+# files that cannot be parsed with a narrow include set are NOT silently
+# "clean" — they stay in kernel-strict's separate campaign.
+STATIC_ANALYZE_SRCS := $(wildcard src/kernel/wubu_drv*.c) \
+                       $(wildcard src/kernel/wubu_virt*.c) \
+                       src/kernel/wubu_pci.c
+static_check:
+	@set -e; for f in $(STATIC_ANALYZE_SRCS); do \
+	    gcc -std=c11 -fanalyzer -Werror -fsyntax-only -Iinclude -Isrc/kernel $$f; \
+	done
+	@echo "STATIC CHECK PASS: gcc -fanalyzer over $(words $(STATIC_ANALYZE_SRCS)) driver/kernel sources"
+.PHONY: static_check
+
 # L1 end-to-end gate: write -> reboot -> read-back on a real virtio-blk
 # disk (tools/virtio_persist_gate.py; pattern: tools/ci_boot_assert.py).
 virtio-persist-gate: kernel
@@ -326,6 +342,10 @@ virtio-modern-gate: kernel
 # end-to-end gate: real QEMU pci-bridge discovered by the metal scan.
 pci-bridge-gate: kernel
 	python3 tools/pci_bridge_gate.py $(KERNEL)/kernel.elf
+
+# A modern virtio device behind a pci-bridge must bind, not just sit on bus 0.
+pci-bridge-modern-gate: kernel
+	python3 tools/pci_bridge_modern_gate.py $(KERNEL)/kernel.elf
 
 # L4 GOP/Limine framebuffer fallback gate: forced-GOP boot through the
 # WuBuFW measured chain (GOP handoff -> map -> pixel read-back selftest),
@@ -364,12 +384,15 @@ tandem_check:
 	@$(MAKE) test_kernel_bridge
 	@echo "== 3/5 kernel build, gcc14-class hygiene, boot, bridge, modern =="
 	@$(MAKE) kernel-strict
+	@$(MAKE) static_check
 	@$(MAKE) kernel
 	@python3 tools/ci_boot_assert.py $(KERNEL)/kernel.elf --kernel
 	@$(MAKE) pci-bridge-gate
+	@$(MAKE) pci-bridge-modern-gate
 	@$(MAKE) virtio-modern-gate
 	@echo "== 4/5 WEMU guest acceptance (pinned submodule) =="
 	@$(MAKE) test_wemu_busybox
 	@echo "== 5/5 standalone WEMU gate =="
+	@$(MAKE) -C "$(TANDEM_WEMU_REPO)" static_check
 	@$(MAKE) -C "$(TANDEM_WEMU_REPO)" test
-	@echo "TANDEM CHECK PASS: contract, boot, registry, guest, emulator"
+	@echo "TANDEM CHECK PASS: contract, boot, registry, guest, emulator, static analysis"

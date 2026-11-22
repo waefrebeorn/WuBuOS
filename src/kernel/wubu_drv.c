@@ -142,7 +142,8 @@ int wubu_drv_pci_scan(void)
     for (int i = 0; i < n && i < WUBU_DRV_MAX_DEV; i++) {
         wubu_drv_dev_t dev;
         memset(&dev, 0, sizeof(dev));
-        dev.bus = WUBU_DRV_BUS_PCI;
+        dev.bus = pci[i].bus;          /* PCI bus NUMBER, not bus type */
+        dev.bus_type = WUBU_DRV_BUS_PCI;
         dev.pci_dev = pci[i].dev;
         dev.pci_fn = pci[i].fn;
         dev.vendor = pci[i].vendor;
@@ -293,7 +294,7 @@ const wubu_drv_dev_t *wubu_drv_find_pci_id(uint16_t vendor, uint16_t device,
                                             uint8_t class_code)
 {
     for (int i = 0; i < g_ndev; i++) {
-        if (g_devs[i].bus != WUBU_DRV_BUS_PCI) continue;
+        if (g_devs[i].bus_type != WUBU_DRV_BUS_PCI) continue;
         if (g_devs[i].vendor != vendor || g_devs[i].device != device) continue;
         if (class_code && g_devs[i].class_code != class_code) continue;
         return &g_devs[i];

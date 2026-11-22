@@ -149,7 +149,7 @@ int wubu_drv_modalias(const wubu_drv_dev_t *dev, char *out, size_t cap)
 {
     if (!dev || !out || cap == 0) return -1;
     int n;
-    if (dev->bus == WUBU_DRV_BUS_USB) {
+    if (dev->bus_type == WUBU_DRV_BUS_USB) {
         n = snprintf(out, cap, "usb:v%04Xp%04Xd%04Xdc%02X",
                      dev->vendor, dev->device, dev->device, dev->class_code);
     } else { /* PCI + ACPI fall back to the PCI modalias keyed on vendor */

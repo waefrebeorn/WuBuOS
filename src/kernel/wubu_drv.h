@@ -39,7 +39,11 @@ typedef struct wubu_drv {
 
 /* a device on a bus */
 typedef struct wubu_drv_dev {
+    /* For PCI devices this is the PCI bus NUMBER (0..255), including
+     * secondary buses behind a bridge. Capability walkers and config-space
+     * readers use it directly; do not confuse it with bus_type below. */
     int      bus;
+    uint8_t  bus_type;               /* WUBU_DRV_BUS_PCI / USB / ACPI / CPU */
     uint8_t  pci_dev, pci_fn;        /* PCI BDF, for capability checks */
     uint16_t vendor;
     uint16_t device;
