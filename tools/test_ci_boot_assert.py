@@ -21,6 +21,9 @@ CASES = [
     (b"WuBuOS: 0 device MMIO BARs mapped\n", 1, "zero mapped BARs"),
     (b"WuBuOS: 2 devices MMIO BARs mapped\n", 1, "wrong wording, no match"),
     (b"WuBuOS: 1 device MMIO BARs mapped\n", 1, "registry report line missing"),
+    (b"WuBuOS: 1 device MMIO BARs mapped\n"
+     b"WuBuOS: driver registry 6 devices / 18 drivers registered, 6 bound, 2 MMIO BARs mapped\n",
+     1, "registry count disagrees with mapper"),
 ]
 
 failures = 0
