@@ -170,6 +170,7 @@ BAR as I/O space. `test_xhci`, kernel boot and `kernel-strict` stay green.
 ```sh
 # all three repos, one command (contract -> boot -> guest -> emulator)
 cd /home/wubu/wubuos && make tandem_check
+# on another machine: make tandem_check TANDEM_ROOT=/path/to/repos
 # contract
 cd /home/wubu/WuBuKernel && make test && make freestanding
 # body: bridge, kernel, boot, hosted

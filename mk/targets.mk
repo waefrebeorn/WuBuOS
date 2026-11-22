@@ -341,10 +341,17 @@ qemu: iso
 # Tandem gate: one command to verify the three-repo workflow.
 # Contract (WuBuKernel) -> body (WuBuOS) -> usable (WEMU from the pinned
 # src/wemu submodule). Fails on the first red leg with a clear label.
+# Override on another machine with `make tandem_check TANDEM_ROOT=/path/to/repos`.
+TANDEM_ROOT ?= $(HOME)
+TANDEM_KERNEL_REPO ?= $(TANDEM_ROOT)/WuBuKernel
+TANDEM_WEMU_REPO ?= $(TANDEM_ROOT)/wemu
+
 tandem_check:
+	@test -d "$(TANDEM_KERNEL_REPO)" || { echo "FAIL: no WuBuKernel at $(TANDEM_KERNEL_REPO) (set TANDEM_ROOT)"; exit 1; }
+	@test -d "$(TANDEM_WEMU_REPO)" || { echo "FAIL: no WEMU at $(TANDEM_WEMU_REPO) (set TANDEM_ROOT)"; exit 1; }
 	@echo "== 1/5 WuBuKernel contract: hosted + freestanding =="
-	@$(MAKE) -C /home/wubu/WuBuKernel test
-	@$(MAKE) -C /home/wubu/WuBuKernel freestanding
+	@$(MAKE) -C "$(TANDEM_KERNEL_REPO)" test
+	@$(MAKE) -C "$(TANDEM_KERNEL_REPO)" freestanding
 	@echo "== 2/5 cross-repo driver contract bridge =="
 	@$(MAKE) test_kernel_bridge
 	@echo "== 3/5 kernel build + boot assert (live registry) =="
@@ -353,5 +360,5 @@ tandem_check:
 	@echo "== 4/5 WEMU guest acceptance (pinned submodule) =="
 	@$(MAKE) test_wemu_busybox
 	@echo "== 5/5 standalone WEMU gate =="
-	@$(MAKE) -C /home/wubu/wemu test
+	@$(MAKE) -C "$(TANDEM_WEMU_REPO)" test
 	@echo "TANDEM CHECK PASS: contract, boot, registry, guest, emulator"
