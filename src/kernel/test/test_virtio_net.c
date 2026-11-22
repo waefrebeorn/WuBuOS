@@ -54,12 +54,17 @@ int wubu_drv_io_base(const wubu_drv_dev_t *dev, uint16_t *io_out)
     *io_out = (uint16_t)(dev->bar0 & 0xFFFCu);
     return 0;
 }
+static int g_msix_state;   /* 0 none, 1 enabled, 2 present-but-disabled */
 uint32_t wubu_pci_read32(uint8_t b, uint8_t dv, uint8_t f, uint8_t off)
 {
     (void)b; (void)dv; (void)f;
     switch (off) {
     case 0x00: return 0x10001AF4u;
-    case 0x10: return (uint32_t)fake_iobase | 1u;   /* I/O BAR */
+    case 0x10: return (uint32_t)fake_iobase | 1u;
+    case 0x04: return g_msix_state ? (1u << 20) : 0;
+    case 0x34: return g_msix_state ? 0x40u : 0;
+    case 0x40: return g_msix_state == 1 ? (0x11u | 0x80000000u)
+                                        : (g_msix_state == 2 ? 0x11u : 0);
     default:   return 0;
     }
 }
@@ -344,6 +349,18 @@ int main(void)
     n = wubu_virtio_net_probe();
     CHECK(n != NULL);
     if (n) vnet_teardown(n);
+
+    /* MSI-X left enabled by firmware shifts the config window (0x14->0x18). */
+    wubu_drv_dev_t cfgdev;
+    memset(&cfgdev, 0, sizeof(cfgdev));
+    CHECK(wubu_vq_config_offset(NULL) == 0x14);
+    g_msix_state = 0;
+    CHECK(wubu_vq_config_offset(&cfgdev) == 0x14);
+    g_msix_state = 2;
+    CHECK(wubu_vq_config_offset(&cfgdev) == 0x14);
+    g_msix_state = 1;
+    CHECK(wubu_vq_config_offset(&cfgdev) == 0x18);
+    g_msix_state = 0;
 
     if (failures == 0) printf("test_virtio_net: ALL PASS\n");
     else printf("test_virtio_net: %d FAILURES\n", failures);

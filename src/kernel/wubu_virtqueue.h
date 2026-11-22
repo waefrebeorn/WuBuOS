@@ -19,6 +19,8 @@
 #ifndef WUBU_VIRTQUEUE_H
 #define WUBU_VIRTQUEUE_H
 
+struct wubu_drv_dev;   /* forward declaration, declared outside prototypes */
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -122,6 +124,13 @@ int wubu_vq_dev_reset(uint16_t iobase);
 uint32_t wubu_vq_negotiate(uint16_t iobase, uint32_t accept_mask);
 /* set DRIVER_OK and verify the device accepted it. 0 ok, -1 refused. */
 int wubu_vq_dev_driver_ok(uint16_t iobase);
+
+/* VIRTIO 1.0, transport-pci: legacy device config starts at 0x14, but
+ * shifts to 0x18 when MSI-X is enabled in the MSI-X capability's Message
+ * Control register (bit 15). PCI Command bit 10 is INTx disable, NOT
+ * MSI-X enable. Walk the capability list from 0x34, bounded by 48 steps.
+ * dev == NULL -> conservative 0x14. */
+uint16_t wubu_vq_config_offset(const struct wubu_drv_dev *dev);
 
 /* Legacy config fields wider than 32 bits (capacity) or spanning several
  * bytes (MAC) have no generation counter: read twice and accept only a

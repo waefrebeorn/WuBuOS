@@ -64,7 +64,8 @@ uint32_t wubu_pci_read32(uint8_t b, uint8_t dv, uint8_t f, uint8_t off)
     case 0x10: return (uint32_t)fake_iobase | 1u;   /* I/O BAR */
     case 0x04: return fake_msix ? (1u << 20) : 0;   /* cap list? */
     case 0x34: return fake_msix ? 0x40u : 0;        /* cap pointer */
-    case 0x40: return fake_msix ? 0x11u : 0;        /* MSI-X cap id */
+    case 0x40: return fake_msix == 2 ? (0x11u | 0x80000000u)   /* MSI-X enabled */
+                                     : (fake_msix == 1 ? 0x11u : 0);
     default:   return 0;
     }
 }
@@ -218,7 +219,7 @@ static void fake_reset(uint16_t qsize, uint32_t features, int msix)
     notify_count = 0;
     /* capacity at the legacy config offset: MSI-X is never ENABLED by
      * the polled driver, so the window stays 0x14 even with the cap */
-    uint16_t cfg = WUBU_VQ_REG_CONFIG;
+    uint16_t cfg = (msix == 2) ? 0x18u : WUBU_VQ_REG_CONFIG;
     uint32_t lo = FAKE_SECTORS, hi = 0;
     memcpy(fake_regs + cfg, &lo, 4);
     memcpy(fake_regs + cfg + 4, &hi, 4);
@@ -390,6 +391,25 @@ int main(void)
     /* VIRTIO 1.0 2.1: never set DRIVER_OK on an already-FAILED device. */
     fake_regs[WUBU_VQ_REG_STATUS] = WUBU_VQ_S_FAILED;
     CHECK(wubu_vq_dev_driver_ok(fake_iobase) == -1);
+
+    /* VIRTIO 1.0 transport-pci: MSI-X left enabled by firmware shifts
+     * the legacy config window from 0x14 to 0x18. */
+    wubu_drv_dev_t cfgdev;
+    memset(&cfgdev, 0, sizeof(cfgdev));
+    CHECK(wubu_vq_config_offset(NULL) == 0x14);
+    int saved_msix = fake_msix;
+    fake_msix = 0;
+    CHECK(wubu_vq_config_offset(&cfgdev) == 0x14);
+    fake_msix = 1;                       /* capability present, disabled */
+    CHECK(wubu_vq_config_offset(&cfgdev) == 0x14);
+    fake_msix = 2;                       /* MSI-X actually enabled */
+    CHECK(wubu_vq_config_offset(&cfgdev) == 0x18);
+    fake_reset(8, VBLK_F_FLUSH, 2);       /* fresh fake state, MSI-X enabled */
+    wubu_virtio_blk_t *cfgd = vblk_init(fake_iobase, &cfgdev);
+    CHECK(cfgd != NULL);
+    CHECK(cfgd && cfgd->cfg_off == 0x18);
+    if (cfgd) vblk_teardown(cfgd);
+    fake_msix = saved_msix;
 
     if (failures == 0) printf("test_virtio_blk: ALL PASS\n");
     else printf("test_virtio_blk: %d FAILURES\n", failures);

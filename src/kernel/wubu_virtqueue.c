@@ -16,6 +16,8 @@
  * injects a fake I/O window + arena through wubu_vq_io / wubu_vq_mem.
  */
 #include "wubu_virtqueue.h"
+#include "wubu_drv.h"
+#include "wubu_pci.h"
 
 #ifdef MYSEED_METAL
 void *memset(void *s, int c, size_t n);
@@ -100,6 +102,25 @@ int wubu_vq_dev_reset(uint16_t iobase)
     wubu_vq_io.outb((uint16_t)(iobase + WUBU_VQ_REG_STATUS),
                     WUBU_VQ_S_ACK | WUBU_VQ_S_DRIVER);
     return 0;
+}
+
+uint16_t wubu_vq_config_offset(const struct wubu_drv_dev *dev)
+{
+    if (!dev) return WUBU_VQ_REG_CONFIG;
+    /* Status bit 20 in the DWORD at 0x04 means a capability list exists. */
+    if (!(wubu_pci_read32((uint8_t)dev->bus, dev->pci_dev, dev->pci_fn, 0x04) & (1u << 20)))
+        return WUBU_VQ_REG_CONFIG;
+    uint8_t cap = (uint8_t)(wubu_pci_read32((uint8_t)dev->bus, dev->pci_dev, dev->pci_fn,
+                                            0x34) & 0xFFu);
+    for (int guard = 0; cap >= 0x40u && guard < 48; guard++) {
+        uint32_t hdr = wubu_pci_read32((uint8_t)dev->bus, dev->pci_dev, dev->pci_fn, cap);
+        if ((hdr & 0xFFu) == 0x11u) {          /* MSI-X capability ID */
+            /* Message Control is hdr[31:16]; MSI-X Enable is its bit 15. */
+            return (hdr & (1u << 31)) ? 0x18u : WUBU_VQ_REG_CONFIG;
+        }
+        cap = (uint8_t)((hdr >> 8) & 0xFFu);
+    }
+    return WUBU_VQ_REG_CONFIG;
 }
 
 int wubu_vq_config_read_stable(uint16_t iobase, uint16_t cfg_off,

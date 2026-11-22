@@ -183,16 +183,16 @@ static void vblk_teardown(wubu_virtio_blk_t *d)
 
 /* The I/O base comes from the ONE registry's I/O-BAR owner; the driver
  * must not run its own PCI scan or read BAR0 again. */
-static wubu_virtio_blk_t *vblk_init(uint16_t iobase)
+static wubu_virtio_blk_t *vblk_init(uint16_t iobase,
+                                    const wubu_drv_dev_t *dev)
 {
     if (!iobase) return NULL;
     wubu_virtio_blk_t *d = (wubu_virtio_blk_t *)wubu_vq_mem.alloc(sizeof(*d));
     if (!d) return NULL;
     memset(d, 0, sizeof(*d));
     d->iobase  = iobase;
-    /* Legacy config window stays 0x14: it shifts to 0x18 ONLY when the
-     * driver ENABLES MSI-X; this driver is polled and never does. */
-    d->cfg_off = WUBU_VQ_REG_CONFIG;
+    /* 0x14, or 0x18 if firmware left MSI-X enabled in PCI command. */
+    d->cfg_off = wubu_vq_config_offset(dev);
 
     if (wubu_vq_dev_reset(d->iobase) != 0) { vblk_teardown(d); return NULL; }
 
@@ -256,7 +256,7 @@ wubu_virtio_blk_t *wubu_virtio_blk_probe(void)
         if (!dev) continue;
         uint16_t iobase = 0;
         if (wubu_drv_io_base(dev, &iobase) != 0) continue;
-        wubu_virtio_blk_t *d = vblk_init(iobase);
+        wubu_virtio_blk_t *d = vblk_init(iobase, dev);
         if (d) return d;
     }
     return NULL;

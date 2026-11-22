@@ -143,6 +143,8 @@ int wubu_drv_pci_scan(void)
         wubu_drv_dev_t dev;
         memset(&dev, 0, sizeof(dev));
         dev.bus = WUBU_DRV_BUS_PCI;
+        dev.pci_dev = pci[i].dev;
+        dev.pci_fn = pci[i].fn;
         dev.vendor = pci[i].vendor;
         dev.device = pci[i].device;
         dev.class_code = pci[i].class_code;

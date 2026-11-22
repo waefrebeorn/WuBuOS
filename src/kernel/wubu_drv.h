@@ -40,6 +40,7 @@ typedef struct wubu_drv {
 /* a device on a bus */
 typedef struct wubu_drv_dev {
     int      bus;
+    uint8_t  pci_dev, pci_fn;        /* PCI BDF, for capability checks */
     uint16_t vendor;
     uint16_t device;
     uint8_t  class_code;

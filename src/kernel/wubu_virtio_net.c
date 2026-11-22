@@ -156,15 +156,16 @@ static void vnet_teardown(wubu_virtio_net_t *n)
 }
 
 /* The I/O base comes from the ONE registry's I/O-BAR owner. */
-static wubu_virtio_net_t *vnet_init(uint16_t iobase)
+static wubu_virtio_net_t *vnet_init(uint16_t iobase,
+                                    const wubu_drv_dev_t *dev)
 {
     if (!iobase) return NULL;
     wubu_virtio_net_t *n = (wubu_virtio_net_t *)wubu_vq_mem.alloc(sizeof(*n));
     if (!n) return NULL;
     memset(n, 0, sizeof(*n));
     n->iobase  = iobase;
-    /* polled driver never ENABLES MSI-X: config window stays 0x14 */
-    n->cfg_off = WUBU_VQ_REG_CONFIG;
+    /* 0x14, or 0x18 if firmware left MSI-X enabled in PCI command. */
+    n->cfg_off = wubu_vq_config_offset(dev);
 
     if (wubu_vq_dev_reset(n->iobase) != 0) { vnet_teardown(n); return NULL; }
 
@@ -224,7 +225,7 @@ wubu_virtio_net_t *wubu_virtio_net_probe(void)
         if (!dev) continue;
         uint16_t iobase = 0;
         if (wubu_drv_io_base(dev, &iobase) != 0) continue;
-        wubu_virtio_net_t *nic = vnet_init(iobase);
+        wubu_virtio_net_t *nic = vnet_init(iobase, dev);
         if (nic) return nic;
     }
     return NULL;
