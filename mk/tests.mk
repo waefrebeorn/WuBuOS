@@ -913,6 +913,12 @@ test_wemu_sandbox: $(WEMU_LIB) $(WEMU_BUILD)/tests/test_usermode_native.c
 	$(CC) -O2 -g -Wall -Wextra -I$(WEMU_BUILD)/include \
 		$(WEMU_BUILD)/tests/test_usermode_native.c \
 		-o $(WEMU_BUILD)/tests/test_usermode_native $(WEMU_LIB) -lm
+	dpkg-deb -x src/wemu/busybox-static_1%3a1.36.1-6ubuntu3.1_amd64.deb \
+		$(WEMU_BUILD)/tests/.bb-extract
+	cp $(WEMU_BUILD)/tests/.bb-extract/usr/bin/busybox \
+		$(WEMU_BUILD)/tests/busybox-static
+	chmod +x $(WEMU_BUILD)/tests/busybox-static
+	rm -rf $(WEMU_BUILD)/tests/.bb-extract
 	cd $(WEMU_BUILD) && ./tests/test_usermode_native
 
 # L11: VSL EXECUTES. Real in-process engine for static freestanding Linux
