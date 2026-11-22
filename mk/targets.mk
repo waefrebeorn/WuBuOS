@@ -337,3 +337,21 @@ qemu: iso
 	qemu-system-x86_64 -cdrom $(KERNEL)/wubuos.iso -serial stdio \
 		-display none -m 128 -no-reboot \
 		-device isa-debug-exit,iobase=0xf4 || true
+
+# Tandem gate: one command to verify the three-repo workflow.
+# Contract (WuBuKernel) -> body (WuBuOS) -> usable (WEMU from the pinned
+# src/wemu submodule). Fails on the first red leg with a clear label.
+tandem_check:
+	@echo "== 1/5 WuBuKernel contract: hosted + freestanding =="
+	@$(MAKE) -C /home/wubu/WuBuKernel test
+	@$(MAKE) -C /home/wubu/WuBuKernel freestanding
+	@echo "== 2/5 cross-repo driver contract bridge =="
+	@$(MAKE) test_kernel_bridge
+	@echo "== 3/5 kernel build + boot assert (live registry) =="
+	@$(MAKE) kernel
+	@python3 tools/ci_boot_assert.py $(KERNEL)/kernel.elf --kernel
+	@echo "== 4/5 WEMU guest acceptance (pinned submodule) =="
+	@$(MAKE) test_wemu_busybox
+	@echo "== 5/5 standalone WEMU gate =="
+	@$(MAKE) -C /home/wubu/wemu test
+	@echo "TANDEM CHECK PASS: contract, boot, registry, guest, emulator"

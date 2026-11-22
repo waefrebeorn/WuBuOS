@@ -168,6 +168,8 @@ BAR as I/O space. `test_xhci`, kernel boot and `kernel-strict` stay green.
 ## Gate quick-reference (the tandem's definition of green)
 
 ```sh
+# all three repos, one command (contract -> boot -> guest -> emulator)
+cd /home/wubu/wubuos && make tandem_check
 # contract
 cd /home/wubu/WuBuKernel && make test && make freestanding
 # body: bridge, kernel, boot, hosted
