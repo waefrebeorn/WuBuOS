@@ -15,7 +15,7 @@ CASES = [
      b"WuBuOS: driver registry 7 devices / 8 drivers registered, 7 bound, 1 MMIO BARs mapped\n",
      0, "one mapped BAR + registry report"),
     (b"WuBuOS: 12 device MMIO BARs mapped\n"
-     b"WuBuOS: driver registry 7 devices / 8 drivers registered, 7 bound, 12 MMIO BARs mapped\n",
+     b"WuBuOS: driver registry 12 devices / 18 drivers registered, 12 bound, 12 MMIO BARs mapped\n",
      0, "many mapped BARs + registry report"),
     (b"WuBuOS> prompt only, no registry line\n", 1, "missing map line"),
     (b"WuBuOS: 0 device MMIO BARs mapped\n", 1, "zero mapped BARs"),
@@ -24,6 +24,9 @@ CASES = [
     (b"WuBuOS: 1 device MMIO BARs mapped\n"
      b"WuBuOS: driver registry 6 devices / 18 drivers registered, 6 bound, 2 MMIO BARs mapped\n",
      1, "registry count disagrees with mapper"),
+    (b"WuBuOS: 1 device MMIO BARs mapped\n"
+     b"WuBuOS: driver registry 2 devices / 18 drivers registered, 3 bound, 1 MMIO BARs mapped\n",
+     1, "impossible bound count"),
 ]
 
 failures = 0

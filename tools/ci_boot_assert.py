@@ -28,15 +28,20 @@ def assert_driver_registry(data):
     if nmio < 1:
         print("FAIL: driver registry mapped %d MMIO BARs, want >= 1" % nmio)
         return 1
-    r = re.search(rb"WuBuOS: driver registry \d+ devices / \d+ drivers "
-                  rb"registered, \d+ bound, (\d+) MMIO BARs mapped", data)
+    r = re.search(rb"WuBuOS: driver registry (\d+) devices / \d+ drivers "
+                  rb"registered, (\d+) bound, (\d+) MMIO BARs mapped", data)
     if not r:
         print("FAIL: boot log lacks the live driver-registry report "
               "(cmd_drv/wubu_drv_registry_line regression?)")
         return 1
-    if int(r.group(1)) != nmio:
+    ndev, nbound, nreport = (int(x) for x in r.groups())
+    if nbound > ndev or nreport > nbound:
+        print("FAIL: impossible registry report: %d devices, %d bound, "
+              "%d mapped" % (ndev, nbound, nreport))
+        return 1
+    if nreport != nmio:
         print("FAIL: registry report says %d BARs, mapper says %d "
-              "(two drifted formatters?)" % (int(r.group(1)), nmio))
+              "(two drifted formatters?)" % (nreport, nmio))
         return 1
     print("PASS: driver registry reported consistently with the mapper")
     print("PASS: driver registry mapped %d MMIO BAR(s) on this boot" % nmio)
