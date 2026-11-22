@@ -18,7 +18,14 @@ decision** that supersedes L21 — never a silent side effect of a driver leg.
 |---|---|---|
 | `WuBuKernel` (`/home/wubu/WuBuKernel`, `main`) | the **contract**: device/driver registry, bounded heap, PMM, tick/console | strict-C11 hosted behaviour **and** `-ffreestanding -nostdinc` compile |
 | `wubuos` (`/home/wubu/wubuos`, `main`) | the **body**: the only tree that boots. Owns the real PCI driver registry (`wubu_drv.c` + `wubu_bus.c`), VMM mapper, real storage/net, GUI | `make kernel` + boot gate + hosted full gate |
-| `wemu` (`/home/wubu/wemu`, submodule `src/wemu`) | the **usable**: guest execution of foreign static ELF/tools through the VSL syscall table, so the booted system can run other OSes' tools | full WEMU `make test` + `test_wemu_busybox` through the bridge |
+| `wemu` (pinned submodule `src/wemu`, branch `leg/nested-signals`@`2ce67c0`) | the **usable**: guest execution of foreign static ELF/tools through the VSL syscall table, so the booted system can run other OSes' tools | full WEMU `make test` in the local checkout + `test_wemu_busybox` through the bridge |
+
+The gates build WEMU **out of tree** from `src/wemu` (`mk/wemu_user.mk`:
+copy into `build/wemu-user`, apply the narrow VSL prot overlay), not from
+any local `/home/wubu/wemu` branch. A local branch such as
+`leg/user-mode-vsl` is a separate development line; do not claim its
+commits are in the gated or booted product without bumping and verifying
+the submodule pointer.
 
 The loop is one direction and one back-edge:
 
