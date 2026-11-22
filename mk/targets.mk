@@ -354,7 +354,8 @@ tandem_check:
 	@$(MAKE) -C "$(TANDEM_KERNEL_REPO)" freestanding
 	@echo "== 2/5 cross-repo driver contract bridge =="
 	@$(MAKE) test_kernel_bridge
-	@echo "== 3/5 kernel build + boot assert (live registry) =="
+	@echo "== 3/5 kernel build + gcc14-class hygiene + boot assert =="
+	@$(MAKE) kernel-strict
 	@$(MAKE) kernel
 	@python3 tools/ci_boot_assert.py $(KERNEL)/kernel.elf --kernel
 	@echo "== 4/5 WEMU guest acceptance (pinned submodule) =="

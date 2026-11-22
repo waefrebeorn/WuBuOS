@@ -112,7 +112,13 @@ int wubu_vq_config_read_stable(uint16_t iobase, uint16_t cfg_off,
             a[i] = wubu_vq_io.inb((uint16_t)(iobase + cfg_off + i));
         for (uint16_t i = 0; i < len; i++)
             b[i] = wubu_vq_io.inb((uint16_t)(iobase + cfg_off + i));
-        if (memcmp(a, b, len) == 0) { memcpy(out, a, len); return 0; }
+        int same = 1;
+        for (uint16_t k = 0; k < len; k++)
+            if (a[k] != b[k]) { same = 0; break; }
+        if (same) {
+            for (uint16_t k = 0; k < len; k++) out[k] = a[k];
+            return 0;
+        }
     }
     return -1;
 }
