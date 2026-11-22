@@ -70,10 +70,87 @@ static void qemu_chain(void)
     cap(0x40, 0x09, 0,    WUBU_VPCI_CAP_COMMON_CFG, 4, 0, 0x1000, 0);
 }
 
+/* ---- flat fake common-config register file ------------------------- */
+static uint8_t common_regs[0x100];
+
+static void cp16(uint16_t off, uint16_t v)
+{
+    common_regs[off] = (uint8_t)v;
+    common_regs[off + 1] = (uint8_t)(v >> 8);
+}
+
+static void cp32(uint16_t off, uint32_t v)
+{
+    cp16(off, (uint16_t)v);
+    cp16((uint16_t)(off + 2), (uint16_t)(v >> 16));
+}
+
+static uint16_t cg16(uint16_t off)
+{
+    return (uint16_t)((uint16_t)common_regs[off] |
+                      ((uint16_t)common_regs[off + 1] << 8));
+}
+
+static uint32_t cg32(uint16_t off)
+{
+    return (uint32_t)common_regs[off] |
+           ((uint32_t)common_regs[off + 1] << 8) |
+           ((uint32_t)common_regs[off + 2] << 16) |
+           ((uint32_t)common_regs[off + 3] << 24);
+}
+
+static void test_handshake(void)
+{
+    /* Flat register model: select windows are written in order, but both
+     * feature reads see the same cell. The gate checks the spec's write
+     * sequence and status bits, not select-dependent device emulation. */
+    memset(common_regs, 0, sizeof(common_regs));
+    cp32(WUBU_VPCI_COMMON_DEV_FEAT, (1u << 9) | 1u); /* FLUSH + VERSION_1 */
+    CHECK(wubu_vpci_feature_handshake((uintptr_t)common_regs,
+                                      (1u << 9) | (1u << 1)) == 0);
+    CHECK(common_regs[WUBU_VPCI_COMMON_STATUS] ==
+          (WUBU_VPCI_STATUS_ACKNOWLEDGE | WUBU_VPCI_STATUS_DRIVER |
+           WUBU_VPCI_STATUS_FEATURES_OK));
+    CHECK(cg32(WUBU_VPCI_COMMON_DRV_FEAT_SEL) == 1u);  /* both windows written */
+    CHECK(cg32(WUBU_VPCI_COMMON_DRV_FEAT) & WUBU_VPCI_F_VERSION_1);
+    CHECK(wubu_vpci_feature_handshake(0, 0) == -1);
+}
+
+static void test_queue_and_notify(void)
+{
+    uint16_t noff = 0xFFFFu;
+
+    memset(common_regs, 0, sizeof(common_regs));
+    cp16(WUBU_VPCI_COMMON_QUEUE_SIZE, 128);
+    cp16(WUBU_VPCI_COMMON_QUEUE_NOTIFY, 3);
+    CHECK(wubu_vpci_queue_setup((uintptr_t)common_regs, 2, 64,
+                                0x1000u, 0x2000u, 0x3000u, &noff) == 0);
+    CHECK(cg16(WUBU_VPCI_COMMON_QUEUE_SEL) == 2u);
+    CHECK(cg16(WUBU_VPCI_COMMON_QUEUE_SIZE) == 64u);    /* desired <= max */
+    CHECK(cg32(WUBU_VPCI_COMMON_QUEUE_DESC) == 0x1000u);
+    CHECK(cg32(WUBU_VPCI_COMMON_QUEUE_DRIVER) == 0x2000u);
+    CHECK(cg32(WUBU_VPCI_COMMON_QUEUE_DEVICE) == 0x3000u);
+    CHECK(cg16(WUBU_VPCI_COMMON_QUEUE_ENABLE) == 1u);
+    CHECK(noff == 3);
+
+    memset(common_regs, 0, sizeof(common_regs));
+    cp16(WUBU_VPCI_COMMON_QUEUE_SIZE, 16);
+    CHECK(wubu_vpci_queue_setup((uintptr_t)common_regs, 0, 64, 0, 0, 0,
+                                &noff) == 0);
+    CHECK(cg16(WUBU_VPCI_COMMON_QUEUE_SIZE) == 16u);    /* clamp to device max */
+
+    /* 4.1.5.2: doorbell = cap offset + notify_off * multiplier */
+    CHECK(wubu_vpci_notify_addr(0xFE003000u, 3, 4) == 0xFE00300Cu);
+    CHECK(wubu_vpci_notify_addr(0xFE003000u, 3, 0) == 0xFE003000u);
+    CHECK(wubu_vpci_notify_addr(0xFE003000u, 3, 3) == 0);  /* not a power of 2 */
+}
+
 int main(void)
 {
     wubu_vpci_caps_t caps;
 
+    test_handshake();
+    test_queue_and_notify();
     qemu_chain();
     read_calls = 0;
     CHECK(wubu_vpci_caps_read(0, 4, 0, &caps) == 0);

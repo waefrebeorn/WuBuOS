@@ -70,3 +70,111 @@ int wubu_vpci_caps_read(uint8_t bus, uint8_t dev, uint8_t fn,
     }
     return out->have_common ? 0 : -1;
 }
+
+/* ---- common-config accessors (little-endian byte assembly) ---------- */
+static uint8_t mw_read8(uintptr_t base, uint32_t off)
+{
+    return *(volatile uint8_t *)(base + off);
+}
+
+static uint16_t mw_read16(uintptr_t base, uint32_t off)
+{
+    const volatile uint8_t *p = (const volatile uint8_t *)(base + off);
+    return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
+}
+
+static uint32_t mw_read32(uintptr_t base, uint32_t off)
+{
+    const volatile uint8_t *p = (const volatile uint8_t *)(base + off);
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
+static void mw_write8(uintptr_t base, uint32_t off, uint8_t v)
+{
+    *(volatile uint8_t *)(base + off) = v;
+}
+
+static void mw_write16(uintptr_t base, uint32_t off, uint16_t v)
+{
+    volatile uint8_t *p = (volatile uint8_t *)(base + off);
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+}
+
+static void mw_write32(uintptr_t base, uint32_t off, uint32_t v)
+{
+    volatile uint8_t *p = (volatile uint8_t *)(base + off);
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+static void mw_write64(uintptr_t base, uint32_t off, uint64_t v)
+{
+    mw_write32(base, off, (uint32_t)v);
+    mw_write32(base, off + 4u, (uint32_t)(v >> 32));
+}
+
+int wubu_vpci_feature_handshake(uintptr_t common_base, uint32_t wanted_low)
+{
+    uint32_t dev_low, dev_high;
+    uint8_t st;
+
+    if (!common_base) return -1;
+    /* OASIS 2.1: writing 0 resets the device. */
+    mw_write8(common_base, WUBU_VPCI_COMMON_STATUS, 0);
+    mw_write8(common_base, WUBU_VPCI_COMMON_STATUS,
+              (uint8_t)(WUBU_VPCI_STATUS_ACKNOWLEDGE | WUBU_VPCI_STATUS_DRIVER));
+
+    mw_write32(common_base, WUBU_VPCI_COMMON_DEV_FEAT_SEL, 0);
+    dev_low = mw_read32(common_base, WUBU_VPCI_COMMON_DEV_FEAT);
+    mw_write32(common_base, WUBU_VPCI_COMMON_DEV_FEAT_SEL, 1);
+    dev_high = mw_read32(common_base, WUBU_VPCI_COMMON_DEV_FEAT);
+
+    mw_write32(common_base, WUBU_VPCI_COMMON_DRV_FEAT_SEL, 0);
+    mw_write32(common_base, WUBU_VPCI_COMMON_DRV_FEAT, dev_low & wanted_low);
+    mw_write32(common_base, WUBU_VPCI_COMMON_DRV_FEAT_SEL, 1);
+    mw_write32(common_base, WUBU_VPCI_COMMON_DRV_FEAT,
+              dev_high & WUBU_VPCI_F_VERSION_1);
+
+    st = mw_read8(common_base, WUBU_VPCI_COMMON_STATUS);
+    mw_write8(common_base, WUBU_VPCI_COMMON_STATUS,
+              (uint8_t)(st | WUBU_VPCI_STATUS_FEATURES_OK));
+    st = mw_read8(common_base, WUBU_VPCI_COMMON_STATUS);
+    if (st & WUBU_VPCI_STATUS_FAILED) return -1;
+    if (!(st & WUBU_VPCI_STATUS_FEATURES_OK)) return -1;
+    return 0;
+}
+
+int wubu_vpci_queue_setup(uintptr_t common_base, uint16_t idx,
+                          uint16_t desired_size,
+                          uint64_t desc_gpa, uint64_t avail_gpa,
+                          uint64_t used_gpa, uint16_t *notify_off_out)
+{
+    uint16_t max_size, size;
+
+    if (!common_base) return -1;
+    mw_write16(common_base, WUBU_VPCI_COMMON_QUEUE_SEL, idx);
+    max_size = mw_read16(common_base, WUBU_VPCI_COMMON_QUEUE_SIZE);
+    if (!max_size) return -1;
+    size = (desired_size && desired_size <= max_size) ? desired_size : max_size;
+    mw_write16(common_base, WUBU_VPCI_COMMON_QUEUE_SIZE, size);
+    mw_write64(common_base, WUBU_VPCI_COMMON_QUEUE_DESC, desc_gpa);
+    mw_write64(common_base, WUBU_VPCI_COMMON_QUEUE_DRIVER, avail_gpa);
+    mw_write64(common_base, WUBU_VPCI_COMMON_QUEUE_DEVICE, used_gpa);
+    mw_write16(common_base, WUBU_VPCI_COMMON_QUEUE_ENABLE, 1u);
+    if (notify_off_out)
+        *notify_off_out = mw_read16(common_base, WUBU_VPCI_COMMON_QUEUE_NOTIFY);
+    return 0;
+}
+
+uintptr_t wubu_vpci_notify_addr(uintptr_t notify_base, uint16_t notify_off,
+                                uint32_t multiplier)
+{
+    /* 4.1.5.2: multiplier is 0 or an even power of two. */
+    if (multiplier && (multiplier < 2u || (multiplier & (multiplier - 1u))))
+        return 0;
+    return notify_base + (uintptr_t)notify_off * (uintptr_t)multiplier;
+}
