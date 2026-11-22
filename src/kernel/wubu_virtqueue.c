@@ -165,22 +165,17 @@ int wubu_vq_dev_driver_ok(uint16_t iobase)
     return 0;
 }
 
-/* -- queue setup ----------------------------------------------------- */
-int wubu_vq_setup(wubu_vq_t *vq, uint16_t iobase, uint16_t index,
-                  uint32_t tail_bytes, uint16_t max_q)
+int wubu_vq_setup_ring(wubu_vq_t *vq, uint16_t index, uint16_t qsize,
+                       uint32_t tail_bytes)
 {
-    memset(vq, 0, sizeof(*vq));
-    vq->iobase = iobase;
-    vq->index  = index;
-
-    wubu_vq_io.outw((uint16_t)(iobase + WUBU_VQ_REG_QUEUE_SEL), index);
-    uint16_t q = wubu_vq_io.inw((uint16_t)(iobase + WUBU_VQ_REG_QUEUE_NUM));
-    if (q == 0 || q > max_q) return -1;
-    vq->qsize = q;
-
     uint32_t avail_off, used_off, total;
-    wubu_vq_layout(q, &avail_off, &used_off, &total);
-    uint32_t tail = (total + 15u) & ~15u;   /* device-private DMA tail */
+
+    if (!vq || !qsize) return -1;
+    memset(vq, 0, sizeof(*vq));
+    vq->index = index;
+    vq->qsize = qsize;
+    wubu_vq_layout(qsize, &avail_off, &used_off, &total);
+    uint32_t tail = (total + 15u) & ~15u;
     vq->ring_pages = (tail + tail_bytes + 4095u) / 4096u;
     size_t ring_bytes = (size_t)vq->ring_pages * 4096u;
     vq->ring_base = (uint8_t *)VQ_ALLOC(ring_bytes + 4096u);
@@ -196,6 +191,24 @@ int wubu_vq_setup(wubu_vq_t *vq, uint16_t iobase, uint16_t index,
     vq->avail    = (wubu_vq_avail_t *)(vq->ring + avail_off);
     vq->used     = (wubu_vq_used_t *)(vq->ring + used_off);
     vq->tail_off = tail;
+    return 0;
+}
+
+/* -- queue setup ----------------------------------------------------- */
+int wubu_vq_setup(wubu_vq_t *vq, uint16_t iobase, uint16_t index,
+                  uint32_t tail_bytes, uint16_t max_q)
+{
+    memset(vq, 0, sizeof(*vq));
+    vq->iobase = iobase;
+    vq->index  = index;
+
+    wubu_vq_io.outw((uint16_t)(iobase + WUBU_VQ_REG_QUEUE_SEL), index);
+    uint16_t q = wubu_vq_io.inw((uint16_t)(iobase + WUBU_VQ_REG_QUEUE_NUM));
+    if (q == 0 || q > max_q) return -1;
+    vq->qsize = q;
+
+    if (wubu_vq_setup_ring(vq, index, q, tail_bytes) != 0) return -1;
+    vq->iobase = iobase;          /* setup_ring zeroes the struct by design */
 
     wubu_vq_io.outl((uint16_t)(iobase + WUBU_VQ_REG_QUEUE_PFN),
                     (uint32_t)((uint64_t)(uintptr_t)vq->ring >> 12));
@@ -243,6 +256,15 @@ void wubu_vq_publish(wubu_vq_t *vq, uint16_t head)
 
 void wubu_vq_kick(wubu_vq_t *vq)
 {
+    if (!vq) return;
+    if (vq->notify_addr) {
+        /* Modern virtio: doorbell is a 16-bit queue-index write at the
+         * cap-derived address (OASIS 4.1.5.2), not a legacy port write. */
+        volatile uint8_t *p = (volatile uint8_t *)vq->notify_addr;
+        p[0] = (uint8_t)vq->index;
+        p[1] = (uint8_t)(vq->index >> 8);
+        return;
+    }
     wubu_vq_io.outw((uint16_t)(vq->iobase + WUBU_VQ_REG_QUEUE_NOTIFY),
                     vq->index);
 }

@@ -99,6 +99,9 @@ typedef struct {
     volatile wubu_vq_avail_t *avail;
     volatile wubu_vq_used_t  *used;
     uint16_t last_used;       /* next used-ring slot to consume */
+    /* Modern virtio sets notify_addr; legacy uses iobase + QUEUE_NOTIFY. */
+    uintptr_t notify_addr;
+    uint32_t  notify_mult;
 } wubu_vq_t;
 
 /* One descriptor-chain segment: a DMA buffer + direction. */
@@ -111,6 +114,12 @@ typedef struct {
 /* -- ring layout arithmetic (legacy: used ring page-aligned) ------- */
 void wubu_vq_layout(uint16_t q, uint32_t *avail_off,
                     uint32_t *used_off, uint32_t *total);
+
+/* Allocate and lay out the split ring for a queue of known size. No
+ * device register is touched; legacy and modern transports both use it
+ * so ring arithmetic has exactly one owner. */
+int wubu_vq_setup_ring(wubu_vq_t *vq, uint16_t index, uint16_t qsize,
+                       uint32_t tail_bytes);
 
 /* DMA window check: metal identity map covers [0, 1 GB). */
 int wubu_vq_dma_ok(uint64_t pa, uint64_t bytes);

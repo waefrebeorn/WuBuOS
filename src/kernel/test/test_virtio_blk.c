@@ -423,6 +423,20 @@ int main(void)
     if (cfgd) vblk_teardown(cfgd);
     fake_msix = saved_msix;
 
+    /* transport-neutral ring + doorbell seam for the modern path. */
+    wubu_vq_t bare;
+    CHECK(wubu_vq_setup_ring(&bare, 1, 8, 16) == 0);
+    CHECK(bare.qsize == 8 && bare.index == 1 && bare.desc && bare.avail &&
+          bare.used && bare.notify_addr == 0);
+    wubu_vq_teardown(&bare);
+    uint8_t doorbell[4] = { 0, 0, 0, 0 };
+    memset(&bare, 0, sizeof(bare));
+    bare.index = 3;
+    bare.iobase = fake_iobase;       /* keep the legacy fallback in-bounds */
+    bare.notify_addr = (uintptr_t)doorbell;
+    wubu_vq_kick(&bare);
+    CHECK(doorbell[0] == 3 && doorbell[1] == 0);
+
     if (failures == 0) printf("test_virtio_blk: ALL PASS\n");
     else printf("test_virtio_blk: %d FAILURES\n", failures);
     return failures ? 1 : 0;
