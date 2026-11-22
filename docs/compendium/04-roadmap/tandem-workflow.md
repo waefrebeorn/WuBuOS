@@ -224,6 +224,9 @@ cd /home/wubu/wubuos && make test_wemu_busybox
   the console/drv command, the gated drv command and the bounded
   formatters. Run #113 and later commits were still in progress or not
   yet reported at check time; do not claim CI green for those yet.
+  The other workflow (`ci.yml`) triggers only on `master`, not `main`;
+  its recent red runs are old `master` commits and are not evidence about
+  this branch. `boot-verify` is the tandem's gate.
 
 ## Honest boundaries
 
