@@ -147,10 +147,12 @@ BAR as I/O space. `test_xhci`, kernel boot and `kernel-strict` stay green.
    smells like a copy. Reuse `wubu_vmm_map_page`, `wubu_drv_dev_bar`, the
    existing virtqueue core, the VSL syscall table.
 5. Verify by running — `make <target>` then read the real output. Never
-   cite a stale test count. Known load-sensitive targets (`test_host_exec`,
-   `test_svc_super`) can fail under saturated `-j24` while passing alone;
-   re-run them in isolation, then re-run the full gate. Only report a
-   regression if the isolated gate also fails.
+   cite a stale test count. Two historically load-sensitive targets had
+   real root causes and were fixed: `test_svc_super` waited a fixed 100 ms
+   instead of polling the restart condition; `test_host_exec` launched an
+   instantly-exiting guest that the sync reaps before observation. If a
+   gate still fails only under load, isolate it, then re-run the full gate;
+   report a regression only if the isolated gate also fails.
 6. Docs are testable: new paths named here must exist (`make test_docs`).
 7. Submodules untouched unless the leg IS the submodule (WuBuKernel is
    public; WEMU legs are pushed from `/home/wubu/wemu` and the pointer

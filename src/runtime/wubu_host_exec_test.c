@@ -562,7 +562,11 @@ static void test_ns_guests_launch_by_write(void) {
     char marker[300];
     snprintf(marker, sizeof(marker), "%s/launched.marker", nsroot);
     char cmd[512];
-    snprintf(cmd, sizeof(cmd), "/bin/sh -c 'echo L9-LAUNCHED > %s'", marker);
+    /* Keep the guest alive briefly after writing the marker. The guests
+     * sync reaps exited guests, so an instant `echo` can be destroyed
+     * before the test observes registration/guests-list under load. */
+    snprintf(cmd, sizeof(cmd),
+             "/bin/sh -c 'echo L9-LAUNCHED > %s; sleep 2'", marker);
 
     /* Walk to a guest that is NOT running yet -- the probe seam must let
      * the client reach its launch file. */

@@ -146,12 +146,19 @@ int main(void) {
     wubu_svc_supervisor_set_restart(s4, ROOT, "flaky", true);
     wubu_svc_supervisor_set_type(s4, ROOT, "flaky", SVC_TYPE_SIMPLE);
     wubu_svc_supervisor_start(s4, ROOT, "flaky");
-    usleep(100000);
-    int n4 = wubu_svc_supervisor_poll(s4);   /* 1st death: restart + backoff */
+    /* Wait for the CONDITION, not a fixed 100ms: under a saturated -j24
+     * gate fork/exec of even /bin/true can take longer, and the old sample
+     * saw restart_count == 0 while passing in isolation. */
+    int n4 = 0, restarted = 0;
+    for (int i = 0; i < 300; i++) {
+        usleep(10000);
+        n4 = wubu_svc_supervisor_poll(s4);   /* 1st death: restart + backoff */
+        memset(&st, 0, sizeof(st));
+        wubu_svc_supervisor_status(s4, ROOT, "flaky", &st);
+        if (st.restart_count >= 1) { restarted = 1; break; }
+    }
     CHECK(n4 == 0, "1st death restarts (backoff engaged, not 'unexpected')");
-    memset(&st, 0, sizeof(st));
-    wubu_svc_supervisor_status(s4, ROOT, "flaky", &st);
-    CHECK(st.restart_count >= 1, "restart_count >= 1 after 1st crash");
+    CHECK(restarted, "restart_count >= 1 after 1st crash");
     /* The guard is that the restart COUNT does not grow while the unit
      * keeps dying inside the backoff window -- not that the pid happens to
      * be 0 at one sampled instant (an instant's sample depends on whether
