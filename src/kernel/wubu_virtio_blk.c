@@ -211,10 +211,17 @@ static wubu_virtio_blk_t *vblk_init(uint16_t iobase)
         vblk_teardown(d); return NULL;
     }
 
-    /* block capacity: the 64-bit config field */
-    uint64_t lo = wubu_vq_io.inl((uint16_t)(d->iobase + d->cfg_off));
-    uint64_t hi = wubu_vq_io.inl((uint16_t)(d->iobase + d->cfg_off + 4));
-    d->capacity = lo | (hi << 32);
+    /* block capacity: the 64-bit config field, read as a stable pair. */
+    uint8_t cap[8];
+    if (wubu_vq_config_read_stable(d->iobase, d->cfg_off, cap, 8) != 0) {
+        vblk_teardown(d); return NULL;
+    }
+    uint64_t clo = 0, chi = 0;
+    for (int i = 0; i < 4; i++) {
+        clo |= (uint64_t)cap[i] << (8 * i);
+        chi |= (uint64_t)cap[4 + i] << (8 * i);
+    }
+    d->capacity = clo | (chi << 32);
     if (d->capacity == 0) { vblk_teardown(d); return NULL; }
 
     d->bounce = (uint8_t *)wubu_vq_mem.alloc(VBLK_BOUNCE_SECT * VBLK_SECTOR);

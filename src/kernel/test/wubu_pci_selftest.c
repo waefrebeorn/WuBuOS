@@ -22,7 +22,7 @@
  * 0xFFFFFFFF.                                                  */
 /* ------------------------------------------------------------------ */
 
-#define FAKE_NDEV 4
+#define FAKE_NDEV 6
 
 static struct {
     uint8_t  dev, fn;
@@ -30,12 +30,14 @@ static struct {
     uint32_t cls;    /* offset 0x08: class/sub/progif */
     uint32_t cmd;    /* offset 0x0C: bit7 (0x80) = multifunction */
     uint32_t bar0;   /* offset 0x10 */
+    uint32_t bar1;   /* offset 0x14: separate BAR unless BAR0 is 64-bit */
 } g_fake[FAKE_NDEV];
 static int g_fake_n = 0;
 
 /* seed a fake device into the table */
 static void pci_test_seed(uint8_t dev, uint8_t fn, uint32_t ids,
-                          uint32_t cls, uint32_t cmd, uint32_t bar0) {
+                          uint32_t cls, uint32_t cmd, uint32_t bar0,
+                          uint32_t bar1) {
     if (g_fake_n >= FAKE_NDEV) return;
     g_fake[g_fake_n].dev = dev;
     g_fake[g_fake_n].fn = fn;
@@ -43,6 +45,7 @@ static void pci_test_seed(uint8_t dev, uint8_t fn, uint32_t ids,
     g_fake[g_fake_n].cls = cls;
     g_fake[g_fake_n].cmd = cmd;
     g_fake[g_fake_n].bar0 = bar0;
+    g_fake[g_fake_n].bar1 = bar1;
     g_fake_n++;
 }
 
@@ -56,6 +59,7 @@ uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
             case 0x08: return g_fake[i].cls;
             case 0x0C: return g_fake[i].cmd;
             case 0x10: return g_fake[i].bar0;
+            case 0x14: return g_fake[i].bar1;
             default:   return 0;
             }
         }
@@ -81,22 +85,35 @@ int main(void) {
     /* seed: one single-function AMD GPU (0x1002:0x1636, class 03/00/00,
      * BAR0=0xF0000000), one multifunction pair (fn0 cmd dword has bit 23
      * set = multifunction flag per PCI §2, fn1 audio), one empty slot. */
-    pci_test_seed(0x00, 0, 0x16361002u, 0x03000000u, 0x00000000u, 0xF0000000u);
-    pci_test_seed(0x01, 0, 0x56781002u, 0x04030000u, 0x00800000u, 0x00000000u);
-    pci_test_seed(0x01, 1, 0x9ABC1002u, 0x04030000u, 0x00000000u, 0x0000D000u);
-    pci_test_seed(0x02, 0, 0xFFFFFFFFu, 0, 0, 0);  /* empty slot */
+    /* BAR0 32-bit memory + a real BAR1: the old bar_of consumed BAR1 as
+     * BAR0's 64-bit high half and corrupted both. */
+    pci_test_seed(0x00, 0, 0x16361002u, 0x03000000u, 0x00000000u,
+                  0xF0000000u, 0x0000D000u);
+    pci_test_seed(0x01, 0, 0x56781002u, 0x04030000u, 0x00800000u,
+                  0x00000000u, 0);
+    pci_test_seed(0x01, 1, 0x9ABC1002u, 0x04030000u, 0x00000000u,
+                  0x0000D000u, 0);
+    pci_test_seed(0x02, 0, 0xFFFFFFFFu, 0, 0, 0, 0);
+    /* type=10 memory BAR: bits 32:63 come from the next DWORD. */
+    pci_test_seed(0x03, 0, 0x12345678u, 0x02000000u, 0,
+                  0x0000000Cu, 0x00000001u);
+    /* I/O BAR with bits above 15 set: full 32-bit decode must survive. */
+    pci_test_seed(0x04, 0, 0x10011AF4u, 0x02000000u, 0,
+                  0x00010101u, 0);
 
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
 
-    printf("  scanned: %d devices (expect 3: single + multifn x2)\n", n);
-    OK(n == 3);
+    printf("  scanned: %d devices (expect 5: single + multifn x2 + 64bit + IO)\n", n);
+    OK(n == 5);
 
     /* dev0: AMD GPU, class 0x03 (display), BAR0 = 0xF0000000 */
     OK(devs[0].vendor == 0x1002);
     OK(devs[0].device == 0x1636);
     OK(devs[0].class_code == 0x03);
     OK(devs[0].bar0 == 0xF0000000u);
+    OK(devs[0].bar1 == 0x0000D000u);   /* BAR1 is separate, not BAR0's high half */
+    OK(devs[0].bar0_is_io == 0);
     OK(devs[0].bus == 0 && devs[0].dev == 0x00 && devs[0].fn == 0);
 
     /* multifn: dev1 fn0 + fn1 bit 7 set on fn0 cmd byte */
@@ -112,6 +129,12 @@ int main(void) {
           if (devs[i].vendor == 0xFFFF) found_empty = 1;
       OK(!found_empty);
     }
+
+    /* 64-bit and 32-bit I/O BAR decode per PCI 3.0 6.2.5.1. */
+    OK(devs[3].bar0 == 0x0000000100000000ull);
+    OK(devs[3].bar0_is_io == 0);
+    OK(devs[4].bar0 == 0x00010100u);
+    OK(devs[4].bar0_is_io == 1);
 
     /* find_class: locate display controller (class 0x03 subclass 0x00) */
     int idx = wubu_pci_find_class(devs, n, 0x03, 0x00);

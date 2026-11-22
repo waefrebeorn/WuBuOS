@@ -153,6 +153,14 @@ static uint8_t f_inb(uint16_t p)
         return (uint8_t)(fake_regs[o] | WUBU_VQ_S_FAILED);
     return fake_regs[o];
 }
+/* A deliberately unstable config byte stream for the stable-read gate. */
+static uint8_t f_toggle_inb(uint16_t p)
+{
+    static unsigned n;
+    if ((uint16_t)(p - fake_iobase) == WUBU_VQ_REG_CONFIG)
+        return (uint8_t)(n++ & 1u);
+    return f_inb(p);
+}
 static void f_outb(uint16_t p, uint8_t v) { fake_regs[p - fake_iobase] = v; }
 static uint16_t f_inw(uint16_t p)
 {
@@ -364,6 +372,24 @@ int main(void)
     d = wubu_virtio_blk_probe();
     CHECK(d != NULL);
     if (d) vblk_teardown(d);
+
+    /* VIRTIO 1.0 2.3.2: legacy config fields have no generation counter.
+     * A byte stream that changes on every read must be rejected even if
+     * two consecutive reads happen to agree in shape. */
+    uint8_t (*saved_inb)(uint16_t) = wubu_vq_io.inb;
+    wubu_vq_io.inb = f_toggle_inb;
+    uint8_t stable[8];
+    CHECK(wubu_vq_config_read_stable(fake_iobase, WUBU_VQ_REG_CONFIG,
+                                     stable, 6) == -1);
+    wubu_vq_io.inb = saved_inb;
+    CHECK(wubu_vq_config_read_stable(fake_iobase, WUBU_VQ_REG_CONFIG,
+                                     stable, 8) == 0);
+    CHECK(stable[0] == (FAKE_SECTORS & 0xFF));
+    CHECK(wubu_vq_config_read_stable(fake_iobase, 0, stable, 0) == -1);
+
+    /* VIRTIO 1.0 2.1: never set DRIVER_OK on an already-FAILED device. */
+    fake_regs[WUBU_VQ_REG_STATUS] = WUBU_VQ_S_FAILED;
+    CHECK(wubu_vq_dev_driver_ok(fake_iobase) == -1);
 
     if (failures == 0) printf("test_virtio_blk: ALL PASS\n");
     else printf("test_virtio_blk: %d FAILURES\n", failures);

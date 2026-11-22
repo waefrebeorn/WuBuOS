@@ -24,9 +24,9 @@
 #define XHCI_TRB_SIZE 16
 #define XHCI_RING_TRBS 64
 
-/* command TRB types */
-#define TRB_CMD_ADDRESS_DEVICE 0x08u
-#define TRB_CMD_ENABLE_SLOT    0x09u
+/* command TRB types (xHCI 1.2b 6.4.3.2: TRB Type lives in DW3[15:10]) */
+#define TRB_CMD_ADDRESS_DEVICE 11u
+#define TRB_CMD_ENABLE_SLOT    9u
 
 /* operational registers (offset from op_base) */
 #define OP_USBCMD 0x0u
@@ -98,14 +98,16 @@ int wubu_xhci_probe_regs(uint64_t mmio, wubu_xhci_t *out)
     if (!mmio) return 0;
     uint32_t caplen = xhci_read32(mmio + 0x00) & 0xFF;
     uint32_t hcs1 = xhci_read32(mmio + 0x04);
-    uint32_t hcc1 = xhci_read32(mmio + 0x0C);
+    uint32_t hcc1 = xhci_read32(mmio + 0x10);  /* HCCPARAMS1 (0x0C is HCSPARAMS3) */
     uint32_t db_off = xhci_read32(mmio + 0x14);
     uint32_t rt_off = xhci_read32(mmio + 0x18);
     out->cap_length = caplen;
     out->hcs_params = hcs1;
     out->hcc_params = hcc1;
-    out->db_off = db_off & 0xFFFF;
-    out->rt_off = (rt_off & 0xFFFF) << 5;
+    /* xHCI 1.2b 5.3.7/5.3.8: DBOFF bits 31:2 and RTSOFF bits 31:5 are
+     * byte offsets already. Mask reserved low bits; never scale them. */
+    out->db_off = db_off & ~3u;
+    out->rt_off = rt_off & ~0x1Fu;
     out->mmio_base = mmio;
     out->op_base = mmio + caplen;
     out->port_count = (hcs1 >> 24) & 0xFF;
@@ -170,7 +172,7 @@ int wubu_xhci_slot_alloc(wubu_xhci_t *xh)
     w[0] = 0;                       /* slot type = 0 (default) */
     w[1] = 0;
     w[2] = 0;
-    w[3] = TRB_CMD_ENABLE_SLOT;     /* the type field */
+    w[3] = (TRB_CMD_ENABLE_SLOT << 10) | 1u;   /* type in DW3[15:10], C=1 */
     g_cmd_dequeue++;
     /* ring the doorbell 0 (the command doorbell) */
     uint64_t db = xh->mmio_base + xh->db_off;

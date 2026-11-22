@@ -37,6 +37,7 @@
 #define WUBU_VQ_S_DRIVER    0x02u
 #define WUBU_VQ_S_DRIVER_OK 0x04u
 #define WUBU_VQ_S_FAILED    0x80u
+#define WUBU_VQ_S_DEVICE_NEEDS_RESET 0x40u
 
 #define WUBU_VQ_DESC_F_NEXT  0x1u
 #define WUBU_VQ_DESC_F_WRITE 0x2u
@@ -121,6 +122,12 @@ int wubu_vq_dev_reset(uint16_t iobase);
 uint32_t wubu_vq_negotiate(uint16_t iobase, uint32_t accept_mask);
 /* set DRIVER_OK and verify the device accepted it. 0 ok, -1 refused. */
 int wubu_vq_dev_driver_ok(uint16_t iobase);
+
+/* Legacy config fields wider than 32 bits (capacity) or spanning several
+ * bytes (MAC) have no generation counter: read twice and accept only a
+ * stable pair (VIRTIO 1.0 2.3.2). len must be 1..8. */
+int wubu_vq_config_read_stable(uint16_t iobase, uint16_t cfg_off,
+                               uint8_t *out, uint16_t len);
 
 /* -- queue setup ---------------------------------------------------- */
 /* Select queue `index`, read its size (<= max_q), allocate the

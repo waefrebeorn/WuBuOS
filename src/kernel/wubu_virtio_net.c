@@ -184,9 +184,10 @@ static wubu_virtio_net_t *vnet_init(uint16_t iobase)
         vnet_teardown(n); return NULL;
     }
 
-    /* MAC: the 6-byte config field at offset 0 */
-    for (int i = 0; i < 6; i++)
-        n->mac[i] = wubu_vq_io.inb((uint16_t)(n->iobase + n->cfg_off + i));
+    /* MAC: the 6-byte config field, read as a stable pair. */
+    if (wubu_vq_config_read_stable(n->iobase, n->cfg_off, n->mac, 6) != 0) {
+        vnet_teardown(n); return NULL;
+    }
 
     /* DMA buffers: RX arena + TX bounce (hdr + max frame) */
     n->rx_bufs = (uint8_t *)wubu_vq_mem.alloc(VNET_RX_BUFS * VNET_RX_BUF_SZ);

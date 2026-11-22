@@ -103,12 +103,18 @@ static uint64_t bar_of(wubu_pci_dev_t *d, int which, uint8_t *is_io)
     uint8_t off = (uint8_t)(0x10 + which * 4);
     uint32_t lo = wubu_pci_read32(d->bus, d->dev, d->fn, off);
     if (lo & 1) {                                    /* I/O space BAR */
-        if (is_io) *is_io = which == 0 ? 1u : 0u;
-        return lo & 0xFFFCu;
+        if (is_io) *is_io = 1u;
+        /* PCI 3.0 6.2.5.1: I/O BARs are 32-bit decode, bits 31:2. */
+        return lo & 0xFFFFFFFCu;
     }
     if (is_io) *is_io = 0;
-    uint32_t hi = wubu_pci_read32(d->bus, d->dev, d->fn, off + 4);
-    return ((uint64_t)hi << 32) | (lo & 0xFFFFFFF0u);
+    /* Only a type=10 memory BAR consumes the next DWORD as bits 32-63.
+     * For type=00 the next DWORD is a separate BAR (PCI 3.0 Table 6-4). */
+    if ((lo & 0x6u) == 0x4u) {
+        uint32_t hi = wubu_pci_read32(d->bus, d->dev, d->fn, off + 4);
+        return ((uint64_t)hi << 32) | (lo & 0xFFFFFFF0u);
+    }
+    return lo & 0xFFFFFFF0u;
 }
 
 int wubu_pci_scan(wubu_pci_dev_t *out, int max)

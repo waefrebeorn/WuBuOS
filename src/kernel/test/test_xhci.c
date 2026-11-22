@@ -52,9 +52,10 @@ int main(void)
     memset(mm, 0, 0x3000);
     *(uint32_t *)(mm + 0x00) = 0x20;          /* cap length 32 */
     *(uint32_t *)(mm + 0x04) = 0x04080008;    /* 8 slots, 8 intrs, 4 ports */
-    *(uint32_t *)(mm + 0x0C) = 0x00000001;    /* 64-bit addressing */
-    *(uint32_t *)(mm + 0x14) = 0x00001000;    /* doorbell at +0x1000 */
-    *(uint32_t *)(mm + 0x18) = 0x00000100;    /* runtime at +0x2000 */
+    *(uint32_t *)(mm + 0x0C) = 0x00000001;    /* HCSPARAMS3 (not HCCPARAMS1) */
+    *(uint32_t *)(mm + 0x10) = 0xDEADBEEFu;   /* HCCPARAMS1 lives at 0x10 */
+    *(uint32_t *)(mm + 0x14) = 0x00001002u;   /* DBOFF +0x1000, reserved low bits */
+    *(uint32_t *)(mm + 0x18) = 0x00002000u;   /* RTSOFF is already a byte offset */
 
     wubu_xhci_t x;
     CHECK(wubu_xhci_probe_regs((uint64_t)(uintptr_t)mm, &x) == 0);
@@ -63,8 +64,20 @@ int main(void)
     CHECK(x.slot_count == 8);
     CHECK(x.port_count == 4);
     CHECK(x.op_base == (uint64_t)(uintptr_t)mm + 32);
+    CHECK(x.hcc_params == 0xDEADBEEFu);        /* 0x10, not HCSPARAMS3 */
     CHECK(x.db_off == 0x1000);
     CHECK(x.rt_off == 0x2000);
+
+    /* xHCI 1.2b: DBOFF/RTSOFF are 32-bit byte offsets. A high-half value
+     * must survive; the old 0xFFFF mask + <<5 scaling lost both. */
+    *(uint32_t *)(mm + 0x14) = 0x00011002u;
+    *(uint32_t *)(mm + 0x18) = 0x00012000u;
+    wubu_xhci_t hi;
+    CHECK(wubu_xhci_probe_regs((uint64_t)(uintptr_t)mm, &hi) == 0);
+    CHECK(hi.db_off == 0x11000);
+    CHECK(hi.rt_off == 0x12000);
+    *(uint32_t *)(mm + 0x14) = 0x00001002u;
+    *(uint32_t *)(mm + 0x18) = 0x00002000u;
 
     /* D2: probe() must obtain its MMIO VA from the registry owner. */
     memset(&g_fake_xhci_dev, 0, sizeof(g_fake_xhci_dev));
@@ -103,6 +116,8 @@ int main(void)
     /* slot allocation walks the command ring */
     int slot = wubu_xhci_slot_alloc(&x);
     CHECK(slot >= 0);
+    /* xHCI 1.2b 6.4.3.2: TRB Type is DW3[15:10], C is DW3 bit 0. */
+    CHECK(((uint32_t *)g_cmd_ring)[3] == ((9u << 10) | 1u));
 
     /* NULL is rejected */
     CHECK(wubu_xhci_probe_regs(0, NULL) == -1);

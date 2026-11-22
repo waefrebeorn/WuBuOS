@@ -174,6 +174,18 @@ BAR as I/O space. `test_xhci`, kernel boot and `kernel-strict` stay green.
    public; WEMU legs are pushed from `/home/wubu/wemu` and the pointer
    bumped in `wubuos`).
 
+- `make ci_status` (live public API, no `gh` auth) fails on any recent red
+  run; `ci.yml` is `master`-only, so `boot-verify` is the `main` gate.
+
+**Spec-driven driver correctness (round 175):** the boot drivers are
+checked against their primary specs, not just self-tests. xHCI capability
+offsets, byte-offset semantics and TRB encoding follow Intel xHCI 1.2b;
+PCI BAR type/I-O decode follows PCI 3.0 §6.2.5.1; virtio fences, stable
+config reads and FAILED handling follow OASIS VIRTIO 1.0. Unfixed spec
+gaps (BAR sizing, bridge recursion, HCRST/CNR reset, virtio ID range and
+MSI-X config offset) are listed in the gap map — do not claim hardware
+support for them from these gates.
+
 ## Gate quick-reference (the tandem's definition of green)
 
 ```sh

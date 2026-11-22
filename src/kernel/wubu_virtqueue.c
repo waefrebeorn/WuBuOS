@@ -28,12 +28,12 @@ extern void  mem_free(void *);
 
 /* -- injectable port I/O (metal: real asm; test: fake window) ------ */
 #ifdef MYSEED_METAL
-static uint8_t  metal_inb(uint16_t p)  { uint8_t  v; __asm__ __volatile__("inb %1,%0" : "=a"(v) : "Nd"(p)); return v; }
-static void     metal_outb(uint16_t p, uint8_t v)  { __asm__ __volatile__("outb %0,%1" :: "a"(v), "Nd"(p)); }
-static uint16_t metal_inw(uint16_t p)  { uint16_t v; __asm__ __volatile__("inw %1,%0" : "=a"(v) : "Nd"(p)); return v; }
-static void     metal_outw(uint16_t p, uint16_t v) { __asm__ __volatile__("outw %0,%1" :: "a"(v), "Nd"(p)); }
-static uint32_t metal_inl(uint16_t p)  { uint32_t v; __asm__ __volatile__("inl %1,%0" : "=a"(v) : "Nd"(p)); return v; }
-static void     metal_outl(uint16_t p, uint32_t v) { __asm__ __volatile__("outl %0,%1" :: "a"(v), "Nd"(p)); }
+static uint8_t  metal_inb(uint16_t p)  { uint8_t  v; __asm__ __volatile__("inb %1,%0" : "=a"(v) : "Nd"(p) : "memory"); return v; }
+static void     metal_outb(uint16_t p, uint8_t v)  { __asm__ __volatile__("outb %0,%1" :: "a"(v), "Nd"(p) : "memory"); }
+static uint16_t metal_inw(uint16_t p)  { uint16_t v; __asm__ __volatile__("inw %1,%0" : "=a"(v) : "Nd"(p) : "memory"); return v; }
+static void     metal_outw(uint16_t p, uint16_t v) { __asm__ __volatile__("outw %0,%1" :: "a"(v), "Nd"(p) : "memory"); }
+static uint32_t metal_inl(uint16_t p)  { uint32_t v; __asm__ __volatile__("inl %1,%0" : "=a"(v) : "Nd"(p) : "memory"); return v; }
+static void     metal_outl(uint16_t p, uint32_t v) { __asm__ __volatile__("outl %0,%1" :: "a"(v), "Nd"(p) : "memory"); }
 wubu_vq_io_t wubu_vq_io = {
     metal_inb, metal_outb, metal_inw, metal_outw, metal_inl, metal_outl
 };
@@ -102,6 +102,21 @@ int wubu_vq_dev_reset(uint16_t iobase)
     return 0;
 }
 
+int wubu_vq_config_read_stable(uint16_t iobase, uint16_t cfg_off,
+                               uint8_t *out, uint16_t len)
+{
+    uint8_t a[8], b[8];
+    if (!out || len == 0 || len > sizeof(a)) return -1;
+    for (uint16_t attempt = 0; attempt < 3; attempt++) {
+        for (uint16_t i = 0; i < len; i++)
+            a[i] = wubu_vq_io.inb((uint16_t)(iobase + cfg_off + i));
+        for (uint16_t i = 0; i < len; i++)
+            b[i] = wubu_vq_io.inb((uint16_t)(iobase + cfg_off + i));
+        if (memcmp(a, b, len) == 0) { memcpy(out, a, len); return 0; }
+    }
+    return -1;
+}
+
 uint32_t wubu_vq_negotiate(uint16_t iobase, uint32_t accept_mask)
 {
     uint32_t host = wubu_vq_io.inl((uint16_t)(iobase + WUBU_VQ_REG_HOST_FEATURES));
@@ -112,6 +127,10 @@ uint32_t wubu_vq_negotiate(uint16_t iobase, uint32_t accept_mask)
 
 int wubu_vq_dev_driver_ok(uint16_t iobase)
 {
+    /* VIRTIO 1.0 2.1/3.1: never set DRIVER_OK on a device that already
+     * reported FAILED or DEVICE_NEEDS_RESET (bits 7 and 6). */
+    uint8_t pre = wubu_vq_io.inb((uint16_t)(iobase + WUBU_VQ_REG_STATUS));
+    if (pre & (WUBU_VQ_S_FAILED | WUBU_VQ_S_DEVICE_NEEDS_RESET)) return -1;
     wubu_vq_io.outb((uint16_t)(iobase + WUBU_VQ_REG_STATUS),
                     WUBU_VQ_S_ACK | WUBU_VQ_S_DRIVER | WUBU_VQ_S_DRIVER_OK);
     uint8_t st = wubu_vq_io.inb((uint16_t)(iobase + WUBU_VQ_REG_STATUS));
@@ -206,6 +225,9 @@ int wubu_vq_poll(wubu_vq_t *vq, uint32_t limit,
 {
     for (uint32_t i = 0; i < limit; i++) {
         if (vq->used->idx != vq->last_used) {
+            /* VIRTIO 1.0 3.2.2: observe used.idx, then fence before
+             * reading the used-ring entry or the device-written buffer. */
+            vq_fence();
             uint16_t slot = (uint16_t)(vq->last_used % vq->qsize);
             uint32_t cid = vq->used->ring[slot].id;
             uint32_t clen = vq->used->ring[slot].len;
