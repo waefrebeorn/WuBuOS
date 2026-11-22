@@ -126,6 +126,12 @@ int wubu_drv_driver_count(void);
 int wubu_drv_map_mmio(const wubu_drv_dev_t *dev, uint64_t va_page,
                       uint64_t *va_out);
 
+/* Map `pages` 4K pages from BAR index `bar_index` (0 or 4) at `va_page`.
+ * The single BAR -> VMM owner; BAR4 is the 64-bit capability window of
+ * a modern virtio function. Existing mmio/mmio_range calls use BAR0. */
+int wubu_drv_map_bar_range(const wubu_drv_dev_t *dev, unsigned bar_index,
+                           uint64_t va_page, uint32_t pages, uint64_t *va_out);
+
 /* DRV10b: the range form -- one owner for a multi-page MMIO aperture.
  * Maps `pages` consecutive 4K pages from BAR0 at `va_page`; 1 <= pages <=
  * WUBU_DRV_MMIO_MAX_PAGES, va_page 4K-aligned. Returns 0 and writes the

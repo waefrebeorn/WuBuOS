@@ -277,6 +277,31 @@ int main(void)
         FAIL("64-bit phys = %llx", (unsigned long long)g_map_phys[1]);
     printf("  PASS: no-BAR / I-O BAR rejected; 64-bit BAR assembled\n");
 
+    /* modern virtio BAR4 is mapped by the SAME one-owner mapper. */
+    wubu_drv_dev_t bar4 = *nvme;
+    bar4.bar0 = 0; bar4.bar4 = 0xFE000000ull; bar4.bar4_size = 0x4000u;
+    bar4.bar4_is_io = 0; bar4.mmio_va = 0;
+    g_map_n = 0; g_map_fail = 0;
+    if (wubu_drv_map_bar_range(&bar4, 4u, WUBU_DRV_MMIO_VA_BASE + 0x5000,
+                               2u, &mapped) != 0)
+        FAIL("BAR4 two-page map");
+    if (g_map_n != 2 || g_map_phys[0] != 0xFE000000ull ||
+        g_map_phys[1] != 0xFE001000ull || g_map_flags[0] != 3u)
+        FAIL("BAR4 map used wrong phys/flags/pages");
+    if (mapped != WUBU_DRV_MMIO_VA_BASE + 0x5000) FAIL("BAR4 mapped VA");
+    wubu_drv_dev_t bad4 = bar4;
+    bad4.bar4_is_io = 1;
+    if (wubu_drv_map_bar_range(&bad4, 4u, WUBU_DRV_MMIO_VA_BASE + 0x7000,
+                               1u, &mapped) == 0 || g_map_n != 2)
+        FAIL("I/O BAR4 mapped as MMIO or called the mapper");
+    if (wubu_drv_map_bar_range(&bar4, 4u, WUBU_DRV_MMIO_VA_BASE + 0x7000,
+                               5u, &mapped) == 0 || g_map_n != 2)
+        FAIL("BAR4 map exceeded the sized window");
+    if (wubu_drv_map_bar_range(&bar4, 1u, WUBU_DRV_MMIO_VA_BASE + 0x7000,
+                               1u, &mapped) == 0)
+        FAIL("unowned BAR index mapped");
+    printf("  PASS: BAR4 maps through the one owner, sized and I/O-gated\n");
+
     /* D1: fail-soft -- a mapper failure returns -1, never a fake VA. */
     g_map_fail = 1;
     g_map_n = 1;

@@ -175,17 +175,31 @@ int wubu_drv_dev_bar(const wubu_drv_dev_t *dev, uint64_t *bar0,
 
 /* DRV10: THE single BAR -> VMM mapping owner. No BAR / I/O-space BAR /
  * absent mapper / map failure all return -1 without side effects. */
-int wubu_drv_map_mmio_range(const wubu_drv_dev_t *dev, uint64_t va_page,
-                            uint32_t pages, uint64_t *va_out)
+int wubu_drv_map_bar_range(const wubu_drv_dev_t *dev, unsigned bar_index,
+                           uint64_t va_page, uint32_t pages, uint64_t *va_out)
 {
-    uint64_t bar0 = 0, bar1 = 0, phys;
+    uint64_t bar = 0, high = 0, phys;
     if (!dev || !va_out || !pages || pages > WUBU_DRV_MMIO_MAX_PAGES ||
-        (va_page & 0xFFFull) || dev->bar0_is_io) return -1;
-    if (wubu_drv_dev_bar(dev, &bar0, &bar1) != 0) return -1;
+        (va_page & 0xFFFull)) return -1;
+
+    if (bar_index == 0u) {
+        if (dev->bar0_is_io) return -1;
+        bar = dev->bar0;
+        high = dev->bar1;
+    } else if (bar_index == 4u) {
+        if (dev->bar4_is_io || !dev->bar4) return -1;
+        /* bar4 is the already-decoded 64-bit base; its high dword is zero. */
+        if (dev->bar4_size && dev->bar4_size < (uint64_t)pages * 4096u)
+            return -1;
+        bar = dev->bar4;
+        high = 0;
+    } else {
+        return -1;                    /* only BAR0 and BAR4 are owned */
+    }
     /* The PCI scan masks BAR type bits. Direct fixtures may still carry the
      * raw I/O-bit form; reject both spellings before the contract decode. */
-    if ((bar0 & 1u) || !wubu_contract_is_mmio(bar0)) return -1;
-    if (wubu_contract_decode_bar(bar0, bar1, &phys) != 0) return -1;
+    if ((bar & 1u) || !wubu_contract_is_mmio(bar)) return -1;
+    if (wubu_contract_decode_bar(bar, high, &phys) != 0) return -1;
     if (!wubu_vmm_map_page) return -1;        /* no mapper (hosted gate) */
     for (uint32_t i = 0; i < pages; i++)
         if (wubu_vmm_map_page(va_page + (uint64_t)i * 4096u,
@@ -199,6 +213,12 @@ int wubu_drv_map_mmio_range(const wubu_drv_dev_t *dev, uint64_t va_page,
         }
     *va_out = va_page;
     return 0;
+}
+
+int wubu_drv_map_mmio_range(const wubu_drv_dev_t *dev, uint64_t va_page,
+                            uint32_t pages, uint64_t *va_out)
+{
+    return wubu_drv_map_bar_range(dev, 0u, va_page, pages, va_out);
 }
 
 int wubu_drv_map_mmio(const wubu_drv_dev_t *dev, uint64_t va_page,
