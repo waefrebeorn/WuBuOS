@@ -173,34 +173,53 @@ static uint64_t bar_size_of(const wubu_pci_dev_t *d, int which,
     return is64 ? (~mask) + 1u : ((~mask) & 0xFFFFFFFFu) + 1u;
 }
 
-int wubu_pci_scan(wubu_pci_dev_t *out, int max)
+/* PCI 3.0 3.2.5: a type-1 (PCI-to-PCI bridge) header at config 0x0C
+ * bits 23:16 names a secondary bus at 0x18[15:8]. Walk it with a
+ * visited-bus guard so a broken bridge loop cannot hang the boot. */
+static void wubu_pci_scan_bus(uint8_t bus, wubu_pci_dev_t *out, int max,
+                              int *n, uint8_t *visited, int depth)
 {
-    int n = 0;
-    for (int dev = 0; dev < 32 && n < max; dev++) {
-        uint32_t id = wubu_pci_read32(0, (uint8_t)dev, 0, 0);
-        if (id == 0xFFFFFFFFu || id == 0) continue;      /* nothing there */
-        for (int fn = 0; fn < 8 && n < max; fn++) {
-            uint32_t id2 = wubu_pci_read32(0, (uint8_t)dev, (uint8_t)fn, 0);
+    if (visited[bus] || depth > 8) return;
+    visited[bus] = 1;
+    for (int dev = 0; dev < 32 && *n < max; dev++) {
+        uint32_t id = wubu_pci_read32(bus, (uint8_t)dev, 0, 0);
+        if (id == 0xFFFFFFFFu || id == 0) continue;
+        for (int fn = 0; fn < 8 && *n < max; fn++) {
+            uint32_t id2 = wubu_pci_read32(bus, (uint8_t)dev, (uint8_t)fn, 0);
             if (id2 == 0xFFFFFFFFu) continue;
-            uint32_t cls = wubu_pci_read32(0, (uint8_t)dev, (uint8_t)fn, 0x08);
-            wubu_pci_dev_t *d = &out[n];
+            uint32_t cls = wubu_pci_read32(bus, (uint8_t)dev, (uint8_t)fn, 0x08);
+            uint32_t hdr = wubu_pci_read32(bus, (uint8_t)dev, (uint8_t)fn, 0x0C);
+            wubu_pci_dev_t *d = &out[*n];
             memset(d, 0, sizeof(*d));
-            d->bus = 0; d->dev = (uint8_t)dev; d->fn = (uint8_t)fn;
+            d->bus = bus; d->dev = (uint8_t)dev; d->fn = (uint8_t)fn;
             d->vendor  = (uint16_t)(id2 & 0xFFFFu);
             d->device  = (uint16_t)(id2 >> 16);
             d->class_code = (uint8_t)(cls >> 24);
             d->subclass   = (uint8_t)(cls >> 16);
             d->prog_if    = (uint8_t)(cls >> 8);
-            uint32_t bar0_raw = wubu_pci_read32(0, (uint8_t)dev,
+            uint32_t bar0_raw = wubu_pci_read32(bus, (uint8_t)dev,
                                                 (uint8_t)fn, 0x10);
             d->bar0 = bar_of(d, 0, &d->bar0_is_io);
             d->bar0_size = bar_size_of(d, 0, d->bar0_is_io, bar0_raw);
             d->bar1 = bar_of(d, 1, NULL);
-            n++;
-            if (fn == 0 && !(wubu_pci_read32(0, (uint8_t)dev, 0, 0x0C) & 0x00800000u))
+            (*n)++;
+            if (fn == 0 && ((hdr >> 16) & 0xFFu) == 1u) {
+                uint8_t sec = (uint8_t)((wubu_pci_read32(bus, (uint8_t)dev,
+                                                         0, 0x18) >> 8) & 0xFFu);
+                if (sec && sec != bus)
+                    wubu_pci_scan_bus(sec, out, max, n, visited, depth + 1);
+            }
+            if (fn == 0 && !(hdr & 0x00800000u))
                 break;                                  /* no multifunction */
         }
     }
+}
+
+int wubu_pci_scan(wubu_pci_dev_t *out, int max)
+{
+    int n = 0;
+    uint8_t visited[256] = {0};
+    wubu_pci_scan_bus(0, out, max, &n, visited, 0);
     return n;
 }
 

@@ -22,13 +22,15 @@
  * 0xFFFFFFFF.                                                  */
 /* ------------------------------------------------------------------ */
 
-#define FAKE_NDEV 6
+#define FAKE_NDEV 9
 
 static struct {
-    uint8_t  dev, fn;
+    uint8_t  bus, dev, fn;
     uint32_t ids;    /* offset 0x00: vendor|device<<16; 0xFFFFFFFF = empty */
     uint32_t cls;    /* offset 0x08: class/sub/progif */
     uint32_t cmd;    /* offset 0x0C: bit7 (0x80) = multifunction */
+    uint32_t hdr;    /* full 0x0C dword: bits 23:16 = header type */
+    uint32_t sec;    /* config 0x18: secondary bus in bits 15:8 */
     uint32_t bar0;   /* offset 0x10 */
     uint32_t bar1;   /* offset 0x14: separate BAR unless BAR0 is 64-bit */
     uint32_t mask0, mask1;       /* implemented address bits (write-ones readback) */
@@ -37,15 +39,19 @@ static struct {
 static int g_fake_n = 0;
 
 /* seed a fake device into the table */
-static void pci_test_seed(uint8_t dev, uint8_t fn, uint32_t ids,
-                          uint32_t cls, uint32_t cmd, uint32_t bar0,
-                          uint32_t bar1) {
+static uint8_t g_seed_bus;
+static void pci_test_seed_bus(uint8_t bus, uint8_t dev, uint8_t fn,
+                              uint32_t ids, uint32_t cls, uint32_t cmd,
+                              uint32_t bar0, uint32_t bar1) {
     if (g_fake_n >= FAKE_NDEV) return;
+    g_fake[g_fake_n].bus = bus;
     g_fake[g_fake_n].dev = dev;
     g_fake[g_fake_n].fn = fn;
     g_fake[g_fake_n].ids = ids;
     g_fake[g_fake_n].cls = cls;
     g_fake[g_fake_n].cmd = cmd;
+    g_fake[g_fake_n].hdr = cmd;
+    g_fake[g_fake_n].sec = 0;
     g_fake[g_fake_n].bar0 = bar0;
     g_fake[g_fake_n].bar1 = bar1;
     if (bar0 & 1u) {
@@ -61,21 +67,32 @@ static void pci_test_seed(uint8_t dev, uint8_t fn, uint32_t ids,
     g_fake_n++;
 }
 
+static void pci_test_seed(uint8_t dev, uint8_t fn, uint32_t ids,
+                          uint32_t cls, uint32_t cmd, uint32_t bar0,
+                          uint32_t bar1) {
+    pci_test_seed_bus(g_seed_bus, dev, fn, ids, cls, cmd, bar0, bar1);
+}
+
+static void pci_test_bridge(int idx, uint8_t sec) {
+    g_fake[idx].hdr = 0x00010000u;        /* header type 1 at 0x0C[23:16] */
+    g_fake[idx].sec = (uint32_t)sec << 8; /* secondary bus at 0x18[15:8] */
+}
+
 /* the hook wubu_pci.c calls when WUBU_PCI_TEST_STUBS is set */
 uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off) {
-    (void)bus;
     for (int i = 0; i < g_fake_n; i++) {
-        if (g_fake[i].dev == dev && g_fake[i].fn == fn) {
-            switch (off) {
-            case 0x00: return g_fake[i].ids;
-            case 0x08: return g_fake[i].cls;
-            case 0x0C: return g_fake[i].cmd;
-            case 0x10: return g_fake[i].probe0 == 0xFFFFFFFFu
-                                 ? g_fake[i].mask0 : g_fake[i].bar0;
-            case 0x14: return g_fake[i].probe1 == 0xFFFFFFFFu
-                                 ? g_fake[i].mask1 : g_fake[i].bar1;
-            default:   return 0;
-            }
+        if (g_fake[i].bus != bus || g_fake[i].dev != dev ||
+            g_fake[i].fn != fn) continue;
+        switch (off) {
+        case 0x00: return g_fake[i].ids;
+        case 0x08: return g_fake[i].cls;
+        case 0x0C: return g_fake[i].hdr;
+        case 0x18: return g_fake[i].sec;
+        case 0x10: return g_fake[i].probe0 == 0xFFFFFFFFu
+                            ? g_fake[i].mask0 : g_fake[i].bar0;
+        case 0x14: return g_fake[i].probe1 == 0xFFFFFFFFu
+                            ? g_fake[i].mask1 : g_fake[i].bar1;
+        default:   return 0;
         }
     }
     return 0xFFFFFFFFu;
@@ -83,9 +100,9 @@ uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
 
 /* write_config models the write-all-ones sizing probe and restores BAR0. */
 void wubu_pci_write_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off, uint32_t val) {
-    (void)bus;
     for (int i = 0; i < g_fake_n; i++) {
-        if (g_fake[i].dev != dev || g_fake[i].fn != fn) continue;
+        if (g_fake[i].bus != bus || g_fake[i].dev != dev ||
+            g_fake[i].fn != fn) continue;
         if (off == 0x10) g_fake[i].probe0 = val;
         if (off == 0x14) g_fake[i].probe1 = val;
     }
@@ -119,12 +136,20 @@ int main(void) {
     /* I/O BAR with bits above 15 set: full 32-bit decode must survive. */
     pci_test_seed(0x04, 0, 0x10011AF4u, 0x02000000u, 0,
                   0x00010101u, 0);
+    /* a PCI-to-PCI bridge on bus 0 whose secondary bus is 1, one device
+     * behind it, and a second bridge pointing back at bus 0 (cycle). */
+    pci_test_seed_bus(0, 5, 0, 0x00001000u, 0x06040000u, 0, 0, 0);
+    pci_test_bridge(6, 1);
+    pci_test_seed_bus(1, 2, 0, 0x00001234u, 0x02000000u, 0,
+                      0x0000E000u, 0);
+    pci_test_seed_bus(1, 3, 0, 0x00005678u, 0x06040000u, 0, 0, 0);
+    pci_test_bridge(8, 0);
 
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
 
-    printf("  scanned: %d devices (expect 5: single + multifn x2 + 64bit + IO)\n", n);
-    OK(n == 5);
+    printf("  scanned: %d devices (expect 8: 5 bus-0 + bridge + 2 on bus 1)\n", n);
+    OK(n == 8);
 
     /* dev0: AMD GPU, class 0x03 (display), BAR0 = 0xF0000000 */
     OK(devs[0].vendor == 0x1002);
@@ -177,6 +202,18 @@ int main(void) {
     OK(extent == 0x20u);
     OK(wubu_pci_resource_extent("garbage", &base, &extent) == 0);
     OK(extent == 1u);
+
+    /* bridge traversal: the device on bus 1 is present and the bridge
+     * looping back to bus 0 cannot cause a second bus-0 scan. */
+    int down = -1, bus0_gpus = 0;
+    for (int i = 0; i < n; i++) {
+        if (devs[i].vendor == 0x1234) down = i;
+        if (devs[i].vendor == 0x1002) bus0_gpus++;
+    }
+    OK(down >= 0);
+    OK(down >= 0 && devs[down].bus == 1 && devs[down].dev == 2);
+    OK(down >= 0 && devs[down].bar0 == 0x0000E000u);
+    OK(bus0_gpus == 3);            /* GPU + 2 multifunctions, scanned once */
 
     printf("[wubu_pci_selftest] %d passed, %d failed\n", s_pass, s_fail);
     return s_fail == 0 ? 0 : 1;
