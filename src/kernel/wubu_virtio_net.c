@@ -21,7 +21,7 @@
 #include "wubu_virtio_net.h"
 #include "wubu_virtio_ids.h"
 #include "wubu_virtqueue.h"
-#include "wubu_pci.h"
+#include "wubu_drv.h"          /* one registry + the single I/O-BAR owner */
 
 #ifdef MYSEED_METAL
 #include "klog.h"
@@ -155,15 +155,14 @@ static void vnet_teardown(wubu_virtio_net_t *n)
     wubu_vq_mem.free(n);
 }
 
-static wubu_virtio_net_t *vnet_init(const wubu_pci_dev_t *pci)
+/* The I/O base comes from the ONE registry's I/O-BAR owner. */
+static wubu_virtio_net_t *vnet_init(uint16_t iobase)
 {
-    uint32_t bar0_raw = wubu_pci_read32(pci->bus, pci->dev, pci->fn, 0x10);
-    if (!(bar0_raw & 1u)) return NULL;           /* need the I/O layout */
-
+    if (!iobase) return NULL;
     wubu_virtio_net_t *n = (wubu_virtio_net_t *)wubu_vq_mem.alloc(sizeof(*n));
     if (!n) return NULL;
     memset(n, 0, sizeof(*n));
-    n->iobase  = (uint16_t)(bar0_raw & 0xFFFCu);
+    n->iobase  = iobase;
     /* polled driver never ENABLES MSI-X: config window stays 0x14 */
     n->cfg_off = WUBU_VQ_REG_CONFIG;
 
@@ -215,20 +214,17 @@ static wubu_virtio_net_t *vnet_init(const wubu_pci_dev_t *pci)
 
 wubu_virtio_net_t *wubu_virtio_net_probe(void)
 {
-    wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
-    memset(devs, 0, sizeof(devs));
-    int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
-    for (int i = 0; i < n; i++) {
-        /* Legacy virtio-net: canonical ID is 1AF4:1000 (from
-         * wubu_virtio_ids.h); some hypervisors use 0x1001. The network
-         * class disambiguates net from blk. */
-        if (devs[i].vendor == WUBU_VIRTIO_VENDOR_ID &&
-            (devs[i].device == WUBU_VIRTIO_NET_DEVICE_ID ||
-             devs[i].device == 0x1001u) &&
-            devs[i].class_code == 0x02u) {
-            wubu_virtio_net_t *nic = vnet_init(&devs[i]);
-            if (nic) return nic;
-        }
+    /* One registry, one I/O-BAR owner. Canonical net ID plus the legacy
+     * alternate; the network class disambiguates net from blk. */
+    static const uint16_t ids[] = { WUBU_VIRTIO_NET_DEVICE_ID, 0x1001u };
+    for (unsigned i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
+        const wubu_drv_dev_t *dev =
+            wubu_drv_find_pci_id(WUBU_VIRTIO_VENDOR_ID, ids[i], 0x02u);
+        if (!dev) continue;
+        uint16_t iobase = 0;
+        if (wubu_drv_io_base(dev, &iobase) != 0) continue;
+        wubu_virtio_net_t *nic = vnet_init(iobase);
+        if (nic) return nic;
     }
     return NULL;
 }

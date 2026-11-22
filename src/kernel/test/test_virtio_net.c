@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "wubu_virtio_net.h"
+#include "wubu_drv.h"
 #include "wubu_virtqueue.c"   /* shared vring core (one owner) */
 #include "wubu_virtio_net.c"
 
@@ -22,24 +23,37 @@ static int failures = 0;
     printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); failures++; \
 } } while (0)
 
-/* ---- fake PCI: one legacy virtio-net function at 00:04.0 ---------- */
-static int fake_pci_present = 1;
+/* ---- fake registry: one legacy virtio-net function at 00:04.0 ------ */
+static int g_registry_present = 1;
+static int g_registry_io_space = 1;     /* negative control: set to 0 */
 static uint8_t fake_class = 0x02;              /* network */
 static const uint16_t fake_iobase = 0xC100;
 static const uint8_t fake_mac[6] = { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 };
+static wubu_drv_dev_t g_fake_pci_dev;
 
-int wubu_pci_scan(wubu_pci_dev_t *d, int n)
+const wubu_drv_dev_t *wubu_drv_find_pci_id(uint16_t vendor, uint16_t device,
+                                            uint8_t class_code)
 {
-    if (!fake_pci_present || n < 1) return 0;
-    memset(&d[0], 0, sizeof(d[0]));
-    d[0].bus = 0; d[0].dev = 4; d[0].fn = 0;
-    d[0].vendor = WUBU_VIRTIO_VENDOR_ID; d[0].device = WUBU_VIRTIO_NET_DEVICE_ID;   /* legacy net (spec) */
-    d[0].class_code = fake_class;
-    d[0].bar0 = fake_iobase;
-    return 1;
+    if (!g_registry_present) return NULL;
+    if (vendor != WUBU_VIRTIO_VENDOR_ID || class_code != fake_class) return NULL;
+    if (device != WUBU_VIRTIO_NET_DEVICE_ID && device != 0x1001u) return NULL;
+    memset(&g_fake_pci_dev, 0, sizeof(g_fake_pci_dev));
+    g_fake_pci_dev.bus = WUBU_DRV_BUS_PCI;
+    g_fake_pci_dev.vendor = vendor;
+    g_fake_pci_dev.device = device;
+    g_fake_pci_dev.class_code = class_code;
+    g_fake_pci_dev.bar0 = fake_iobase;
+    g_fake_pci_dev.bar0_is_io = (uint8_t)g_registry_io_space;
+    return &g_fake_pci_dev;
 }
-int wubu_pci_find_class(wubu_pci_dev_t *d, int n, uint8_t c, uint8_t s)
-{ (void)d; (void)n; (void)c; (void)s; return -1; }
+
+int wubu_drv_io_base(const wubu_drv_dev_t *dev, uint16_t *io_out)
+{
+    if (!dev || !io_out) return -1;
+    if (!dev->bar0_is_io || !dev->bar0 || dev->bar0 > 0xFFFFu) return -1;
+    *io_out = (uint16_t)(dev->bar0 & 0xFFFCu);
+    return 0;
+}
 uint32_t wubu_pci_read32(uint8_t b, uint8_t dv, uint8_t f, uint8_t off)
 {
     (void)b; (void)dv; (void)f;
@@ -207,7 +221,7 @@ static void fake_reset(void)
     fake_tx_notify_count = 0;
     fake_rx_consumed = 0;
     fake_tx_len = 0;
-    fake_pci_present = 1;
+    g_registry_present = 1;
     fake_class = 0x02;
     wubu_vq_io.inb = f_inb; wubu_vq_io.outb = f_outb;
     wubu_vq_io.inw = f_inw; wubu_vq_io.outw = f_outw;
@@ -313,14 +327,23 @@ int main(void)
 
     /* 10. absent device / wrong class / refused DRIVER_OK -> NULL */
     vnet_teardown(n);
-    fake_pci_present = 0;
+    g_registry_present = 0;
     CHECK(wubu_virtio_net_probe() == NULL);
-    fake_pci_present = 1;
+    g_registry_present = 1;
     fake_class = 0x01;                         /* a blk function, not net */
     CHECK(wubu_virtio_net_probe() == NULL);
+    fake_class = 0x02;
+    /* D5b: an MMIO-marked BAR is not a port window; probe must stay absent. */
+    g_registry_io_space = 0;
+    CHECK(wubu_virtio_net_probe() == NULL);
+    g_registry_io_space = 1;
     fake_reset();
     fake_status_fail = 1;
     CHECK(wubu_virtio_net_probe() == NULL);
+    fake_status_fail = 0;
+    n = wubu_virtio_net_probe();
+    CHECK(n != NULL);
+    if (n) vnet_teardown(n);
 
     if (failures == 0) printf("test_virtio_net: ALL PASS\n");
     else printf("test_virtio_net: %d FAILURES\n", failures);

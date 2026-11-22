@@ -126,13 +126,14 @@ arrived at the registry as a plain address indistinguishable from MMIO —
 carries `bar0_is_io` from config space (and from sysfs resource flags in the
 hosted path); the MMIO owner rejects that flag, and `wubu_drv_io_base()` is
 the single owner that turns an I/O BAR into a 16-bit port base.
-`wubu_virtio_blk_probe()` no longer runs a second `wubu_pci_scan()` or
-re-reads BAR0: it finds the device with `wubu_drv_find_pci_id()` and gets the
-port base from the I/O owner. Gate: `test_drv` proves a scanned I/O BAR is
-rejected by the MMIO mapper, decoded by the I/O owner, and that MMIO and
-out-of-range bases are refused; `test_virtio_blk` proves probe succeeds only
-when the registry marks the BAR as I/O space. `test_virtio_net`, `test_xhci`,
-kernel boot and `kernel-strict` stay green.
+`wubu_virtio_blk_probe()` and `wubu_virtio_net_probe()` no longer run a
+second `wubu_pci_scan()` or re-reads BAR0: each finds its device with
+`wubu_drv_find_pci_id()` and gets the port base from the I/O owner.
+Neither duplicate scan is left alongside the registry. Gate: `test_drv`
+proves a scanned I/O BAR is rejected by the MMIO mapper, decoded by the I/O
+owner, and that MMIO and out-of-range bases are refused; `test_virtio_blk`
+and `test_virtio_net` prove probe succeeds only when the registry marks the
+BAR as I/O space. `test_xhci`, kernel boot and `kernel-strict` stay green.
 
 ## Workflow rules (unchanged, still binding)
 
