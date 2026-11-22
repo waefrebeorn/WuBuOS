@@ -319,6 +319,10 @@ virtio-persist-gate: kernel
 virtio-net-gate: kernel
 	python3 tools/virtio_net_gate.py $(KERNEL)/kernel.elf
 
+# end-to-end gate: real QEMU pci-bridge discovered by the metal scan.
+pci-bridge-gate: kernel
+	python3 tools/pci_bridge_gate.py $(KERNEL)/kernel.elf
+
 # L4 GOP/Limine framebuffer fallback gate: forced-GOP boot through the
 # WuBuFW measured chain (GOP handoff -> map -> pixel read-back selftest),
 # kernel-strict 0 errors, and the default boot proven unchanged.
@@ -354,10 +358,11 @@ tandem_check:
 	@$(MAKE) -C "$(TANDEM_KERNEL_REPO)" freestanding
 	@echo "== 2/5 cross-repo driver contract bridge =="
 	@$(MAKE) test_kernel_bridge
-	@echo "== 3/5 kernel build + gcc14-class hygiene + boot assert =="
+	@echo "== 3/5 kernel build, gcc14-class hygiene, boot + real PCI bridge =="
 	@$(MAKE) kernel-strict
 	@$(MAKE) kernel
 	@python3 tools/ci_boot_assert.py $(KERNEL)/kernel.elf --kernel
+	@$(MAKE) pci-bridge-gate
 	@echo "== 4/5 WEMU guest acceptance (pinned submodule) =="
 	@$(MAKE) test_wemu_busybox
 	@echo "== 5/5 standalone WEMU gate =="

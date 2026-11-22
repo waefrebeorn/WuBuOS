@@ -200,6 +200,8 @@ cd /home/wubu/WuBuKernel && make test && make freestanding
 cd /home/wubu/wubuos && make test_kernel_bridge
 cd /home/wubu/wubuos && make kernel-strict
 cd /home/wubu/wubuos && python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
+# real QEMU pci-bridge + disk behind it: registry must gain both devices
+cd /home/wubu/wubuos && make pci-bridge-gate
 # the boot assertion now also requires >=1 registry-mapped MMIO BAR
 cd /home/wubu/wubuos && make test_ci_boot_assert
 cd /home/wubu/wubuos && make -k -j24 test
