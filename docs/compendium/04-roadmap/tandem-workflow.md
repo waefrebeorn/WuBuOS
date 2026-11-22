@@ -45,11 +45,18 @@ The 2026-11-19 audit measured the honest boundary: the running kernel drives
 APIC/PIT/HPET/RTC, Bochs-VBE, PS/2, COM1, PCI discovery, ACPI/SMBIOS and
 virtio-blk/net; the ~150 `wubu_drv_*` modules are perception/routing tables
 for a hosted Linux host or test-injected register models. The named
-cross-cutting prerequisite is still open:
+cross-cutting prerequisite at contract creation was:
 
 > `dev->bar0 -> wubu_vmm_map_page -> probe` — the LFB mapping in
 > `metal_main.c` proves the mechanism; `wubu_drv_dev_bar()` exposes the BAR;
-> `wubu_drv_probe()` calls the driver directly. **Nothing connects them.**
+> `wubu_drv_probe()` calls the driver directly. **Nothing connected them.**
+
+That was true when this contract was written. It is **no longer open**: D1
+made `wubu_drv_map_mmio[_range]()` the single BAR→VMM owner, DRV10b/DRV10c
+added ranges and rollback, D2 made xHCI consume it, and D5/D5b carried BAR
+space through the registry so legacy virtio I/O BARs are rejected by the
+MMIO owner and decoded by the one I/O owner. The cited line numbers below
+are historical evidence of the gap, not a present-day defect.
 
 Verified in this session:
 - `src/kernel/wubu_drv.h:71` declares `wubu_drv_dev_bar()`.
@@ -60,9 +67,8 @@ Verified in this session:
   and `:668-674` show the working LFB/GOP call pattern.
 - `grep -rn 'bar.*vmm\|vmm.*bar\|map_bar' src/kernel` finds no owner.
 
-Making that seam a single owner is drivers leg **D1** below. It is the
-smallest change that turns "registry knows BARs" into "registry can hand a
-driver a mapped MMIO window", without touching the WuBuKernel submodule.
+Making that seam a single owner was drivers leg D1 below; it has shipped.
+The paragraph is retained as the reasoning for the leg, not as pending work.
 
 ## Drivers-first legs (smallest real increment + behaviour gate)
 
