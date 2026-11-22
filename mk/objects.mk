@@ -23,6 +23,7 @@ KERNEL_OBJS = $(KERNEL)/WuBuKernel/src/wubu_driver_contract.o \
               $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o \
               $(KERNEL)/fat32_cluster.o $(KERNEL)/wubu_lfn.o \
               $(KERNEL)/ahci.o $(KERNEL)/wubu_virtqueue.o \
+              $(KERNEL)/wubu_virtio_pci_modern.o \
               $(KERNEL)/wubu_virtio_blk.o \
               $(KERNEL)/wubu_virtio_net.o $(KERNEL)/wubu_netstack.o \
               $(KERNEL)/txfs.o $(KERNEL)/wubu_crc32.o $(KERNEL)/wubu_gaad.o \

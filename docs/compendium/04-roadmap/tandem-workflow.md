@@ -205,6 +205,8 @@ cd /home/wubu/wubuos && python3 tools/ci_boot_assert.py src/kernel/kernel.elf --
 cd /home/wubu/wubuos && make pci-bridge-gate
 # the boot assertion now also requires >=1 registry-mapped MMIO BAR
 cd /home/wubu/wubuos && make test_ci_boot_assert
+cd /home/wubu/wubuos && make test_virtio_pci_modern
+# OASIS 4.1.4 cap walk: QEMU-shaped chain, non-virtio caps skipped
 cd /home/wubu/wubuos && make -k -j24 test
 # usable: emulator, then the bridge acceptance
 cd /home/wubu/wemu && make test

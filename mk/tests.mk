@@ -412,7 +412,7 @@ test_ci_status:
 ci_status:
 	python3 tools/ci_status.py
 
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_blk test_virtio_net test_netstack test_ci_boot_assert test_ci_status
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_netstack test_ci_boot_assert test_ci_status
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -3183,8 +3183,13 @@ test_xhci:
 		-o $(KERNEL)/test_xhci
 	$(KERNEL)/test_xhci
 
-# L1: legacy virtio-blk driver -- fake I/O window gate (ring arithmetic,
-# request encoding, sector math, completion handling, chunking, wrap)
+# L1: modern virtio PCI capability-list discovery (no MMIO/device state).
+test_virtio_pci_modern:
+	$(CC) -O2 -Wall -Wextra -std=c11 -no-pie -I$(KERNEL) -Iinclude \
+		$(KERNEL)/test/test_virtio_pci_modern.c \
+		-o $(KERNEL)/test_virtio_pci_modern
+	$(KERNEL)/test_virtio_pci_modern
+
 test_virtio_blk:
 	$(CC) -O2 -Wall -Wextra -std=c11 -no-pie -I$(KERNEL) -Iinclude \
 		$(KERNEL)/test/test_virtio_blk.c \
