@@ -403,7 +403,10 @@ test_spawn:
 	$(RT)/wubu_spawn_test
 
 # CRITICAL TIER: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan, decompressors)
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_blk test_virtio_net test_netstack
+test_ci_boot_assert:
+	python3 tools/test_ci_boot_assert.py
+
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_blk test_virtio_net test_netstack test_ci_boot_assert
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)

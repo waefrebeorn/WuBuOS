@@ -11,8 +11,26 @@ Usage: python3 ci_boot_assert.py <wubuos.iso | kernel.elf> [--kernel]
 Exit: 0 healthy, 1 boot regression, 2 qemu missing.
 """
 import os
+import re
 import subprocess
 import sys
+
+def assert_driver_registry(data):
+    """D1/D5: the boot trace must show a live registry BAR->VMM pass.
+    Reaching the prompt alone would pass even if the registry never mapped
+    a device -- a happy-path gate is not a behaviour gate."""
+    m = re.search(rb"(\d+) device MMIO BARs mapped", data)
+    if not m:
+        print("FAIL: driver registry MMIO-map line missing "
+              "(wubu_drv_map_all_mmio never ran?)")
+        return 1
+    nmio = int(m.group(1))
+    if nmio < 1:
+        print("FAIL: driver registry mapped %d MMIO BARs, want >= 1" % nmio)
+        return 1
+    print("PASS: driver registry mapped %d MMIO BAR(s) on this boot" % nmio)
+    return 0
+
 
 def main():
     if len(sys.argv) < 2:
@@ -69,6 +87,9 @@ def main():
     if b"WuBuOS>" not in data:
         print("FAIL: interactive console marker WuBuOS> missing")
         return 1
+    rc = assert_driver_registry(data)
+    if rc:
+        return rc
     print("PASS: WuBuOS booted to the interactive console on this host")
     return 0
 

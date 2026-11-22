@@ -162,6 +162,8 @@ cd /home/wubu/WuBuKernel && make test && make freestanding
 cd /home/wubu/wubuos && make test_kernel_bridge
 cd /home/wubu/wubuos && make kernel-strict
 cd /home/wubu/wubuos && python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
+# the boot assertion now also requires >=1 registry-mapped MMIO BAR
+cd /home/wubu/wubuos && make test_ci_boot_assert
 cd /home/wubu/wubuos && make -k -j24 test
 # usable: emulator, then the bridge acceptance
 cd /home/wubu/wemu && make test
