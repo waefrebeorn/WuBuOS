@@ -22,10 +22,12 @@ decision** that supersedes L21 — never a silent side effect of a driver leg.
 
 The gates build WEMU **out of tree** from `src/wemu` (`mk/wemu_user.mk`:
 copy into `build/wemu-user`, apply the narrow VSL prot overlay), not from
-any local `/home/wubu/wemu` branch. A local branch such as
-`leg/user-mode-vsl` is a separate development line; do not claim its
-commits are in the gated or booted product without bumping and verifying
-the submodule pointer.
+any local `/home/wubu/wemu` branch. The local `leg/user-mode-vsl`@`775bf40`
+checkout is not a divergent line: it is an **ancestor** of the pinned
+`2ce67c0` (verified with `merge-base --is-ancestor`), which adds 38 more
+commits including the nested-signal and FP-state work. So the gated and
+booted emulator already contains the local fixes; do not downgrade the
+pointer to the older local branch.
 
 The loop is one direction and one back-edge:
 
