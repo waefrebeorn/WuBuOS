@@ -49,6 +49,5 @@ int vsl_open_inventory(void);
 
 /* D4c: -2 = not virtual, -1 = provider failed, >=0 = host fd. */
 int vsl_virtual_open(const char *path);
-void vsl_maze_snapshot_set(const char *text);
 
 #endif /* WUBUOS_VSL_FILE_H */

@@ -181,7 +181,7 @@ cd /home/wubu/wubuos && make test_wemu_busybox
   CI status was read from the public web UI through a real browser:
   `boot-verify` #95–#102 all **completed successfully** (42m–45m each),
   covering D4, the game commits, DRV10b, the rollback, the xHCI range,
-  the host driver inventory and the guest maze view. Commits after
+  the host driver inventory. Commits after
   `32fab8b` touched only `src/apps/**` and docs, which do not auto-trigger
   `boot-verify`; `gh` is unauthenticated here, so no manual dispatch was
   made. Do not claim CI green for those commits.
@@ -192,8 +192,7 @@ cd /home/wubu/wubuos && make test_wemu_busybox
 - The BAR→VMM seam (D1) is **closed**, with DRV10b range mapping and DRV10c
   rollback; xHCI consumes a two-page aperture. The guest inventory includes
   a host-supplied snapshot from `wubu_drv_summary()`, but there is no live
-  metal→guest syscall channel. A second virtual file, `/proc/wubu/maze`,
-  serves the WUBU MAZE minimap so a WEMU guest can `cat` the game map.
+  metal→guest syscall channel.
 - The 1000-line `driver-bank.md` is a coverage *ledger*, not proof of a
   bound driver in the running kernel; "wired" there means a perception or
   routing module, not metal MMIO. Do not cite it as hardware support.

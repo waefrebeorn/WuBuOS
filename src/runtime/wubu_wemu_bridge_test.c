@@ -9,7 +9,6 @@
 #include "vsl/vsl_driver.h"
 #include "vsl/vsl_file.h"
 #include "wubu_drv.h"
-#include "wubu_maze.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -381,35 +380,6 @@ int main(void) {
             printf("ok: host section clears, VSL driver stays\n");
             wubu_wemu_capture_free(&cap);
         }
-    }
-
-    /* ---- D4c: a guest can read the WUBU MAZE minimap ---- */
-    {
-        wubu_maze_state mz;
-        wubu_maze_init(&mz);
-        char cells[WUBU_MAZE_MAP_W * WUBU_MAZE_MAP_H];
-        wubu_maze_render_minimap(&mz, cells);
-        char maptext[sizeof(cells) + WUBU_MAZE_MAP_H + 1];
-        size_t off = 0;
-        for (int y = 0; y < WUBU_MAZE_MAP_H; y++) {
-            memcpy(maptext + off, cells + (size_t)y * WUBU_MAZE_MAP_W,
-                   WUBU_MAZE_MAP_W);
-            off += WUBU_MAZE_MAP_W;
-            maptext[off++] = '\n';
-        }
-        maptext[off] = '\0';
-        vsl_maze_snapshot_set(maptext);
-
-        char *argv[] = { "busybox", "cat", "/proc/wubu/maze", NULL };
-        run_applet(argv, &cap);
-        report("cat-maze", &cap);
-        if (cap.exit_code != 0) FAIL("D4c: cat maze exit %d\n", cap.exit_code);
-        if (!cap.out || !strstr(cap.out, "@") || !strstr(cap.out, "E") ||
-            !strstr(cap.out, "*"))
-            FAIL("D4c: minimap missing player/exit/gem markers\n");
-        printf("ok: WEMU guest reads the WUBU MAZE minimap\n");
-        wubu_wemu_capture_free(&cap);
-        vsl_maze_snapshot_set(NULL);
     }
 
     printf("WEMU BUSYBOX GATE PASS (real static applets, exact output)\n");

@@ -32,18 +32,6 @@ static int vsl_snapshot_fd(const char *tmpl, const char *text)
     return fd;
 }
 
-/* Host-supplied maze view (bounded). Empty string = no view. */
-static char g_vsl_maze[4096];
-
-void vsl_maze_snapshot_set(const char *text)
-{
-    g_vsl_maze[0] = '\0';
-    if (text && *text) {
-        strncpy(g_vsl_maze, text, sizeof(g_vsl_maze) - 1);
-        g_vsl_maze[sizeof(g_vsl_maze) - 1] = '\0';
-    }
-}
-
 int vsl_open_inventory(void)
 {
     char buf[2048];
@@ -53,16 +41,10 @@ int vsl_open_inventory(void)
     return vsl_snapshot_fd("/tmp/wubu-drv-XXXXXX", buf);
 }
 
-static int vsl_open_maze(void)
-{
-    return vsl_snapshot_fd("/tmp/wubu-maze-XXXXXX", g_vsl_maze);
-}
-
 /* -2 means "not a virtual path"; -1 means a real provider failure. */
 int vsl_virtual_open(const char *path)
 {
     if (strcmp(path, VSL_GUEST_DRIVERS_PATH) == 0) return vsl_open_inventory();
-    if (strcmp(path, VSL_GUEST_MAZE_PATH) == 0) return vsl_open_maze();
     return -2;
 }
 
