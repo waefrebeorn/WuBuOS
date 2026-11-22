@@ -197,12 +197,12 @@ cd /home/wubu/wubuos && make test_wemu_busybox
   1 headless boot + 5 distinct real-GUI frames (`guest_host_product.log`).
   Local evidence only for the final commit: `gh` is not authenticated here.
   CI status was read from the public web UI through a real browser:
-  `boot-verify` #95–#106 all **completed successfully** (41m–45m each),
+  `boot-verify` #95–#110 all **completed successfully** (40m–45m each),
   covering D4, the game commits, DRV10b, the rollback, the xHCI range,
-  the host driver inventory, the game removal, D5 and D5b, and the boot
-  gate. Runs #107–#113 were still **in progress** at check time and cover
-  the console/drv report/bounded-formatter/guest-registry legs. Do not
-  claim CI green for those yet.
+  the host driver inventory, the game removal, D5/D5b, the boot gate,
+  the console/drv command and the gated drv command. Runs #111–#116 were
+  still in progress or not yet reported at check time; do not claim CI
+  green for those yet.
 
 ## Honest boundaries
 
