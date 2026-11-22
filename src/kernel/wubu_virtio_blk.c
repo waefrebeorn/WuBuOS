@@ -249,7 +249,8 @@ wubu_virtio_blk_t *wubu_virtio_blk_probe(void)
     /* One registry, one I/O-BAR owner. No second PCI scan, no BAR re-read.
      * Canonical device ID plus the VirtualBox alternate are both accepted;
      * the mass-storage class disambiguates blk from net. */
-    static const uint16_t ids[] = { WUBU_VIRTIO_BLK_DEVICE_ID, 0x1000u };
+    static const uint16_t ids[] = { WUBU_VIRTIO_BLK_DEVICE_ID, 0x1000u,
+                                    WUBU_VIRTIO_BLK_MODERN_ID };
     for (unsigned i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
         const wubu_drv_dev_t *dev =
             wubu_drv_find_pci_id(WUBU_VIRTIO_VENDOR_ID, ids[i], 0x01u);

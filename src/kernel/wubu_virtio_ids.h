@@ -25,4 +25,10 @@
 #define WUBU_VIRTIO_GPU_DEVICE_ID    0x100Fu
 #define WUBU_VIRTIO_INPUT_DEVICE_ID  0x1010u
 
+/* OASIS VIRTIO 1.0 4.1.2: non-transitional PCI functions use 0x1040 +
+ * the virtio device ID (net=1, blk=2). QEMU's modern virtio-pci uses
+ * these IDs; matching only 0x1000/0x1001 misses them entirely. */
+#define WUBU_VIRTIO_NET_MODERN_ID    0x1041u
+#define WUBU_VIRTIO_BLK_MODERN_ID    0x1042u
+
 #endif /* WUBU_VIRTIO_IDS_H */

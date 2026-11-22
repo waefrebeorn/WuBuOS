@@ -31,12 +31,15 @@ static const uint16_t fake_iobase = 0xC100;
 static const uint8_t fake_mac[6] = { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 };
 static wubu_drv_dev_t g_fake_pci_dev;
 
+static int g_modern_only;
 const wubu_drv_dev_t *wubu_drv_find_pci_id(uint16_t vendor, uint16_t device,
                                             uint8_t class_code)
 {
     if (!g_registry_present) return NULL;
     if (vendor != WUBU_VIRTIO_VENDOR_ID || class_code != fake_class) return NULL;
-    if (device != WUBU_VIRTIO_NET_DEVICE_ID && device != 0x1001u) return NULL;
+    if (g_modern_only && device != WUBU_VIRTIO_NET_MODERN_ID) return NULL;
+    if (device != WUBU_VIRTIO_NET_DEVICE_ID && device != 0x1001u &&
+        device != WUBU_VIRTIO_NET_MODERN_ID) return NULL;
     memset(&g_fake_pci_dev, 0, sizeof(g_fake_pci_dev));
     g_fake_pci_dev.bus = WUBU_DRV_BUS_PCI;
     g_fake_pci_dev.vendor = vendor;
@@ -349,6 +352,14 @@ int main(void)
     n = wubu_virtio_net_probe();
     CHECK(n != NULL);
     if (n) vnet_teardown(n);
+
+    /* OASIS VIRTIO 1.0 4.1.2: modern (non-transitional) network function
+     * uses PCI device ID 0x1041, not the legacy 0x1000. */
+    g_modern_only = 1;
+    n = wubu_virtio_net_probe();
+    CHECK(n != NULL);
+    if (n) vnet_teardown(n);
+    g_modern_only = 0;
 
     /* MSI-X left enabled by firmware shifts the config window (0x14->0x18). */
     wubu_drv_dev_t cfgdev;

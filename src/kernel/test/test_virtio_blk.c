@@ -32,12 +32,15 @@ static int fake_msix = 0;               /* capability-existence fixture */
 static wubu_drv_dev_t g_fake_pci_dev;
 static const uint16_t fake_iobase = 0xC000;
 
+static int g_modern_only;
 const wubu_drv_dev_t *wubu_drv_find_pci_id(uint16_t vendor, uint16_t device,
                                             uint8_t class_code)
 {
     if (!g_registry_present) return NULL;
     if (vendor != WUBU_VIRTIO_VENDOR_ID || class_code != 0x01u) return NULL;
-    if (device != WUBU_VIRTIO_BLK_DEVICE_ID && device != 0x1000u) return NULL;
+    if (g_modern_only && device != WUBU_VIRTIO_BLK_MODERN_ID) return NULL;
+    if (device != WUBU_VIRTIO_BLK_DEVICE_ID && device != 0x1000u &&
+        device != WUBU_VIRTIO_BLK_MODERN_ID) return NULL;
     memset(&g_fake_pci_dev, 0, sizeof(g_fake_pci_dev));
     g_fake_pci_dev.bus = WUBU_DRV_BUS_PCI;
     g_fake_pci_dev.vendor = vendor;
@@ -391,6 +394,15 @@ int main(void)
     /* VIRTIO 1.0 2.1: never set DRIVER_OK on an already-FAILED device. */
     fake_regs[WUBU_VQ_REG_STATUS] = WUBU_VQ_S_FAILED;
     CHECK(wubu_vq_dev_driver_ok(fake_iobase) == -1);
+
+    /* OASIS VIRTIO 1.0 4.1.2: modern (non-transitional) block function
+     * uses PCI device ID 0x1042, not the legacy 0x1001. */
+    fake_reset(8, VBLK_F_FLUSH, 0);
+    g_modern_only = 1;
+    d = wubu_virtio_blk_probe();
+    CHECK(d != NULL);
+    if (d) vblk_teardown(d);
+    g_modern_only = 0;
 
     /* VIRTIO 1.0 transport-pci: MSI-X left enabled by firmware shifts
      * the legacy config window from 0x14 to 0x18. */

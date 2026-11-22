@@ -218,7 +218,8 @@ wubu_virtio_net_t *wubu_virtio_net_probe(void)
 {
     /* One registry, one I/O-BAR owner. Canonical net ID plus the legacy
      * alternate; the network class disambiguates net from blk. */
-    static const uint16_t ids[] = { WUBU_VIRTIO_NET_DEVICE_ID, 0x1001u };
+    static const uint16_t ids[] = { WUBU_VIRTIO_NET_DEVICE_ID, 0x1001u,
+                                    WUBU_VIRTIO_NET_MODERN_ID };
     for (unsigned i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
         const wubu_drv_dev_t *dev =
             wubu_drv_find_pci_id(WUBU_VIRTIO_VENDOR_ID, ids[i], 0x02u);
