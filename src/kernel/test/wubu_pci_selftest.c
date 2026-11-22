@@ -22,7 +22,7 @@
  * 0xFFFFFFFF.                                                  */
 /* ------------------------------------------------------------------ */
 
-#define FAKE_NDEV 9
+#define FAKE_NDEV 10
 
 static struct {
     uint8_t  bus, dev, fn;
@@ -35,6 +35,8 @@ static struct {
     uint32_t bar1;   /* offset 0x14: separate BAR unless BAR0 is 64-bit */
     uint32_t mask0, mask1;       /* implemented address bits (write-ones readback) */
     uint32_t probe0, probe1;     /* last value written by the sizing probe */
+    uint32_t bar4, bar5;         /* modern virtio 64-bit capability BAR */
+    uint32_t mask4, mask5, probe4, probe5;
 } g_fake[FAKE_NDEV];
 static int g_fake_n = 0;
 
@@ -73,6 +75,15 @@ static void pci_test_seed(uint8_t dev, uint8_t fn, uint32_t ids,
     pci_test_seed_bus(g_seed_bus, dev, fn, ids, cls, cmd, bar0, bar1);
 }
 
+/* modern virtio: 64-bit prefetchable capability BAR at config 0x20/0x24 */
+static void pci_test_modern_bar4(int idx, uint32_t lo, uint32_t hi) {
+    g_fake[idx].bar4 = lo;
+    g_fake[idx].bar5 = hi;
+    g_fake[idx].mask4 = 0xFFFFC000u;   /* 16 KB window */
+    g_fake[idx].mask5 = 0xFFFFFFFFu;
+    g_fake[idx].probe4 = g_fake[idx].probe5 = 0;  /* show real BAR until probe */
+}
+
 static void pci_test_bridge(int idx, uint8_t sec) {
     g_fake[idx].hdr = 0x00010000u;        /* header type 1 at 0x0C[23:16] */
     g_fake[idx].sec = (uint32_t)sec << 8; /* secondary bus at 0x18[15:8] */
@@ -92,6 +103,10 @@ uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
                             ? g_fake[i].mask0 : g_fake[i].bar0;
         case 0x14: return g_fake[i].probe1 == 0xFFFFFFFFu
                             ? g_fake[i].mask1 : g_fake[i].bar1;
+        case 0x20: return g_fake[i].probe4 == 0xFFFFFFFFu
+                            ? g_fake[i].mask4 : g_fake[i].bar4;
+        case 0x24: return g_fake[i].probe5 == 0xFFFFFFFFu
+                            ? g_fake[i].mask5 : g_fake[i].bar5;
         default:   return 0;
         }
     }
@@ -105,6 +120,8 @@ void wubu_pci_write_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off, ui
             g_fake[i].fn != fn) continue;
         if (off == 0x10) g_fake[i].probe0 = val;
         if (off == 0x14) g_fake[i].probe1 = val;
+        if (off == 0x20) g_fake[i].probe4 = val;
+        if (off == 0x24) g_fake[i].probe5 = val;
     }
 }
 
@@ -144,12 +161,15 @@ int main(void) {
                       0x0000E000u, 0);
     pci_test_seed_bus(1, 3, 0, 0x00005678u, 0x06040000u, 0, 0, 0);
     pci_test_bridge(8, 0);
+    /* modern virtio blk: no I/O BAR, capability pair in BAR4/BAR5. */
+    pci_test_seed_bus(0, 6, 0, 0x10421AF4u, 0x01000000u, 0, 0, 0);
+    pci_test_modern_bar4(9, 0xFE000004u, 0);
 
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
 
-    printf("  scanned: %d devices (expect 8: 5 bus-0 + bridge + 2 on bus 1)\n", n);
-    OK(n == 8);
+    printf("  scanned: %d devices (expect 9: 6 bus-0 + bridge + 2 on bus 1)\n", n);
+    OK(n == 9);
 
     /* dev0: AMD GPU, class 0x03 (display), BAR0 = 0xF0000000 */
     OK(devs[0].vendor == 0x1002);
@@ -214,6 +234,16 @@ int main(void) {
     OK(down >= 0 && devs[down].bus == 1 && devs[down].dev == 2);
     OK(down >= 0 && devs[down].bar0 == 0x0000E000u);
     OK(bus0_gpus == 3);            /* GPU + 2 multifunctions, scanned once */
+
+    /* modern virtio capability BAR4 is captured (not yet operated). */
+    int modern = -1;
+    for (int i = 0; i < n; i++)
+        if (devs[i].vendor == 0x1AF4 && devs[i].device == 0x1042)
+            modern = i;
+    OK(modern >= 0);
+    OK(modern >= 0 && devs[modern].bar4 == 0xFE000000ull);
+    OK(modern >= 0 && devs[modern].bar4_size == 0x4000u);
+    OK(modern >= 0 && devs[modern].bar4_is_io == 0);
 
     printf("[wubu_pci_selftest] %d passed, %d failed\n", s_pass, s_fail);
     return s_fail == 0 ? 0 : 1;

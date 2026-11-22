@@ -202,6 +202,17 @@ static void wubu_pci_scan_bus(uint8_t bus, wubu_pci_dev_t *out, int max,
             d->bar0 = bar_of(d, 0, &d->bar0_is_io);
             d->bar0_size = bar_size_of(d, 0, d->bar0_is_io, bar0_raw);
             d->bar1 = bar_of(d, 1, NULL);
+            /* OASIS VIRTIO 1.0 4.1.2: non-transitional functions are
+             * 1AF4:1040+n and keep their capability BARs in BAR4/BAR5.
+             * Probe those only for such devices: writing all-ones into
+             * an unrelated device's BAR4 is not something to do blindly. */
+            if (d->vendor == 0x1AF4u && d->device >= 0x1040u &&
+                d->device <= 0x107Fu) {
+                uint32_t bar4_raw = wubu_pci_read32(bus, (uint8_t)dev,
+                                                    (uint8_t)fn, 0x20);
+                d->bar4 = bar_of(d, 4, &d->bar4_is_io);
+                d->bar4_size = bar_size_of(d, 4, d->bar4_is_io, bar4_raw);
+            }
             (*n)++;
             if (fn == 0 && ((hdr >> 16) & 0xFFu) == 1u) {
                 uint8_t sec = (uint8_t)((wubu_pci_read32(bus, (uint8_t)dev,

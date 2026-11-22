@@ -17,6 +17,11 @@ typedef struct {
     /* PCI 3.0 6.2.5.1 write-all-ones size of BAR0, or 0 if unknown.
      * Hosted sysfs derives it from the resource extent; metal probes it. */
     uint64_t bar0_size;
+    /* Modern virtio PCI puts its capability BARs in BAR4/BAR5 (a 64-bit
+     * pair). Captured but not yet consumed: the driver stays legacy. */
+    uint64_t bar4;
+    uint64_t bar4_size;
+    uint8_t  bar4_is_io;
     /* BAR0 address space: 1 = I/O ports, 0 = MMIO. The base in bar0 has
      * its type bits masked, so without this flag an I/O BAR is
      * indistinguishable from an MMIO BAR. The registry carries it through

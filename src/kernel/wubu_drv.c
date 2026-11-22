@@ -152,6 +152,9 @@ int wubu_drv_pci_scan(void)
         dev.bar0 = pci[i].bar0;
         dev.bar1 = pci[i].bar1;
         dev.bar0_size = pci[i].bar0_size;
+        dev.bar4 = pci[i].bar4;
+        dev.bar4_size = pci[i].bar4_size;
+        dev.bar4_is_io = pci[i].bar4_is_io;
         dev.bar0_is_io = pci[i].bar0_is_io;
         wubu_drv_add_device(&dev);
     }
