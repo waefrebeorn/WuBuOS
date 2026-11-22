@@ -11,11 +11,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ci_boot_assert import assert_driver_registry
 
 CASES = [
-    (b"WuBuOS: 1 device MMIO BARs mapped\nWuBuOS> ", 0, "one mapped BAR"),
-    (b"WuBuOS: 12 device MMIO BARs mapped\nWuBuOS> ", 0, "many mapped BARs"),
+    (b"WuBuOS: 1 device MMIO BARs mapped\n"
+     b"WuBuOS: driver registry 7 devices / 8 drivers registered, 7 bound, 1 MMIO BARs mapped\n",
+     0, "one mapped BAR + registry report"),
+    (b"WuBuOS: 12 device MMIO BARs mapped\n"
+     b"WuBuOS: driver registry 7 devices / 8 drivers registered, 7 bound, 12 MMIO BARs mapped\n",
+     0, "many mapped BARs + registry report"),
     (b"WuBuOS> prompt only, no registry line\n", 1, "missing map line"),
-    (b"WuBuOS: 0 device MMIO BARs mapped\nWuBuOS> ", 1, "zero mapped BARs"),
+    (b"WuBuOS: 0 device MMIO BARs mapped\n", 1, "zero mapped BARs"),
     (b"WuBuOS: 2 devices MMIO BARs mapped\n", 1, "wrong wording, no match"),
+    (b"WuBuOS: 1 device MMIO BARs mapped\n", 1, "registry report line missing"),
 ]
 
 failures = 0

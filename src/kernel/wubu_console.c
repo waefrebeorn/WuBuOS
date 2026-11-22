@@ -60,6 +60,7 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "mem") == 0)             return cmd_mem();
     if (strcmp(argv[0], "tasks") == 0)           return cmd_tasks();
     if (strcmp(argv[0], "pci") == 0)             return cmd_pci();
+    if (strcmp(argv[0], "drv") == 0)             return cmd_drv();
     if (strcmp(argv[0], "theme") == 0)           return cmd_theme(argc, argv);
     if (strcmp(argv[0], "hid") == 0)             return cmd_input(argc, argv);
     if (strcmp(argv[0], "vmm") == 0)             return cmd_vmm(argc, argv);
@@ -208,7 +209,7 @@ void wubu_console_task(void *arg)
                 /* Gap F2: tab completion -- complete the current word
                  * against the known commands (first word only). */
                 static const char *cmds[] = {
-                    "help", "uptime", "mem", "tasks", "pci", "theme",
+                    "help", "uptime", "mem", "tasks", "pci", "drv", "theme",
                     "hid", "vmm", "stats", "dump", "attest", "date",
                     "agi", "holyc", "live", "recovery", "cls", "reboot"
                 };

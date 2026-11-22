@@ -28,6 +28,11 @@ def assert_driver_registry(data):
     if nmio < 1:
         print("FAIL: driver registry mapped %d MMIO BARs, want >= 1" % nmio)
         return 1
+    if not re.search(rb"WuBuOS: driver registry \d+ devices / \d+ drivers", data):
+        print("FAIL: boot log lacks the live driver-registry report "
+              "(cmd_drv/wubu_drv_registry_line regression?)")
+        return 1
+    print("PASS: driver registry reported on the boot console")
     print("PASS: driver registry mapped %d MMIO BAR(s) on this boot" % nmio)
     return 0
 

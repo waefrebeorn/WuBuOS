@@ -100,6 +100,10 @@ const wubu_drv_dev_t *wubu_drv_find_pci_id(uint16_t vendor, uint16_t device,
  * and 64-bit-ish values. Returns 0 and writes *io_out on success. */
 int wubu_drv_io_base(const wubu_drv_dev_t *dev, uint16_t *io_out);
 
+/* DRV14: the one-line registry report used by the boot log and the live
+ * `drv` console command (no second formatter). Returns bytes written. */
+int wubu_drv_registry_line(char *out, size_t cap);
+
 /* DRV8: the boot-log summary. */
 int wubu_drv_summary(char *out, size_t cap);
 

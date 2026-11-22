@@ -350,6 +350,15 @@ int main(void)
     if (!wubu_battery_charging()) FAIL("battery not charging");
     printf("  PASS: the battery reports 97%% while charging\n");
 
+    /* D6: one formatter serves the boot log and the `drv` console cmd. */
+    char regline[128];
+    if (wubu_drv_registry_line(regline, sizeof(regline)) <= 0)
+        FAIL("registry line empty");
+    if (!strstr(regline, "devices /") || !strstr(regline, "drivers registered") ||
+        !strstr(regline, "bound") || !strstr(regline, "MMIO BARs mapped"))
+        FAIL("registry line missing a field: %s", regline);
+    printf("  PASS: registry line: %s\n", regline);
+
     /* 6. the summary */
     char summary[8192];
     int lines = wubu_drv_summary(summary, sizeof(summary));

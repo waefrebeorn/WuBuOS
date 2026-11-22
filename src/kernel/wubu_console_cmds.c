@@ -11,6 +11,7 @@
 #include "wubu_console.h"
 #include "wubu_serial.h"
 #include "wubu_pci.h"
+#include "wubu_drv.h"
 #include "wubu_agi_kernel.h"
 #include "wubu_rtc.h"
 #include "wubu_theme.h"
@@ -37,6 +38,7 @@ int cmd_help(void)
                 "  mem                  heap used/available\n"
                 "  tasks                task table (per-task CPU share)\n"
                 "  pci                  PCI scan with device roles\n"
+                "  drv                  the one driver registry (bound + MMIO)\n"
                 "  theme [set|cycle]    /theme graphic-set namespace\n"
                 "  hid                  unified input ring stats\n"
                 "  vmm [touch|alloc|free] demand pages + allocator\n"
@@ -136,6 +138,18 @@ int cmd_pci(void)
                     pci_role(devs[i].class_code, devs[i].subclass),
                     devs[i].class_code, devs[i].subclass, devs[i].prog_if,
                     (unsigned)devs[i].bar0, (unsigned)devs[i].bar1);
+    return 0;
+}
+
+/* The ONE driver registry, from the live console: no second scan. */
+int cmd_drv(void)
+{
+    char line[128];
+    if (wubu_drv_registry_line(line, sizeof(line)) > 0)
+        klog_printf("-- driver registry: %s --\n", line);
+    char summary[8192];
+    if (wubu_drv_summary(summary, sizeof(summary)) > 0)
+        klog_printf("%s", summary);
     return 0;
 }
 

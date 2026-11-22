@@ -692,6 +692,12 @@ void kernel_main(void *boot_info) {
     extern int wubu_drv_map_all_mmio(void);
     int nmio = wubu_drv_map_all_mmio();
     klog_printf("WuBuOS: %d device MMIO BARs mapped\n", nmio);
+    {
+        extern int wubu_drv_registry_line(char *out, size_t cap);
+        char reg[128];
+        if (wubu_drv_registry_line(reg, sizeof(reg)) > 0)
+            klog_printf("WuBuOS: driver registry %s\n", reg);
+    }
 
     /* interrupt-driven serial RX (gap E2): UART IRQ -> wubu_sync FIFO */
     extern void wubu_serial_init(void);

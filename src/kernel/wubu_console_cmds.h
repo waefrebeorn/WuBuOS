@@ -10,6 +10,7 @@ int cmd_uptime(void);
 int cmd_mem(void);
 int cmd_tasks(void);
 int cmd_pci(void);
+int cmd_drv(void);
 int cmd_theme(int argc, char **argv);
 int cmd_input(int argc, char **argv);
 int cmd_vmm(int argc, char **argv);

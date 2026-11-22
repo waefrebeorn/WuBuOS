@@ -288,6 +288,23 @@ int wubu_drv_io_base(const wubu_drv_dev_t *dev, uint16_t *io_out)
     return 0;
 }
 
+/* DRV14: one formatter for both the boot log and `drv` console command. */
+int wubu_drv_registry_line(char *out, size_t cap)
+{
+    if (!out || !cap) return -1;
+    int mapped = 0, bound = 0;
+    for (int i = 0; i < g_ndev; i++) {
+        if (g_devs[i].bound) bound++;
+        if (g_devs[i].mmio_va) mapped++;
+    }
+    int n = snprintf(out, cap, "%d devices / %d drivers registered, "
+                                 "%d bound, %d MMIO BARs mapped",
+                     wubu_drv_device_count(), wubu_drv_driver_count(),
+                     bound, mapped);
+    (void)n;
+    return (int)strlen(out);
+}
+
 /* DRV8: the boot-log summary. */
 int wubu_drv_summary(char *out, size_t cap)
 {
