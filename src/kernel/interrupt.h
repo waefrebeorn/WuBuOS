@@ -129,6 +129,12 @@ void pit_shutdown(void);            /* Disable PIT timer */
 /* External C handler called from assembly */
 void isr_dispatch(uint8_t vector, InterruptFrame *frame);
 
+/* Interrupt statistics exist in both hosted and bare-metal builds: the
+ * hosted EOI path calls interrupt_count(), so the declaration must not be
+ * hidden behind MYSEED_METAL. */
+void interrupt_count(uint8_t irq);
+uint64_t interrupt_get_count(uint8_t irq);
+
 /* ------------------------------------------------------------------
  * Extended API (bare metal)
  * ------------------------------------------------------------------ */
@@ -164,10 +170,6 @@ int interrupt_init_full(void);
 /* Timer Calibration (PIT vs HPET vs TSC) */
 uint64_t timer_calibrate_tsc(void);
 int timer_init_deadline(uint64_t ns);
-
-/* Interrupt Statistics / Debug */
-void interrupt_count(uint8_t irq);
-uint64_t interrupt_get_count(uint8_t irq);
 
 /* Gap C5: nested-ISR overruns observed (NMI during an ISR etc.). */
 uint32_t interrupt_isr_overruns(void);

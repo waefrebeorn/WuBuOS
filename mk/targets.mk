@@ -315,7 +315,7 @@ kernel-strict:
 # src tree and every WuBuOS kernel source that parses with the narrow
 # include set. The skip list below is NOT a clean bill of health — those
 # files fail standalone parsing and remain a kernel-strict campaign.
-STATIC_ANALYZE_SKIP := cpio_extract.c interrupt.c interrupt_exceptions.c \
+STATIC_ANALYZE_SKIP := cpio_extract.c interrupt_exceptions.c \
                       interrupt_pic.c libc.c memory.c metal_main.c \
                       wubu_apic.c wubu_audio.c wubu_dram_hedge.c \
                       wubu_edid_kms.c wubu_edid_xrandr.c \
