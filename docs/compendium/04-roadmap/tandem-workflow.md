@@ -18,15 +18,16 @@ decision** that supersedes L21 — never a silent side effect of a driver leg.
 |---|---|---|
 | `WuBuKernel` (`/home/wubu/WuBuKernel`, `main`) | the **contract**: device/driver registry, bounded heap, PMM, tick/console | strict-C11 hosted behaviour **and** `-ffreestanding -nostdinc` compile |
 | `wubuos` (`/home/wubu/wubuos`, `main`) | the **body**: the only tree that boots. Owns the real PCI driver registry (`wubu_drv.c` + `wubu_bus.c`), VMM mapper, real storage/net, GUI | `make kernel` + boot gate + hosted full gate |
-| `wemu` (pinned submodule `src/wemu`, branch `leg/nested-signals`@`2ce67c0`) | the **usable**: guest execution of foreign static ELF/tools through the VSL syscall table, so the booted system can run other OSes' tools | full WEMU `make test` in the local checkout + `test_wemu_busybox` through the bridge |
+| `wemu` (pinned submodule `src/wemu`, `660891e` on `leg/user-mode-vsl`, descended from `leg/nested-signals`@`2ce67c0`) | the **usable**: guest execution of foreign static ELF/tools through the VSL syscall table, so the booted system can run other OSes' tools | full WEMU `make test` in the local checkout + `test_wemu_busybox` through the bridge |
 
 The gates build WEMU **out of tree** from `src/wemu` (`mk/wemu_user.mk`:
 copy into `build/wemu-user`, apply the narrow VSL prot overlay), not from
 any local `/home/wubu/wemu` branch. The local checkout was reconciled by a
-fast-forward to the pinned `2ce67c0` (it was a strict ancestor, with no
-local-only commits), so the local tree, the gated out-of-tree copy and
-the booted emulator are now the same revision. Do not downgrade the
-pointer to the older `775bf40` ancestor.
+fast-forward to `2ce67c0` (it was a strict ancestor, with no local-only
+commits). The first WEMU leg from that reconciled point is `660891e`
+(memory bit-base BT/BTS/BTR/BTC addressing), now the pinned submodule
+pointer and the local branch tip. Do not downgrade the pointer to the
+older `775bf40` ancestor.
 
 The loop is one direction and one back-edge:
 
@@ -224,9 +225,9 @@ cd /home/wubu/wubuos && make test_wemu_busybox
   `getenv` behind `#ifdef VBE_HOSTED`; `wubu_thermal_read.c` and
   `wubu_drv_install.c` are not in `KERNEL_OBJS` — no other leak in the
   freestanding link.
-- WEMU `make test`: **PASS** (all gates: isa/avx/paging/machine/string/
-  cpuid/sse2/usermode/shld/x87). The local checkout is now fast-forwarded
-  to the pinned `2ce67c0`; there is no local-only branch left to reconcile.
+- WEMU `make test`: **PASS** (all gates plus `test_btmem`). The local
+  checkout and pinned pointer are both `660891e`, descended from the old
+  `2ce67c0` pin; no local-only branch remains.
 - Final integrated run at `95ac08cf`: `make -k -j24 test` exit 0,
   "✅ All tests passed (all tiers)" (`guest_host_full.log`);
   `env -u DISPLAY -u WAYLAND_DISPLAY make test_linux_product` PASS —
