@@ -657,7 +657,7 @@ int wubu_drv_install_report(char *out, size_t cap)
         int w = snprintf(out + off, cap - off, "[dinst] %s -> %s (%s)\n",
                          g_manifest[i].modalias_prefix,
                          g_manifest[i].driver_name, g_manifest[i].source);
-        if (w < 0) break;
+        if (w < 0 || (size_t)w >= cap - off) break;  /* truncated: no underflow */
         off += (size_t)w; n++;
     }
     return n;

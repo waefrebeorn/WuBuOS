@@ -105,6 +105,14 @@ int main(void)
     CHECK(rn > 0 && strstr(rep, "cafe_demo") != NULL,
           "install_report lists manifest coverage including cafe_demo");
 
+    /* Sibling of the wubu_drv_summary truncation bug: a short cap must
+     * not underflow cap-off or write past the caller's window. */
+    char small[24];
+    memset(small, 'A', sizeof(small));
+    int sn = wubu_drv_install_report(small, 16);
+    CHECK(sn >= 0 && sn <= 1, "short install_report returns a bounded count");
+    CHECK(small[16] == 'A', "short install_report stays in bounds");
+
     /* ========================================= */
     /* GIT SOURCE PATH TESTS */
     /* ========================================= */
@@ -115,6 +123,27 @@ int main(void)
      *    We test the git pipeline using the locally-cloned Mesa stub repo
      *    at file:///tmp/mesa_stub_steamdeck (created for this test). */
     printf("Testing git source acquisition and build:\n");
+
+    /* Self-contained fixture: the git-source leg clones from this local
+     * repo. Earlier runs relied on a hand-created /tmp repo that any
+     * reboot or tmp cleaner removes, so the gate could go red for reasons
+     * unrelated to the driver installer. */
+    {
+        const char *stub = "/tmp/mesa_stub_steamdeck";
+        char cmd[512];
+        snprintf(cmd, sizeof(cmd), "rm -rf %s && mkdir -p %s", stub, stub);
+        if (system(cmd) != 0) CHECK(0, "cannot create git fixture dir");
+        snprintf(cmd, sizeof(cmd),
+                 "cp src/kernel/test/fixtures/mesa_stub_steamdeck/wubu_mod_entry.c "
+                 "%s/wubu_mod_entry.c", stub);
+        if (system(cmd) != 0) CHECK(0, "cannot write fixture source");
+        snprintf(cmd, sizeof(cmd),
+                 "git -C %s init -q && git -C %s add wubu_mod_entry.c && "
+                 "git -C %s -c user.email=test@wubu.local "
+                 "-c user.name=test commit -qm stub 2>/dev/null",
+                 stub, stub, stub);
+        if (system(cmd) != 0) CHECK(0, "cannot commit git fixture");
+    }
 
     /* Create a test manifest for the git-sourced driver.
      * This matches the entry in wubu_drv_install.c for tests. */
