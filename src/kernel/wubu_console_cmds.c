@@ -11,7 +11,6 @@
 #include "wubu_console.h"
 #include "wubu_serial.h"
 #include "wubu_pci.h"
-#include "wubu_drv.h"
 #include "wubu_agi_kernel.h"
 #include "wubu_rtc.h"
 #include "wubu_theme.h"
@@ -141,17 +140,8 @@ int cmd_pci(void)
     return 0;
 }
 
-/* The ONE driver registry, from the live console: no second scan. */
-int cmd_drv(void)
-{
-    char line[128];
-    if (wubu_drv_registry_line(line, sizeof(line)) > 0)
-        klog_printf("-- driver registry: %s --\n", line);
-    char summary[8192];
-    if (wubu_drv_summary(summary, sizeof(summary)) > 0)
-        klog_printf("%s", summary);
-    return 0;
-}
+/* The command body lives in wubu_console_drv.c so it can be gated
+ * independently; the declaration stays in wubu_console_cmds.h. */
 
 /* /theme graphic-set namespace: `theme`, `theme set <path> <hex>`,
  * `theme cycle`.  Writing a node re-skins the next Bonzi frame live. */

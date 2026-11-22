@@ -32,6 +32,22 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
+
+/* The `drv` console command is included so this gate exercises the REAL
+ * command, not a re-implementation of its output. */
+static char g_drv_console[16384];
+int klog_printf(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    size_t off = strlen(g_drv_console);
+    int n = vsnprintf(g_drv_console + off, sizeof(g_drv_console) - off,
+                      fmt, ap);
+    va_end(ap);
+    return n;
+}
+#include "wubu_console_drv.c"
 
 #define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
 
@@ -358,6 +374,17 @@ int main(void)
         !strstr(regline, "bound") || !strstr(regline, "MMIO BARs mapped"))
         FAIL("registry line missing a field: %s", regline);
     printf("  PASS: registry line: %s\n", regline);
+
+    /* Exercise the REAL `drv` console command with a klog stub: it must
+     * render the same registry, not a second hand-written report. */
+    g_drv_console[0] = '\0';
+    if (cmd_drv() != 0) FAIL("cmd_drv returned nonzero");
+    if (!strstr(g_drv_console, "-- driver registry:") ||
+        !strstr(g_drv_console, "MMIO BARs mapped") ||
+        !strstr(g_drv_console, "nvme"))
+        FAIL("cmd_drv output lacks registry line/bound driver");
+    printf("  PASS: cmd_drv renders the live registry (%u bytes)\n",
+           (unsigned)strlen(g_drv_console));
 
     /* 6. the summary */
     char summary[8192];

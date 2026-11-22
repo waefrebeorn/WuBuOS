@@ -31,7 +31,7 @@ KERNEL_OBJS = $(KERNEL)/WuBuKernel/src/wubu_driver_contract.o \
               $(KERNEL)/wubu_hive.o \
               $(KERNEL)/wubu_bonzi.o $(KERNEL)/wubu_apic.o \
               $(KERNEL)/wubu_pci.o $(KERNEL)/wubu_console.o \
-              $(KERNEL)/wubu_console_cmds.o \
+              $(KERNEL)/wubu_console_cmds.o $(KERNEL)/wubu_console_drv.o \
               $(KERNEL)/wubu_drv.o $(KERNEL)/wubu_drv_nvme.o \
               $(KERNEL)/wubu_drv_net.o $(KERNEL)/wubu_drv_hda.o \
               $(KERNEL)/wubu_drv_gpu.o $(KERNEL)/wubu_drv_battery.o \
