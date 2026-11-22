@@ -19,6 +19,10 @@ CASES = [
      0, "many mapped BARs + registry report"),
     (b"WuBuOS> prompt only, no registry line\n", 1, "missing map line"),
     (b"WuBuOS: 0 device MMIO BARs mapped\n", 1, "zero mapped BARs"),
+    (b"WuBuOS: 0 device MMIO BARs mapped\n"
+     b"virtio-blk: MODERN 1 MB (2048 sectors, q=256) -- persistent disk live\n"
+     b"WuBuOS: driver registry 7 devices / 18 drivers registered, 2 bound, 0 MMIO BARs mapped\n",
+     0, "modern BAR4 disk with no legacy BAR"),
     (b"WuBuOS: 2 devices MMIO BARs mapped\n", 1, "wrong wording, no match"),
     (b"WuBuOS: 1 device MMIO BARs mapped\n", 1, "registry report line missing"),
     (b"WuBuOS: 1 device MMIO BARs mapped\n"

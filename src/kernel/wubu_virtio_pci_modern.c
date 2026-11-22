@@ -196,21 +196,28 @@ int wubu_vpci_queue_max(uintptr_t common_base, uint16_t idx, uint16_t *max_out)
     return 0;
 }
 
+int wubu_vpci_config_read_bytes(uintptr_t common_base, uintptr_t devcfg,
+                                uint8_t *out, uint32_t len)
+{
+    uint8_t g1, g2;
+    int tries;
+
+    if (!common_base || !devcfg || !out || !len) return -1;
+    for (tries = 0; tries < 8; tries++) {
+        g1 = mw_read8(common_base, 0x15u);        /* config_generation */
+        for (uint32_t i = 0; i < len; i++) out[i] = mw_read8(devcfg, i);
+        g2 = mw_read8(common_base, 0x15u);
+        if (g1 == g2 && !(g1 & 1u)) return 0;
+    }
+    return -1;
+}
+
 int wubu_vpci_config_read64(uintptr_t common_base, uintptr_t devcfg,
                             uint64_t *out)
 {
     uint8_t b[8];
-    uint8_t g1, g2;
-    int tries;
-
-    if (!common_base || !devcfg || !out) return -1;
-    for (tries = 0; tries < 8; tries++) {
-        g1 = mw_read8(common_base, 0x15u);        /* config_generation */
-        for (int i = 0; i < 8; i++) b[i] = mw_read8(devcfg, (uint32_t)i);
-        g2 = mw_read8(common_base, 0x15u);
-        if (g1 == g2 && !(g1 & 1u)) break;
-    }
-    if (tries == 8) return -1;
+    if (!out || wubu_vpci_config_read_bytes(common_base, devcfg, b, 8) != 0)
+        return -1;
     uint64_t v = 0;
     for (int i = 7; i >= 0; i--) v = (v << 8) | b[i];
     *out = v;

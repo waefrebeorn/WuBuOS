@@ -25,8 +25,13 @@ def assert_driver_registry(data):
               "(wubu_drv_map_all_mmio never ran?)")
         return 1
     nmio = int(m.group(1))
-    if nmio < 1:
-        print("FAIL: driver registry mapped %d MMIO BARs, want >= 1" % nmio)
+    # A modern-only device has no legacy I/O BAR for the late BAR0 pass;
+    # the evidence is then a live modern disk bound through BAR4.
+    modern_live = re.search(rb"virtio-blk: MODERN \d+ MB .*persistent disk live",
+                            data)
+    if nmio < 1 and not modern_live:
+        print("FAIL: driver registry mapped %d MMIO BARs, want >= 1 "
+              "(or a live modern BAR4 disk)" % nmio)
         return 1
     r = re.search(rb"WuBuOS: driver registry (\d+) devices / \d+ drivers "
                   rb"registered, (\d+) bound, (\d+) MMIO BARs mapped", data)

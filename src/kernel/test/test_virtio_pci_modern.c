@@ -161,6 +161,10 @@ static void test_queue_and_notify(void)
     CHECK(wubu_vpci_config_read64((uintptr_t)common_regs,
                                   (uintptr_t)cfgdev, &v64) == 0);
     CHECK(v64 == 0x1122334455667788ull);
+    uint8_t mac[6];
+    CHECK(wubu_vpci_config_read_bytes((uintptr_t)common_regs,
+                                      (uintptr_t)cfgdev, mac, 6) == 0);
+    CHECK(mac[0] == 0x88 && mac[5] == 0x33);
     common_regs[WUBU_VPCI_COMMON_STATUS] = WUBU_VPCI_STATUS_ACKNOWLEDGE |
                                            WUBU_VPCI_STATUS_DRIVER;
     CHECK(wubu_vpci_driver_ok((uintptr_t)common_regs) == 0);

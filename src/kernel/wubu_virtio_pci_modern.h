@@ -83,6 +83,8 @@ void wubu_vpci_features_read(uintptr_t common_base, uint32_t *lo, uint32_t *hi);
 int  wubu_vpci_queue_max(uintptr_t common_base, uint16_t idx, uint16_t *max_out);
 int  wubu_vpci_config_read64(uintptr_t common_base, uintptr_t devcfg,
                              uint64_t *out);
+int  wubu_vpci_config_read_bytes(uintptr_t common_base, uintptr_t devcfg,
+                                 uint8_t *out, uint32_t len);
 int  wubu_vpci_driver_ok(uintptr_t common_base);
 
 #endif

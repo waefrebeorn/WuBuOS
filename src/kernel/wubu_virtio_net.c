@@ -22,6 +22,18 @@
 #include "wubu_virtio_ids.h"
 #include "wubu_virtqueue.h"
 #include "wubu_drv.h"          /* one registry + the single I/O-BAR owner */
+#include "wubu_virtio_pci_modern.h"
+
+/* Weak seams: the legacy net unit gate includes this TU without linking
+ * the modern capability module; the metal kernel links it for real. */
+#pragma weak wubu_vpci_caps_read
+#pragma weak wubu_vpci_feature_handshake
+#pragma weak wubu_vpci_queue_max
+#pragma weak wubu_vpci_queue_setup
+#pragma weak wubu_vpci_config_read_bytes
+#pragma weak wubu_vpci_driver_ok
+#pragma weak wubu_vpci_notify_addr
+#pragma weak wubu_drv_map_bar_range
 
 #ifdef MYSEED_METAL
 #include "klog.h"
@@ -214,6 +226,81 @@ static wubu_virtio_net_t *vnet_init(uint16_t iobase,
     return n;
 }
 
+/* OASIS 1.0 modern virtio-net: same net-only logic as the legacy path,
+ * with cap-derived BAR4 MMIO instead of the legacy I/O window. */
+static int vnet_modern_queue(uintptr_t common, uintptr_t notify_base,
+                             uint32_t mult, uint16_t idx, wubu_vq_t *vq)
+{
+    uint16_t qmax = 0, q;
+    if (wubu_vpci_queue_max(common, idx, &qmax) != 0) return -1;
+    q = qmax > VNET_MAX_Q ? VNET_MAX_Q : qmax;
+    if (wubu_vq_setup_ring(vq, idx, q, 0) != 0) return -1;
+    uint16_t noff = 0;
+    if (wubu_vpci_queue_setup(common, idx, q,
+                              (uint64_t)(uintptr_t)vq->ring,
+                              (uint64_t)(uintptr_t)vq->avail,
+                              (uint64_t)(uintptr_t)vq->used, &noff) != 0)
+        return -1;
+    vq->notify_addr = wubu_vpci_notify_addr(notify_base, noff, mult);
+    return vq->notify_addr ? 0 : -1;
+}
+
+static wubu_virtio_net_t *vnet_init_modern(const wubu_drv_dev_t *dev)
+{
+    if (!dev || !dev->bar4 || !wubu_vpci_caps_read ||
+        !wubu_drv_map_bar_range) return NULL;
+    wubu_vpci_caps_t caps;
+    if (wubu_vpci_caps_read(dev->bus, dev->pci_dev, dev->pci_fn, &caps) != 0 ||
+        !caps.have_common || !caps.have_notify) return NULL;
+
+    /* Same 2 MB page-table window as the modern disk, different 4 K
+     * slots: no new PT allocation at this late boot stage. */
+    uint64_t slot = WUBU_DRV_MMIO_VA_BASE + 0x104000ull;
+    uint32_t pages = dev->bar4_size ? (uint32_t)(dev->bar4_size / 4096u) : 4u;
+    if (!pages || pages > 16u) pages = 4u;
+    uint64_t va = 0;
+    if (wubu_drv_map_bar_range(dev, 4u, slot, pages, &va) != 0) return NULL;
+
+    uintptr_t common = (uintptr_t)va + caps.common.offset;
+    uintptr_t notify = (uintptr_t)va + caps.notify.offset;
+    uintptr_t devcfg = (uintptr_t)va + caps.device.offset;
+    if (wubu_vpci_feature_handshake(common, VNET_F_MAC) != 0) return NULL;
+
+    wubu_virtio_net_t *n = (wubu_virtio_net_t *)wubu_vq_mem.alloc(sizeof(*n));
+    if (!n) return NULL;
+    memset(n, 0, sizeof(*n));
+    n->hdr_len = sizeof(vnet_hdr_t);
+    if (vnet_modern_queue(common, notify, caps.notify_off_multiplier, 0,
+                          &n->rx) != 0 ||
+        vnet_modern_queue(common, notify, caps.notify_off_multiplier, 1,
+                          &n->tx) != 0) {
+        vnet_teardown(n); return NULL;
+    }
+    if (wubu_vpci_config_read_bytes(common, devcfg, n->mac, 6) != 0 ||
+        wubu_vpci_driver_ok(common) != 0) {
+        vnet_teardown(n); return NULL;
+    }
+    n->rx_bufs = (uint8_t *)wubu_vq_mem.alloc(VNET_RX_BUFS * VNET_RX_BUF_SZ);
+    n->tx_bounce = (uint8_t *)wubu_vq_mem.alloc(VNET_RX_BUF_SZ);
+    if (!n->rx_bufs || !n->tx_bounce ||
+        !wubu_vq_dma_ok((uint64_t)(uintptr_t)n->rx_bufs,
+                        VNET_RX_BUFS * VNET_RX_BUF_SZ) ||
+        !wubu_vq_dma_ok((uint64_t)(uintptr_t)n->tx_bounce, VNET_RX_BUF_SZ)) {
+        vnet_teardown(n); return NULL;
+    }
+    memset(n->rx_bufs, 0, VNET_RX_BUFS * VNET_RX_BUF_SZ);
+    for (uint16_t i = 0; i < VNET_RX_BUFS; i++) vnet_post_rx(n, i);
+    wubu_vq_kick(&n->rx);
+
+    n->ready = 1;
+    VNET_LOG("virtio-net: MODERN mac %x:%x:%x:%x:%x:%x (rxq=%u txq=%u) "
+             "-- network live\n", (unsigned)n->mac[0], (unsigned)n->mac[1],
+             (unsigned)n->mac[2], (unsigned)n->mac[3], (unsigned)n->mac[4],
+             (unsigned)n->mac[5], (unsigned)n->rx.qsize,
+             (unsigned)n->tx.qsize);
+    return n;
+}
+
 wubu_virtio_net_t *wubu_virtio_net_probe(void)
 {
     /* One registry, one I/O-BAR owner. Canonical net ID plus the legacy
@@ -228,6 +315,12 @@ wubu_virtio_net_t *wubu_virtio_net_probe(void)
         if (wubu_drv_io_base(dev, &iobase) != 0) continue;
         wubu_virtio_net_t *nic = vnet_init(iobase, dev);
         if (nic) return nic;
+    }
+    if (wubu_vpci_caps_read && wubu_drv_map_bar_range) {
+        const wubu_drv_dev_t *dev =
+            wubu_drv_find_pci_id(WUBU_VIRTIO_VENDOR_ID,
+                                 WUBU_VIRTIO_NET_MODERN_ID, 0x02u);
+        if (dev) return vnet_init_modern(dev);
     }
     return NULL;
 }

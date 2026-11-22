@@ -23,6 +23,8 @@ LINE = re.compile(
     rb"status=([0-9a-f]+) qsize=(\d+)")
 LIVE = re.compile(rb"virtio-blk: MODERN \d+ MB \(\d+ sectors, q=\d+\) "
                   rb"-- persistent disk live")
+NET_LIVE = re.compile(rb"virtio-net: MODERN mac [0-9a-f:]+ "
+                      rb"\(rxq=\d+ txq=\d+\) -- network live")
 
 
 def main():
@@ -41,7 +43,9 @@ def main():
         env = os.environ.copy()
         env["WUBU_QEMU_EXTRA"] = (
             "-drive if=none,id=d0,file=%s,format=raw "
-            "-device virtio-blk-pci,drive=d0,disable-legacy=on,disable-modern=off"
+            "-device virtio-blk-pci,drive=d0,disable-legacy=on,disable-modern=off "
+            "-netdev user,id=n0 "
+            "-device virtio-net-pci,netdev=n0,disable-legacy=on,disable-modern=off"
             % image)
         env["WUBU_BOOT_WINDOW"] = str(window)
         r = subprocess.run([sys.executable, ASSERT, kernel, "--kernel"],
@@ -73,8 +77,11 @@ def main():
         if not LIVE.search(data):
             print("FAIL: modern disk did not complete a real sector read")
             return 1
+        if not NET_LIVE.search(data):
+            print("FAIL: modern NIC did not become live (RX/TX queues)")
+            return 1
     print("[virtio-modern] PASS: real QEMU modern-only virtio-blk boot "
-          "volume, capability path + live block I/O")
+          "volume and virtio-net NIC, capability paths + live I/O")
     return 0
 
 
