@@ -10,13 +10,16 @@
 #include "wubu_drv.h"
 #include "klog.h"
 
+/* The higher-half stack is only ~64 KB (kernel_end..stack_top). Keep the
+ * full registry report out of the ring-0 stack frame. */
+static char s_summary[8192];
+
 int cmd_drv(void)
 {
     char line[128];
     if (wubu_drv_registry_line(line, sizeof(line)) > 0)
         klog_printf("-- driver registry: %s --\n", line);
-    char summary[8192];
-    if (wubu_drv_summary(summary, sizeof(summary)) > 0)
-        klog_printf("%s", summary);
+    if (wubu_drv_summary(s_summary, sizeof(s_summary)) > 0)
+        klog_printf("%s", s_summary);
     return 0;
 }
