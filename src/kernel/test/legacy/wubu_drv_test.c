@@ -422,6 +422,17 @@ int main(void)
     printf("  PASS: the boot summary shows the whole bus\n");
     printf("%s", summary);
 
+    /* D5 whole-table invariant: the late MMIO pass must skip an I/O-BAR
+     * device in the registry, not just reject it when called directly. */
+    g_map_n = 0;
+    const wubu_drv_dev_t *io_reg =
+        wubu_drv_find_pci_id(0x1AF4u, 0x1001u, 0x01u);
+    if (!io_reg) FAIL("I/O device missing from the registry");
+    int nlate = wubu_drv_map_all_mmio();
+    if (nlate != 0 || g_map_n != 0) FAIL("late pass mapped the I/O BAR");
+    if (io_reg->mmio_va != 0) FAIL("I/O device received an MMIO VA");
+    printf("  PASS: whole-table late pass skips the I/O BAR device\n");
+
     printf("=== ALL DRV TESTS PASSED (the Steam Deck + laptop driver registry) ===\n");
     return 0;
 }
