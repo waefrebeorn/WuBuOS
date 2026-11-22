@@ -19,6 +19,7 @@
 #include "fat32.h"       /* G6: the AGI checkpoint file */
 #include "ahci.h"        /* Gap DA: the boot volume's disk backend */
 #include "wubu_virtio_blk.h"  /* L1: real persistent storage (virtio-blk) */
+#include "wubu_virtio_pci_modern.h" /* read-only modern-virtio boot probe */
 #include "wubu_virtio_net.h"  /* L5: bare-metal network (virtio-net) */
 #include "wubu_netstack.h"    /* L5: minimal Ethernet/ARP/IPv4/ICMP/UDP */
 #include "wubu_probe.h"  /* Gap DB: unified hardware discovery dispatcher */
@@ -779,6 +780,7 @@ void kernel_main(void *boot_info) {
         int d5 = -1;
 
         /* L1: probe the real persistent disk first. */
+        wubu_vpci_modern_debug_probe();   /* read-only; binds no device */
         wubu_virtio_blk_t *vb = wubu_virtio_blk_probe();
         if (vb) {
             bops.ctx = vb;

@@ -11,6 +11,11 @@
 #include "wubu_virtio_pci_modern.h"
 #include "wubu_pci.h"
 
+#ifdef MYSEED_METAL
+#include "klog.h"
+#include "wubu_drv.h"
+#endif
+
 #define VPCI_STATUS_CAPS   (1u << 20)
 #define VPCI_MAX_CAPS      48u
 
@@ -178,3 +183,38 @@ uintptr_t wubu_vpci_notify_addr(uintptr_t notify_base, uint16_t notify_off,
         return 0;
     return notify_base + (uintptr_t)notify_off * (uintptr_t)multiplier;
 }
+
+#ifdef MYSEED_METAL
+void wubu_vpci_modern_debug_probe(void)
+{
+    const wubu_drv_dev_t *d =
+        wubu_drv_find_pci_id(0x1AF4u, 0x1042u, 0x01u);
+    wubu_vpci_caps_t caps;
+    uint64_t va = 0;
+    uint32_t lo, hi;
+    uint8_t st;
+
+    if (!d || !d->bar4) return;
+    if (wubu_vpci_caps_read(d->bus, d->pci_dev, d->pci_fn, &caps) != 0) {
+        klog_printf("WuBuOS: modern virtio-blk cap walk FAILED\n");
+        return;
+    }
+    if (wubu_drv_map_bar_range(d, 4u, WUBU_DRV_MMIO_VA_BASE + 0x100000ull,
+                               1u, &va) != 0) {
+        klog_printf("WuBuOS: modern virtio-blk BAR4 map FAILED\n");
+        return;
+    }
+    uintptr_t c = (uintptr_t)va + caps.common.offset;
+    mw_write32(c, WUBU_VPCI_COMMON_DEV_FEAT_SEL, 0);
+    lo = mw_read32(c, WUBU_VPCI_COMMON_DEV_FEAT);
+    mw_write32(c, WUBU_VPCI_COMMON_DEV_FEAT_SEL, 1);
+    hi = mw_read32(c, WUBU_VPCI_COMMON_DEV_FEAT);
+    st = mw_read8(c, WUBU_VPCI_COMMON_STATUS);
+    klog_printf("WuBuOS: modern virtio-blk 1af4:1042 caps=%u common=%u "
+                "notify=%u feat_lo=%x feat_hi=%x status=%x\n",
+                (unsigned)(caps.have_common + caps.have_notify +
+                           caps.have_isr + caps.have_device),
+                (unsigned)caps.common.offset, (unsigned)caps.notify.offset,
+                (unsigned)lo, (unsigned)hi, (unsigned)st);
+}
+#endif

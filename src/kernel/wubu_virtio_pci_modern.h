@@ -74,4 +74,8 @@ int wubu_vpci_queue_setup(uintptr_t common_base, uint16_t idx,
 uintptr_t wubu_vpci_notify_addr(uintptr_t notify_base, uint16_t notify_off,
                                 uint32_t multiplier);
 
+/* Metal-only boot diagnostic: read a modern-only virtio disk's capability
+ * list and common config; logs one line, binds no device. */
+void wubu_vpci_modern_debug_probe(void);
+
 #endif
