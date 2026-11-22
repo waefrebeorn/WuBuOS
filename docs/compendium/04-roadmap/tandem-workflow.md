@@ -176,6 +176,8 @@ BAR as I/O space. `test_xhci`, kernel boot and `kernel-strict` stay green.
 ## Gate quick-reference (the tandem's definition of green)
 
 ```sh
+# live CI status without gh auth (public API, not the cached HTML page)
+cd /home/wubu/wubuos && make ci_status
 # all three repos, one command (contract -> boot -> guest -> emulator)
 cd /home/wubu/wubuos && make tandem_check
 # on another machine: make tandem_check TANDEM_ROOT=/path/to/repos

@@ -406,7 +406,13 @@ test_spawn:
 test_ci_boot_assert:
 	python3 tools/test_ci_boot_assert.py
 
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_blk test_virtio_net test_netstack test_ci_boot_assert
+test_ci_status:
+	python3 tools/test_ci_status.py
+
+ci_status:
+	python3 tools/ci_status.py
+
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_blk test_virtio_net test_netstack test_ci_boot_assert test_ci_status
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
