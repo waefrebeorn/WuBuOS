@@ -56,7 +56,7 @@ is an opinion.
 | Declaration hygiene | `make kernel-strict` (in `tandem_check`) | freestanding declaration/type errors CI sees |
 | Standards ratchet | `make test_standards` | long files, fat headers, literal drift — fails on GROWTH |
 | Tandem one-command check | `make tandem_check` | kernel contract, boot, PCI bridge, modern virtio, guest WEMU, standalone WEMU, static analysis, sanitizers |
-| Emulator sanitizers | `make -C wemu test_sanitize` | ASan+UBSan over the core and five host-differential ISA gates |
+| Emulator sanitizers | `make -C wemu test_sanitize` / `test_sanitize_all` | ASan+UBSan over the core and five (opt-in: fifteen) host-differential ISA gates |
 | Statistical non-vacuity | `make test_default_optin` | fixed thresholds, no retries; add samples, never loosen a shipped-path ceiling |
 
 `static_check` is intentionally scoped to sources that parse with a narrow
