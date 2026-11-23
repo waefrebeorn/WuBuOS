@@ -1478,29 +1478,29 @@ test_buddy_orb: $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c -o $(RT)/test_buddy_orb -lm -Iinclude $(RT)/wubu_crc32.c
 	$(RT)/test_buddy_orb
 test_kernel_bar_v2: $(KERNEL)/test/wubu_kernel_bar_v2_test.c \
-                    /home/wubu/WuBuKernel/src/wubu_driver_contract.c \
-                    /home/wubu/WuBuKernel/include/wubu_driver_contract.h
-	$(CC) -O2 -std=c11 -Wall -I/home/wubu/WuBuKernel/include \
+                    $(WUBU_KERNEL_CONTRACT)/src/wubu_driver_contract.c \
+                    $(WUBU_KERNEL_CONTRACT)/include/wubu_driver_contract.h
+	$(CC) -O2 -std=c11 -Wall -I$(WUBU_KERNEL_CONTRACT)/include \
 		$(KERNEL)/test/wubu_kernel_bar_v2_test.c \
-		/home/wubu/WuBuKernel/src/wubu_driver_contract.c \
+		$(WUBU_KERNEL_CONTRACT)/src/wubu_driver_contract.c \
 		-o $(KERNEL)/test_wubu_kernel_bar_v2
 	$(KERNEL)/test_wubu_kernel_bar_v2
 
 test_kernel_cap: $(KERNEL)/test/wubu_kernel_cap_test.c \
-                 /home/wubu/WuBuKernel/src/wubu_cap.c \
-                 /home/wubu/WuBuKernel/include/wubu_cap.h
-	$(CC) -O2 -std=c11 -Wall -I/home/wubu/WuBuKernel/include \
+                 $(WUBU_KERNEL_CONTRACT)/src/wubu_cap.c \
+                 $(WUBU_KERNEL_CONTRACT)/include/wubu_cap.h
+	$(CC) -O2 -std=c11 -Wall -I$(WUBU_KERNEL_CONTRACT)/include \
 		$(KERNEL)/test/wubu_kernel_cap_test.c \
-		/home/wubu/WuBuKernel/src/wubu_cap.c \
+		$(WUBU_KERNEL_CONTRACT)/src/wubu_cap.c \
 		-o $(KERNEL)/test_wubu_kernel_cap
 	$(KERNEL)/test_wubu_kernel_cap
 
 test_kernel_abi: $(KERNEL)/test/wubu_kernel_abi_test.c \
-                 /home/wubu/WuBuKernel/src/wubu_abi.c \
-                 /home/wubu/WuBuKernel/include/wubu_abi.h
-	$(CC) -O2 -std=c11 -Wall -I/home/wubu/WuBuKernel/include \
+                 $(WUBU_KERNEL_CONTRACT)/src/wubu_abi.c \
+                 $(WUBU_KERNEL_CONTRACT)/include/wubu_abi.h
+	$(CC) -O2 -std=c11 -Wall -I$(WUBU_KERNEL_CONTRACT)/include \
 		$(KERNEL)/test/wubu_kernel_abi_test.c \
-		/home/wubu/WuBuKernel/src/wubu_abi.c \
+		$(WUBU_KERNEL_CONTRACT)/src/wubu_abi.c \
 		-o $(KERNEL)/test_wubu_kernel_abi
 	$(KERNEL)/test_wubu_kernel_abi
 
@@ -2893,7 +2893,7 @@ test_gaad:
 		-o $(KERNEL)/wubu_gaad_test
 	$(KERNEL)/wubu_gaad_test
 test_hive:
-	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I/home/wubu/WuBuKernel/include -Iinclude  src/runtime/wubu_crc32.c \
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I$(WUBU_KERNEL_CONTRACT)/include -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_hive.c $(KERNEL)/test/test_hive.c \
 		-o $(KERNEL)/test_hive
 	$(KERNEL)/test_hive
@@ -2909,7 +2909,7 @@ test_heap_stress:
 
 # /theme namespace + unified HID layer (Kevin-Bacon pass 3 modules)
 test_theme_hid:
-	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I/home/wubu/WuBuKernel/include -Iinclude  src/runtime/wubu_crc32.c \
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I$(WUBU_KERNEL_CONTRACT)/include -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/test/test_theme_hid.c \
 		-o $(KERNEL)/test_theme_hid
 	$(KERNEL)/test_theme_hid
@@ -3058,7 +3058,7 @@ test_secmon: $(RT)/wubu_secmon.c $(KERNEL)/wubu_secmon.h $(KERNEL)/wubu_kvfs.c $
 	$(RT)/test_secmon
 
 test_drv:
-	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I/home/wubu/WuBuKernel/include -Iinclude  src/runtime/wubu_crc32.c \
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I$(WUBU_KERNEL_CONTRACT)/include -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
 		$(KERNEL)/WuBuKernel/src/wubu_cap.c \

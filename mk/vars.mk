@@ -13,6 +13,14 @@ LDFLAGS = -lcublas -lcudnn -lcudart
 
 # ── Directories ──────────────────────────────────────────────────
 KERNEL  = src/kernel
+
+# WuBuKernel contract source: prefer the pinned submodule (CI initialises
+# it); fall back to the canonical local checkout only when the submodule
+# is uninitialised. Never hardcode /home/wubu into the shipped build.
+WUBU_KERNEL_CONTRACT ?= $(KERNEL)/WuBuKernel
+ifeq ($(wildcard $(WUBU_KERNEL_CONTRACT)/src/wubu_cap.c),)
+WUBU_KERNEL_CONTRACT := /home/wubu/WuBuKernel
+endif
 JIT     = src/jit
 COMP    = src/compiler
 GUI     = src/gui

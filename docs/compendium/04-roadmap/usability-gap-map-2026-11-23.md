@@ -294,3 +294,15 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   remains green. All driver-test link recipes include the cap module.
 - Still open: IRQ_ACQUIRE and DMA_DOMAIN enforcement, and capability
   handoff beyond registration time.
+
+## Landed increment — CI enforcement + portable contract path
+
+- `boot-verify.yml` now runs the WuBuKernel contract gates
+  (`test_kernel_abi`, `test_kernel_cap`, `test_kernel_bar_v2`) and the four
+  Wave 0 metal usability gates (`test_wemu_kbd`, `fs`, `app`, `crash`) with
+  a bounded `::error::` annotation. All eight pass locally.
+- Removed hardcoded `/home/wubu/WuBuKernel` from the shipped Makefiles.
+  `WUBU_KERNEL_CONTRACT` prefers the pinned submodule (CI) and falls back
+  to the canonical local checkout only when the submodule is uninitialized.
+  The forwarding header `include/wubu_cap.h` keeps one contract definition.
+- This closes the local-only gap for all Wave 0/1 gates proven earlier.

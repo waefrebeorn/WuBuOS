@@ -66,6 +66,18 @@ jobs:
             echo "::error::WEMU virtio gate failed rc=$rc: $(tail -c 600 /tmp/wemu-virtio-gate.log | tr '\n' ' ')"
           fi
           exit "$rc"
+      - name: WuBuKernel contract gates (ABI, caps, BAR v2)
+        run: make test_kernel_abi test_kernel_cap test_kernel_bar_v2
+      - name: Wave 0 metal usability gates (keyboard, files, app, crash)
+        run: |
+          set +e
+          make test_wemu_kbd test_wemu_fs test_wemu_app test_wemu_crash 2>&1 | tee /tmp/wemu-wave0-gates.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::Wave 0 gate failed rc=$rc: $(tail -c 800 /tmp/wemu-wave0-gates.log | tr '\n' ' ')"
+          fi
+          exit "$rc"
       - name: Declaration-hygiene ratchet (gcc14-class, must stay clean)
         run: make kernel-strict -j$(nproc)
       - name: Boot it here first (Linux, -kernel path)
