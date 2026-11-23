@@ -97,6 +97,13 @@ void interrupt_shutdown(void);
 
 /* Register C handler for IRQ (0-15 for PIC, 32-47 for remapped) */
 void interrupt_register(uint8_t irq, ISRHandler handler, void *ctx);
+/* Authority-aware registration: 0 on success, -1 when IRQ_ACQUIRE is
+ * absent/revoked. interrupt_register() is the legacy void wrapper. */
+int interrupt_register_ex(uint8_t irq, ISRHandler handler, void *ctx);
+void interrupt_irq_cap_init(void);
+int interrupt_irq_cap_revoke(void);
+int interrupt_irq_cap_grant(void);
+int interrupt_handler_installed(uint8_t irq);
 void interrupt_unregister(uint8_t irq);
 
 /* Acknowledge IRQ to PIC */

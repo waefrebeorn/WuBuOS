@@ -13,6 +13,7 @@
 #include "tasking.h"  /* For task_timer_tick, g_current */
 #include "wubu_agi_kernel.h"  /* For PIT-ticked supervisor */
 #include "memory.h"   /* For mem_alloc */
+#include "wubu_cap.h"  /* IRQ_ACQUIRE authority */
 
 #include <string.h>
 #include <stdint.h>
@@ -200,11 +201,38 @@ static inline void idt_set_gate(IDTEntry *gate, uint64_t handler, uint16_t selec
  * ISR Handler Registration (C-level)
  * ------------------------------------------------------------------ */
 
+static uint64_t g_irq_acquire_cap = WUBU_CAP_NONE;
+
+void interrupt_irq_cap_init(void) {
+    if (!wubu_cap_check(g_irq_acquire_cap, WUBU_CAP_IRQ_ACQUIRE, 0u))
+        (void)wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_IRQ_ACQUIRE, 0u,
+                             &g_irq_acquire_cap);
+}
+
+int interrupt_irq_cap_revoke(void) {
+    return wubu_cap_revoke(g_irq_acquire_cap);
+}
+
+int interrupt_irq_cap_grant(void) {
+    return wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_IRQ_ACQUIRE, 0u,
+                          &g_irq_acquire_cap);
+}
+
+int interrupt_handler_installed(uint8_t irq) {
+    return irq < 256 && g_irq_table[irq].handler != NULL;
+}
+
+int interrupt_register_ex(uint8_t irq,
+                          void (*handler)(uint8_t irq, void *ctx), void *ctx) {
+    if (irq >= 256 || !handler) return -1;
+    if (!wubu_cap_check(g_irq_acquire_cap, WUBU_CAP_IRQ_ACQUIRE, 0u)) return -1;
+    g_irq_table[irq].handler = handler;
+    g_irq_table[irq].ctx = ctx;
+    return 0;
+}
+
 void interrupt_register(uint8_t irq, void (*handler)(uint8_t irq, void *ctx), void *ctx) {
-    if (irq < 256) {
-        g_irq_table[irq].handler = handler;
-        g_irq_table[irq].ctx = ctx;
-    }
+    if (interrupt_register_ex(irq, handler, ctx) != 0) return;
 }
 
 void interrupt_unregister(uint8_t irq) {
@@ -474,6 +502,7 @@ void isr_dispatch(uint8_t vector, struct InterruptFrame *frame) {
 int interrupt_init(void) {
     /* Clear IRQ table */
     memset(g_irq_table, 0, sizeof(g_irq_table));
+    interrupt_irq_cap_init();
     g_idt_initialized = 0;
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'i', %%al\n outb %%al, %%dx" ::: "dx","al");
 

@@ -306,3 +306,14 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   to the canonical local checkout only when the submodule is uninitialized.
   The forwarding header `include/wubu_cap.h` keeps one contract definition.
 - This closes the local-only gap for all Wave 0/1 gates proven earlier.
+
+## Landed increment — Wave 1 IRQ_ACQUIRE
+
+- `interrupt_register_ex()` is the authority-aware registration path: it
+  returns -1 unless a live IRQ_ACQUIRE token is held. `interrupt_register()`
+  is the void wrapper; `interrupt_init()` grants the token at boot.
+- `test_kernel_irq_cap` uses purpose-built link stubs for the assembly ISR
+  vector table and proves granted install, revoked refusal, and regranted
+  install. The gate is in the critical tier and boot-verify contract step.
+- `wubu_irq_cap_stubs.c` is test-only and defines no product behavior.
+- Still open: DMA_DOMAIN and capability handoff beyond registration time.
