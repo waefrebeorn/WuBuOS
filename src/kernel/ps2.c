@@ -215,6 +215,14 @@ static const char keymap[128] = {
     'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',  0, '*',  0, ' ',
 };
 
+/* Polling path for emulators and IRQ-less boots. Real hardware still uses
+ * IRQ1; whichever reads the output buffer first consumes the scancode, so
+ * calling this from the console loop cannot double-deliver a key. */
+void ps2_poll_keyboard(void) {
+    if (!(inb(0x64) & 1u)) return;
+    ps2_keyboard_handler();
+}
+
 void ps2_keyboard_handler(void) {
     uint8_t sc = inb(0x60);
 

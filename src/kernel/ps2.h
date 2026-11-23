@@ -39,6 +39,7 @@ typedef struct {
 void ps2_init(int screen_w, int screen_h, ps2_probe_t *probe);
 
 /* Keyboard handler - call from IRQ1 (interrupt 0x21) */
+void ps2_poll_keyboard(void);
 void ps2_keyboard_handler(void);
 
 /* Mouse handler - call from IRQ12 (interrupt 0x2C) */

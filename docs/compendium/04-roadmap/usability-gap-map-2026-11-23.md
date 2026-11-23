@@ -160,3 +160,16 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   same 1 MiB FAT32 image: `write HELLO.TXT world`, then a fresh process
   `cat HELLO.TXT` must read `world`. Verified PASS. This is the first gate in
   this workflow where a human-created file survives a reboot on metal.
+
+## Landed increment — Wave 0 keyboard console
+
+- Refactored the ring-0 console line editor into `console_feed_char()` so
+  COM1 bytes and PS/2 key events run through identical history/tab/backspace
+  handling. `ps2_poll_keyboard()` consumes the 8042 output buffer from the
+  console loop; IRQ1 remains the real-hardware path.
+- WEMU `ebe62a8` adds a bounded PS/2 scancode queue (0x64 OBF / 0x60 data)
+  and `wemu_machine_queue_keyboard()` for deterministic post-prompt injection.
+- `make test_wemu_kbd` types `mem` from PS/2 with no COM1 input and asserts
+  `heap used=` in the post-injection window. Negative control with the
+  injection window but no key event FAILs at 200M steps; positive PASSes in
+  50k steps. Fixed a latent `input_init` declaration mismatch in `libc.h`.

@@ -901,6 +901,13 @@ test_wemu_kernel_virtio: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 	WEMU_KERNEL_STEPS=100000000 WEMU_KERNEL_MARKER='virtio-blk: MODERN' \
 		./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
+# Wave 0: a PS/2 keystroke must reach the ring-0 console line editor.
+test_wemu_kbd: test_wemu_kernel
+	WEMU_KBD_SEND=mem WEMU_KBD_INJECT=1 \
+		WEMU_KERNEL_STEPS=200000000 WEMU_KERNEL_MARKER='WuBuOS>' \
+		WEMU_KERNEL_EXPECT='heap used=' \
+		./tools/wemu_kernel_gate src/kernel/kernel.elf
+
 # Wave 0: a metal user file must survive write -> reboot -> read in WEMU.
 test_wemu_fs: test_wemu_kernel
 	python3 tools/wemu_fs_gate.py

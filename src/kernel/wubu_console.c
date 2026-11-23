@@ -15,6 +15,8 @@
 #include "ahci.h"       /* run command (gap F3) */
 #include "fat32.h"      /* run command (gap F3) */
 #include "tasking.h"
+#include "input.h"
+#include "ps2.h"
 #include "memory.h"
 #include "klog.h"
 #include "libc.h"
@@ -165,108 +167,119 @@ void wubu_console_prompt(void)
     while (*p) serial_tx((uint8_t)*p++);
 }
 
+typedef struct {
+    char line[256];
+    size_t n;
+    char history[8][256];
+    int hist_n, hist_pos, hist_fill;
+} WubuConsoleState;
+
+/* One byte from either COM1 or the PS/2 key path runs through the same
+ * line editor: history, tab completion, backspace, ESC arrows. */
+static void console_feed_char(WubuConsoleState *st, uint8_t c)
+{
+    if (c == '\r' || c == '\n') {
+        serial_tx('\r'); serial_tx('\n');
+        st->line[st->n] = 0;
+        if (st->n > 0) {
+            if (st->hist_n == 0 ||
+                strcmp(st->line, st->history[(st->hist_n - 1 + 8) % 8]) != 0) {
+                for (size_t i = 0; i < sizeof(st->line); i++)
+                    st->history[st->hist_n][i] = st->line[i];
+                st->hist_n = (st->hist_n + 1) % 8;
+                if (st->hist_fill < 8) st->hist_fill++;
+            }
+            wubu_console_exec(st->line);
+        }
+        st->n = 0;
+        st->hist_pos = -1;
+        wubu_console_prompt();
+    } else if (c == 0x08 || c == 0x7F) {
+        if (st->n > 0) {
+            st->n--;
+            serial_tx('\b'); serial_tx(' '); serial_tx('\b');
+        }
+    } else if (c >= 0x20 && c < 0x7F && st->n + 1 < sizeof(st->line)) {
+        st->line[st->n++] = (char)c;
+        serial_tx(c);
+    } else if (c == '\t') {
+        static const char *cmds[] = {
+            "help", "uptime", "mem", "tasks", "pci", "drv", "fs", "theme",
+            "hid", "vmm", "stats", "dump", "attest", "date", "agi",
+            "holyc", "live", "recovery", "cls", "run", "reboot"
+        };
+        int ncmds = (int)(sizeof(cmds) / sizeof(cmds[0]));
+        if (st->n > 0 && st->line[0] != ' ') {
+            size_t word_end = st->n;
+            if (st->line[word_end - 1] == ' ') word_end--;
+            size_t ws = 0;
+            while (ws < word_end && st->line[ws] != ' ') ws++;
+            if (ws == word_end) {
+                const char *match = NULL;
+                for (int i = 0; i < ncmds; i++) {
+                    if (strncmp(cmds[i], st->line, st->n) == 0) {
+                        if (match) { match = NULL; break; }
+                        match = cmds[i];
+                    }
+                }
+                if (match) {
+                    for (size_t i = st->n; match[i]; i++) {
+                        st->line[st->n++] = match[i];
+                        serial_tx((uint8_t)match[i]);
+                    }
+                    serial_tx(' ');
+                    st->line[st->n++] = ' ';
+                    st->line[st->n] = 0;
+                }
+            }
+        }
+    } else if (c == 0x1B) {
+        extern int wubu_serial_pop(uint8_t *);
+        wubu_serial_pop(&c);                 /* '[' */
+        if (wubu_serial_pop(&c) == 0) {
+            int back = (c == 'A'), fwd = (c == 'B');
+            if ((back || fwd) && st->hist_fill > 0) {
+                if (st->hist_pos < 0) st->hist_pos = st->hist_n;
+                st->hist_pos = (st->hist_pos + (back ? 7 : 1)) % 8;
+                if (st->hist_pos == st->hist_n && st->hist_fill < 8)
+                    st->hist_pos = (st->hist_pos + (back ? 1 : 7)) % 8;
+                for (size_t i = 0; i < st->n; i++) serial_tx('\b');
+                st->n = 0;
+                if (st->hist_pos != st->hist_n) {
+                    for (size_t i = 0; st->history[st->hist_pos][i] &&
+                                       i < sizeof(st->line) - 1; i++) {
+                        st->line[st->n++] = st->history[st->hist_pos][i];
+                        serial_tx((uint8_t)st->line[st->n - 1]);
+                    }
+                }
+                st->line[st->n] = 0;
+            }
+        }
+    }
+}
+
 void wubu_console_task(void *arg)
 {
     (void)arg;
-    static char line[256];
-    /* command history (gap F1): ring of the last 8 lines; Up/Down walk
-     * it. The 16550 RX is byte-stream, so arrow keys are ESC [ A / B. */
-    static char history[8][256];
-    static int  hist_n, hist_pos = -1, hist_fill;
-    size_t n = 0;
-    klog_printf("WuBuOS: live console up (COM1, ring 0)\n");
+    static WubuConsoleState st;
+    klog_printf("WuBuOS: live console up (COM1 + PS/2, ring 0)\n");
     wubu_console_prompt();
     for (;;) {
-        /* RX: interrupt-driven (gap E2) -- the UART IRQ pushes the
-         * wubu_sync FIFO; the poll backup drains the UART into the FIFO
-         * when the IRQ path is quiet. Each byte is consumed exactly once
-         * (the data register is a destructive read, whichever side wins). */
         extern int  wubu_serial_pop(uint8_t *);
         extern void wubu_serial_drain(void);
         extern void klog_tx_poll(void);
         wubu_serial_drain();
-        klog_tx_poll();   /* gap E3: flush the serial TX ring */
+        klog_tx_poll();
+        ps2_poll_keyboard();   /* feeds input_key_poll() from PS/2 OBF */
         uint8_t c;
-        if (wubu_serial_pop(&c) == 0) {
-            if (c == '\r' || c == '\n') {
-                serial_tx('\r'); serial_tx('\n');
-                line[n] = 0;
-                if (n > 0) {
-                    /* history push (dedupe the immediate repeat) */
-                    if (hist_n == 0 ||
-                        strcmp(line, history[(hist_n - 1 + 8) % 8]) != 0) {
-                        for (int i = 0; i < 256; i++)
-                            history[hist_n][i] = line[i];
-                        hist_n = (hist_n + 1) % 8;
-                        if (hist_fill < 8) hist_fill++;
-                    }
-                    wubu_console_exec(line);
-                }
-                n = 0;
-                hist_pos = -1;
-                wubu_console_prompt();
-            } else if (c == 0x08 || c == 0x7F) {
-                if (n > 0) { n--; serial_tx('\b'); serial_tx(' '); serial_tx('\b'); }
-            } else if (c >= 0x20 && c < 0x7F && n + 1 < sizeof(line)) {
-                line[n++] = (char)c;
-                serial_tx(c);
-            } else if (c == '\t') {
-                /* Gap F2: tab completion -- complete the current word
-                 * against the known commands (first word only). */
-                static const char *cmds[] = {
-                    "help", "uptime", "mem", "tasks", "pci", "drv", "theme",
-                    "hid", "vmm", "stats", "dump", "attest", "date",
-                    "agi", "holyc", "live", "recovery", "cls", "reboot"
-                };
-                int ncmds = (int)(sizeof(cmds) / sizeof(cmds[0]));
-                if (n > 0 && line[0] != ' ') {
-                    int word_end = n;
-                    if (line[word_end - 1] == ' ') { word_end--; }
-                    int ws = 0;
-                    while (ws < word_end && line[ws] != ' ') ws++;
-                    if (ws == word_end) {        /* single word: a command */
-                        const char *match = NULL;
-                        for (int i = 0; i < ncmds; i++) {
-                            if (strncmp(cmds[i], line, (size_t)n) == 0) {
-                                if (match) { match = NULL; break; } /* ambiguous */
-                                match = cmds[i];
-                            }
-                        }
-                        if (match) {
-                            for (size_t i = (size_t)n; match[i]; i++) {
-                                line[n++] = match[i];
-                                serial_tx((uint8_t)match[i]);
-                            }
-                            serial_tx(' ');
-                            line[n++] = ' ';
-                            line[n] = 0;
-                        }
-                    }
-                }
-            } else if (c == 0x1B) {
-                /* ESC sequence: Up/Down arrow = ESC [ A / B (gap F1) */
-                wubu_serial_pop(&c);          /* '[' */
-                if (wubu_serial_pop(&c) == 0) {
-                    int back = (c == 'A'), fwd = (c == 'B');
-                    if ((back || fwd) && hist_fill > 0) {
-                        if (hist_pos < 0) hist_pos = hist_n;
-                        hist_pos = (hist_pos + (back ? 7 : 1)) % 8;
-                        if (hist_pos == hist_n && hist_fill < 8)
-                            hist_pos = (hist_pos + (back ? 1 : 7)) % 8;
-                        for (size_t i = 0; i < n; i++)
-                            serial_tx('\b');
-                        n = 0;
-                        if (hist_pos != hist_n) {
-                            for (size_t i = 0; history[hist_pos][i] &&
-                                           i < sizeof(line) - 1; i++) {
-                                line[n++] = history[hist_pos][i];
-                                serial_tx((uint8_t)line[n - 1]);
-                            }
-                        }
-                        line[n] = 0;
-                    }
-                }
-            }
+        if (wubu_serial_pop(&c) == 0) console_feed_char(&st, c);
+
+        /* PS/2 path: consume key-down events and feed their translated
+         * keycode through the SAME editor (history/tab/esc included). */
+        KeyEvent ev;
+        if (input_key_poll(&ev) == 1 && ev.kind == KEY_EVENT_DOWN) {
+            uint8_t k = (uint8_t)ev.keycode;
+            if (k) console_feed_char(&st, k);
         }
         task_yield();
     }
