@@ -166,6 +166,7 @@ int main(int argc, char **argv) {
         printf("FAIL: marker absent (%s); serial: %s\n", marker, serial_buf);
         fails++;
     }
+    if (injected) printf("post-command serial: %s\n", serial_buf);
     printf("test_wemu_kernel: %s (%llu steps, fault=%d, serial=%zu bytes)\n",
            fails ? "FAIL" : "PASS", (unsigned long long)steps,
            wemu_cpu_fault(c), serial_len);

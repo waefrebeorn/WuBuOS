@@ -110,6 +110,7 @@ static int virtio_probe(wubu_drv_dev_t *dev)
 /* the per-type ID tables -- real legacy PCI IDs, owned by wubu_virtio_ids.h */
 const wubu_drv_id_t wubu_virtio_blk_ids[] = {
     { WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_BLK_DEVICE_ID, 0, 0 },
+    { WUBU_VIRTIO_VENDOR_ID, WUBU_VIRTIO_BLK_MODERN_ID, 0, 0 },
     { 0, 0, 0, 0 },
 };
 const wubu_drv_id_t wubu_virtio_net_ids[] = {
@@ -125,7 +126,7 @@ const wubu_drv_id_t wubu_virtio_input_ids[] = {
     { 0, 0, 0, 0 },
 };
 
-const wubu_drv_t wubu_drv_virtio_blk   = { "virtio-blk",   wubu_virtio_blk_ids,   1, virtio_probe };
+const wubu_drv_t wubu_drv_virtio_blk   = { "virtio-blk",   wubu_virtio_blk_ids,   2, virtio_probe };
 const wubu_drv_t wubu_drv_virtio_net   = { "virtio-net",   wubu_virtio_net_ids,   1, virtio_probe };
 const wubu_drv_t wubu_drv_virtio_gpu   = { "virtio-gpu",   wubu_virtio_gpu_ids,   1, virtio_probe };
 const wubu_drv_t wubu_drv_virtio_input = { "virtio-input", wubu_virtio_input_ids, 1, virtio_probe };
