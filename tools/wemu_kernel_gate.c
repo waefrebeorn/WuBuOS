@@ -20,6 +20,8 @@
 #define PT_BASE    0x5000000ull
 #define PT_PDPT    (PT_BASE + 0x1000)
 #define PT_PD      (PT_BASE + 0x2000)
+#define PT_VIRT    (PT_BASE + 0x3000) /* 4 KiB PT for the virtio BAR4 VA */
+#define BAR4_GPA   0x0F000000ull
 #define LM_ENTRY   0xffffffff80100365ull
 #define DEFAULT_MAX_STEPS 1500000ull
 #define DEFAULT_MARKER    "WuBuOS: kernel_main entered (long mode OK)"
@@ -121,6 +123,15 @@ int main(int argc, char **argv) {
     put64(c, PT_PDPT + 510 * 8, PT_PD | 3); /* higher-half VA uses PDPT[510] */
     for (int i = 0; i < 256; i++) /* kernel heap: full 256 MiB of guest RAM */
         put64(c, PT_PD + i * 8, (uint64_t)i * 0x200000ull | 0x83);
+    for (uint64_t a = PT_VIRT; a < PT_VIRT + 0x1000; a += 8) put64(c, a, 0);
+    for (int i = 0; i < 4; i++) {
+        put64(c, PT_VIRT + (uint64_t)i * 8, (BAR4_GPA + (uint64_t)i * 0x1000ull) | 3);
+        put64(c, PT_VIRT + (256u + (unsigned)i) * 8,
+              (BAR4_GPA + (uint64_t)i * 0x1000ull) | 3);
+    }
+    /* WuBuOS maps BAR4 with wubu_vmm_map_page(), which expects a real PT
+     * (not a 2 MiB leaf). PD 96 covers higher-half VAs 0xffffffff8c00.... */
+    put64(c, PT_PD + 96 * 8, PT_VIRT | 3);
     put64(c, PT_PD + 40 * 8, PT_BASE | 0x83);    /* page tables themselves */
     for (int i = 500; i <= 503; i++) /* APIC windows -> spare RAM */
         put64(c, PT_PD + i * 8,

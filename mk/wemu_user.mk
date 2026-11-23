@@ -14,7 +14,7 @@ WEMU_INC   := -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src
 WEMU_CFLAGS := -std=c11 -O2 -g -Wall -Wextra -Werror
 WEMU_SRC_NAMES := wemu_cpu wemu_mem wemu_decode wemu_exec wemu_sse \
                   wemu_string wemu_machine wemu_elf wemu_x87 wemu_exception \
-                  wemu_usermode
+                  wemu_usermode wemu_virtio
 WEMU_OBJS := $(patsubst %,$(WEMU_BUILD)/src/%.o,$(WEMU_SRC_NAMES))
 
 # The native user-mode signal handlers run on the guest stack with a
