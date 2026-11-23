@@ -24,6 +24,7 @@
 #include "libc.h"
 #include "fat32.h"
 #include "wubu_kvfs.h"
+#include "wubu_metal_model.h"
 #include "ahci.h"
 #include <stdint.h>
 #include <string.h>
@@ -237,6 +238,25 @@ int cmd_kv(int argc, char **argv)
     }
     klog_printf("kv: usage: kv write n1 n2 n3 n4 | kv read\n");
     return -1;
+}
+
+int cmd_model(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    extern wubu_metal_model_t *wubu_metal_model_global(void);
+    wubu_metal_model_t *m = wubu_metal_model_global();
+    if (!m) { klog_printf("model: no ring-0 arena\n"); return -1; }
+    float x[16], y[8];
+    for (uint32_t i = 0; i < wubu_metal_model_k(m); i++)
+        x[i] = 1.0f / (float)(i + 1u);
+    if (wubu_metal_model_forward(m, x, y) != 0) {
+        klog_printf("model: forward failed\n"); return -1;
+    }
+    klog_printf("model: f16 gemv %ux%u y0m=%d y1m=%d\n",
+                wubu_metal_model_m(m), wubu_metal_model_k(m),
+                kv_float_to_int(y[0] * 1000.0f),
+                kv_float_to_int(y[1] * 1000.0f));
+    return 0;
 }
 
 int cmd_uptime(void)

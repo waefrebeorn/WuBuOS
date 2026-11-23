@@ -347,3 +347,17 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   that cast in the formatter argument.
 - Honest scope: this is a ring-0 path-routed KV state slice, not a full
   9P server or a model forward pass. Those remain open.
+
+## Landed increment — Wave 3 ring-0 F16 GEMV
+
+- `wubu_metal_model.c/h` adds a 64-byte-aligned opaque arena and a fixed
+  8x16 F16 GEMV slice linked into `kernel.elf`. `test_metal_model` compares
+  every output row to a hosted f32 baseline within 1e-3 and checks arena
+  alignment/size accounting. Console `model` executes the same path in the
+  real guest; gate sees `y0m=263 y1m=643` with no fault.
+- The guest run exposed a WEMU ISA gap: gcc14 emitted `pinsrw` with REX.B
+  (`66 41 0F C4 C0 imm`) in the GEMV loop. WEMU `7d3352f` implements it,
+  with an 8-immediate host-differential gate and pre-fix RED control.
+- Honest scope: this is one tiny deterministic GEMV, not a loaded model or
+  a full forward pass. Weight loading, 2 MB huge-page KV slab, and 9P KV
+  serving remain open.

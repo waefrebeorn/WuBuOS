@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_metal_model runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -902,6 +902,12 @@ test_wemu_kernel_virtio: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 	WEMU_KERNEL_STEPS=100000000 WEMU_KERNEL_MARKER='virtio-blk: MODERN' \
 		./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
+# Wave 3: the ring-0 F16 GEMV slice executes in the real guest.
+test_wemu_model: test_wemu_kernel
+	WEMU_KERNEL_STEPS=200000000 WEMU_KERNEL_MARKER='WuBuOS>' \
+		WEMU_KERNEL_SEND=model WEMU_KERNEL_EXPECT='model: f16 gemv 8x16 y0m=' \
+		./tools/wemu_kernel_gate src/kernel/kernel.elf
+
 # Wave 3: ring-0 KV namespace state must survive a reboot.
 test_wemu_kv: test_wemu_kernel
 	python3 tools/wemu_kv_gate.py
@@ -1481,6 +1487,11 @@ test_buddy_rig: $(RT)/wubu_buddy_rig.c $(RT)/wubu_buddy_rig_test.c
 test_buddy_orb: $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c -o $(RT)/test_buddy_orb -lm -Iinclude $(RT)/wubu_crc32.c
 	$(RT)/test_buddy_orb
+test_metal_model: $(KERNEL)/test/test_metal_model.c $(KERNEL)/wubu_metal_model.c
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -Iinclude \
+		$(KERNEL)/test/test_metal_model.c -lm -o $(KERNEL)/test_metal_model
+	$(KERNEL)/test_metal_model
+
 test_kernel_irq_cap: $(KERNEL)/test/wubu_irq_cap_test.c \
                      $(KERNEL)/test/wubu_irq_cap_stubs.c \
                      $(KERNEL)/interrupt.c \

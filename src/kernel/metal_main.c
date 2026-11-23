@@ -817,6 +817,12 @@ void kernel_main(void *boot_info) {
         }
     }
 
+    /* Wave 3: the smallest ring-0 AGI execution seam. */
+    {
+        extern int wubu_metal_model_global_init(void);
+        (void)wubu_metal_model_global_init();
+    }
+
     /* Wave 3: KV cache is a namespace in ring 0. A small /kv/world
      * region is mounted over the static tensor; console `kv` commands
      * persist a compact state file on the boot volume. */
