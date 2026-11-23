@@ -50,9 +50,99 @@ int cmd_help(void)
                 "  live <expr>          Live Colonel: eval + - * / % r0..r7\n"
                 "  recovery             checkpoint|rollback <0..4>|jesus|status\n"
                 "  cls                  scroll the serial\n"
+                "  fs ls|cat|write|rm   user files on the boot disk\n"
                 "  run <file>           execute a FAT32 script\n"
                 "  reboot               VM reboot (isa-debug-exit)\n");
     return 0;
+}
+
+static bool fs_list_cb(const fat32_file_info *info, void *ctx)
+{
+    (void)ctx;
+    if (!info || !info->name[0] || (info->attr & FAT32_ATTR_VOLUME_ID)) return true;
+    klog_printf("  %-16s %u bytes\n", info->name,
+                (unsigned)info->file_size);
+    return true;
+}
+
+/* Wave 0: real user-facing file commands on the mounted boot volume.
+ * Existing theme save/load proves the FAT32 API works in-kernel; this makes
+ * it reachable from the metal console so a human can create/read files. */
+int cmd_fs(int argc, char **argv)
+{
+    int i = 1;
+    const char *sub = "";
+    if (strcmp(argv[0], "ls") == 0 || strcmp(argv[0], "cat") == 0 ||
+        strcmp(argv[0], "write") == 0 || strcmp(argv[0], "rm") == 0) {
+        sub = argv[0];
+        i = 1;
+    } else if (argc >= 2) {
+        if (strcmp(argv[1], "ls") == 0 || strcmp(argv[1], "cat") == 0 ||
+            strcmp(argv[1], "write") == 0 || strcmp(argv[1], "rm") == 0) {
+            sub = argv[1];
+            i = 2;
+        }
+    }
+    if (!*sub || i >= argc) {
+        klog_printf("fs: usage: fs ls [dir] | cat <file> | write <file> <text> | rm <file>\n");
+        return -1;
+    }
+    fat32_volume *vol = fat32_boot_volume();
+    if (!vol) { klog_printf("fs: no boot volume\n"); return -1; }
+    if (strcmp(sub, "ls") == 0) {
+        int n = fat32_dir_read(vol, 0, fs_list_cb, NULL);
+        klog_printf("fs: %d root entries\n", n < 0 ? 0 : n);
+        return n < 0 ? -1 : 0;
+    }
+    const char *name = argv[i];
+    if (strcmp(sub, "cat") == 0) {
+        fat32_file f;
+        if (fat32_open(vol, 0, name, "r", &f) != 0) {
+            klog_printf("fs: cannot open %s\n", name); return -1;
+        }
+        char buf[256];
+        size_t total = 0;
+        for (;;) {
+            size_t got = fat32_read(&f, buf, sizeof(buf) - 1);
+            if (!got) break;
+            buf[got] = 0;
+            klog_printf("%s", buf);
+            total += got;
+        }
+        fat32_close(&f);
+        klog_printf("\nfs: %s: %u bytes\n", name, (unsigned)total);
+        return 0;
+    }
+    if (strcmp(sub, "write") == 0) {
+        char text[240];
+        size_t n = 0;
+        for (int a = i + 1; a < argc && n + 1 < sizeof(text); a++) {
+            if (n) text[n++] = ' ';
+            for (const char *p = argv[a]; *p && n + 1 < sizeof(text); p++)
+                text[n++] = *p;
+        }
+        text[n] = 0;
+        fat32_file_info fi;
+        (void)fat32_create(vol, 0, name, 0, &fi); /* already-exists is fine */
+        fat32_file f;
+        if (fat32_open(vol, 0, name, "w", &f) != 0 ||
+            fat32_write(&f, text, n) != n) {
+            klog_printf("fs: write %s failed\n", name); return -1;
+        }
+        fat32_close(&f);
+        fat32_flush(vol);
+        klog_printf("fs: wrote %s (%u bytes)\n", name, (unsigned)n);
+        return 0;
+    }
+    if (strcmp(sub, "rm") == 0) {
+        if (fat32_delete(vol, 0, name) != 0) {
+            klog_printf("fs: cannot delete %s\n", name); return -1;
+        }
+        fat32_flush(vol);
+        klog_printf("fs: removed %s\n", name);
+        return 0;
+    }
+    return -1;
 }
 
 int cmd_uptime(void)

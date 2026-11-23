@@ -146,3 +146,17 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
 - `test_linux_product`: hosted Wayland client frames, not metal GUI.
 - None of these proves a human can create a file, type on the keyboard, run
   an app from the boot disk, or recover state after a crash.
+
+## Landed increment — Wave 0 FS console
+
+- `wubu_console_cmds.c` now implements `fs ls|cat|write|rm` with direct
+  `ls/cat/write/rm` aliases over `fat32_boot_volume()`. The real shell remains
+  hosted-only; this is a deliberate small in-kernel file surface, not a shell.
+- WEMU `92d9b7d` fixed descriptor classification: T_OUT data descriptors are
+  device-readable and were previously dropped while status still said OK.
+  `tests/test_virtio_mmio.c` now does T_OUT sector 1 -> T_IN sector 1;
+  pre-fix source RED-controls with `T_OUT data was dropped`.
+- `make test_wemu_fs` boots the real kernel twice through WEMU against the
+  same 1 MiB FAT32 image: `write HELLO.TXT world`, then a fresh process
+  `cat HELLO.TXT` must read `world`. Verified PASS. This is the first gate in
+  this workflow where a human-created file survives a reboot on metal.
