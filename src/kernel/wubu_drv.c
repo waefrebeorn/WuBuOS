@@ -29,7 +29,8 @@
  * C11.
  */
 #include "wubu_drv.h"
-#include "wubu_driver_contract.h"   /* the one BAR/MMIO decoder */
+#include "wubu_driver_contract.h"
+#include "wubu_cap.h"   /* the one BAR/MMIO decoder */
 #include "wubu_pci.h"
 
 #include <stdio.h>
@@ -113,6 +114,9 @@ int wubu_drv_add_device(const wubu_drv_dev_t *dev)
 {
     if (!dev || !g_initialized || g_ndev >= WUBU_DRV_MAX_DEV) return -1;
     g_devs[g_ndev] = *dev;
+    if (!wubu_cap_check(g_devs[g_ndev].mmio_cap, WUBU_CAP_MMIO_MAP, 0u))
+        (void)wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_MMIO_MAP, 0u,
+                             &g_devs[g_ndev].mmio_cap);
     return g_ndev++;
 }
 
@@ -182,6 +186,9 @@ int wubu_drv_map_bar_range(const wubu_drv_dev_t *dev, unsigned bar_index,
     uint64_t bar = 0, high = 0, phys;
     if (!dev || !va_out || !pages || pages > WUBU_DRV_MMIO_MAX_PAGES ||
         (va_page & 0xFFFull)) return -1;
+    /* Authority before geometry: a device with no live MMIO_MAP token
+     * cannot map a BAR even if its struct carries a valid one. */
+    if (!wubu_cap_check(dev->mmio_cap, WUBU_CAP_MMIO_MAP, 0u)) return -1;
 
     if (bar_index == 0u) {
         if (dev->bar0_is_io) return -1;

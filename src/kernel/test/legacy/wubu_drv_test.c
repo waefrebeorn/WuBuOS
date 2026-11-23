@@ -19,6 +19,7 @@
  *   6. the summary shows the full bus
  */
 #include "wubu_drv.h"
+#include "wubu_cap.h"
 #include "wubu_driver_contract.h"
 #include "wubu_drv_nvme.h"
 #include "wubu_drv_net.h"
@@ -328,6 +329,33 @@ int main(void)
     if (wubu_drv_map_all_mmio() != 0 || g_map_n != 2)
         FAIL("map_all_mmio is not idempotent");
     printf("  PASS: late pass maps both BARs at distinct slots, idempotently\n");
+
+    /* DRV10-cap: the mapping owner requires a live MMIO_MAP token. */
+    {
+        wubu_drv_dev_t capped = *nvme;
+        capped.bar0 = 0xFC000000ULL;
+        capped.bar0_size = 0x4000ULL;
+        capped.mmio_cap = WUBU_CAP_NONE;
+        uint64_t mapped = 0;
+        g_map_n = 0;
+        if (wubu_drv_map_mmio(&capped, WUBU_DRV_MMIO_VA_BASE + 0xA000ull,
+                              &mapped) == 0 || g_map_n != 0 || mapped != 0)
+            FAIL("map_mmio without capability token");
+        if (wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_MMIO_MAP, 0u,
+                           &capped.mmio_cap) != 0)
+            FAIL("grant MMIO_MAP cap");
+        if (wubu_drv_map_mmio(&capped, WUBU_DRV_MMIO_VA_BASE + 0xA000ull,
+                              &mapped) != 0 || g_map_n != 1)
+            FAIL("map_mmio with capability token");
+        if (wubu_cap_revoke(capped.mmio_cap) != 0)
+            FAIL("revoke MMIO_MAP cap");
+        g_map_n = 0;
+        mapped = 0;
+        if (wubu_drv_map_mmio(&capped, WUBU_DRV_MMIO_VA_BASE + 0xA000ull,
+                              &mapped) == 0 || g_map_n != 0 || mapped != 0)
+            FAIL("map_mmio with revoked capability token");
+        printf("  PASS: MMIO_MAP cap grants and revoke denies the binding path\n");
+    }
 
     /* DRV10-v2: a reserved BAR type encoding is rejected by the actual
      * binding path, not just by the contract unit test. */

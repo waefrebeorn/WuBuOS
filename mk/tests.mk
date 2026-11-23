@@ -880,6 +880,7 @@ test_wemu_busybox: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/
 		$(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 		$(RT)/wubu_wemu_bridge.c $(KERNEL)/wubu_drv.c $(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c $(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c $(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c $(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c $(KERNEL)/wubu_drv_thermal.c $(KERNEL)/wubu_drv_virtio.c $(KERNEL)/wubu_drv_arm.c $(KERNEL)/wubu_drv_intel.c $(KERNEL)/wubu_pci.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
+		$(KERNEL)/WuBuKernel/src/wubu_cap.c \
 		src/runtime/wubu_wemu_bridge_test.c \
 		-o $(RT)/wubu_wemu_bridge_test $(WEMU_LIB) -ldl -lvulkan -lcuda -lm
 	./$(RT)/wubu_wemu_bridge_test
@@ -2892,7 +2893,7 @@ test_gaad:
 		-o $(KERNEL)/wubu_gaad_test
 	$(KERNEL)/wubu_gaad_test
 test_hive:
-	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I/home/wubu/WuBuKernel/include -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_hive.c $(KERNEL)/test/test_hive.c \
 		-o $(KERNEL)/test_hive
 	$(KERNEL)/test_hive
@@ -2908,7 +2909,7 @@ test_heap_stress:
 
 # /theme namespace + unified HID layer (Kevin-Bacon pass 3 modules)
 test_theme_hid:
-	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I/home/wubu/WuBuKernel/include -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/test/test_theme_hid.c \
 		-o $(KERNEL)/test_theme_hid
 	$(KERNEL)/test_theme_hid
@@ -3057,9 +3058,10 @@ test_secmon: $(RT)/wubu_secmon.c $(KERNEL)/wubu_secmon.h $(KERNEL)/wubu_kvfs.c $
 	$(RT)/test_secmon
 
 test_drv:
-	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I/home/wubu/WuBuKernel/include -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
+		$(KERNEL)/WuBuKernel/src/wubu_cap.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
@@ -3081,6 +3083,7 @@ test_drv_pci_bus:
 		$(KERNEL)/test/test_drv_pci_bus.c \
 		$(KERNEL)/wubu_drv.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
+		$(KERNEL)/WuBuKernel/src/wubu_cap.c \
 		$(KERNEL)/wubu_pci.c \
 		$(KERNEL)/wubu_virtio_pci_modern.c \
 		$(KERNEL)/wubu_test_stubs.c \
@@ -3126,6 +3129,7 @@ test_machines:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
+		$(KERNEL)/WuBuKernel/src/wubu_cap.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
@@ -3142,6 +3146,7 @@ test_world:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
+		$(KERNEL)/WuBuKernel/src/wubu_cap.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
@@ -3159,6 +3164,7 @@ test_ns_world:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(KERNEL)/wubu_drv.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
+		$(KERNEL)/WuBuKernel/src/wubu_cap.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
@@ -3876,6 +3882,7 @@ test_drv_install: $(KERNEL)/test/wubu_drv_install_selftest.c $(KERNEL)/wubu_drv_
 		$(KERNEL)/wubu_drv_install.c \
 		$(KERNEL)/wubu_drv.c \
 		$(KERNEL)/WuBuKernel/src/wubu_driver_contract.c \
+		$(KERNEL)/WuBuKernel/src/wubu_cap.c \
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \

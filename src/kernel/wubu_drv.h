@@ -54,6 +54,9 @@ typedef struct wubu_drv_dev {
      * these on real hardware) */
     uint64_t bar0;
     uint64_t bar1;
+    /* MMIO_MAP capability token. Granted at registration from ROOT;
+     * the mapping owner refuses any device without a live token. */
+    uint64_t mmio_cap;
     /* size of BAR0 (0 if unknown), propagated from the PCI scan. */
     uint64_t bar0_size;
     /* BAR4/BAR5 capability window (modern virtio). Captured only. */

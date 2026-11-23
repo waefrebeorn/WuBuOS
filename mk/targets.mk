@@ -307,7 +307,7 @@ holyd-verify:
 # prototype-scope struct tags). Wave 1 fixed 11 files. Ratchet: run this,
 # fix a wave, repeat until clean — then unpin boot-verify CI from gcc-13.
 kernel-strict:
-	$(MAKE) -B kernel KERNEL_CFLAGS="-Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -march=x86-64 -mtune=generic -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=implicit-function-declaration"
+	$(MAKE) -B kernel KERNEL_CFLAGS="-Iinclude -I/home/wubu/WuBuKernel/include -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -march=x86-64 -mtune=generic -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=implicit-function-declaration"
 
 # Path-sensitive C analysis with the compiler already in the toolchain.
 # GCC's -fanalyzer (GCC manual 3.9/3.10, "Options That Control Static
@@ -326,10 +326,10 @@ STATIC_ANALYZE_SRCS := $(filter-out $(addprefix src/kernel/,$(STATIC_ANALYZE_SKI
 static_check:
 	@python3 tools/static_skip_ratchet.py
 	@set -e; for f in $(STATIC_ANALYZE_SRCS); do \
-	    gcc -std=gnu11 -fanalyzer -Werror -fsyntax-only -Iinclude -Isrc/kernel -Isrc/runtime $$f; \
+	    gcc -std=gnu11 -fanalyzer -Werror -fsyntax-only -Iinclude -I/home/wubu/WuBuKernel/include -Isrc/kernel -Isrc/runtime $$f; \
 	done
 	@set -e; for f in $(STATIC_METAL_SRCS); do \
-	    gcc -std=gnu11 -DMYSEED_METAL -fanalyzer -Werror -fsyntax-only -Iinclude -Isrc/kernel -Isrc/runtime $$f; \
+	    gcc -std=gnu11 -DMYSEED_METAL -fanalyzer -Werror -fsyntax-only -Iinclude -I/home/wubu/WuBuKernel/include -Isrc/kernel -Isrc/runtime $$f; \
 	done
 	@echo "STATIC CHECK PASS: gcc -fanalyzer over $(words $(STATIC_ANALYZE_SRCS)) kernel + $(words $(STATIC_METAL_SRCS)) metal sources (skip $(words $(STATIC_ANALYZE_SKIP)): missing system header)"
 .PHONY: static_check

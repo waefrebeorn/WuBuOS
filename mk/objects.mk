@@ -13,6 +13,7 @@ WUBU_DOS_EMU_OBJS = $(RT)/wubu_dos_emu.o $(RT)/wubu_dos_emu_mem.o $(RT)/wubu_dos
 #   interrupt_exceptions.o   — exception handlers (double fault, NMI, page fault, GPF)
 #   interrupt_syscall.o      — syscall registration + management table
 KERNEL_OBJS = $(KERNEL)/WuBuKernel/src/wubu_driver_contract.o \
+              $(KERNEL)/WuBuKernel/src/wubu_cap.o \
               $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o \
               $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o \

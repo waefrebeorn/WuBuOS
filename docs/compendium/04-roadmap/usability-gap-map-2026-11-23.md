@@ -265,3 +265,18 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   `reserved BAR type was mapped`; restored source PASSes.
 - Both `include/wubu_driver_contract.h` mirrors carry the v2 declarations.
 - Still open: wiring capability tokens into this binding path.
+
+## Landed increment — Wave 1 caps on the binding path
+
+- `wubu_drv_dev_t` carries an `mmio_cap` token granted from ROOT at device
+  registration. `wubu_drv_map_bar_range` checks `WUBU_CAP_MMIO_MAP` before
+  geometry, so a device with no live token cannot map a BAR.
+- L21 is deliberately extended: `wubu_cap.o` joins the single shared
+  contract object in `kernel.elf` (two small WuBuKernel contract modules,
+  not the driver core). This is the first authority object consumed by the
+  running kernel; its behavior is bridged in `test_kernel_cap`.
+- `test_drv` asserts denied-without-cap, allowed-with-cap, denied-after-
+  revoke. Pre-change binding source RED-controls with
+  `map_mmio without capability token`; restored source PASSes.
+- Still open: DEV_OPEN and IRQ/DMA enforcement, and capability handoff to
+  untrusted callers rather than device-registration time.
