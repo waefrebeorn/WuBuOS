@@ -146,6 +146,10 @@ int main(int argc, char **argv) {
             int n = snprintf(input, sizeof input, "%s\n", send);
             if (n > 0) wemu_machine_queue_input(m, input,
                                                 (size_t)n < sizeof input ? (size_t)n : sizeof input - 1);
+            /* Expect text may already appear in boot logs. Reset the
+             * capture so the post-injection assertion is meaningful. */
+            serial_len = 0;
+            serial_buf[0] = 0;
             if (expect && *expect) marker = expect;
             steps = 0;
             injected = 1;
