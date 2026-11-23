@@ -753,11 +753,6 @@ void kernel_main(void *boot_info) {
     extern int wubu_n9_boot(void);
     wubu_n9_boot();
 
-    /* Gap F10: pick up any crash record left by a previous boot (the
-     * disk is up now -- the AHCI init would have hung the early boot). */
-    extern int wubu_crash_pickup(void);
-    wubu_crash_pickup();
-
     /* Gap DA + L1: the boot FAT32 volume. L1: when a legacy virtio-blk
      * disk is present it backs the volume -- REAL persistence across
      * reboot (proven by tools/virtio_persist_gate.py). Absent virtio,
@@ -821,6 +816,12 @@ void kernel_main(void *boot_info) {
                         d1, d2, d3, d4, d5);
         }
     }
+
+    /* Gap F10: pick up any crash record left by a previous boot. This
+     * must run AFTER the FAT32 boot volume is attached; the record is a
+     * file on that volume now, not a stale AHCI sim-disk sector. */
+    extern int wubu_crash_pickup(void);
+    wubu_crash_pickup();
 
     /* L5: bare-metal network. When a legacy virtio-net function is
      * present, bring up the NIC + the minimal stack and run the

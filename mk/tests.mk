@@ -901,6 +901,10 @@ test_wemu_kernel_virtio: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 	WEMU_KERNEL_STEPS=100000000 WEMU_KERNEL_MARKER='virtio-blk: MODERN' \
 		./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
+# Wave 0: a crash record must survive reboot through the boot volume.
+test_wemu_crash: test_wemu_kernel
+	python3 tools/wemu_crash_gate.py
+
 # Wave 0: an app script on the boot disk must run with no host 9P transfer.
 test_wemu_app: test_wemu_kernel
 	python3 tools/wemu_app_gate.py

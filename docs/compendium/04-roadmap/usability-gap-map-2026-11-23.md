@@ -196,3 +196,16 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   FAILs with `run: no FAT32 volume`; restored source PASSes.
 - Honest scope: this is a guest script app, not an ELF program loader. The
   native ELF app path is still open.
+
+## Landed increment — Wave 0 crash persistence
+
+- `wubu_crash_dump` now writes `CRASH.DMP` to the FAT32 boot volume with a
+  persistent seq counter; `wubu_crash_pickup` reads it from that volume.
+  Moved pickup after the boot volume is attached (it used to run before
+  mount, so a file-backed record could never be seen).
+- `make test_wemu_crash` forces `crash`, reboots in a fresh WEMU process
+  against the same image, and requires `crash record found (seq=1 ...)`.
+  Pre-change source RED-control FAILs at boot 1 with no `wrote CRASH.DMP`.
+- Added `WEMU_KERNEL_SHOW_SERIAL` to the gate so a script can assert a
+  boot-time marker without forcing a failure; fixed a gate/script mismatch
+  where the marker was present in serial but suppressed on PASS.

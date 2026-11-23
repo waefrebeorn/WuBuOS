@@ -8,6 +8,8 @@
  * bumps seq, so the LATEST crash is always visible).
  */
 #include "wubu_crash.h"
+#include "fat32.h"
+#include "klog.h"
 #include <string.h>
 
 extern int ahci_read(void *hba, int port, uint64_t lba, uint32_t n, void *buf);
@@ -40,13 +42,19 @@ static int disk_ready(void)
     return 1;
 }
 
+/* Persistent crash record on the boot volume. The old AHCI sim-disk
+ * sector write vanished on reboot; this file survives write -> reboot ->
+ * read. Panic paths still keep the resident record when the volume is
+ * unavailable, so ISR safety is not traded away. */
+#define CRASH_FILE "CRASH.DMP"
+
 int wubu_crash_dump(const char *reason, uint64_t rip, uint64_t rsp,
                     uint32_t vector)
 {
     static wubu_crash_record_t rec;
     memset(&rec, 0, sizeof(rec));
     rec.magic = WUBU_CRASH_MAGIC;
-    rec.seq = 1;                 /* the counter is per-boot; good enough */
+    rec.seq = 1;
     rec.rip = rip;
     rec.rsp = rsp;
     rec.vector = vector;
@@ -58,40 +66,47 @@ int wubu_crash_dump(const char *reason, uint64_t rip, uint64_t rsp,
     }
     klog_ring_snapshot(rec.ring, sizeof(rec.ring));
 
-    /* Use the disk ONLY if it is already initialised. Lazy-initialising it
-     * here would allocate the sim disk (ahci_sim_disk_create -> calloc) from
-     * a heap that may already be corrupted by the very fault we are
-     * reporting -- that secondary allocator crash would mask the true first
-     * fault (observed: ahci_write->calloc->bogus 'add %rdi' -> double fault).
-     * The boot path (metal_main -> wubu_crash_pickup) inits the disk in
-     * normal context; if we have not got there, skip the write and keep the
-     * record resident (`rec.ring` still holds the panic snapshot). */
-    if (!g_hba_ready) return -1;
-    return ahci_write(disk_hba(), 0, WUBU_CRASH_LBA, 1, &rec) == 1 ? 0 : -1;
+    fat32_volume *vol = fat32_boot_volume();
+    if (!vol) return -1;
+
+    wubu_crash_record_t old;
+    fat32_file_info fi;
+    fat32_file f;
+    if (fat32_find(vol, 0, CRASH_FILE, &fi) == 0 &&
+        fat32_open(vol, 0, CRASH_FILE, "r", &f) == 0) {
+        size_t got = fat32_read(&f, &old, sizeof(old));
+        fat32_close(&f);
+        if (got >= sizeof(uint32_t) * 2 && old.magic == WUBU_CRASH_MAGIC)
+            rec.seq = old.seq + 1;
+    }
+
+    fat32_file_info nfi;
+    (void)fat32_create(vol, 0, CRASH_FILE, 0, &nfi); /* exists is fine */
+    if (fat32_open(vol, 0, CRASH_FILE, "w", &f) != 0) return -1;
+    size_t wrote = fat32_write(&f, &rec, sizeof(rec));
+    fat32_close(&f);
+    if (wrote != sizeof(rec)) return -1;
+    fat32_flush(vol);
+    klog_printf("crash: wrote %s seq=%u (%u bytes)\n",
+                CRASH_FILE, (unsigned)rec.seq, (unsigned)wrote);
+    return 0;
 }
 
 int wubu_crash_pickup(void)
 {
-    if (!disk_ready()) return 0;
+    fat32_volume *vol = fat32_boot_volume();
+    if (!vol) return 0;
     static wubu_crash_record_t rec;
-    if (ahci_read(disk_hba(), 0, WUBU_CRASH_LBA, 1, &rec) != 1) return 0;
-    if (rec.magic != WUBU_CRASH_MAGIC) return 0;
-    /* report: the last crash is evidence, not a secret */
-    extern void klog_printf(const char *, ...);
+    fat32_file_info fi;
+    fat32_file f;
+    if (fat32_find(vol, 0, CRASH_FILE, &fi) != 0 ||
+        fat32_open(vol, 0, CRASH_FILE, "r", &f) != 0) return 0;
+    size_t got = fat32_read(&f, &rec, sizeof(rec));
+    fat32_close(&f);
+    if (got < sizeof(rec) || rec.magic != WUBU_CRASH_MAGIC) return 0;
     klog_printf("WuBuOS: crash record found (seq=%u vec=%u rip=%x rsp=%x): %s\n",
                 (unsigned)rec.seq, (unsigned)rec.vector,
                 (unsigned)rec.rip, (unsigned)rec.rsp,
                 rec.reason[0] ? rec.reason : "(no reason)");
-    /* dump the ring's first lines (the tail holds the newest) */
-    char *line = rec.ring;
-    for (int n = 0; n < 6 && *line; n++) {
-        char *nl = line;
-        while (*nl && *nl != '\n') nl++;
-        char save = *nl;
-        *nl = '\0';
-        klog_printf("  | %s\n", line);
-        if (!save) break;
-        line = nl + 1;
-    }
     return 1;
 }

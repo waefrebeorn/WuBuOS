@@ -211,6 +211,8 @@ int main(int argc, char **argv) {
         }
     }
     if (injected) printf("post-command serial: %s\n", serial_buf);
+    if (getenv("WEMU_KERNEL_SHOW_SERIAL"))
+        printf("serial: %s\n", serial_buf);
     printf("test_wemu_kernel: %s (%llu steps, fault=%d, serial=%zu bytes)\n",
            fails ? "FAIL" : "PASS", (unsigned long long)steps,
            wemu_cpu_fault(c), serial_len);
