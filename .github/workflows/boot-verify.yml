@@ -22,6 +22,8 @@ on:
       - 'mk/**'
       - 'Makefile'
       - 'tools/ci_boot_assert.py'
+      - 'tools/wemu_kernel_gate.c'
+      - 'src/wemu'
       - '.github/workflows/boot-verify.yml'
   workflow_dispatch:
 
@@ -40,8 +42,12 @@ jobs:
           # 2026-11-19 hygiene campaign (214 -> 0, make kernel-strict).
           make kernel -j$(nproc)
           make iso
+      - name: WEMU submodule (guest-execution gate)
+        run: git submodule update --init src/wemu
       - name: WuBuKernel bridge gate
         run: make test_kernel_bridge
+      - name: WEMU kernel guest gate
+        run: make test_wemu_kernel
       - name: Declaration-hygiene ratchet (gcc14-class, must stay clean)
         run: make kernel-strict -j$(nproc)
       - name: Boot it here first (Linux, -kernel path)
