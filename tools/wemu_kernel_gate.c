@@ -52,6 +52,11 @@ static uint8_t *slurp(const char *path, size_t *n) {
     fclose(f); *n = (size_t)sz; return b;
 }
 
+static uint64_t va_to_gpa(uint64_t va) {
+    if (va >= 0xffffffff80000000ull) return va - 0xffffffff80000000ull;
+    return va;
+}
+
 static uint64_t find_sym(const uint8_t *b, size_t n, const char *name) {
     Elf64_Ehdr eh;
     if (n < sizeof eh) return 0;
@@ -93,6 +98,7 @@ int main(int argc, char **argv) {
     const char *send = getenv("WEMU_KERNEL_SEND");
     const char *expect = getenv("WEMU_KERNEL_EXPECT");
     int injected = 0;
+    uint64_t fbhash_va = 0, fb_before = 0, fb_after = 0;
     const char *kbd_text = getenv("WEMU_KBD_SEND");
     int kbd_inject = getenv("WEMU_KBD_INJECT") != NULL;
     size_t n = 0;
@@ -144,6 +150,8 @@ int main(int argc, char **argv) {
     wemu_cpu_set_rsp(c, 0x70000);
     wemu_cpu_set_reg(c, 0, 0); /* EAX: not multiboot magic */
     wemu_cpu_set_reg(c, 6, 0); /* RSI: no Limine response */
+    fbhash_va = find_sym(image, n, "wubu_fbterm_hash");
+    if (!fbhash_va) { printf("FAIL: wubu_fbterm_hash symbol missing\n"); fails++; }
     uint64_t entry = find_sym(image, n, ".long_mode_start");
     if (entry == 0) { printf("FAIL: .long_mode_start symbol missing\n"); fails++; }
     wemu_cpu_set_rip(c, entry);
@@ -165,6 +173,9 @@ int main(int argc, char **argv) {
                 if (n > 0) wemu_machine_queue_input(m, input,
                                                     (size_t)n < sizeof input ? (size_t)n : sizeof input - 1);
             }
+            if (fbhash_va &&
+                wemu_mem_read(c, va_to_gpa(fbhash_va), &fb_before, 8) != 0)
+                fb_before = 0;
             /* Expect text may already appear in boot logs. Reset the
              * capture so the post-injection assertion is meaningful. */
             serial_len = 0;
@@ -184,6 +195,20 @@ int main(int argc, char **argv) {
     if (!strstr(serial_buf, marker)) {
         printf("FAIL: marker absent (%s); serial: %s\n", marker, serial_buf);
         fails++;
+    }
+    if (injected && kbd_inject && fbhash_va) {
+        (void)wemu_mem_read(c, va_to_gpa(fbhash_va), &fb_after, 8);
+        if (fb_after == 0 || fb_after == fb_before) {
+            printf("FAIL: framebuffer did not change with keyboard input "
+                   "(before=%llx after=%llx)\n",
+                   (unsigned long long)fb_before,
+                   (unsigned long long)fb_after);
+            fails++;
+        } else {
+            printf("fbterm: keyboard input changed rendered pixels "
+                   "(%llx -> %llx)\n", (unsigned long long)fb_before,
+                   (unsigned long long)fb_after);
+        }
     }
     if (injected) printf("post-command serial: %s\n", serial_buf);
     printf("test_wemu_kernel: %s (%llu steps, fault=%d, serial=%zu bytes)\n",

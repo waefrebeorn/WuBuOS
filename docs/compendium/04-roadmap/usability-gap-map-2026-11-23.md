@@ -173,3 +173,13 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   `heap used=` in the post-injection window. Negative control with the
   injection window but no key event FAILs at 200M steps; positive PASSes in
   50k steps. Fixed a latent `input_init` declaration mismatch in `libc.h`.
+
+## Landed increment — Wave 0 framebuffer terminal
+
+- `wubu_fbterm.c` echoes the live ring-0 line editor into the GOP
+  framebuffer using the existing VBE primitives; typed characters and
+  submitted commands are rendered on the metal display, not only COM1.
+- The WEMU gate locates `wubu_fbterm_hash`, reads it from guest RAM before
+  and after injected PS/2 input, and requires the hash of rendered pixels
+  to change. Positive: `0 -> 94e6cbba546ee2ff` with `mem` executed.
+  Negative control with no key event FAILs; both observed in this batch.

@@ -17,6 +17,7 @@
 #include "tasking.h"
 #include "input.h"
 #include "ps2.h"
+#include "wubu_fbterm.h"
 #include "memory.h"
 #include "klog.h"
 #include "libc.h"
@@ -189,6 +190,7 @@ static void console_feed_char(WubuConsoleState *st, uint8_t c)
                 st->hist_n = (st->hist_n + 1) % 8;
                 if (st->hist_fill < 8) st->hist_fill++;
             }
+            wubu_fbterm_submit(st->line);
             wubu_console_exec(st->line);
         }
         st->n = 0;
@@ -197,10 +199,14 @@ static void console_feed_char(WubuConsoleState *st, uint8_t c)
     } else if (c == 0x08 || c == 0x7F) {
         if (st->n > 0) {
             st->n--;
+            st->line[st->n] = 0;
+            wubu_fbterm_current(st->line);
             serial_tx('\b'); serial_tx(' '); serial_tx('\b');
         }
     } else if (c >= 0x20 && c < 0x7F && st->n + 1 < sizeof(st->line)) {
         st->line[st->n++] = (char)c;
+        st->line[st->n] = 0;
+        wubu_fbterm_current(st->line);
         serial_tx(c);
     } else if (c == '\t') {
         static const char *cmds[] = {
