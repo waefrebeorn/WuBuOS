@@ -33,6 +33,7 @@ src/*/sketch.*
 tools/*/test_*
 tools/*/*_test
 tools/peephole_superopt/peephole_superopt
+tools/wemu_kernel_gate
 
 # Generated data
 data/

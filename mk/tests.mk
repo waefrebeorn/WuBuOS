@@ -412,7 +412,7 @@ test_ci_status:
 ci_status:
 	python3 tools/ci_status.py
 
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_drv_pci_bus test_netstack test_ci_boot_assert test_ci_status
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_drv_pci_bus test_netstack test_ci_boot_assert test_ci_status test_wemu_kernel
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -883,6 +883,13 @@ test_wemu_busybox: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/
 		src/runtime/wubu_wemu_bridge_test.c \
 		-o $(RT)/wubu_wemu_bridge_test $(WEMU_LIB) -ldl -lvulkan -lcuda -lm
 	./$(RT)/wubu_wemu_bridge_test
+
+# WEMU guest-execution gate: the real kernel ELF must reach kernel_main
+# inside WEMU without a fault. Loader/page-table details live in the tool.
+test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c src/kernel/kernel.elf
+	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
+		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
+	./tools/wemu_kernel_gate src/kernel/kernel.elf
 
 # Differential gate: VSL mprotect protections are REALLY enforced in the
 # WEMU guest-memory write path, with a pre-change (no-hook) negative control.
@@ -2108,7 +2115,7 @@ test_wubu_boot_attest_edr: src/runtime/wubu_boot_attest_edr_test.c src/runtime/w
 	./src/runtime/wubu_boot_attest_edr_test
 
 # The docs must not lie: every path the front-door docs name must exist.
-test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/C_MASTERY_WORKFLOW.md docs/WORKFLOW_OUTCOMES.md docs/REVOKE_SYNC.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md docs/STUDY_LIST.md docs/ABI.md docs/DUPLICATE_SURFACE_FINDINGS.md mk/sanitize.mk tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
+test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/C_MASTERY_WORKFLOW.md docs/WORKFLOW_OUTCOMES.md tools/wemu_kernel_gate.c docs/REVOKE_SYNC.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md docs/STUDY_LIST.md docs/ABI.md docs/DUPLICATE_SURFACE_FINDINGS.md mk/sanitize.mk tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_docs_test.c -o src/runtime/wubu_docs_test -Iinclude src/runtime/wubu_crc32.c
 	./src/runtime/wubu_docs_test
 

@@ -44,5 +44,6 @@ kernel through `kernel_main`, heap, interrupts, APIC and VBE init.
 
 The next gap is **environment fidelity**, not the CPU: framebuffer sizing
 and MMIO devices (LAPIC/I/O-APIC were redirected to spare RAM in the spike).
-Productize a guest loader/harness only after those are modelled honestly;
-random opcode audits stay paused.
+`make test_wemu_kernel` now gates guest execution into kernel_main; productize
+the full loader/harness only after those are modelled honestly. Random opcode
+audits stay paused.
