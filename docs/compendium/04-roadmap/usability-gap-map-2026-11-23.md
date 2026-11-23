@@ -280,3 +280,17 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   `map_mmio without capability token`; restored source PASSes.
 - Still open: DEV_OPEN and IRQ/DMA enforcement, and capability handoff to
   untrusted callers rather than device-registration time.
+
+## Landed increment — Wave 1 DEV_OPEN at bind
+
+- `wubu_drv_dev_t` carries a `dev_open_cap` token, granted with MMIO_MAP at
+  normal registration. `wubu_drv_probe()` refuses to call a driver's probe
+  callback without a live DEV_OPEN capability.
+- `wubu_drv_add_device_noauth()` is an explicitly unprivileged registration
+  path for sandbox/negative gates; it mints no tokens. Registry-level
+  revoke/grant controls let a gate flip the same authority bit.
+- `test_drv` now proves: noauth device stays unbound, revoked device stays
+  unbound, regranted device binds. MMIO_MAP denied/allowed/revoked gate
+  remains green. All driver-test link recipes include the cap module.
+- Still open: IRQ_ACQUIRE and DMA_DOMAIN enforcement, and capability
+  handoff beyond registration time.

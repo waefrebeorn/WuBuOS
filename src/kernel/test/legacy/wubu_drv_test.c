@@ -505,6 +505,36 @@ int main(void)
     if (io_reg->mmio_va != 0) FAIL("I/O device received an MMIO VA");
     printf("  PASS: whole-table late pass skips the I/O BAR device\n");
 
+    /* DRV6-cap: probe/bind requires DEV_OPEN. A raw registration has no
+     * token and must not reach the driver's probe callback. */
+    {
+        wubu_drv_dev_t raw;
+        memset(&raw, 0, sizeof(raw));
+        raw.bus = WUBU_DRV_BUS_PCI;
+        raw.bus_type = WUBU_DRV_BUS_PCI;
+        raw.vendor = 0x1234; raw.device = 0x5678;
+        raw.class_code = 0x01; raw.subclass = 0x06;
+        if (wubu_drv_add_device_noauth(&raw) < 0)
+            FAIL("noauth device registration");
+        wubu_drv_dev_t auth = raw;
+        auth.vendor = 0x9abc; auth.device = 0xdef0;
+        if (wubu_drv_add_device(&auth) < 0)
+            FAIL("authorized device registration");
+        if (wubu_drv_revoke_dev_open(0x9abc, 0xdef0, 0x01) != 0)
+            FAIL("revoke DEV_OPEN cap");
+        wubu_drv_probe();
+        const wubu_drv_dev_t *r = wubu_drv_find_pci_id(0x1234, 0x5678, 0x01);
+        const wubu_drv_dev_t *a = wubu_drv_find_pci_id(0x9abc, 0xdef0, 0x01);
+        if (!r || r->bound) FAIL("noauth device was bound");
+        if (!a || a->bound) FAIL("revoked device was bound");
+        if (wubu_drv_grant_dev_open(0x9abc, 0xdef0, 0x01) != 0)
+            FAIL("grant DEV_OPEN cap");
+        wubu_drv_probe();
+        a = wubu_drv_find_pci_id(0x9abc, 0xdef0, 0x01);
+        if (!a || !a->bound) FAIL("regranted device was not bound");
+        printf("  PASS: DEV_OPEN cap gates probe/bind with revoke/regrant\n");
+    }
+
     printf("=== ALL DRV TESTS PASSED (the Steam Deck + laptop driver registry) ===\n");
     return 0;
 }

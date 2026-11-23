@@ -110,14 +110,31 @@ void wubu_drv_init(void)
 }
 
 /* DRV3: add a device to the bus table. Returns the slot, -1 full. */
-int wubu_drv_add_device(const wubu_drv_dev_t *dev)
+static int add_device_impl(const wubu_drv_dev_t *dev, int authorize)
 {
     if (!dev || !g_initialized || g_ndev >= WUBU_DRV_MAX_DEV) return -1;
     g_devs[g_ndev] = *dev;
-    if (!wubu_cap_check(g_devs[g_ndev].mmio_cap, WUBU_CAP_MMIO_MAP, 0u))
-        (void)wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_MMIO_MAP, 0u,
-                             &g_devs[g_ndev].mmio_cap);
+    if (authorize) {
+        if (!wubu_cap_check(g_devs[g_ndev].dev_open_cap,
+                            WUBU_CAP_DEV_OPEN, 0u))
+            (void)wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_DEV_OPEN, 0u,
+                                 &g_devs[g_ndev].dev_open_cap);
+        if (!wubu_cap_check(g_devs[g_ndev].mmio_cap,
+                            WUBU_CAP_MMIO_MAP, 0u))
+            (void)wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_MMIO_MAP, 0u,
+                                 &g_devs[g_ndev].mmio_cap);
+    }
     return g_ndev++;
+}
+
+int wubu_drv_add_device(const wubu_drv_dev_t *dev)
+{
+    return add_device_impl(dev, 1);
+}
+
+int wubu_drv_add_device_noauth(const wubu_drv_dev_t *dev)
+{
+    return add_device_impl(dev, 0);
 }
 
 /* DRV4: does a driver's ID table match a device? */
@@ -280,6 +297,8 @@ int wubu_drv_probe(void)
         if (g_devs[i].bound) continue;
         for (int d = 0; d < g_ndrv; d++) {
             if (!drv_matches(g_drivers[d], &g_devs[i])) continue;
+            if (!wubu_cap_check(g_devs[i].dev_open_cap,
+                                WUBU_CAP_DEV_OPEN, 0u)) break;
             if (g_drivers[d]->probe) {
                 g_devs[i].drv = g_drivers[d];
                 g_devs[i].bound = 1;
@@ -325,6 +344,31 @@ const wubu_drv_dev_t *wubu_drv_find_pci_id(uint16_t vendor, uint16_t device,
         return &g_devs[i];
     }
     return NULL;
+}
+
+static wubu_drv_dev_t *find_mut_pci(uint16_t vendor, uint16_t device,
+                                    uint8_t class_code)
+{
+    for (int i = 0; i < g_ndev; i++) {
+        if (g_devs[i].bus_type != WUBU_DRV_BUS_PCI) continue;
+        if (g_devs[i].vendor != vendor || g_devs[i].device != device) continue;
+        if (class_code && g_devs[i].class_code != class_code) continue;
+        return &g_devs[i];
+    }
+    return NULL;
+}
+
+int wubu_drv_revoke_dev_open(uint16_t vendor, uint16_t device, uint8_t class_code)
+{
+    wubu_drv_dev_t *dev = find_mut_pci(vendor, device, class_code);
+    return dev ? wubu_cap_revoke(dev->dev_open_cap) : -1;
+}
+
+int wubu_drv_grant_dev_open(uint16_t vendor, uint16_t device, uint8_t class_code)
+{
+    wubu_drv_dev_t *dev = find_mut_pci(vendor, device, class_code);
+    return dev ? wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_DEV_OPEN, 0u,
+                                &dev->dev_open_cap) : -1;
 }
 
 /* DRV13: the single I/O-BAR owner. Accepts the registry form (type bits

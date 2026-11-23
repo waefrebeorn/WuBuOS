@@ -54,8 +54,9 @@ typedef struct wubu_drv_dev {
      * these on real hardware) */
     uint64_t bar0;
     uint64_t bar1;
-    /* MMIO_MAP capability token. Granted at registration from ROOT;
-     * the mapping owner refuses any device without a live token. */
+    /* Authority tokens. Granted at normal registration from ROOT:
+     * DEV_OPEN gates probe/bind, MMIO_MAP gates BAR mapping. */
+    uint64_t dev_open_cap;
     uint64_t mmio_cap;
     /* size of BAR0 (0 if unknown), propagated from the PCI scan. */
     uint64_t bar0_size;
@@ -84,6 +85,12 @@ void wubu_drv_init(void);
 
 /* DRV3: add a device to the bus table. */
 int wubu_drv_add_device(const wubu_drv_dev_t *dev);
+/* Deliberately unprivileged registration for sandbox/negative gates: no
+ * capabilities are minted, so probe and MMIO mapping must both refuse. */
+int wubu_drv_add_device_noauth(const wubu_drv_dev_t *dev);
+/* Test/sandbox control over a registered device's DEV_OPEN authority. */
+int wubu_drv_revoke_dev_open(uint16_t vendor, uint16_t device, uint8_t class_code);
+int wubu_drv_grant_dev_open(uint16_t vendor, uint16_t device, uint8_t class_code);
 
 /* DRV5: enumerate the real PCI bus. */
 int wubu_drv_pci_scan(void);
