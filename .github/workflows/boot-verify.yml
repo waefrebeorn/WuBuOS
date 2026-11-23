@@ -56,6 +56,16 @@ jobs:
             echo "::error::WEMU guest gate failed rc=$rc: $(tail -c 600 /tmp/wemu-kernel-gate.log | tr '\n' ' ')"
           fi
           exit "$rc"
+      - name: WEMU virtio-blk guest gate
+        run: |
+          set +e
+          make test_wemu_kernel_virtio 2>&1 | tee /tmp/wemu-virtio-gate.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::WEMU virtio gate failed rc=$rc: $(tail -c 600 /tmp/wemu-virtio-gate.log | tr '\n' ' ')"
+          fi
+          exit "$rc"
       - name: Declaration-hygiene ratchet (gcc14-class, must stay clean)
         run: make kernel-strict -j$(nproc)
       - name: Boot it here first (Linux, -kernel path)
