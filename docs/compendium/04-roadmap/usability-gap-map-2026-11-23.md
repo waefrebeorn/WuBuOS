@@ -183,3 +183,16 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   and after injected PS/2 input, and requires the hash of rendered pixels
   to change. Positive: `0 -> 94e6cbba546ee2ff` with `mem` executed.
   Negative control with no key event FAILs; both observed in this batch.
+
+## Landed increment — Wave 0 local app script
+
+- `cmd_run` no longer overmounts the boot volume with an AHCI RAM sim disk.
+  It uses the volume already attached by metal_main (virtio-blk on metal),
+  so `run APP.TXT` executes from the guest's own FAT32 disk with no host 9P
+  or COM2 server.
+- `make test_wemu_app` writes APP.TXT containing `mem`, reboots in a fresh
+  WEMU process, types `run APP.TXT`, and requires both `heap used=` output
+  and `run: APP.TXT: 1 commands executed`. Pre-change source RED-control
+  FAILs with `run: no FAT32 volume`; restored source PASSes.
+- Honest scope: this is a guest script app, not an ELF program loader. The
+  native ELF app path is still open.

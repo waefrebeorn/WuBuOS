@@ -121,31 +121,12 @@ int cmd_run(int argc, char **argv)
     extern fat32_volume *fat32_boot_volume(void);
     if (argc < 2) { klog_printf("run: usage 'run <file>'\n"); return 0; }
 
+    /* The boot volume is already attached by metal_main (virtio-blk on
+     * bare metal, sim disk only as fallback). Do NOT overmount it here:
+     * that was the old path that made `run` depend on a host 9P transfer
+     * or a RAM sim disk instead of the real boot disk. */
     fat32_volume *g_vol = fat32_boot_volume();
-    static int g_mounted = 0;
-    static ahci_hba_t  g_hba;
-    if (!g_mounted) {
-        extern int  ahci_hba_init(ahci_hba_t *);
-        extern int  ahci_enumerate_ports(ahci_hba_t *);
-        extern int  ahci_port_init(ahci_hba_t *, int);
-        extern int  ahci_sim_disk_create(ahci_hba_t *, int, int);
-        if (ahci_hba_init(&g_hba) != 0 || ahci_enumerate_ports(&g_hba) <= 0 ||
-            ahci_port_init(&g_hba, 0) != 0 ||
-            ahci_sim_disk_create(&g_hba, 0, 8) != 0) {
-            klog_printf("run: disk unavailable\n");
-            return 0;
-        }
-        fat32_blk_ops ops = {
-            .read = ahci_blk_read, .write = ahci_blk_write,
-            .ctx = &g_hba, .n_sectors = 8 * 1024 * 1024 / 512
-        };
-        extern int fat32_mount(fat32_volume *, const fat32_blk_ops *);
-        if (fat32_mount(g_vol, &ops) != 0) {
-            klog_printf("run: no FAT32 volume\n");
-            return 0;
-        }
-        g_mounted = 1;
-    }
+    if (!g_vol) { klog_printf("run: no boot volume\n"); return 0; }
 
     fat32_file_info fi;
     if (fat32_find(g_vol, 0, argv[1], &fi) != 0) {
@@ -159,9 +140,9 @@ int cmd_run(int argc, char **argv)
     }
     char buf[1024];
     size_t rd = fat32_read(&fp, buf, sizeof(buf) - 1);
+    fat32_close(&fp);
     if (rd == 0) { klog_printf("run: '%s' empty\n", argv[1]); return 0; }
     buf[rd] = '\0';
-    /* execute line by line (the exec re-splits) */
     char *line = buf;
     int nrun = 0;
     while (*line) {
