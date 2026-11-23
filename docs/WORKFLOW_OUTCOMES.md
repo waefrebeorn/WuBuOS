@@ -37,8 +37,12 @@ count of correct instructions. Work is ordered by outcomes:
 
 ## Current strategic gap
 
-Spikes 001/002 showed WEMU could not execute the higher-half kernel at all:
-higher-half canonical VAs were rejected, CR moves and LGDT had no handlers.
-Those blockers are fixed. The next blocker is segment-register loads, then
-the kernel's own paging switch. This track is the WEMU priority until a
-real kernel image executes in the guest; random opcode audits are paused.
+Spikes 001–003 showed WEMU could not execute the higher-half kernel at all;
+the boot-blocker batch fixed canonical addressing, CR moves, descriptor
+loads, segment loads, CPUID LM and APIC MSRs. Spike 003 now runs the real
+kernel through `kernel_main`, heap, interrupts, APIC and VBE init.
+
+The next gap is **environment fidelity**, not the CPU: framebuffer sizing
+and MMIO devices (LAPIC/I/O-APIC were redirected to spare RAM in the spike).
+Productize a guest loader/harness only after those are modelled honestly;
+random opcode audits stay paused.
