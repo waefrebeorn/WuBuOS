@@ -274,7 +274,7 @@ void mem_free(void *ptr) {
      * cheap outcome; the caller is told, loudly. */
     if (check_canaries(mu) != 0) {
         mem_log("mem_free: HEAP CORRUPTION at %p (size %zu) -- red zone canary "
-                "overwritten, block left allocated\n", ptr, mu->size);
+                "overwritten, block left allocated\n", ptr, (size_t)mu->size);
         return;
     }
 
@@ -348,7 +348,7 @@ void *mem_realloc(void *ptr, size_t new_size) {
      * very damage it is trying to preserve against.  Refuse instead. */
     if (check_canaries(mu) != 0) {
         mem_log("mem_realloc: HEAP CORRUPTION at %p (size %zu) -- refusing to "
-                "relocate an unverified block\n", ptr, mu->size);
+                "relocate an unverified block\n", ptr, (size_t)mu->size);
         return NULL;
     }
 

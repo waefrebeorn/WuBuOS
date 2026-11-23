@@ -231,14 +231,14 @@ long strtol(const char *nptr, char **endptr, int base) {
 }
 
 /* Formatted output - minimal printf */
-static int putchar(void (*putc)(char), char c) {
+static int libc_putchar(void (*putc)(char), char c) {
     putc(c);
     return 1;
 }
 
-static int puts(void (*putc)(char), const char *s) {
+static int libc_puts(void (*putc)(char), const char *s) {
     int count = 0;
-    while (*s) count += putchar(putc, *s++);
+    while (*s) count += libc_putchar(putc, *s++);
     return count;
 }
 
