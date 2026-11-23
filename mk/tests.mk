@@ -1476,6 +1476,15 @@ test_buddy_rig: $(RT)/wubu_buddy_rig.c $(RT)/wubu_buddy_rig_test.c
 test_buddy_orb: $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c -o $(RT)/test_buddy_orb -lm -Iinclude $(RT)/wubu_crc32.c
 	$(RT)/test_buddy_orb
+test_kernel_abi: $(KERNEL)/test/wubu_kernel_abi_test.c \
+                 /home/wubu/WuBuKernel/src/wubu_abi.c \
+                 /home/wubu/WuBuKernel/include/wubu_abi.h
+	$(CC) -O2 -std=c11 -Wall -I/home/wubu/WuBuKernel/include \
+		$(KERNEL)/test/wubu_kernel_abi_test.c \
+		/home/wubu/WuBuKernel/src/wubu_abi.c \
+		-o $(KERNEL)/test_wubu_kernel_abi
+	$(KERNEL)/test_wubu_kernel_abi
+
 test_kernel_bridge: $(KERNEL)/test/wubu_kernel_bridge_test.c \
 		$(KERNEL)/WuBuKernel/src/wubukcore.c $(KERNEL)/WuBuKernel/src/wubudriver.c \
 		$(KERNEL)/WuBuKernel/src/wubukernel_pmm.c \

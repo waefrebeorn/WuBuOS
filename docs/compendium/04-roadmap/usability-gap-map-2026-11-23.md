@@ -209,3 +209,17 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
 - Added `WEMU_KERNEL_SHOW_SERIAL` to the gate so a script can assert a
   boot-time marker without forcing a failure; fixed a gate/script mismatch
   where the marker was present in serial but suppressed on PASS.
+
+## Landed increment — Wave 1 ABI descriptor
+
+- WuBuKernel `c7c8527` adds `wubu_abi.h/.c`: a 40-byte v2 wire descriptor
+  with only u64 handles (`device_handle`, `driver_handle`, `mmio_token`),
+  no guest-visible pointers, and fail-closed validation of magic, exact
+  struct_size, version and reserved flags. `make test` and freestanding
+  compile pass; negative cases reject truncation, unknown version, bad
+  magic/size/flags.
+- WuBuOS adds `test_kernel_abi` to the critical hosted tier, consuming the
+  canonical WuBuKernel checkout. L21 stays intact: no ABI object is linked
+  into kernel.elf. Bridge PASS.
+- This is the ABI descriptor only; capabilities, BARv2, IRQ and DMA
+  contracts remain open.
