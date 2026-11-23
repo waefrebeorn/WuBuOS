@@ -59,7 +59,7 @@ extern const int **__ctype_toupper_loc(void);
 /* Fortified string functions */
 extern void *__memset_chk(void *s, int c, size_t n, size_t sizelim);
 extern void *__memcpy_chk(void *dest, const void *src, size_t n, size_t dstlen);
-extern int __snprintf_chk(char *s, size_t n, size_t sizelim, int flags, const char *fmt, ...);
+extern int __snprintf_chk(char *s, size_t n, int flags, size_t sizelim, const char *fmt, ...);
 extern int __printf_chk(int flag, const char *fmt, ...);
 
 /* Stack protector */
@@ -100,7 +100,7 @@ extern const int **__ctype_toupper_loc(void);
 /* Fortified string functions */
 extern void *__memset_chk(void *s, int c, size_t n, size_t sizelim);
 extern void *__memcpy_chk(void *dest, const void *src, size_t n, size_t dstlen);
-extern int __snprintf_chk(char *s, size_t n, size_t sizelim, int flags, const char *fmt, ...);
+extern int __snprintf_chk(char *s, size_t n, int flags, size_t sizelim, const char *fmt, ...);
 extern int __printf_chk(int flag, const char *fmt, ...);
 
 /* Stack protector */
@@ -117,7 +117,7 @@ extern const int **__ctype_toupper_loc(void);
 /* Fortified string functions */
 extern void *__memset_chk(void *s, int c, size_t n, size_t sizelim);
 extern void *__memcpy_chk(void *dest, const void *src, size_t n, size_t dstlen);
-extern int __snprintf_chk(char *s, size_t n, size_t sizelim, int flags, const char *fmt, ...);
+extern int __snprintf_chk(char *s, size_t n, int flags, size_t sizelim, const char *fmt, ...);
 extern int __printf_chk(int flag, const char *fmt, ...);
 #endif /* WUBU_BAREMETAL */
 

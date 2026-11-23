@@ -59,12 +59,16 @@ is an opinion.
 | Statistical non-vacuity | `make test_default_optin` | fixed thresholds, no retries; add samples, never loosen a shipped-path ceiling |
 
 `static_check` is intentionally scoped to sources that parse with a narrow
-include set: WEMU's whole `src/`, and 329 of WuBuOS's kernel sources. The
-14 that cannot be parsed standalone are named in `STATIC_ANALYZE_SKIP` and
+include set: WEMU's whole `src/`, and 340 of WuBuOS's kernel sources. The
+3 that cannot be parsed standalone are named in `STATIC_ANALYZE_SKIP` and
 are not declared clean — they remain the `kernel-strict` campaign's work.
 Each skipped file must be removed from that list when its include hygiene
 is fixed; the list may only shrink. This is the ratchet idea: never claim a
 standard you cannot measure.
+
+`static_check` uses `-std=gnu11`, not `-std=c11`: bare-metal leaves use GNU
+`asm`, and glibc exposes `siginfo_t`/POSIX declarations under the GNU
+dialect. Source remains C11 plus explicitly recorded GNU extensions.
 
 ## Code rules that pay immediately
 

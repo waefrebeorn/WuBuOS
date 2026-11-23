@@ -22,6 +22,7 @@
  * EDID lines are identified by TWO leading tabs plus hex-and-whitespace only. Mode
  * lines and property values have one leading tab, so they cannot be mistaken for data.
  */
+#define _POSIX_C_SOURCE 200809L  /* popen/pclose */
 #include "wubu_edid_xrandr.h"
 
 #include <stdlib.h>

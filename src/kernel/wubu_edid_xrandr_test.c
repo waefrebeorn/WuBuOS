@@ -7,6 +7,7 @@
  * naive parsers.  The eDP-1 block carries the same EDID blob already cross-checked
  * against sysfs and xrandr elsewhere, so the two sources can be asserted to agree.
  */
+#define _POSIX_C_SOURCE 200809L  /* fmemopen */
 #include <stdio.h>
 #include <string.h>
 

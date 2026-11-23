@@ -30,7 +30,7 @@ typedef struct {
 /* one DLL → the kernel's answer table */
 typedef struct {
     const char *dll;        /* e.g. "KERNEL32.dll" */
-    wubu_pe_import_fn_t *fns; /* the table of functions */
+    const wubu_pe_import_fn_t *fns; /* the table of functions */
     int n_fns;
     void *(*probe)(void);   /* optional: returns the DLL base */
 } wubu_pe_personality_t;

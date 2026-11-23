@@ -14,6 +14,9 @@
 #include "../egojar.h"
 #include <stdint.h>
 #include <stdbool.h>
+#ifndef MYSEED_METAL
+#include <signal.h>   /* siginfo_t for the hosted SIGSEGV bridge */
+#endif
 #include "interrupt_io.h"
 
 /* --- Shared globals (defined once in interrupt.c) --- */

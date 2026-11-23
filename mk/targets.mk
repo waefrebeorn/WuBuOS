@@ -315,17 +315,15 @@ kernel-strict:
 # src tree and every WuBuOS kernel source that parses with the narrow
 # include set. The skip list below is NOT a clean bill of health — those
 # files fail standalone parsing and remain a kernel-strict campaign.
-STATIC_ANALYZE_SKIP := cpio_extract.c interrupt_exceptions.c \
-                      interrupt_pic.c metal_main.c \
-                      wubu_apic.c wubu_audio.c wubu_dram_hedge.c \
-                      wubu_edid_kms.c wubu_edid_xrandr.c \
-                      wubu_edid_xrandr_test.c wubu_pe_personality.c \
-                      wubu_serial.c wubu_smp.c wubu_thermal_read.c
+# Analysis uses gnu11: bare-metal leaves legitimately use GNU `asm`, and
+# glibc exposes siginfo_t/POSIX declarations under the GNU dialect. The
+# source itself remains C11 + documented GNU extensions.
+STATIC_ANALYZE_SKIP := metal_main.c wubu_apic.c wubu_edid_kms.c
 STATIC_ANALYZE_SRCS := $(filter-out $(addprefix src/kernel/,$(STATIC_ANALYZE_SKIP)),$(wildcard src/kernel/*.c))
 static_check:
 	@python3 tools/static_skip_ratchet.py
 	@set -e; for f in $(STATIC_ANALYZE_SRCS); do \
-	    gcc -std=c11 -fanalyzer -Werror -fsyntax-only -Iinclude -Isrc/kernel $$f; \
+	    gcc -std=gnu11 -fanalyzer -Werror -fsyntax-only -Iinclude -Isrc/kernel -Isrc/runtime $$f; \
 	done
 	@echo "STATIC CHECK PASS: gcc -fanalyzer over $(words $(STATIC_ANALYZE_SRCS)) kernel sources (skip $(words $(STATIC_ANALYZE_SKIP)) unanalyzable)"
 .PHONY: static_check

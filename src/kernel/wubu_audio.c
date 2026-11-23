@@ -273,7 +273,7 @@ const char *wubu_audio_pipewire_config(void)
         "}\n\n"
 
         "# ALSA config: pin the audio driver we detected.\n"
-        "# wubu_hw_detect picked KMD=%s, audio=%s\n"
+        "# wubu_hw_detect picked audio=%s\n"
         "context.modules = [\n"
         "    {   name = alsa-lib\n"
         "        args = {\n"

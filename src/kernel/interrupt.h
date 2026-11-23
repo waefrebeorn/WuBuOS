@@ -135,6 +135,13 @@ void isr_dispatch(uint8_t vector, InterruptFrame *frame);
 void interrupt_count(uint8_t irq);
 uint64_t interrupt_get_count(uint8_t irq);
 
+/* Panic ring dump is available in hosted builds too (interrupt_panic_dump
+ * and the exception handlers call it unconditionally). */
+void panic_dump_ring(void);
+
+/* Nested-ISR overrun counter is read by the hosted panic path too. */
+uint32_t interrupt_isr_overruns(void);
+
 /* ------------------------------------------------------------------
  * Extended API (bare metal)
  * ------------------------------------------------------------------ */
@@ -171,8 +178,6 @@ int interrupt_init_full(void);
 uint64_t timer_calibrate_tsc(void);
 int timer_init_deadline(uint64_t ns);
 
-/* Gap C5: nested-ISR overruns observed (NMI during an ISR etc.). */
-uint32_t interrupt_isr_overruns(void);
 
 /* Gap G10: the exception counters (vectors 0..31) -- the AGI's window
  * into the kernel's fault state. */
@@ -194,7 +199,6 @@ void handle_page_fault(InterruptFrame *frame);
 void handle_gpf(InterruptFrame *frame);
 
 /* Panic dump (defined in interrupt_exceptions.c) */
-void panic_dump_ring(void);
 
 #endif /* MYSEED_METAL */
 

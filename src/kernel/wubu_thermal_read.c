@@ -7,6 +7,7 @@
  * screen between refreshes.
  */
 
+#define _POSIX_C_SOURCE 200809L  /* nanosleep, clock_gettime */
 #include "wubu_thermal_read.h"
 #include "wubu_drv_thermal.h"
 

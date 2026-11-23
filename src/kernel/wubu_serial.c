@@ -16,7 +16,7 @@
 
 #define COM1_PORT 0x3F8
 #define COM1_IER  0x3F9
-#define COM1_LSR  0x3FD
+/* COM1_LSR lives in wubu_serial.h; do not shadow it here. */
 
 #define WUBU_SERIAL_VECTOR 36   /* IRQ4 -> 32 + 4 */
 

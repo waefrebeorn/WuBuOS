@@ -46,18 +46,11 @@ static int cpio_next(const uint8_t *p, uint32_t n,
 
     /* newc header: magic(6) ino(8) mode(8) uid(8) gid(8) nlink(8)
      * mtime(8) filesize(8) dev(8) devmajor(8) devminor(8) rdev(8)
-     * enamelen(8) check(16)  = 11 octal fields * 8 bytes after magic */
-    /* parse 11 8-char-octal fields at p+6 */
-    #define CPL(field) do { \
-        char tmp[9]; memcpy(tmp, (char*)p + 6 + (field)*8, 8); tmp[8]=0; \
-        c_##field = (uint32_t)strtoul(tmp, NULL, 8); } while(0)
-    uint32_t c_namesize, c_filesize;
-    CPL(10);  /* enamelen -> namesize */
-    CPL(6);   /* filesize */
-    /* Actually: fields are 0=ino,1=mode,2=uid,3=gid,4=nlink,5=mtime,
-     * 6=filesize,7=dev,8=devmajor,9=devminor,10=rdev,11=enamelen */
-    /* recompute with correct indices */
+     * enamelen(8) check(16) = 11 octal fields * 8 bytes after magic */
+    /* Parse the two fields we need directly; the old CPL(field) macro
+     * expanded to undeclared c_10/c_6 and was dead code. */
     char tmp[9];
+    uint32_t c_namesize, c_filesize;
     memcpy(tmp, p+6+6*8, 8); tmp[8]=0; c_filesize = (uint32_t)strtoul(tmp, NULL, 8);
     memcpy(tmp, p+6+11*8, 8); tmp[8]=0; c_namesize = (uint32_t)strtoul(tmp, NULL, 8);
 
