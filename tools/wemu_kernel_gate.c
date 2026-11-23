@@ -88,6 +88,9 @@ int main(int argc, char **argv) {
     if (env && *env) max_steps = strtoull(env, NULL, 0);
     env = getenv("WEMU_KERNEL_MARKER");
     if (env && *env) marker = env;
+    const char *send = getenv("WEMU_KERNEL_SEND");
+    const char *expect = getenv("WEMU_KERNEL_EXPECT");
+    int injected = 0;
     size_t n = 0;
     uint8_t *image = slurp(path, &n);
     if (!image) { printf("FAIL: cannot read %s\n", path); return 2; }
@@ -138,6 +141,15 @@ int main(int argc, char **argv) {
         if (s <= 0) break;
         steps += (uint64_t)s;
         if (wemu_cpu_fault(c) || wemu_cpu_halted(c)) break;
+        if (!injected && send && *send && strstr(serial_buf, marker)) {
+            char input[256];
+            int n = snprintf(input, sizeof input, "%s\n", send);
+            if (n > 0) wemu_machine_queue_input(m, input,
+                                                (size_t)n < sizeof input ? (size_t)n : sizeof input - 1);
+            if (expect && *expect) marker = expect;
+            steps = 0;
+            injected = 1;
+        }
     }
     if (steps >= max_steps) { printf("FAIL: marker timeout: %s\n", marker); fails++; }
     if (wemu_cpu_fault(c)) {

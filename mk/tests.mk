@@ -897,7 +897,9 @@ test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 test_wemu_kernel_deep: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
 		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
-	WEMU_KERNEL_STEPS=120000000 WEMU_KERNEL_MARKER='WuBuOS>' \
+	WEMU_KERNEL_STEPS=200000000 WEMU_KERNEL_MARKER='WuBuOS>' \
+		WEMU_KERNEL_SEND='help' \
+		WEMU_KERNEL_EXPECT='WuBuOS live console' \
 		./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
 # Differential gate: VSL mprotect protections are REALLY enforced in the
