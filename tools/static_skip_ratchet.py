@@ -12,7 +12,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parent.parent
 mk = (root / "mk" / "targets.mk").read_text()
 start = mk.index("STATIC_ANALYZE_SKIP")
-end = mk.index("STATIC_ANALYZE_SRCS")
+end = mk.index("STATIC_METAL_SRCS")
 chunk = mk[start:end]
 current = set(re.findall(r"[A-Za-z0-9_]+\.c", chunk))
 baseline = {

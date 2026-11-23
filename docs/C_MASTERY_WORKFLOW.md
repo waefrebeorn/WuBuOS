@@ -59,9 +59,10 @@ is an opinion.
 | Statistical non-vacuity | `make test_default_optin` | fixed thresholds, no retries; add samples, never loosen a shipped-path ceiling |
 
 `static_check` is intentionally scoped to sources that parse with a narrow
-include set: WEMU's whole `src/`, and 340 of WuBuOS's kernel sources. The
-3 that cannot be parsed standalone are named in `STATIC_ANALYZE_SKIP` and
-are not declared clean — they remain the `kernel-strict` campaign's work.
+include set: WEMU's whole `src/`, and 342 of WuBuOS's kernel sources (340
+hosted + 2 bare-metal analyzed with `MYSEED_METAL`). The one that cannot be
+parsed standalone is named in `STATIC_ANALYZE_SKIP` and is not declared
+clean — it remains a `kernel-strict` campaign.
 Each skipped file must be removed from that list when its include hygiene
 is fixed; the list may only shrink. This is the ratchet idea: never claim a
 standard you cannot measure.

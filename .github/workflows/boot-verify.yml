@@ -58,7 +58,14 @@ jobs:
           # not a host assumption; the aggregate also gates/skips it if absent.
           sudo apt-get update -qq
           sudo apt-get install -y -qq libssl-dev
-          make test_optin_crypto
+          set +e
+          make test_optin_crypto 2>&1 | tee /tmp/wubu-optin-crypto.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::test_optin_crypto failed rc=$rc: $(tail -c 2000 /tmp/wubu-optin-crypto.log | tr '\n' ' ')"
+          fi
+          exit "$rc"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

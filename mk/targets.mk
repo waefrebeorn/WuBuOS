@@ -318,14 +318,20 @@ kernel-strict:
 # Analysis uses gnu11: bare-metal leaves legitimately use GNU `asm`, and
 # glibc exposes siginfo_t/POSIX declarations under the GNU dialect. The
 # source itself remains C11 + documented GNU extensions.
-STATIC_ANALYZE_SKIP := metal_main.c wubu_apic.c wubu_edid_kms.c
-STATIC_ANALYZE_SRCS := $(filter-out $(addprefix src/kernel/,$(STATIC_ANALYZE_SKIP)),$(wildcard src/kernel/*.c))
+STATIC_ANALYZE_SKIP := wubu_edid_kms.c
+# Bare-metal leaves must be analyzed with the same MYSEED_METAL define the
+# kernel build gives them; without it they see hosted APIs and look broken.
+STATIC_METAL_SRCS := src/kernel/metal_main.c src/kernel/wubu_apic.c
+STATIC_ANALYZE_SRCS := $(filter-out $(addprefix src/kernel/,$(STATIC_ANALYZE_SKIP)) $(STATIC_METAL_SRCS),$(wildcard src/kernel/*.c))
 static_check:
 	@python3 tools/static_skip_ratchet.py
 	@set -e; for f in $(STATIC_ANALYZE_SRCS); do \
 	    gcc -std=gnu11 -fanalyzer -Werror -fsyntax-only -Iinclude -Isrc/kernel -Isrc/runtime $$f; \
 	done
-	@echo "STATIC CHECK PASS: gcc -fanalyzer over $(words $(STATIC_ANALYZE_SRCS)) kernel sources (skip $(words $(STATIC_ANALYZE_SKIP)) unanalyzable)"
+	@set -e; for f in $(STATIC_METAL_SRCS); do \
+	    gcc -std=gnu11 -DMYSEED_METAL -fanalyzer -Werror -fsyntax-only -Iinclude -Isrc/kernel -Isrc/runtime $$f; \
+	done
+	@echo "STATIC CHECK PASS: gcc -fanalyzer over $(words $(STATIC_ANALYZE_SRCS)) kernel + $(words $(STATIC_METAL_SRCS)) metal sources (skip $(words $(STATIC_ANALYZE_SKIP)): missing system header)"
 .PHONY: static_check
 
 # L1 end-to-end gate: write -> reboot -> read-back on a real virtio-blk
