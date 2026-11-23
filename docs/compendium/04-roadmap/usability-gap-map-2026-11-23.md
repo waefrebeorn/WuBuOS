@@ -1,0 +1,148 @@
+# WuBuOS / WuBuKernel / WEMU usability gap map (2026-11-23)
+
+This is the contract for the next work cycles. It replaces "boot is green" as
+the success criterion. Gates that are green today prove boot, driver registry
+consistency, and WEMU guest block I/O; they do **not** prove a usable OS, a
+portable kernel ABI, or a usable emulator.
+
+## Verdicts
+
+1. **WuBuOS is a facade for a human user.** `metal_main.c:963` ends in
+   `wubu_agi_kernel_run()`; `wubu_shell_run()` (`metal_main.c:976-981`) is an
+   empty yield loop. The only kernel console (`wubu_console.c:47-155`) is a
+   ring-0 diagnostic dispatcher over COM1. The real shell is hosted-only
+   (`src/shell/wubu_shell.c`), the interactive file shell is firmware-only
+   (`src/firmware/fw_shell.c`), and the rich GUI needs a Linux Wayland host.
+   `mk/targets.mk:188-193` links only `KERNEL_OBJS` into `kernel.elf`; GUI,
+   runtime, shell and audio objects are not in it.
+2. **WuBuKernel is a contract/reference repo, not the running kernel.**
+   L21 is explicit (`include/wubu_driver_contract.h:8-10`, L21 record in
+   `os-gaps-2026-11-19.md:220-232`): only `wubu_driver_contract.o` is
+   consumed by WuBuOS. The repo has four small modules, raw pointers in
+   guest-visible structs, a single compile-time version macro, no capability
+   model, no IRQ/DMA/per-CPU contract, and a driver registry that accepts
+   hook-less drivers and always succeeds on release. Being "best kernel for
+   all OS" means the best **portable ABI/contract**, not hoarding every
+   kernel object into WuBuOS.
+3. **WEMU is clean-room, not a QEMU wrapper — but it is a facade as a
+   developer tool.** There is no CLI, monitor/QMP/HMP, gdbstub, snapshot or
+   save/load. The machine is CPU + COM1 + one PCI function + one virtio-blk
+   BAR. LAPIC/IOAPIC/framebuffer/PIT/PS2/DMA/SMP are absent or constant
+   stubs; ISR is hardwired to 0 and completion is polled. The honest
+   fail-closed ISA and 67.35M-step guest block gate are real progress, but
+   "a QEMU facade" is a fair description of the **user-facing** surface.
+4. **The AGI kernel claim is doctrine ahead of execution.** No brain object
+   is linked into `KERNEL_OBJS`; the Live Colonel is an integer expression VM
+   (`wubu_console_colonel.c:19-98`); the ring-0 agent is a deterministic cog
+   loop (`wubu_agi_kernel.c:104-140`). KV-as-FS has a metal mount/route port
+   but no in-kernel 9P server. Swap is 4 MiB first-fit, VMM is 4 KiB only,
+   IOMMU is DMAR probe only, GPU/perf are hosted-only, checkpoints store
+   counters in 512-byte RAM slots. The `THEORY/07-kernel-layer-model.md`
+   byte-budget spec is a good target, not a shipped kernel.
+
+## External standards (primary sources)
+
+- Steam Deck/Machine compatibility contract: frame-time targets, minimum
+  glyph size, default controller reachability, controller-only text entry,
+  four-badge verdict with per-check results. Copy the **acceptance contract**,
+  not proprietary parts. `https://partner.steamgames.com/doc/steamhardware/compat`
+- SteamOS recovery UX: Previous B rollback preserving user data, factory
+  reset, repair, re-image, recovery tools as explicit tiers.
+  `https://help.steampowered.com/en/faqs/view/1B71-EDF2-EB6D-2BB3`
+- Omarchy: one supported update entry point, staged channels, snapshots with
+  an explicitly documented root-vs-home caveat.
+  `https://omarchy.org/manual/updates/` and `/manual/system-snapshots/`
+- **CachyOS** (the user's "CatchyOS"; no authoritative CatchyOS product was
+  found) is the better backup reference for hardware profiles: priority-ranked
+  profile table with fallback (`https://wiki.cachyos.org/features/chwd/chwd/`)
+  and a repeatable benchmarker (`github.com/CachyOS/cachyos-benchmarker`).
+- Reject: proprietary Proton/Steam client dependency, Linux BPF scheduler
+  import, Secure-Boot-off install preconditions. Keep the ideas, not the
+  mechanisms.
+
+## Prioritized waves
+
+### Wave 0 — make the metal image a usable computer (highest leverage)
+
+| Leg | Smallest real increment | Behavior gate | Evidence |
+|---|---|---|---|
+| FS console | `ls/cat/write/rm` in `wubu_console_exec()` over `fat32_boot_volume()` | write HELLO.TXT, reboot same image, `cat` returns exact bytes | `wubu_console.c:47-155`, `fat32_file.c:8-95` |
+| Keyboard console | translate `input_key_poll()` scancodes into the COM1 line editor | QMP `sendkey mem+Enter` with no serial input; heap line on COM1 | `input.c:61`, `wubu_console.c:163-268`, `wubu_bonzi.c:289-304` |
+| Framebuffer terminal | render the line editor through `vbe_draw_text()` into the GOP surface | typed string appears as readable pixels and on COM1 | `vbe.c:266-476`, `metal_main.c:332-393` |
+| Run local app | `apps/` FAT32 scan; extend `run` to load ELF/PE without host 9P | `run APP.BIN` with no COM2 server prints `APP-RAN:` | `wubu_n9.c:158-245`, `wubu_console_recovery.c:118-184` |
+| Network commands | `ip`/`ping`, DHCP-lite beyond hard-coded `10.0.2.15` | console-set address + host-observed ICMP echo | `wubu_netstack.c:7,186-434` |
+| Crash persistence | crash dump + recovery ledger on virtio-blk, not RAM sim disk | forced crash, reboot, same seq reported | `wubu_crash.c:29-70`, `wubu_recovery.c:30-95` |
+
+### Wave 1 — make WuBuKernel the best portable contract
+
+Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
+
+1. Versioned descriptor with opaque `u64` handles, no raw guest-visible
+   pointers; reject unknown/truncated versions in both repos.
+2. Capability tokens for `DEV_OPEN / MMIO_MAP / IRQ_ACQUIRE / DMA_DOMAIN`,
+   fail closed (`-EPERM`) with positive/negative/revoke gates.
+3. Fail-closed registry lifecycle: reject hook-less drivers, unbind on
+   unregister, real release errors, trylock instead of self-deadlock, PMM
+   region-order/overlap validation.
+4. BAR decode v2: physical base **and size**, reserved type rejection, named
+   MMIO flags; v1 wrapper retained.
+5. IRQ routing descriptor (hwirq→virq, MSI/MSI-X, affinity, lifetime) and
+   DMA/IOMMU domain descriptors keyed by capability.
+6. Structured versioned events, bounded non-truncating writes, panic hook
+   capturing fault context.
+
+### Wave 2 — make WEMU a real development emulator
+
+1. PIT tick + external IRQ delivery; LAPIC/IOAPIC bounded MMIO windows.
+2. Virtio-blk completion interrupt, ISR bit, descriptor bounds and `S_IOERR`
+   negative control; then PCI multi-function topology with IRQ routing.
+3. Text framebuffer + PS/2 scancode queue; guest writes and host scrapes
+   exact characters.
+4. Two-vCPU SMP with per-CPU LAPIC ID and bounded IPI/INIT-SIPI.
+5. `wemu-cli` frontend, minimal GDB RSP subset, save/load state. No QEMU
+   source; keep the clean-room slerm.
+6. Honest docs: label polled/synchronous device paths as bounded, never
+   "virtio parity".
+
+### Wave 3 — make the AGI kernel real
+
+1. Metal KVFS init + one routed read/write with reboot persistence.
+2. Opaque arena + F16 GEMV + one forward step linked into `KERNEL_OBJS`,
+   compared to the hosted CPU baseline within 1e-3.
+3. 2 MB huge-page KV slab through a PS=1 PDE path; 4 KB path unchanged.
+4. Deterministic decode task + fix the tick-12/33 ring race before adding
+   more ring-0 producers; 10 boots must emit identical span IDs.
+5. Guarded `kv_read/kv_write` syscalls with capability bit and syscall counts.
+6. File-backed AGI checkpoint (counters + KV slab + CRC32), restored after
+   reboot; replace the no-op recovery log.
+
+## Workflow rules for every leg
+
+1. Name the outcome before the probe: boot, driver, human session, guest
+   execution, persistence, or AGI state. A gate that changes none of these
+   is parked.
+2. One worktree per implementation leg; fresh submodules; no two agents
+   editing one tree. Integrator re-runs every child gate in the canonical
+   tree before merge; child self-reports are hypotheses.
+3. Behavior gate or it did not happen: write→reboot→read, byte-exact host
+   image, host-observed ICMP, pixel scrape. Non-crash is not a gate.
+4. Fresh `make kernel-strict`, `tandem_check`, full `make test`, and product
+   gate at each **batch boundary**, not after every micro-edit. Keep the
+   fast targeted gate inside the batch.
+5. Research at each step: primary specs/docs first, derive and reimplement
+   in C11, cite the source in the audit doc. No Python runs the loop.
+6. Devil's advocate after each batch: does the gate measure the product or a
+   model of it? Is the object linked into the shipped image? Does the old
+   implementation fail the new gate? Are hosted-only wins being reported as
+   metal wins?
+7. Never say "done" for WuBuOS/WuBuKernel/WEMU. Report HEAD, gate line, and
+   the next open leg.
+
+## Current gate scope (for honesty)
+
+- `test_wemu_kernel`: real kernel image reaches `kernel_main`, no fault.
+- `test_wemu_kernel_virtio`: guest reports live virtio-blk at 67.35M steps.
+- `ci_boot_assert`: boot trace, prompt, driver-registry consistency.
+- `test_linux_product`: hosted Wayland client frames, not metal GUI.
+- None of these proves a human can create a file, type on the keyboard, run
+  an app from the boot disk, or recover state after a crash.

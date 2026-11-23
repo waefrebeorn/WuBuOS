@@ -66,3 +66,12 @@ and MMIO devices (LAPIC/I/O-APIC were redirected to spare RAM in the spike).
 `make test_wemu_kernel` now gates guest execution into kernel_main; productize
 the full loader/harness only after those are modelled honestly. Random opcode
 audits stay paused.
+
+## Usability-first replanning (2026-11-23)
+
+The four-repo/tandem audit produced `docs/compendium/04-roadmap/usability-gap-map-2026-11-23.md`.
+It is the contract for the next legs: boot, driver binding and WEMU guest
+execution are proven; a human file session, keyboard/framebuffer console,
+local app loading, cross-reboot recovery, portable kernel ABI and AGI state
+restoration are not. Start with Wave 0 (FS console) and do not report a
+usability win without a write->reboot->read or equivalent behavior gate.
