@@ -403,5 +403,6 @@ tandem_check:
 	@$(MAKE) test_wemu_busybox
 	@echo "== 5/5 standalone WEMU gate =="
 	@$(MAKE) -C "$(TANDEM_WEMU_REPO)" static_check
+	@$(MAKE) -C "$(TANDEM_WEMU_REPO)" test_sanitize
 	@$(MAKE) -C "$(TANDEM_WEMU_REPO)" test
-	@echo "TANDEM CHECK PASS: contract, boot, registry, guest, emulator, static analysis"
+	@echo "TANDEM CHECK PASS: contract, boot, registry, guest, emulator, static analysis, sanitizers"
