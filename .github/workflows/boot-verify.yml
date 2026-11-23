@@ -47,7 +47,15 @@ jobs:
       - name: WuBuKernel bridge gate
         run: make test_kernel_bridge
       - name: WEMU kernel guest gate
-        run: make test_wemu_kernel
+        run: |
+          set +e
+          make test_wemu_kernel 2>&1 | tee /tmp/wemu-kernel-gate.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::WEMU guest gate failed rc=$rc: $(tail -c 600 /tmp/wemu-kernel-gate.log | tr '\n' ' ')"
+          fi
+          exit "$rc"
       - name: Declaration-hygiene ratchet (gcc14-class, must stay clean)
         run: make kernel-strict -j$(nproc)
       - name: Boot it here first (Linux, -kernel path)
