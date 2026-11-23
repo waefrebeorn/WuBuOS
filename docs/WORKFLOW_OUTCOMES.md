@@ -44,6 +44,14 @@ gcc14-vectorization gaps can be found and fixed in one local batch instead
 of one CI round-trip per opcode. A RED control must still be recorded for
 each new WEMU gate.
 
+## Guest execution milestone
+
+The 120M-step WEMU spike now reaches `WuBuOS>` (live console prompt) with
+`fault=0` after tasking, AGI realm tasks, FAT32 mount and VMM page mapping.
+`make test_wemu_kernel` remains the fast `kernel_main` gate; the deep spike
+is a separate diagnostic, not yet a product gate. Boot to a usable shell
+with real devices is still unverified.
+
 ## Current strategic gap
 
 Spikes 001–003 showed WEMU could not execute the higher-half kernel at all;

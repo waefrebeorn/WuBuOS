@@ -18,7 +18,7 @@ decision** that supersedes L21 — never a silent side effect of a driver leg.
 |---|---|---|
 | `WuBuKernel` (`/home/wubu/WuBuKernel`, `main`) | the **contract**: device/driver registry, bounded heap, PMM, tick/console | strict-C11 hosted behaviour **and** `-ffreestanding -nostdinc` compile |
 | `wubuos` (`/home/wubu/wubuos`, `main`) | the **body**: the only tree that boots. Owns the real PCI driver registry (`wubu_drv.c` + `wubu_bus.c`), VMM mapper, real storage/net, GUI | `make kernel` + boot gate + hosted full gate |
-| `wemu` (pinned submodule `src/wemu`, `1c4b6cc` on `leg/user-mode-vsl`, descended from `leg/nested-signals`@`2ce67c0`) | the **usable**: guest execution of foreign static ELF/tools through the VSL syscall table, so the booted system can run other OSes' tools | full WEMU `make test` in the local checkout + `test_wemu_busybox` through the bridge |
+| `wemu` (pinned submodule `src/wemu`, `357abec` on `leg/user-mode-vsl`, descended from `leg/nested-signals`@`2ce67c0`) | the **usable**: guest execution of foreign static ELF/tools through the VSL syscall table, so the booted system can run other OSes' tools | full WEMU `make test` in the local checkout + `test_wemu_busybox` through the bridge |
 
 The gates build WEMU **out of tree** from `src/wemu` (`mk/wemu_user.mk`:
 copy into `build/wemu-user`, apply the narrow VSL prot overlay), not from
@@ -27,7 +27,7 @@ fast-forward to `2ce67c0` (it was a strict ancestor, with no local-only
 commits). The WEMU legs from that reconciled point are `660891e`
 (memory bit-base BT/BTS/BTR/BTC addressing), `ac970c6` (AF borrow
 semantics for subtraction; 8641-round host differential gate),
-`660891e`..`1c4b6cc` (BT memory base, AF borrow, SBB borrow CF,
+`660891e`..`357abec` (BT memory base, AF borrow, SBB borrow CF,
 zero-count SHLD/SHRD flags, redundant-REX decoding, `make test-clean`,
 CI from clean, tracked busybox fixture, FCOMI flags, byte MUL/DIV/IDIV AH half, REP fault restart, gcc -fanalyzer static_check), the last now the pinned pointer and local branch tip. Do not
 downgrade the pointer to the older `775bf40` ancestor.
@@ -237,7 +237,7 @@ cd /home/wubu/wubuos && make test_wemu_busybox
 - WEMU `make test`: **PASS** (all gates plus `test_btmem`, the 8641-round
   `test_string_diff`, the 39329-case `test_flag_diff`, 48 named
   zero-count SHLD/SHRD flag cases, `test_btimm`, `test_fcomi_flags` and `test_divmul` and `test_rep_fault_restart` host-CPU gates). The
-  local checkout and pinned pointer are both `1c4b6cc`, descended from the old `2ce67c0` pin; `make test-clean`
+  local checkout and pinned pointer are both `357abec`, descended from the old `2ce67c0` pin; `make test-clean`
   rebuilds everything before the gates and no local-only branch remains.
 - Final integrated run at `95ac08cf`: `make -k -j24 test` exit 0,
   "✅ All tests passed (all tiers)" (`guest_host_full.log`);
