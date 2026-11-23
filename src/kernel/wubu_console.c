@@ -76,6 +76,7 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "live") == 0)            return cmd_live(argc, argv);
     if (strcmp(argv[0], "recovery") == 0)        return cmd_recovery(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();
+    if (strcmp(argv[0], "kv") == 0)                return cmd_kv(argc, argv);
     if (strcmp(argv[0], "fs") == 0 ||
         strcmp(argv[0], "ls") == 0 ||
         strcmp(argv[0], "cat") == 0 ||

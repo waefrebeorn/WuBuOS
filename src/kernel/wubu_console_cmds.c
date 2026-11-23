@@ -23,6 +23,7 @@
 #include "klog.h"
 #include "libc.h"
 #include "fat32.h"
+#include "wubu_kvfs.h"
 #include "ahci.h"
 #include <stdint.h>
 #include <string.h>
@@ -142,6 +143,99 @@ int cmd_fs(int argc, char **argv)
         klog_printf("fs: removed %s\n", name);
         return 0;
     }
+    return -1;
+}
+
+static int kv_parse_int(const char *s)
+{
+    int v = 0, neg = 0;
+    if (!s) return 0;
+    if (*s == '-') { neg = 1; s++; }
+    for (; *s >= '0' && *s <= '9'; s++) v = v * 10 + (*s - '0');
+    return neg ? -v : v;
+}
+
+/* The kernel console formatter must not rely on a float->int conversion
+ * in a varargs expression (it printed 0 under this build). Convert via
+ * IEEE-754 bits so both the file and the tensor stay float-backed. */
+static int kv_float_to_int(float f)
+{
+    uint32_t bits = 0;
+    memcpy(&bits, &f, sizeof(bits));
+    int neg = (int)(bits >> 31);
+    int exp = (int)((bits >> 23) & 0xffu);
+    uint32_t mant = bits & 0x7fffffu;
+    if (!exp) return 0;
+    int shift = exp - 127;
+    mant |= 0x800000u;
+    if (shift < 0) return 0;
+    uint32_t val = shift <= 23 ? (mant >> (23 - shift))
+                               : (mant << (shift - 23));
+    return neg ? -(int)val : (int)val;
+}
+
+/* Wave 3: a tiny ring-0 KV state surface backed by the boot volume.
+ * The namespace is real (wubu_kvfs path routing over a float tensor);
+ * the compact file makes the state survive a reboot. */
+int cmd_kv(int argc, char **argv)
+{
+    extern int fat32_create(fat32_volume *, uint32_t, const char *,
+                            uint8_t, fat32_file_info *);
+    extern int fat32_open(fat32_volume *, uint32_t, const char *,
+                          const char *, fat32_file *);
+    extern size_t fat32_read(fat32_file *, void *, size_t);
+    extern size_t fat32_write(fat32_file *, const void *, size_t);
+    extern void fat32_close(fat32_file *);
+    extern int fat32_flush(fat32_volume *);
+    const char *sub = argc > 1 ? argv[1] : "";
+    if (!g_wubu_kvfs || !g_wubu_kv_base) {
+        klog_printf("kv: namespace not initialized\n"); return -1;
+    }
+    fat32_volume *vol = fat32_boot_volume();
+    if (!vol) { klog_printf("kv: no boot volume\n"); return -1; }
+    float v[4];
+    if (strcmp(sub, "write") == 0) {
+        if (argc < 6) { klog_printf("kv: write n1 n2 n3 n4\n"); return -1; }
+        int iv[4];
+        for (int i = 0; i < 4; i++) {
+            iv[i] = kv_parse_int(argv[i + 2]);
+            v[i] = (float)iv[i];
+        }
+        if (wubu_kvfs_write(g_wubu_kvfs, "/kv/world/tick_0",
+                            g_wubu_kv_base, v, 4) != 0) {
+            klog_printf("kv: namespace write failed\n"); return -1;
+        }
+        fat32_file_info fi;
+        (void)fat32_create(vol, 0, "KVSTATE.BIN", 0, &fi);
+        fat32_file f;
+        if (fat32_open(vol, 0, "KVSTATE.BIN", "w", &f) != 0 ||
+            fat32_write(&f, v, sizeof(v)) != sizeof(v)) {
+            klog_printf("kv: state file write failed\n"); return -1;
+        }
+        fat32_close(&f);
+        fat32_flush(vol);
+        klog_printf("kv: wrote %d %d %d %d\n", iv[0], iv[1], iv[2], iv[3]);
+        return 0;
+    }
+    if (strcmp(sub, "read") == 0) {
+        fat32_file f;
+        if (fat32_open(vol, 0, "KVSTATE.BIN", "r", &f) != 0 ||
+            fat32_read(&f, v, sizeof(v)) != sizeof(v)) {
+            klog_printf("kv: no state file\n"); return -1;
+        }
+        fat32_close(&f);
+        if (wubu_kvfs_write(g_wubu_kvfs, "/kv/world/tick_0",
+                            g_wubu_kv_base, v, 4) != 0 ||
+            wubu_kvfs_read(g_wubu_kvfs, "/kv/world/tick_0",
+                           g_wubu_kv_base, v, 4) != 0) {
+            klog_printf("kv: namespace route failed\n"); return -1;
+        }
+        klog_printf("kv state %d %d %d %d\n", kv_float_to_int(v[0]),
+                    kv_float_to_int(v[1]), kv_float_to_int(v[2]),
+                    kv_float_to_int(v[3]));
+        return 0;
+    }
+    klog_printf("kv: usage: kv write n1 n2 n3 n4 | kv read\n");
     return -1;
 }
 

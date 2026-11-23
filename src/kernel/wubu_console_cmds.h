@@ -21,5 +21,6 @@ int cmd_date(int argc, char **argv);
 int cmd_agi(int argc, char **argv);
 int cmd_holyc(int argc, char **argv);
 int cmd_fs(int argc, char **argv);
+int cmd_kv(int argc, char **argv);
 
 #endif /* WUBU_CONSOLE_CMDS_H */

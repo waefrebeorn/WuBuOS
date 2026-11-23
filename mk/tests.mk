@@ -902,6 +902,10 @@ test_wemu_kernel_virtio: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 	WEMU_KERNEL_STEPS=100000000 WEMU_KERNEL_MARKER='virtio-blk: MODERN' \
 		./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
+# Wave 3: ring-0 KV namespace state must survive a reboot.
+test_wemu_kv: test_wemu_kernel
+	python3 tools/wemu_kv_gate.py
+
 # Wave 0: a crash record must survive reboot through the boot volume.
 test_wemu_crash: test_wemu_kernel
 	python3 tools/wemu_crash_gate.py

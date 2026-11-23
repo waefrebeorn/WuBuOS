@@ -331,3 +331,19 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
 - All four capability classes (DEV_OPEN, MMIO_MAP, IRQ_ACQUIRE, DMA_DOMAIN)
   are now defined AND enforced on real WuBuOS paths. Capability handoff
   beyond registration/init-time remains open.
+
+## Landed increment — Wave 3 ring-0 KV namespace
+
+- `metal_main` now initializes the KVFS singleton and mounts `/kv/world`
+  over a 4 MiB float tensor. The console `kv write/read` commands route
+  through the real KV namespace and persist a compact 16-byte state file
+  on the FAT32 boot volume.
+- `make test_wemu_kv` boots the real kernel twice against the same image:
+  `kv write 11 22 33 44`, then a fresh process reads `kv state 11 22 33 44`
+  back through the namespace. PASS, with the gate added to boot-verify.
+- Debugging found a real build-specific trap: a float cast inside a
+  varargs `klog_printf` printed 0 even when the float bits were correct.
+  The console path now converts via IEEE-754 bits instead of trusting
+  that cast in the formatter argument.
+- Honest scope: this is a ring-0 path-routed KV state slice, not a full
+  9P server or a model forward pass. Those remain open.

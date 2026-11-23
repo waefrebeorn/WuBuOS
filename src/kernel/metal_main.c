@@ -817,6 +817,18 @@ void kernel_main(void *boot_info) {
         }
     }
 
+    /* Wave 3: KV cache is a namespace in ring 0. A small /kv/world
+     * region is mounted over the static tensor; console `kv` commands
+     * persist a compact state file on the boot volume. */
+    {
+        extern int wubu_kvfs_kernel_init(uint32_t, uint32_t);
+        extern int wubu_kvfs_mount(void *, const char *, uint32_t, uint32_t);
+        extern void *g_wubu_kvfs;
+        if (wubu_kvfs_kernel_init(256u, 4096u) == 0 && g_wubu_kvfs) {
+            (void)wubu_kvfs_mount(g_wubu_kvfs, "/kv/world", 0u, 256u);
+        }
+    }
+
     /* Gap F10: pick up any crash record left by a previous boot. This
      * must run AFTER the FAT32 boot volume is attached; the record is a
      * file on that volume now, not a stale AHCI sim-disk sector. */

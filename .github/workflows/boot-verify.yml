@@ -68,10 +68,10 @@ jobs:
           exit "$rc"
       - name: WuBuKernel contract gates (ABI, caps, BAR v2)
         run: make test_kernel_abi test_kernel_cap test_kernel_bar_v2 test_kernel_irq_cap test_virtio_blk test_virtio_net
-      - name: Wave 0 metal usability gates (keyboard, files, app, crash)
+      - name: Wave 0/3 metal gates (keyboard, files, app, crash, KV namespace)
         run: |
           set +e
-          make test_wemu_kbd test_wemu_fs test_wemu_app test_wemu_crash 2>&1 | tee /tmp/wemu-wave0-gates.log
+          make test_wemu_kbd test_wemu_fs test_wemu_app test_wemu_crash test_wemu_kv 2>&1 | tee /tmp/wemu-wave0-gates.log
           rc=${PIPESTATUS[0]}
           set -e
           if [ "$rc" -ne 0 ]; then
