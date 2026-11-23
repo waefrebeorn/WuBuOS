@@ -223,3 +223,16 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   into kernel.elf. Bridge PASS.
 - This is the ABI descriptor only; capabilities, BARv2, IRQ and DMA
   contracts remain open.
+
+## Landed increment — Wave 1 capability tokens
+
+- WuBuKernel `5167f6b` adds `wubu_cap.h/.c`: opaque u64 tokens for
+  DEV_OPEN, MMIO_MAP, IRQ_ACQUIRE and DMA_DOMAIN. Root-only v1 grants,
+  exact class+object checks, immediate revoke, generation-stamped tokens
+  that cannot be replayed after slot reuse, and bounded 32-slot storage.
+- `make test` covers uncapped denial, wrong class/object, non-root grant,
+  double revoke, reset and cross-token isolation. Freestanding compile
+  passed. WuBuOS `test_kernel_cap` bridges the same contract in hosted
+  mode; L21 is preserved (no cap object in kernel.elf).
+- Still open: wiring these caps into actual device open / MMIO map /
+  IRQ / DMA paths, and the BARv2 descriptor.
