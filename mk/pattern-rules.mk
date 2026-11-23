@@ -20,6 +20,12 @@
 #   must never inherit the build host's default architecture.
 KERNEL_CFLAGS = -Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -march=x86-64 -mtune=generic
 
+# Shared WuBuKernel contract: build from the canonical repo checkout, not
+# from the uninitialized gitlink inside this tree. L21 still stands: this
+# single contract object is the only WuBuKernel code in kernel.elf.
+$(KERNEL)/WuBuKernel/src/wubu_driver_contract.o: /home/wubu/WuBuKernel/src/wubu_driver_contract.c /home/wubu/WuBuKernel/include/wubu_driver_contract.h
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I/home/wubu/WuBuKernel/include -MMD -MP -c $< -o $@ -Iinclude
+
 $(KERNEL)/%.o: $(KERNEL)/%.c
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude
 

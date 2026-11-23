@@ -200,12 +200,30 @@ int wubu_drv_map_bar_range(const wubu_drv_dev_t *dev, unsigned bar_index,
     /* The PCI scan masks BAR type bits. Direct fixtures may still carry the
      * raw I/O-bit form; reject both spellings before the contract decode. */
     if ((bar & 1u) || !wubu_contract_is_mmio(bar)) return -1;
-    if (wubu_contract_decode_bar(bar, high, &phys) != 0) return -1;
+
+    /* DRV10-v2: decode through the shared contract with base AND size.
+     * The scan already probed the BAR mask into barN_size; reconstruct the
+     * all-ones readback so v2 can reject reserved types and windows that
+     * are smaller than the requested mapping. */
+    uint64_t size = (bar_index == 0u) ? dev->bar0_size : dev->bar4_size;
+    if (!size || (size & (size - 1ull)) != 0) return -1;
+    if (size < (uint64_t)pages * 4096u) return -1;
+    uint32_t probe0 = (uint32_t)bar |
+                      (uint32_t)(~(size - 1ull) & 0xFFFFFFF0ull);
+    uint32_t probe1 = (uint32_t)high;
+    if (high || size > 0x100000000ull)
+        probe1 |= (uint32_t)(~((size - 1ull) >> 32));
+    wubu_contract_bar_v2_t v2;
+    if (wubu_contract_decode_bar_v2((uint32_t)bar, (uint32_t)high,
+                                    probe0, probe1, &v2) != 0) return -1;
+    phys = v2.phys;
     if (!wubu_vmm_map_page) return -1;        /* no mapper (hosted gate) */
     for (uint32_t i = 0; i < pages; i++)
         if (wubu_vmm_map_page(va_page + (uint64_t)i * 4096u,
                               phys + (uint64_t)i * 4096u,
-                              WUBU_CONTRACT_MAP_FLAGS) != 0) {
+                              (uint32_t)(v2.flags &
+                                (WUBU_CONTRACT_FLAG_PRESENT |
+                                 WUBU_CONTRACT_FLAG_WRITABLE))) != 0) {
             /* DRV10c: roll back the pages we just mapped. No fabricated VA. */
             if (wubu_vmm_unmap)
                 for (uint32_t j = 0; j < i; j++)

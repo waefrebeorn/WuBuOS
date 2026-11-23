@@ -153,12 +153,14 @@ int main(void)
     wubu_drv_add_device(&d);   /* Van Gogh iGPU */
     d.vendor = 0x144D; d.device = 0xA80A; d.class_code = 0x01; d.subclass = 0x08;
     d.bar0 = 0xFC000000ULL;                  /* D1: real NVMe MMIO BAR */
+    d.bar0_size = 0x4000ULL;
     wubu_drv_add_device(&d);   /* NVMe SSD */
-    d.bar0 = 0;
+    d.bar0 = 0; d.bar0_size = 0;
     d.vendor = 0x14C3; d.device = 0x7922; d.class_code = 0x02; d.subclass = 0x80;
     d.bar0 = 0xFB000000ULL;                  /* D1: real Wi-Fi MMIO BAR */
+    d.bar0_size = 0x4000ULL;
     wubu_drv_add_device(&d);   /* RZ616 Wi-Fi */
-    d.bar0 = 0;
+    d.bar0 = 0; d.bar0_size = 0;
     d.vendor = 0x1022; d.device = 0x1457; d.class_code = 0x04; d.subclass = 0x03;
     wubu_drv_add_device(&d);   /* HDA audio */
     d.vendor = 0x10EC; d.device = 0x8168; d.class_code = 0x02; d.subclass = 0x00;
@@ -217,6 +219,7 @@ int main(void)
      * its MMIO base (the driver maps the probe window from this) */
     wubu_drv_dev_t nvme_with_bar = *nvme;
     nvme_with_bar.bar0 = 0xFC000000ULL;   /* a real NVMe BAR */
+    nvme_with_bar.bar0_size = 0x4000ULL;  /* probed 16 KiB aperture */
     uint64_t bar0 = 0, bar1 = 0;
     if (wubu_drv_dev_bar(&nvme_with_bar, &bar0, &bar1) != 0)
         FAIL("bar accessor on a BAR'd device");
@@ -270,7 +273,7 @@ int main(void)
 
     /* D1: 64-bit memory BAR uses bar1 as the high dword. */
     wubu_drv_dev_t bar64 = *nvme;
-    bar64.bar0 = 0xFC000004ULL; bar64.bar1 = 1; bar64.mmio_va = 0;
+    bar64.bar0 = 0xFC000004ULL; bar64.bar1 = 1; bar64.bar0_size = 0x4000ULL; bar64.mmio_va = 0;
     if (wubu_drv_map_mmio(&bar64, WUBU_DRV_MMIO_VA_BASE + 0x2000, &mapped) != 0)
         FAIL("64-bit BAR map");
     if (g_map_phys[1] != 0x1FC000000ULL)
@@ -325,6 +328,22 @@ int main(void)
     if (wubu_drv_map_all_mmio() != 0 || g_map_n != 2)
         FAIL("map_all_mmio is not idempotent");
     printf("  PASS: late pass maps both BARs at distinct slots, idempotently\n");
+
+    /* DRV10-v2: a reserved BAR type encoding is rejected by the actual
+     * binding path, not just by the contract unit test. */
+    {
+        wubu_drv_dev_t reserved = *nvme;
+        reserved.bar0 = 0xFC000006ULL;  /* bits [2:1] == 11: reserved */
+        reserved.bar0_size = 0x4000ULL;
+        reserved.mmio_va = 0;
+        g_map_n = 0;
+        uint64_t mapped = 0;
+        if (wubu_drv_map_mmio(&reserved, WUBU_DRV_MMIO_VA_BASE + 0x9000ull,
+                              &mapped) == 0 || g_map_n != 0 || mapped != 0)
+            FAIL("reserved BAR type was mapped");
+        printf("  PASS: reserved BAR type rejected by the binding path\n");
+    }
+
 
     /* D1b: multi-page aperture through the SAME owner (no second mapper). */
     {

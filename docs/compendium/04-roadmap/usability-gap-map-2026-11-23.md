@@ -251,3 +251,17 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   probe as unimplemented); it was removed after the decoder output showed
   the probe was legitimate, not after weakening the decoder.
 - Still open: switching actual PCI/MMIO consumers from v1 to v2.
+
+## Landed increment — Wave 1 binding path uses BAR v2
+
+- `wubu_drv_map_bar_range` now decodes through `wubu_contract_decode_bar_v2`
+  using the scanned aperture size, rejects missing/non-power-of-two or
+  undersized windows, and maps with named PRESENT|WRITABLE flags instead of
+  the integer 3. The kernel contract object is built from the canonical
+  WuBuKernel checkout because the in-tree gitlink is not initialized.
+- Legacy `test_drv` fixtures now carry probed `bar0_size` values; a new
+  negative case asserts a reserved BAR type is rejected by the actual
+  binding path. Pre-change source RED-control FAILs with
+  `reserved BAR type was mapped`; restored source PASSes.
+- Both `include/wubu_driver_contract.h` mirrors carry the v2 declarations.
+- Still open: wiring capability tokens into this binding path.
