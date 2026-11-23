@@ -886,10 +886,12 @@ test_wemu_busybox: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/
 
 # WEMU guest-execution gate: the real kernel ELF must reach kernel_main
 # inside WEMU without a fault. Loader/page-table details live in the tool.
-test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c src/kernel/kernel.elf
+# WEMU_KERNEL_ELF lets CI artifacts be replayed locally with the same gate.
+WEMU_KERNEL_ELF ?= src/kernel/kernel.elf
+test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
 		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
-	./tools/wemu_kernel_gate src/kernel/kernel.elf
+	./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
 # Differential gate: VSL mprotect protections are REALLY enforced in the
 # WEMU guest-memory write path, with a pre-change (no-hook) negative control.

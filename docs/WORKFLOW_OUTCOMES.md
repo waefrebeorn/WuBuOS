@@ -35,6 +35,15 @@ count of correct instructions. Work is ordered by outcomes:
 - Am I repeating a pattern I learned from another repo (e.g. stash-pop
   workflows)? Confirm it belongs here before using it.
 
+## CI artifact replay
+
+When `boot-verify` finds a new ISA gap, download the run's `boot-diagnostics`
+artifact and run `make test_wemu_kernel WEMU_KERNEL_ELF=<extracted kernel.elf>`.
+This uses the same gate as CI against the exact failing binary, so several
+gcc14-vectorization gaps can be found and fixed in one local batch instead
+of one CI round-trip per opcode. A RED control must still be recorded for
+each new WEMU gate.
+
 ## Current strategic gap
 
 Spikes 001–003 showed WEMU could not execute the higher-half kernel at all;
