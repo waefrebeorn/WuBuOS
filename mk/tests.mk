@@ -893,6 +893,14 @@ test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
 	./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
+# Guest block-I/O gate: WEMU's virtio-blk must serve the kernel's sector
+# reads so the boot path reports a live persistent disk.
+test_wemu_kernel_virtio: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
+	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
+		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
+	WEMU_KERNEL_STEPS=100000000 WEMU_KERNEL_MARKER='virtio-blk: MODERN' \
+		./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
+
 # Deep opt-in gate: run to the live console prompt. Too slow for tandem_check.
 test_wemu_kernel_deep: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
