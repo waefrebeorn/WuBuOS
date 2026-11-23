@@ -118,6 +118,12 @@ void wubu_vq_layout(uint16_t q, uint32_t *avail_off,
 /* Allocate and lay out the split ring for a queue of known size. No
  * device register is touched; legacy and modern transports both use it
  * so ring arithmetic has exactly one owner. */
+/* DMA_DOMAIN authority for ring setup. Lazy-init on first ring; exposed
+ * for fail-closed revoke/grant gates. */
+void wubu_vq_dma_cap_init(void);
+int wubu_vq_dma_cap_revoke(void);
+int wubu_vq_dma_cap_grant(void);
+
 int wubu_vq_setup_ring(wubu_vq_t *vq, uint16_t index, uint16_t qsize,
                        uint32_t tail_bytes);
 

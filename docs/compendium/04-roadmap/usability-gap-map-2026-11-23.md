@@ -317,3 +317,17 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   install. The gate is in the critical tier and boot-verify contract step.
 - `wubu_irq_cap_stubs.c` is test-only and defines no product behavior.
 - Still open: DMA_DOMAIN and capability handoff beyond registration time.
+
+## Landed increment — Wave 1 DMA_DOMAIN
+
+- `wubu_vq_setup_ring()` now requires a live DMA_DOMAIN token before
+  allocating or publishing a virtqueue ring. Lazy init grants once; revoke
+  stays revoked until an explicit regrant, so a failed authorization cannot
+  silently re-arm itself.
+- `test_virtio_blk` proves granted setup, revoked refusal, and regranted
+  setup on the real ring path. `test_virtio_net` also passes with the cap
+  linked into its direct-inclusion build. Both are in boot-verify's
+  contract gate step.
+- All four capability classes (DEV_OPEN, MMIO_MAP, IRQ_ACQUIRE, DMA_DOMAIN)
+  are now defined AND enforced on real WuBuOS paths. Capability handoff
+  beyond registration/init-time remains open.

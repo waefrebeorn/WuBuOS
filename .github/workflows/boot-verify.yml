@@ -67,7 +67,7 @@ jobs:
           fi
           exit "$rc"
       - name: WuBuKernel contract gates (ABI, caps, BAR v2)
-        run: make test_kernel_abi test_kernel_cap test_kernel_bar_v2 test_kernel_irq_cap
+        run: make test_kernel_abi test_kernel_cap test_kernel_bar_v2 test_kernel_irq_cap test_virtio_blk test_virtio_net
       - name: Wave 0 metal usability gates (keyboard, files, app, crash)
         run: |
           set +e

@@ -437,6 +437,20 @@ int main(void)
     wubu_vq_kick(&bare);
     CHECK(doorbell[0] == 3 && doorbell[1] == 0);
 
+    /* DMA_DOMAIN: ring setup is authority-gated on the real path. */
+    {
+        wubu_vq_t vq_ok, vq_denied, vq_regranted;
+        wubu_vq_dma_cap_init();
+        CHECK(wubu_vq_setup_ring(&vq_ok, 0, 8, 16) == 0);
+        wubu_vq_teardown(&vq_ok);
+        CHECK(wubu_vq_dma_cap_revoke() == 0);
+        CHECK(wubu_vq_setup_ring(&vq_denied, 0, 8, 16) != 0);
+        CHECK(wubu_vq_dma_cap_grant() == 0);
+        CHECK(wubu_vq_setup_ring(&vq_regranted, 0, 8, 16) == 0);
+        wubu_vq_teardown(&vq_regranted);
+        printf("  PASS: DMA_DOMAIN cap gates virtqueue ring setup\n");
+    }
+
     if (failures == 0) printf("test_virtio_blk: ALL PASS\n");
     else printf("test_virtio_blk: %d FAILURES\n", failures);
     return failures ? 1 : 0;

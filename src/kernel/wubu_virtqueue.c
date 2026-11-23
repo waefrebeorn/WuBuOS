@@ -18,6 +18,7 @@
 #include "wubu_virtqueue.h"
 #include "wubu_drv.h"
 #include "wubu_pci.h"
+#include "wubu_cap.h"
 
 #ifdef MYSEED_METAL
 void *memset(void *s, int c, size_t n);
@@ -165,12 +166,34 @@ int wubu_vq_dev_driver_ok(uint16_t iobase)
     return 0;
 }
 
+static uint64_t g_vq_dma_cap = WUBU_CAP_NONE;
+static int g_vq_dma_initialized;
+
+void wubu_vq_dma_cap_init(void) {
+    if (g_vq_dma_initialized) return;  /* revoke must stay revoked */
+    g_vq_dma_initialized = 1;
+    if (!wubu_cap_check(g_vq_dma_cap, WUBU_CAP_DMA_DOMAIN, 0u))
+        (void)wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_DMA_DOMAIN, 0u,
+                             &g_vq_dma_cap);
+}
+
+int wubu_vq_dma_cap_revoke(void) {
+    return wubu_cap_revoke(g_vq_dma_cap);
+}
+
+int wubu_vq_dma_cap_grant(void) {
+    return wubu_cap_grant(WUBU_CAP_ROOT, WUBU_CAP_DMA_DOMAIN, 0u,
+                          &g_vq_dma_cap);
+}
+
 int wubu_vq_setup_ring(wubu_vq_t *vq, uint16_t index, uint16_t qsize,
                        uint32_t tail_bytes)
 {
     uint32_t avail_off, used_off, total;
 
     if (!vq || !qsize) return -1;
+    wubu_vq_dma_cap_init();
+    if (!wubu_cap_check(g_vq_dma_cap, WUBU_CAP_DMA_DOMAIN, 0u)) return -1;
     memset(vq, 0, sizeof(*vq));
     vq->index = index;
     vq->qsize = qsize;

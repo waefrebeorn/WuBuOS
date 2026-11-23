@@ -3305,6 +3305,7 @@ test_virtio_pci_modern:
 test_virtio_blk:
 	$(CC) -O2 -Wall -Wextra -std=c11 -no-pie -I$(KERNEL) -Iinclude \
 		$(KERNEL)/test/test_virtio_blk.c \
+		$(WUBU_KERNEL_CONTRACT)/src/wubu_cap.c \
 		-o $(KERNEL)/test_virtio_blk
 	$(KERNEL)/test_virtio_blk
 
@@ -3313,6 +3314,7 @@ test_virtio_blk:
 test_virtio_net:
 	$(CC) -O2 -Wall -Wextra -std=c11 -no-pie -I$(KERNEL) -Iinclude \
 		$(KERNEL)/test/test_virtio_net.c \
+		$(WUBU_KERNEL_CONTRACT)/src/wubu_cap.c \
 		-o $(KERNEL)/test_virtio_net
 	$(KERNEL)/test_virtio_net
 
