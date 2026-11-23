@@ -48,8 +48,9 @@ each new WEMU gate.
 
 The 120M-step WEMU spike now reaches `WuBuOS>` (live console prompt) with
 `fault=0` after tasking, AGI realm tasks, FAT32 mount and VMM page mapping.
-`make test_wemu_kernel` remains the fast `kernel_main` gate; the deep spike
-is a separate diagnostic, not yet a product gate. Boot to a usable shell
+`make test_wemu_kernel` remains the fast `kernel_main` gate in tandem_check;
+`make test_wemu_kernel_deep` is the opt-in 120M-step gate to the `WuBuOS>`
+prompt (verified PASS at 113.9M steps, fault=0). Boot to a usable shell
 with real devices is still unverified.
 
 ## Current strategic gap

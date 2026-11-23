@@ -893,6 +893,13 @@ test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
 	./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
+# Deep opt-in gate: run to the live console prompt. Too slow for tandem_check.
+test_wemu_kernel_deep: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
+	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
+		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
+	WEMU_KERNEL_STEPS=120000000 WEMU_KERNEL_MARKER='WuBuOS>' \
+		./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
+
 # Differential gate: VSL mprotect protections are REALLY enforced in the
 # WEMU guest-memory write path, with a pre-change (no-hook) negative control.
 test_wemu_protect: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/wubu_wemu_prot_test.c

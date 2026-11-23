@@ -21,8 +21,10 @@
 #define PT_PDPT    (PT_BASE + 0x1000)
 #define PT_PD      (PT_BASE + 0x2000)
 #define LM_ENTRY   0xffffffff80100365ull
-#define MAX_STEPS  1500000ull
-#define MARKER     "WuBuOS: kernel_main entered (long mode OK)"
+#define DEFAULT_MAX_STEPS 1500000ull
+#define DEFAULT_MARKER    "WuBuOS: kernel_main entered (long mode OK)"
+static uint64_t max_steps = DEFAULT_MAX_STEPS;
+static const char *marker = DEFAULT_MARKER;
 
 static char serial_buf[8192];
 static size_t serial_len;
@@ -82,6 +84,10 @@ static void put64(WemuCpu *c, uint64_t addr, uint64_t v) {
 
 int main(int argc, char **argv) {
     const char *path = argc > 1 ? argv[1] : "src/kernel/kernel.elf";
+    const char *env = getenv("WEMU_KERNEL_STEPS");
+    if (env && *env) max_steps = strtoull(env, NULL, 0);
+    env = getenv("WEMU_KERNEL_MARKER");
+    if (env && *env) marker = env;
     size_t n = 0;
     uint8_t *image = slurp(path, &n);
     if (!image) { printf("FAIL: cannot read %s\n", path); return 2; }
@@ -110,7 +116,7 @@ int main(int argc, char **argv) {
     put64(c, PT_BASE + 511 * 8, PT_PDPT | 3);
     for (int i = 0; i < 4; i++) put64(c, PT_PDPT + i * 8, PT_PD | 3);
     put64(c, PT_PDPT + 510 * 8, PT_PD | 3); /* higher-half VA uses PDPT[510] */
-    for (int i = 0; i < 34; i++) /* kernel heap: 0..68 MiB */
+    for (int i = 0; i < 256; i++) /* kernel heap: full 256 MiB of guest RAM */
         put64(c, PT_PD + i * 8, (uint64_t)i * 0x200000ull | 0x83);
     put64(c, PT_PD + 40 * 8, PT_BASE | 0x83);    /* page tables themselves */
     for (int i = 500; i <= 503; i++) /* APIC windows -> spare RAM */
@@ -127,21 +133,21 @@ int main(int argc, char **argv) {
     wemu_cpu_set_rip(c, entry);
 
     uint64_t steps = 0;
-    while (steps < MAX_STEPS && !strstr(serial_buf, MARKER)) {
+    while (steps < max_steps && !strstr(serial_buf, marker)) {
         int64_t s = wemu_cpu_run(c, 50000);
         if (s <= 0) break;
         steps += (uint64_t)s;
         if (wemu_cpu_fault(c) || wemu_cpu_halted(c)) break;
     }
-    if (steps >= MAX_STEPS) { printf("FAIL: kernel_main marker timeout\n"); fails++; }
+    if (steps >= max_steps) { printf("FAIL: marker timeout: %s\n", marker); fails++; }
     if (wemu_cpu_fault(c)) {
         printf("FAIL: guest fault %d at %llx cr2=%llx\n", wemu_cpu_fault(c),
                (unsigned long long)wemu_cpu_rip(c),
                (unsigned long long)wemu_cpu_fault_addr(c));
         fails++;
     }
-    if (!strstr(serial_buf, MARKER)) {
-        printf("FAIL: kernel_main marker absent; serial: %s\n", serial_buf);
+    if (!strstr(serial_buf, marker)) {
+        printf("FAIL: marker absent (%s); serial: %s\n", marker, serial_buf);
         fails++;
     }
     printf("test_wemu_kernel: %s (%llu steps, fault=%d, serial=%zu bytes)\n",
