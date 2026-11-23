@@ -48,6 +48,31 @@ static uint8_t *slurp(const char *path, size_t *n) {
     fclose(f); *n = (size_t)sz; return b;
 }
 
+static uint64_t find_sym(const uint8_t *b, size_t n, const char *name) {
+    Elf64_Ehdr eh;
+    if (n < sizeof eh) return 0;
+    memcpy(&eh, b, sizeof eh);
+    for (int i = 0; i < eh.e_shnum; i++) {
+        if (eh.e_shoff + (size_t)(i + 1) * eh.e_shentsize > n) break;
+        Elf64_Shdr sh;
+        memcpy(&sh, b + eh.e_shoff + (size_t)i * eh.e_shentsize, sizeof sh);
+        if (sh.sh_type != SHT_SYMTAB || sh.sh_link >= eh.e_shnum) continue;
+        Elf64_Shdr str;
+        memcpy(&str, b + eh.e_shoff + (size_t)sh.sh_link * eh.e_shentsize,
+               sizeof str);
+        if (str.sh_offset + str.sh_size > n) continue;
+        const char *strings = (const char *)b + str.sh_offset;
+        for (size_t off = 0; off + sizeof(Elf64_Sym) <= sh.sh_size;
+             off += sh.sh_entsize ? sh.sh_entsize : sizeof(Elf64_Sym)) {
+            Elf64_Sym s;
+            memcpy(&s, b + sh.sh_offset + off, sizeof s);
+            if (s.st_name < str.sh_size && strcmp(strings + s.st_name, name) == 0)
+                return s.st_value;
+        }
+    }
+    return 0;
+}
+
 static void put64(WemuCpu *c, uint64_t addr, uint64_t v) {
     if (wemu_mem_write(c, addr, &v, 8) != 0) {
         printf("FAIL: page-table write at %llx\n", (unsigned long long)addr);
@@ -97,7 +122,9 @@ int main(int argc, char **argv) {
     wemu_cpu_set_rsp(c, 0x70000);
     wemu_cpu_set_reg(c, 0, 0); /* EAX: not multiboot magic */
     wemu_cpu_set_reg(c, 6, 0); /* RSI: no Limine response */
-    wemu_cpu_set_rip(c, LM_ENTRY);
+    uint64_t entry = find_sym(image, n, ".long_mode_start");
+    if (entry == 0) { printf("FAIL: .long_mode_start symbol missing\n"); fails++; }
+    wemu_cpu_set_rip(c, entry);
 
     uint64_t steps = 0;
     while (steps < MAX_STEPS && !strstr(serial_buf, MARKER)) {
