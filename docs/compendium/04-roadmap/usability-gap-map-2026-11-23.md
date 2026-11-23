@@ -236,3 +236,18 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   mode; L21 is preserved (no cap object in kernel.elf).
 - Still open: wiring these caps into actual device open / MMIO map /
   IRQ / DMA paths, and the BARv2 descriptor.
+
+## Landed increment — Wave 1 BAR v2
+
+- WuBuKernel `a96c956` adds `wubu_contract_decode_bar_v2`: physical base,
+  aperture size from the all-ones probe, BAR type, and named MMIO flags
+  (present/writable/cache-inhibited). I/O BARs, legacy 1MB and reserved
+  type encodings, non-power-of-two sizes and null output fail closed.
+  v1 decode is retained. All WuBuKernel tests and freestanding compile pass.
+- WuBuOS `test_kernel_bar_v2` bridges the decoder in hosted mode, asserting
+  `0x0F000000 / 1 MiB / 32-bit / flags=7` plus reserved-type and I/O BAR
+  rejection. L21 holds: no contract object is linked into kernel.elf.
+- One initial test fixture was wrong (it treated a valid 16-byte all-ones
+  probe as unimplemented); it was removed after the decoder output showed
+  the probe was legitimate, not after weakening the decoder.
+- Still open: switching actual PCI/MMIO consumers from v1 to v2.
