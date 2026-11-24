@@ -121,6 +121,8 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
                 cpu.r[rd] = (uint32_t)cpu.r[rt] << sa; break;
             case 0x02: /* srl — shift right logical (immediate) */
                 cpu.r[rd] = (uint32_t)cpu.r[rt] >> sa; break;
+            case 0x03: /* sra — shift right ARITHMETIC (immediate) */
+                cpu.r[rd] = (uint32_t)((int32_t)cpu.r[rt] >> sa); break;
             case 0x08: /* jr */
                 if (rs == 31 && cpu.r[31] == 0) goto done; /* standalone ret */
                 cpu.pc = (uint32_t)cpu.r[rs]; continue;
@@ -135,9 +137,15 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
             /* sllv — variable shift left (funct 0x04) */
             case 0x04:
                 cpu.r[rd] = (uint32_t)cpu.r[rt] << (cpu.r[rs] & 0x1F); break;
-            /* srlv — variable shift right (funct 0x06) */
+            /* srlv — variable shift right, LOGICAL (funct 0x06) */
             case 0x06:
                 cpu.r[rd] = (uint32_t)cpu.r[rt] >> (cpu.r[rs] & 0x1F); break;
+            /* srav — variable shift right, ARITHMETIC (funct 0x07).
+             * MIR_SHR is arithmetic (see wubu_mir.h) and had no encoding that
+             * the model could execute: the driver emitted 0x06, which is SRLV,
+             * so shr(-16,2) answered the unsigned result. */
+            case 0x07:
+                cpu.r[rd] = (uint32_t)((int32_t)cpu.r[rt] >> (cpu.r[rs] & 0x1F)); break;
             /* div — quotient in lo, remainder in hi (funct 0x1A) */
             case 0x1A:
                 if (cpu.r[rt] != 0) {

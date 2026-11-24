@@ -144,6 +144,16 @@ void warm64_movz_imm(WArm64Enc *e, WArm64Reg rd, uint16_t imm16, int hw, int sf)
     warm64_emit_word(e, ins);
 }
 
+/* MOVK (wide immediate): 111100101 hw 00000000 imm16 Rd = 0xF2800000 */
+void warm64_movk_imm(WArm64Enc *e, WArm64Reg rd, uint16_t imm16, int hw, int sf) {
+    uint32_t ins = 0xF2800000;
+    ins |= (sf & 1) << 31;
+    ins |= (hw & 3) << 21;
+    ins |= (uint32_t)(imm16 & 0xFFFF) << 5;
+    ins |= (rd & 0x1F);
+    warm64_emit_word(e, ins);
+}
+
 /* MOV (wide immediate) — alias for MOVZ with hw=0 */
 void warm64_mov_imm(WArm64Enc *e, WArm64Reg rd, uint16_t imm16) {
     warm64_movz_imm(e, rd, imm16, 0, 1);

@@ -88,6 +88,11 @@ void warm64_sdiv_reg(WArm64Enc *e, WArm64Reg rd, WArm64Reg rn, WArm64Reg rm);
 void warm64_mov_imm(WArm64Enc *e, WArm64Reg rd, uint16_t imm16);
 void warm64_movz_imm(WArm64Enc *e, WArm64Reg rd, uint16_t imm16, int hw, int sf);
 void warm64_mov_reg(WArm64Enc *e, WArm64Reg rd, WArm64Reg rn);
+/* MOVK: insert a 16-bit halfword into bits [hw*16 +: 16], keeping the rest.
+ * Materialising a 64-bit constant needs MOVZ for the first halfword and MOVK for
+ * the rest -- using MOVZ for all four ZEROES the previous chunks, so the register
+ * ends up holding only the last one (that is how -16 became 0xffff000000000000). */
+void warm64_movk_imm(WArm64Enc *e, WArm64Reg rd, uint16_t imm16, int hw, int sf);
 void warm64_mov_sp(WArm64Enc *e, WArm64Reg rd, WArm64Reg rn);
 
 /* -- Bitwise (register) ------------------------------------------- */
