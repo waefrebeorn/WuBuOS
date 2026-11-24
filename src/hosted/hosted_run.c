@@ -34,6 +34,17 @@
 #include <time.h>
 #include "../kernel/input.h"
 
+/* Frame-rate request from the environment, clamped: junk or out-of-range
+ * falls back to the default rather than spinning at 0 fps or dividing by 0. */
+static long fps_env(const char *name, long dflt, long lo, long hi) {
+    const char *s = getenv(name);
+    if (!s || !*s) return dflt;
+    char *end = NULL;
+    long v = strtol(s, &end, 10);
+    if (*end || v < lo || v > hi) return dflt;
+    return v;
+}
+
 int hosted_run(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS running. Mode: %s\n",
             state->mode == HMODE_GUI ? "GUI" :
@@ -41,14 +52,17 @@ int hosted_run(hosted_state_t *state) {
             state->mode == HMODE_CONSOLE ? "Console" : "Headless");
 
     struct timespec last;
-    struct timespec last_input;
+struct timespec last_input;
     clock_gettime(CLOCK_MONOTONIC, &last);
     /* 60 fps while the user is interacting -- input is sampled once per loop,
-     * so the loop rate IS the input latency -- and 20 fps when idle.  A
-     * full-rate redraw of a 1920x1080 desktop cost a whole core; idling at
-     * 20 fps keeps the clock and the mascot alive for a third of that. */
-    const long frame_ns_active = 1000000000L / 60;
-    const long frame_ns_idle   = 1000000000L / 20;
+     * so the loop rate IS the input latency -- and a lower rate when idle.
+     * A full-rate redraw of a 1920x1080 desktop cost a whole core; idling at
+     * 20 fps measured 31% of a core with nothing happening (headless weston
+     * probe). The mascot and clock only need a few frames a second, so the
+     * idle rate is tunable and defaults lower -- WUBU_FPS_IDLE / WUBU_FPS_ACTIVE
+     * exist so the number can be measured instead of argued about. */
+    const long frame_ns_active = 1000000000L / fps_env("WUBU_FPS_ACTIVE", 60, 1, 240);
+    const long frame_ns_idle   = 1000000000L / fps_env("WUBU_FPS_IDLE", 8, 1, 240);
     long last_input_ms = last.tv_sec * 1000L + last.tv_nsec / 1000000L;
 
     bool screenshot_requested = (state->screenshot_path != NULL);
