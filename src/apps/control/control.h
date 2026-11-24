@@ -1,5 +1,11 @@
 /*
- * control.h  --  Control Panel (9 tabs: Display, Theme, Desktop, Taskbar, Input, Startup, Containers, Network, About)
+ * control.h  --  Control Panel (8 XP-style categories over a detail pane)
+ *
+ * The old comment here promised 9 tabs (Display, Theme, Desktop, Taskbar,
+ * Input, Startup, Containers, Network, About); the implementation only ever
+ * rendered one static page. What exists now is the category grid the renderer
+ * actually draws, each with a detail pane whose buttons act on the running
+ * system.
  * Opaque struct, C11, minimal includes, self-contained
  */
 
@@ -34,7 +40,15 @@ void control_set_auto_arrange(bool on);
 /* Desktop tab: show/hide desktop icons. */
 void control_set_show_icons(bool show);
 
-/* Read-only inspection accessor (opaque-struct safe; for tests/debug). */
+/* Window callback: category + detail-button hit-test (press, not release). */
+void control_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+
+/* Read-only inspection accessors (opaque-struct safe; for tests/debug). */
 int control_get_tab(const ControlState *ctrl);
+int control_category_count(const ControlState *ctrl);
+bool control_category_rect(const ControlState *ctrl, int i, int *x, int *y, int *w, int *h);
+int control_action_count(const ControlState *ctrl);
+bool control_action_rect(const ControlState *ctrl, int i, int *x, int *y, int *w, int *h);
+const char *control_action_label(const ControlState *ctrl, int i);
 
 #endif

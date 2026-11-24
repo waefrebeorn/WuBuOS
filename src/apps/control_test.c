@@ -153,6 +153,76 @@ int main(void) {
     T(found_cat, "Control Panel right pane (light panel) drawn");
     vbe_shutdown();
 
+    /* -- Category grid: what is drawn is what a click selects -- */
+    printf("\n[Control Panel — category grid interaction]\n");
+    control_set_theme(THEME_XP_LUNA_BLUE);
+    vbe_init(1024, 768);
+    DosGuiWindow win2;
+    memset(&win2, 0, sizeof(win2));
+    win2.x = 40; win2.y = 40; win2.w = 820; win2.h = 620; win2.alive = true;
+    strncpy(win2.title, "Control Panel", sizeof(win2.title) - 1);
+    ControlState *c2 = control_create();
+    win2.user_data = c2;
+    control_draw(&win2, vbe_framebuffer(), 1024, 768, c2);
+
+    T(control_category_count(c2) == 8, "8 categories laid out");
+    int bx = 0, by = 0, bw = 0, bh = 0;
+    int all_area = 1;
+    for (int i = 0; i < control_category_count(c2); i++) {
+        if (!control_category_rect(c2, i, &bx, &by, &bw, &bh) || bw <= 0 || bh <= 0)
+            all_area = 0;
+    }
+    T(all_area, "every category has a clickable rect");
+
+    T(control_category_rect(c2, 1, &bx, &by, &bw, &bh), "Display rect readable");
+    control_mouse(&win2, bx + bw / 2, by + bh / 2, 1, 1);
+    T(control_get_tab(c2) == 1, "clicking Display selects it");
+
+    /* The detail pane must be laid out for the NEW category on the next draw. */
+    control_draw(&win2, vbe_framebuffer(), 1024, 768, c2);
+    T(control_action_count(c2) == 2, "Display offers its two real actions");
+    T(control_action_rect(c2, 0, &bx, &by, &bw, &bh) && bw > 0 && bh > 0,
+      "first action has a clickable rect");
+
+    /* Clicking it must actually do the thing it says (settings are isolated to
+     * /tmp above, so this cannot disturb the machine's desktop). */
+    int before_mode = wubu_settings_get()->theme.wallpaper_mode;
+    control_mouse(&win2, bx + bw / 2, by + bh / 2, 1, 1);
+    T(wubu_settings_get()->theme.wallpaper_mode == (before_mode + 1) % 5,
+      "clicking 'Next wallpaper placement' advances the placement mode");
+
+    /* A category with nothing real behind it offers no buttons. */
+    T(control_category_rect(c2, 6, &bx, &by, &bw, &bh), "System rect readable");
+    control_mouse(&win2, bx + bw / 2, by + bh / 2, 1, 1);
+    control_draw(&win2, vbe_framebuffer(), 1024, 768, c2);
+    T(control_get_tab(c2) == 6, "clicking System selects it");
+    T(control_action_count(c2) == 0, "System shows no fake buttons");
+
+    control_mouse(&win2, 2, 2, 1, 1);
+    T(control_get_tab(c2) == 6, "a click outside the grid changes nothing");
+
+    /* Dump the frame the panel really produced: assertions say the rects line
+     * up, this lets a human see the two-pane XP layout and the selection. */
+    {
+        VBEState *vs = vbe_state();
+        if (vs && vs->back) {
+            FILE *f = fopen("build/control_frame.ppm", "wb");
+            if (f) {
+                fprintf(f, "P6\n%d %d\n255\n", vs->width, vs->height);
+                for (int i = 0; i < vs->width * vs->height; i++) {
+                    uint32_t px = vs->back[i];
+                    unsigned char rgb[3] = { (unsigned char)((px >> 16) & 0xff),
+                                             (unsigned char)((px >> 8) & 0xff),
+                                             (unsigned char)(px & 0xff) };
+                    fwrite(rgb, 1, 3, f);
+                }
+                fclose(f);
+                printf("  frame written to build/control_frame.ppm\n");
+            }
+        }
+    }
+    control_destroy(c2);
+
     /* -- Shutdown -- */
     printf("\n[Shutdown]\n");
     control_destroy(c);
