@@ -110,15 +110,29 @@ def main():
 
     _load_locks()
     names = orphans()
-    print(f'{len(names)} orphan test targets; {a.jobs} in flight, {a.timeout}s each')
+    locked = [t for t in names if t in MAKEFILE_TEXT[1]]
+    free = [t for t in names if t not in MAKEFILE_TEXT[1]]
+    print(f'{len(names)} orphan test targets: {len(free)} parallel, '
+          f'{len(locked)} serialised on the CT lock')
 
     rows = []
     with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
-        futs = [ex.submit(run_one, t, a.timeout, logdir) for t in names]
+        futs = {ex.submit(run_one, t, a.timeout, logdir): t for t in free}
         for i, f in enumerate(cf.as_completed(futs), 1):
             target, result, secs = f.result()
             rows.append((target, result, secs))
-            print(f'  [{i:3}/{len(names)}] {result:7} {secs:6.1f}s  {target}', flush=True)
+            print(f'  [{i:3}/{len(free)}] {result:7} {secs:6.1f}s  {target}', flush=True)
+
+    # The lock-taking gates run one at a time BY DESIGN, so auditing them in the
+    # parallel phase only makes them queue and hit the budget (that is what
+    # produced fourteen bogus TIMEOUTs). They get their own sequential phase and
+    # a longer budget: the lock, not the gate, was always the wait.
+    if locked:
+        print(f'-- serialised phase: {len(locked)} gates, {max(a.timeout, 420)}s each')
+        for i, t in enumerate(locked, 1):
+            target, result, secs = run_one(t, max(a.timeout, 420), logdir)
+            rows.append((target, result, secs))
+            print(f'  [{i:3}/{len(locked)}] {result:7} {secs:6.1f}s  {target}', flush=True)
 
     rows.sort(key=lambda r: (r[1], r[0]))
     with open(os.path.join(ROOT, a.out), 'w') as out:
