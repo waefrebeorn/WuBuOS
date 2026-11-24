@@ -412,7 +412,7 @@ test_ci_status:
 ci_status:
 	python3 tools/ci_status.py
 
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_drv_pci_bus test_netstack test_ci_boot_assert test_ci_status test_wemu_kernel test_deskshot
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_drv_pci_bus test_netstack test_ci_boot_assert test_ci_status test_wemu_kernel test_deskshot test_scanout
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -926,6 +926,13 @@ test_deskshot: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 	 if [ "$$NB" -lt "$$MIN" ] || [ "$$CO" -lt 8 ]; then \
 	   echo "FAIL: desktop framebuffer blank or flat (nonblack=$$NB of $$TOTAL, colours=$$CO)"; exit 1; fi; \
 	 echo "test_deskshot: PASS ($$NB non-black of $$TOTAL pixels, $$CO colour classes)"
+
+# Has anyone SEEN the metal desktop? Dumps the LIVE LFB out of QEMU's physical
+# memory at the address the kernel reports, and asserts it holds a real desktop.
+# The other metal gates read the back buffer or the serial log, so a kernel that
+# never reaches the scanout passes them -- which is exactly what happened.
+test_scanout:
+	@bash tools/scanout_gate.sh
 
 # Guest block-I/O gate: WEMU's virtio-blk must serve the kernel's sector
 # reads so the boot path reports a live persistent disk.
