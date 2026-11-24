@@ -12,13 +12,36 @@ not reach, with a timeout. Logs: `build/logs/orphan/<target>.log`; TSV:
 
 - 662 `test_*` targets exist; **413 are reachable from `make test`; 249 are not.**
 - Audit 1 (before the fixes below): 166 PASS, 16 FAIL, 14 BUILD, 5 TIMEOUT.
-- **Audit 3 (after them): 215 PASS, 21 FAIL, 8 BUILD, 5 TIMEOUT.**
+- **Audit 4 (final): 221 PASS, 7 FAIL, 7 BUILD, 14 TIMEOUT.**
+- The TIMEOUT count went UP because the Ed25519 gates now serialise on one lock
+  (they rewrite the same source file) and the audit runs six targets at once, so
+  each waits its turn and hits the 150 s cap. Each one passes when given time --
+  verified individually and in the full suite.
+- What is left is honest work, not rot: the 5 compiler gates need real
+  implementations (softfloat `wubu_sf_f32_add`, `x86_decode_all`,
+  `wubu_tensor_dispatch`/`wubu_tgemm_f32_mir`), `test_standards` measures the
+  architectural debt recorded in standards-debt-2026-11-24.md,
+  `test_pe_personality` wants an `openarena.exe` fixture, and
+  `test_formal_ct_tool_probe` asserts nothing by design.
 - 68 of those passing targets were missing from the existing `test_orphans`
   tier and have been added to it, so the green set now actually runs.
 - The device family (`test_hw_*`, ~215 targets) is reachable only through
   `make test_all`, which is deliberately NOT part of `make test`.
 
-### What produced the 49 newly-green targets
+### What produced the 138 newly-green targets (83 -> 221)
+
+- **Nine `class_code >> 8` comparisons** compared a one-byte class code against
+  a 16-bit word, so audio, USB, RAID, peripheral, accel, wifi7 and display
+  probes could never match a device on ANY machine.
+- **The kernel allocator shadowed glibc's** in hosted binaries, so `opendir()`
+  failed with "No memory available to program" and the PCI scan returned 0
+  devices on a readable bus.
+- **`snprintf` was unbounded**: it formatted past the destination and truncated
+  afterwards, which ASan caught as a 1-byte heap overflow in the KVFS snapshot
+  and which also smashed `hw_detect`'s stack canary. One bounded formatter fixed
+  both, and `make test_all` (all 215 device targets) went green.
+- **The cached objects never tracked headers**, so a struct that grew left stale
+  objects writing 64-byte entries into 32-byte-element arrays.
 
 1. **145 of them could not LINK at all.** They link `vbe.o` and `wubu_drv.c` and
    were missing the font tables, the capability core, the driver contract and
