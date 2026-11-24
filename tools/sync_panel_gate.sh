@@ -82,7 +82,8 @@ SRCS="$ROOT/src/runtime/wubu_crc32.c \
  $ROOT/src/runtime/styxfs_callbacks.c $ROOT/src/runtime/styxfs_posix.c $ROOT/src/runtime/styxfs_path.c \
  $ROOT/src/runtime/styxfs_host.c $ROOT/src/runtime/styxfs_util.c \
  $ROOT/src/runtime/wubu_guest_root.c $ROOT/src/runtime/wubu_container.c \
- $ROOT/src/runtime/oci/oci_http_client.c $ROOT/src/kernel/wubu_math.c $ROOT/src/kernel/vbe.c"
+ $ROOT/src/runtime/oci/oci_http_client.c $ROOT/src/kernel/wubu_math.c \
+ $ROOT/src/kernel/vbe.c $ROOT/src/kernel/vbe_font.c"
 LIBS="-L$MB/lib/x86_64-linux-gnu -lmbedtls -lmbedx509 -lmbedcrypto \
  -Wl,-rpath,$MB/lib/x86_64-linux-gnu -lsqlite3 -lzstd -lm"
 echo "[gate] compiling hosted GUI test binary"

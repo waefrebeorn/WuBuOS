@@ -405,11 +405,12 @@ static void sync_init(CpApplet *applet) {
     cp_pkg_sync_reload_from_settings();
 }
 
-static void sync_render(CpApplet *applet, uint32_t *fb, int x, int y, int w, int h) {
+static void sync_render(CpApplet *applet, uint32_t *fb, int fb_w, int fb_h,
+                        int x, int y, int w, int h) {
     PkSyncPanelState *s = &g_sync;
     int rects[5][4];
     (void)applet;
-    (void)fb;  /* draw through vbe_* like the rest of the desktop */
+    (void)fb; (void)fb_w; (void)fb_h;  /* draw through vbe_* like the desktop */
 
     cp_pkg_sync_button_rects(rects);
     vbe_fill_rect(x, y, w, h > 0 ? h : 1, 0xFF101820u);

@@ -15,6 +15,7 @@
  * C11.
  */
 #include "controlpanel.h"
+#include "cp_text.h"
 #include "wubu_theme.h"
 
 #include <stdio.h>
@@ -54,10 +55,24 @@ static void theme_mouse(CpApplet *applet, int x, int y, int btn, int kind)
 }
 
 static void theme_render(CpApplet *applet, uint32_t *fb,
-                         int x, int y, int w, int h)
+                         int fb_w, int fb_h, int x, int y, int w, int h)
 {
-    (void)fb; (void)x; (void)y; (void)w; (void)h;
-    (void)applet;
+    cp_fill(fb, fb_w, fb_h, x, y, w, h, 0xFFF7F7F7);
+    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, 0xFF1060B0, 2);
+
+    char line[256];
+    if (cp_theme_test_line(line, sizeof line) > 0)
+        cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, 0xFF202020, 1);
+
+    /* the palette, drawn: a theme page that shows no colour is a lie */
+    const WubuThemeColors *c = wubu_theme_colors();
+    if (!c) return;
+    const uint32_t sw[6] = {
+        c->desktop_bg, c->win_face, c->win_title_active,
+        c->border_light, c->border_dark, c->win_title_text
+    };
+    for (int i = 0; i < 6; i++)
+        cp_fill(fb, fb_w, fb_h, x + 14 + i * 44, y + h - 60, 38, 38, sw[i]);
 }
 
 /* the test hook: the theme line the applet would show. */

@@ -149,7 +149,7 @@ int main(void) {
 
     /* Render through vbe_* and read the pixels back after swap. */
     CHECK(vbe_init(640, 400) == 0, "vbe_init for widget render");
-    if (a.render) a.render(&a, NULL, 0, 32, 640, 368);
+    if (a.render) a.render(&a, NULL, 640, 400, 0, 32, 640, 368);
     vbe_swap();
     CHECK(vbe_get_pixel(620, 390) == 0xFF101820u, "widget renders a real panel background");
 

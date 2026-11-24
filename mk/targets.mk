@@ -166,7 +166,7 @@ build/viewporter-private.o: $(HOSTED)/viewporter-private.code
 build/primary-selection-private.o: $(HOSTED)/primary-selection-private.code
 	$(CC) $(HOSTED_PRIVATE_CFLAGS) $< -o $@ -Iinclude
 # Small glue sources the hosted shell reaches that the shared object lists omit.
-HOSTED_GLUE = src/kernel/vbe.c $(KERNEL)/wubu_kvfs.c $(KERNEL)/wubu_thermal_read.c \
+HOSTED_GLUE = src/kernel/vbe.c src/kernel/vbe_font.c $(KERNEL)/wubu_kvfs.c $(KERNEL)/wubu_thermal_read.c \
               $(GUI)/wubu_runline.c $(KERNEL)/wubu_world.c $(KERNEL)/input.c \
               $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_ct_isolate_cgroup.c \
               $(BRIDGE)/bridge.c $(RT)/wubu_ns_kv.c $(RT)/wubu_onboarding.c \

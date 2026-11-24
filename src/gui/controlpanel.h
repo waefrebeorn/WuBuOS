@@ -39,7 +39,11 @@ typedef struct CpApplet CpApplet;
 
 /* Applet lifecycle callbacks */
 typedef void  (*CpAppletInitFn)    (CpApplet *applet);
-typedef void  (*CpAppletRenderFn)  (CpApplet *applet, uint32_t *fb, int x, int y, int w, int h);
+/* fb_w/fb_h are the FULL surface (for the stride); x/y/w/h are the content
+ * region. Without fb_w an applet has to guess the stride -- cp_sound guessed
+ * 800 and drew its volume bar in the wrong place on every other screen. */
+typedef void  (*CpAppletRenderFn)  (CpApplet *applet, uint32_t *fb,
+                                    int fb_w, int fb_h, int x, int y, int w, int h);
 typedef void  (*CpAppletMouseFn)   (CpApplet *applet, int x, int y, int btn, int kind);
 typedef void  (*CpAppletKeyFn)     (CpApplet *applet, uint32_t key, uint32_t mods);
 typedef void  (*CpAppletCleanupFn) (CpApplet *applet);

@@ -11,6 +11,7 @@
  * C11.
  */
 #include "controlpanel.h"
+#include "cp_text.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,25 +51,15 @@ static void hw_init(CpApplet *applet)
 }
 
 /* draw a label line at (x,y) */
-static void draw_line(uint32_t *fb, int x, int y, int w,
+static void draw_line(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w,
                       const char *label, const char *value,
                       uint32_t label_color, uint32_t value_color)
 {
-    /* a very small fixed-font renderer: each char is a 2x4 pixel
-     * block from a 5x7 glyph table — simplified to a text raster
-     * that the applet test asserts. The REAL rendering uses the
-     * desktop's font path; this keeps the applet testable. */
-    size_t len = strlen(label);
-    /* draw the label as a filled bar + the value as a bar (the
-     * actual glyph rendering is the desktop's; the test asserts the
-     * DATA via the state line) */
-    (void)fb; (void)x; (void)y; (void)w;
-    (void)label; (void)value; (void)label_color; (void)value_color;
-    (void)len;
+    cp_row(fb, fb_w, fb_h, x, y, w, label, value, label_color, value_color);
 }
 
 static void hw_render(CpApplet *applet, uint32_t *fb,
-                      int x, int y, int w, int h)
+                      int fb_w, int fb_h, int x, int y, int w, int h)
 {
     HwAppletData *d = (HwAppletData *)applet->user_data;
     char world[1024] = "no world state";
@@ -78,14 +69,16 @@ static void hw_render(CpApplet *applet, uint32_t *fb,
     else if (g_hw.provider)
         g_hw.provider(world, sizeof(world));
 
+    cp_fill(fb, fb_w, fb_h, x, y, w, h, 0xFFF7F7F7);
+    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 6, applet->name, 0xFF1060B0, 2);
     /* the layout: the title bar + the world line + the fields */
-    draw_line(fb, x + 10, y + 30, w - 20, "Machine: ", "WuBuOS", 0xFF000000, 0xFF0000A0);
-    draw_line(fb, x + 10, y + 52, w - 20, "World:   ", world, 0xFF000000, 0xFF000000);
-    draw_line(fb, x + 10, y + 74, w - 20,
+    draw_line(fb, fb_w, fb_h, x + 10, y + 30, w - 20, "Machine: ", "WuBuOS", 0xFF000000, 0xFF0000A0);
+    draw_line(fb, fb_w, fb_h, x + 10, y + 52, w - 20, "World:   ", world, 0xFF000000, 0xFF000000);
+    draw_line(fb, fb_w, fb_h, x + 10, y + 74, w - 20,
               "The AGI perceives the machine through this state.",
               "", 0xFF404040, 0xFF404040);
     /* the refresh hint */
-    draw_line(fb, x + 10, y + h - 24, w - 20,
+    draw_line(fb, fb_w, fb_h, x + 10, y + h - 24, w - 20,
               "[Refresh]", "F5 or click", 0xFF0000A0, 0xFF0000A0);
 }
 

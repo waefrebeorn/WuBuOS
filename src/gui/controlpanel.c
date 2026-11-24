@@ -193,7 +193,7 @@ void controlpanel_render(uint32_t *fb, int fb_w, int fb_h)
     }
     CpApplet *a = controlpanel_active();
     if (a && a->render)
-        a->render(a, fb, 0, 32, fb_w, fb_h > 32 ? fb_h - 32 : 1);
+        a->render(a, fb, fb_w, fb_h, 0, 32, fb_w, fb_h > 32 ? fb_h - 32 : 1);
 }
 
 /* CP15: shutdown — cleanup every applet. */

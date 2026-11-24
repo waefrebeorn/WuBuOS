@@ -15,6 +15,7 @@
  * C11.
  */
 #include "controlpanel.h"
+#include "cp_text.h"
 #include "wubu_world.h"
 
 #include <stdio.h>
@@ -46,13 +47,22 @@ static void network_init(CpApplet *applet)
 }
 
 static void network_render(CpApplet *applet, uint32_t *fb,
-                           int x, int y, int w, int h)
+                           int fb_w, int fb_h, int x, int y, int w, int h)
 {
-    (void)fb; (void)x; (void)y; (void)w; (void)h;
     NetworkAppletData *d = (NetworkAppletData *)applet->user_data;
     const wubu_world_t *wd = d ? d->snap : NULL;
     if (!wd && g_net.snap) wd = g_net.snap();
-    (void)wd;
+
+    cp_fill(fb, fb_w, fb_h, x, y, w, h, 0xFFF7F7F7);
+    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, 0xFF1060B0, 2);
+    if (!wd) {
+        cp_draw_text(fb, fb_w, fb_h, x + 14, y + 44,
+                     "no network snapshot", 0xFF802020, 1);
+        return;
+    }
+    char line[256];
+    if (cp_network_test_line(line, sizeof line) > 0)
+        cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, 0xFF202020, 1);
 }
 
 /* the test hook: the network line the applet would show. */
