@@ -11,10 +11,27 @@ not reach, with a timeout. Logs: `build/logs/orphan/<target>.log`; TSV:
 ## Result on this tree
 
 - 662 `test_*` targets exist; **413 are reachable from `make test`; 249 are not.**
-- Of the ones audited: **166 PASS**, 16 FAIL, 14 BUILD, 5 TIMEOUT (the CT/timing
-  gates need minutes, by design).
+- Audit 1 (before the fixes below): 166 PASS, 16 FAIL, 14 BUILD, 5 TIMEOUT.
+- **Audit 3 (after them): 215 PASS, 21 FAIL, 8 BUILD, 5 TIMEOUT.**
 - 68 of those passing targets were missing from the existing `test_orphans`
   tier and have been added to it, so the green set now actually runs.
+- The device family (`test_hw_*`, ~215 targets) is reachable only through
+  `make test_all`, which is deliberately NOT part of `make test`.
+
+### What produced the 49 newly-green targets
+
+1. **145 of them could not LINK at all.** They link `vbe.o` and `wubu_drv.c` and
+   were missing the font tables, the capability core, the driver contract and
+   the wdt logic. One variable (`KERNEL_TEST_SUPPORT`, named as SOURCES because
+   a recipe that merely mentions an `.o` does not make make build it) is now
+   referenced by 138 recipes; 131 of the 145 built and passed immediately.
+2. **215 device selftests were compiled in kernel mode while running hosted.**
+   Their recipes never passed `-DWUBU_HOSTED`, so `wubu_power.c` took its kernel
+   path (`cores=0`) and the selftest failed honestly. With the define:
+   `POWER TESTS: 7 passed, 0 failed` (was 6/1).
+3. **The CT gates injected into the same source file concurrently** and clobbered
+   each other's restore. 21 recipes now take the CT gate flock; six gates run
+   green in parallel (-j8) with zero residue in the source.
 
 ## CORRECTION: the first measurement was wrong
 
