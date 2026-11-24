@@ -155,8 +155,7 @@ void wubu_net_probe(void)
     g_net_driver[0] = '\0'; g_eth_driver[0] = '\0';
 
     /* WSL2: no PCI network access, host owns networking. */
-    if (!(wubu_hw_gpu_present() && wubu_hw_gpu_path() &&
-          strstr(wubu_hw_gpu_path(), "/dev/dri")))
+    if (!wubu_pci_accessible())
         return;
 
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];

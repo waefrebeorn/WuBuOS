@@ -54,8 +54,7 @@ void wubu_storage_probe(void)
     g_raid_rst = 0; g_queue_depth = 0;
     g_storage_path[0] = '\0';
 
-    if (!(wubu_hw_gpu_present() && wubu_hw_gpu_path() &&
-          strstr(wubu_hw_gpu_path(), "/dev/dri")))
+    if (!wubu_pci_accessible())
         return;   /* WSL2 / no bare-metal PCI */
 
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];

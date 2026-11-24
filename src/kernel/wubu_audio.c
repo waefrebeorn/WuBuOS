@@ -158,11 +158,10 @@ void wubu_audio_probe(void)
     g_audio_bt_a2dp = 0;
 
     /* Scan for audio controllers (class 0x0403 + vendor-specific IDs).
-     * Only do PCI I/O on bare-metal hardware (GPU on /dev/dri); in WSL2
-     * we have no PCI access and audio is handled by the host. Move the
-     * PCI scan inside the guard so it is never called in WSL2. */
-    if (wubu_hw_gpu_present() && wubu_hw_gpu_path() &&
-        strstr(wubu_hw_gpu_path(), "/dev/dri")) {
+     * Only when this build can reach PCI at all: WSL2-style sandboxes cannot,
+     * and the host owns audio there. (The old test was "/dev/dri in the GPU
+     * path", false on any machine whose first GPU is the NVIDIA dGPU.) */
+    if (wubu_pci_accessible()) {
         wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
         int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
         for (int i = 0; i < n; i++) {

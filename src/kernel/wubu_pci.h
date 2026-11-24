@@ -36,6 +36,14 @@ typedef struct {
 uint64_t wubu_pci_resource_extent(const char *line, uint64_t *base,
                                   uint64_t *size);
 
+/* Can this build reach PCI at all? True on metal, and on a hosted box when
+ * sysfs exposes the PCI bus; false under WSL2-style sandboxes. Callers used to
+ * test this by looking for "/dev/dri" in the GPU path, which is false on any
+ * machine whose first GPU is the NVIDIA dGPU (/dev/nvidia0) -- so the network,
+ * storage and audio probes silently found nothing on exactly the hybrid and
+ * NVIDIA-only laptops they exist for. */
+int wubu_pci_accessible(void);
+
 /* Full bus-0 scan; returns the number of devices found. */
 int wubu_pci_scan(wubu_pci_dev_t *out, int max);
 

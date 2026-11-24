@@ -6,6 +6,9 @@
  * bus 0 for every device/function and expose class/subclass + BARs so the
  * USB stack can find the xHCI controller and the console can list hardware.
  */
+#ifdef WUBU_HOSTED
+#include <unistd.h>
+#endif
 #include "wubu_pci.h"
 #include <stdint.h>
 
@@ -234,6 +237,7 @@ int wubu_pci_scan(wubu_pci_dev_t *out, int max)
     return n;
 }
 
+
 int wubu_pci_find_class(wubu_pci_dev_t *devs, int n,
                         uint8_t class_code, uint8_t subclass)
 {
@@ -367,3 +371,15 @@ void wubu_pci_write32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off,
     (void)bus; (void)dev; (void)fn; (void)off; (void)val;
 }
 #endif
+
+/* Kept OUTSIDE the hosted/metal split: an earlier placement put it in the metal
+ * branch, so every hosted test linking these probes failed with an undefined
+ * reference to it. */
+int wubu_pci_accessible(void)
+{
+#ifdef WUBU_HOSTED
+    return access("/sys/bus/pci/devices", R_OK) == 0;
+#else
+    return 1;                       /* metal: the 0xCF8 path is always there */
+#endif
+}
