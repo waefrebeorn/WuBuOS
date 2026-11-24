@@ -279,15 +279,49 @@ uint32_t vbe_get_pixel(int x, int y) {
     return 0;
 }
 
+/* Fill one row span [x, x+w) with `color`, resolving the clip rectangle ONCE
+ * and writing two pixels per 64-bit store. The per-pixel helper costs a bounds
+ * check plus a call per pixel: a full-surface clear spent ~8M emulated steps
+ * that way, which is a third of the whole boot under WEMU. */
+static void vbe_fill_span(int x, int y, int w, uint32_t color)
+{
+    if (w <= 0 || y < 0 || y >= g_vbe.height) return;
+    int x1 = x, x2 = x + w;
+    if (x1 < 0) x1 = 0;
+    if (x2 > g_vbe.width) x2 = g_vbe.width;
+    if (g_vbe.clip_enabled) {
+        if (y < g_vbe.clip_y || y >= g_vbe.clip_y + g_vbe.clip_h) return;
+        if (x1 < g_vbe.clip_x) x1 = g_vbe.clip_x;
+        if (x2 > g_vbe.clip_x + g_vbe.clip_w) x2 = g_vbe.clip_x + g_vbe.clip_w;
+    }
+    if (x1 >= x2) return;
+    uint32_t *row = vbe_row(y) + x1;
+    int n = x2 - x1;
+    if (((uintptr_t)row & 7) == 0) {
+        uint64_t pat = (uint64_t)color | ((uint64_t)color << 32);
+        /* volatile: four stores per iteration without letting the compiler
+         * fuse them into 16-byte SSE moves, which a device window may not
+         * accept (and which the emulator models as one wide access). */
+        volatile uint64_t *q = (volatile uint64_t *)row;
+        int pairs = n >> 1, i = 0;
+        for (; i + 4 <= pairs; i += 4) {
+            q[i] = pat; q[i + 1] = pat; q[i + 2] = pat; q[i + 3] = pat;
+        }
+        for (; i < pairs; i++) q[i] = pat;
+        if (n & 1) row[n - 1] = color;
+    } else {
+        for (int i = 0; i < n; i++) row[i] = color;
+    }
+}
+
 void vbe_fill_rect(int x, int y, int w, int h, uint32_t color) {
     for (int dy = 0; dy < h; dy++)
-        for (int dx = 0; dx < w; dx++)
-            vbe_set_pixel(x + dx, y + dy, color);
+        vbe_fill_span(x, y + dy, w, color);
 }
 
 void vbe_hline(int x1, int x2, int y, uint32_t color) {
     if (x1 > x2) { int t=x1; x1=x2; x2=t; }
-    for (int x = x1; x <= x2; x++) vbe_set_pixel(x, y, color);
+    vbe_fill_span(x1, y, x2 - x1 + 1, color);
 }
 
 void vbe_vline(int x, int y1, int y2, uint32_t color) {
@@ -344,11 +378,8 @@ void vbe_3d_sunken(int x, int y, int w, int h) {
 }
 
 void vbe_clear(uint32_t color) {
-    for (int y = 0; y < g_vbe.height; y++) {
-        uint32_t *row = vbe_row(y);
-        for (int x = 0; x < g_vbe.width; x++)
-            row[x] = color;
-    }
+    for (int y = 0; y < g_vbe.height; y++)
+        vbe_fill_span(0, y, g_vbe.width, color);
 }
 
 /* ================================================================

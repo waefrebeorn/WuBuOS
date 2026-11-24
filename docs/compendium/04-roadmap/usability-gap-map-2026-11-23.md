@@ -436,3 +436,35 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
 - Still open: the COM2 transport binding (poll frames from `wubu_n9`, feed
   the codec) plus a host-side mount script so a real Linux client can mount
   /n/kv off the metal body.
+
+## Performance — the metal boot, measured
+
+The WEMU PC-histogram (`WEMU_PROFILE=1`, wemu 872b255) turned the boot from a
+guess into a budget. Guest steps to the ring-0 console, same image, same gate:
+
+| change | steps | vs. the old boot |
+|---|---|---|
+| baseline | 101,500,000 | 100% |
+| `memset`/`memcpy` → `rep stosb`/`rep movsb` for bulk, 8-byte head/tail | 48,400,000 | 48% |
+| COM2 absent-latch: one bounded probe, not 4M polls per byte | 24,800,000 | 24% |
+| `vbe_fill_span` (clip once per row, 64-bit stores), `bm_set_range`, kvfs zero via `memset` | 11,150,000 | 11% |
+| PS/2 silent-controller latch + shorter COM2 probe | 7,500,000 | 7.4% |
+| `vbe_fill_span` 4-store unroll; RTC UIP wait bounded, absent-port skip, 25k PS/2 bound | 5,450,000 | 5.4% |
+
+Boot wall time under WEMU went 8.14 s → ~1.2 s (every guest gate pays this).
+
+Why these shapes:
+- **`rep stosb`/`rep movsb`, not an unrolled C loop.** GCC fuses adjacent
+  8-byte stores into 16-byte SSE moves; a device window rejects the wider
+  access (that fault was real). `rep` is ERMS-fast on metal and one decoded
+  instruction with an internal loop in WEMU.
+- **Latches, not tighter spins.** A boot must never spend a million steps
+  discovering that no host is on COM2, no PS/2 controller answers, or no RTC
+  is behind the port. First contact keeps the full bound; the result is
+  remembered.
+- **Per-row fills, not per-pixel calls.** `vbe_fill_span` resolves the clip
+  rectangle once and writes two pixels per 64-bit store.
+
+Still open: the framebuffer clear is now ~36% of what remains (786k pixels at
+~2.5 steps each) — the honest next lever is clearing only dirty regions rather
+than the whole surface, not a faster fill.

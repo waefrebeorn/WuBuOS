@@ -45,6 +45,11 @@
 
 /* Bounded poll (no busy-forever): ~8 frames' worth before giving up. */
 #define N9_POLL_MAX (1u << 22)
+/* First contact gets a SHORT bound. A boot must not spend tens of millions
+ * of steps discovering that no host is on the other end of COM2: on a miss we
+ * latch "link absent" for the rest of the boot and every later read returns
+ * immediately (A3 then fails once, cheaply, instead of once per byte). */
+#define N9_PROBE_MAX (1u << 16)
 
 static void n9_com2_init(void)
 {
@@ -67,12 +72,22 @@ static int n9_tx(uint8_t c)
     return -1;   /* THR never emptied within the bound */
 }
 
+/* 0 = never heard from the host, 1 = host answered, -1 = absent (latched). */
+static int g_n9_link;
+
 /* RX one byte; returns 0 with *out set, -1 on bounded-timeout (host quiet). */
 static int n9_rx(uint8_t *out)
 {
-    for (uint32_t i = 0; i < N9_POLL_MAX; i++) {
-        if (inb(COM2_LSR) & 0x01) { *out = inb(COM2_DATA); return 0; }
+    if (g_n9_link < 0) return -1;            /* latched absent: no spin */
+    uint32_t bound = (g_n9_link > 0) ? N9_POLL_MAX : N9_PROBE_MAX;
+    for (uint32_t i = 0; i < bound; i++) {
+        if (inb(COM2_LSR) & 0x01) {
+            *out = inb(COM2_DATA);
+            g_n9_link = 1;
+            return 0;
+        }
     }
+    if (g_n9_link == 0) g_n9_link = -1;      /* first contact failed: absent */
     return -1;
 }
 

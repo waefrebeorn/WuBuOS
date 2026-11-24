@@ -62,11 +62,15 @@ int wubu_rtc_read(wubu_rtc_tm *tm)
 {
     if (!tm) return -1;
 
-    /* Wait for an update to settle (the UIP bit in status A). */
-    for (int i = 0; i < 100000; i++) {
-        uint8_t a = rtc_read_reg(RTC_STAT_A);
-        if (!(a & RTC_UIP)) break;
-        __asm__ __volatile__("pause");
+    /* Wait for an update to settle (the UIP bit in status A). UIP is set for
+     * ~244 us per second, so a few thousand polls cover the worst case; a port
+     * that reads back all-ones has no RTC behind it at all and must not cost
+     * 100k polls (that was 12% of the metal boot under WEMU). */
+    if (rtc_read_reg(RTC_STAT_A) != 0xFF) {
+        for (int i = 0; i < 4000; i++) {
+            if (!(rtc_read_reg(RTC_STAT_A) & RTC_UIP)) break;
+            __asm__ __volatile__("pause");
+        }
     }
 
     uint8_t status_b = rtc_read_reg(RTC_STAT_B);

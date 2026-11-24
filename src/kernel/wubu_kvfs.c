@@ -414,7 +414,7 @@ int wubu_kvfs_kernel_init(uint32_t block_size, uint32_t total_blocks) {
         if (mem && slabs) {
             float *p = (float *)mem;
             const size_t per_slab = total_floats / slabs + 1;
-            for (size_t i = 0; i < total_floats; i++) p[i] = 0.0f;
+            memset(p, 0, total_floats * sizeof(float));   /* rep stosb */
             for (uint32_t s = 0; s < slabs; s++)
                 p[(size_t)s * per_slab] = 1.0f + (float)s;
             int ok = 1;

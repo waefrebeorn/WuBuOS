@@ -24,24 +24,36 @@ static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
+/* The i8042 clears its input buffer in microseconds and a device ACKs a
+ * command within 25 ms worst case (PS/2 spec). At ~1 us per port access that
+ * is ~25k polls: the old 100k bound only made an absent controller expensive. */
+#define PS2_WAIT_MAX 25000
+
 static inline void ps2_wait_write(void) {
-    for (int i = 0; i < 100000; i++)
+    for (int i = 0; i < PS2_WAIT_MAX; i++)
         if (!(inb(0x64) & 2))
             return;
 }
 
 static inline void ps2_wait_read(void) {
-    for (int i = 0; i < 100000; i++)
+    for (int i = 0; i < PS2_WAIT_MAX; i++)
         if (inb(0x64) & 1)
             return;
 }
+
+/* A controller with no device behind it never reports data. Latch that on the
+ * first timeout: the first command still gets the full 100k wait (a real
+ * device may take milliseconds to ACK), every later one returns at once
+ * instead of burning another 100k polls. */
+static int g_ps2_absent;
 
 /* Read one byte from the data port with a bounded wait (gap A11: the
  * old path assumed every command's response arrived). Returns -1 on
  * timeout so the caller can distinguish a real ACK from silence. */
 static int ps2_read_byte(uint8_t *out) {
+    if (g_ps2_absent) return -1;
     ps2_wait_read();
-    if (!(inb(0x64) & 1)) return -1;   /* timeout: nothing arrived */
+    if (!(inb(0x64) & 1)) { g_ps2_absent = 1; return -1; }
     if (out) *out = inb(0x60);
     return 0;
 }
@@ -152,11 +164,13 @@ void ps2_init(int screen_w, int screen_h, ps2_probe_t *probe) {
     ps2_wait_write();
     outb(0x64, 0xA8);
 
-    /* Read command byte */
+    /* Read command byte. A controller that has already gone silent (no ACK
+     * on the first command) has nothing to configure: stop here instead of
+     * spending another 100k polls per station. */
     ps2_wait_write();
     outb(0x64, 0x20);
-    ps2_wait_read();
-    uint8_t cb = inb(0x60);
+    uint8_t cb = 0;
+    if (ps2_read_byte(&cb) != 0) return;
 
     /* Enable IRQ1 + IRQ12, enable both clocks */
     cb |= 0x03;

@@ -49,6 +49,26 @@ static void bm_clear(uint32_t idx) {
 static uint32_t bm_test(uint32_t idx) {
     return (g_bitmap[idx >> 3] >> (idx & 7)) & 1u;
 }
+/* Mark [from,to) used in whole bitmap bytes. The boot layout marks several
+ * overlapping ranges (heap inside the early-structures window); going through
+ * bm_set per page both cost ~2M emulated steps and double-counted g_free_pages
+ * on the overlap, so an already-set page is now skipped. */
+static void bm_set_range(uint32_t from, uint32_t to) {
+    if (from >= to) return;
+    uint32_t i = from;
+    while (i < to && (i & 7u)) { if (!bm_test(i)) bm_set(i); i++; }
+    while (i + 8 <= to) {
+        uint8_t cur = (uint8_t)~g_bitmap[i >> 3];
+        /* popcount without libgcc: the kernel links -nostdlib */
+        cur = (uint8_t)(cur - ((cur >> 1) & 0x55u));
+        cur = (uint8_t)((cur & 0x33u) + ((cur >> 2) & 0x33u));
+        g_free_pages -= (uint32_t)((cur + (cur >> 4)) & 0x0Fu);
+        g_bitmap[i >> 3] = 0xFFu;
+        i += 8;
+    }
+    while (i < to) { if (!bm_test(i)) bm_set(i); i++; }
+}
+
 
 void wubu_vmm_init(void)
 {
@@ -87,8 +107,9 @@ void wubu_vmm_init(void)
         uint64_t b = used[i].base, e = used[i].end;
         if (b < WUBU_VMM_PHYS_BASE) b = WUBU_VMM_PHYS_BASE;
         if (e > WUBU_VMM_PHYS_END)  e = WUBU_VMM_PHYS_END;
-        for (uint64_t p = b; p < e; p += PAGE)
-            bm_set((uint32_t)((p - WUBU_VMM_PHYS_BASE) / PAGE));
+        if (e > b)
+            bm_set_range((uint32_t)((b - WUBU_VMM_PHYS_BASE) / PAGE),
+                         (uint32_t)((e - WUBU_VMM_PHYS_BASE) / PAGE));
     }
 
     /* E820 (gap I1): the allocator owns ONLY real RAM. If the BIOS map
@@ -105,8 +126,9 @@ void wubu_vmm_init(void)
     }
     if (real_end < WUBU_VMM_PHYS_BASE) real_end = WUBU_VMM_PHYS_BASE;
     g_alloc_end = real_end;
-    for (uint64_t p = real_end; p < WUBU_VMM_PHYS_END; p += PAGE)
-        bm_set((uint32_t)((p - WUBU_VMM_PHYS_BASE) / PAGE));
+    if (real_end < WUBU_VMM_PHYS_END)
+        bm_set_range((uint32_t)((real_end - WUBU_VMM_PHYS_BASE) / PAGE),
+                     (uint32_t)WUBU_VMM_BITMAP_BITS);
 }
 
 uint64_t wubu_vmm_alloc_pages(uint32_t n)

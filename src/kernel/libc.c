@@ -84,13 +84,27 @@ void *calloc(size_t nmemb, size_t size) {
     return ptr;
 }
 
-/* String functions */
+/* String functions.
+ *
+ * The kernel clears and copies multi-MB surfaces (framebuffer, KV tensor,
+ * module images), so the bulk path must be ONE decoded instruction rather
+ * than a per-byte loop with loop overhead: `rep stosb` / `rep movsb` are
+ * ERMS-fast on metal and a single emulated instruction with an internal loop
+ * in WEMU (wemu_string.c). Byte-wide accesses also keep a device window from
+ * seeing a wider probe than its registers define -- a 4x-unrolled 8-byte
+ * copy compiles to 16-byte SSE stores, which a MMIO model rejects.
+ * Sizes under 32 bytes stay on plain 8-byte stores: `rep` setup would cost
+ * more than the copy. */
 void *memcpy(void *dest, const void *src, size_t n) {
     uint8_t *d = (uint8_t *)dest;
     const uint8_t *s = (const uint8_t *)src;
-    /* word-copy the aligned bulk: the byte loop is brutally slow under
-     * TCG for the multi-MB framebuffer copies at boot (a 8.25 MB copy
-     * was taking the kernel tens of seconds). */
+    if (n >= 32) {
+        size_t left = n;
+        __asm__ __volatile__("rep movsb"
+                             : "+D"(d), "+S"(s), "+c"(left)
+                             : : "memory");
+        return dest;
+    }
     while (n >= 8 && ((uintptr_t)d & 7) == 0 && ((uintptr_t)s & 7) == 0) {
         *(uint64_t *)d = *(const uint64_t *)s;
         d += 8; s += 8; n -= 8;
@@ -101,7 +115,20 @@ void *memcpy(void *dest, const void *src, size_t n) {
 
 void *memset(void *s, int c, size_t n) {
     uint8_t *p = (uint8_t *)s;
-    while (n--) *p++ = (uint8_t)c;
+    uint8_t b = (uint8_t)c;
+    if (n >= 32) {
+        size_t left = n;
+        __asm__ __volatile__("rep stosb"
+                             : "+D"(p), "+c"(left)
+                             : "a"(b) : "memory");
+        return s;
+    }
+    uint64_t pat = 0x0101010101010101ull * (uint64_t)b;
+    while (n >= 8 && ((uintptr_t)p & 7) == 0) {
+        *(uint64_t *)p = pat;
+        p += 8; n -= 8;
+    }
+    while (n--) *p++ = b;
     return s;
 }
 
