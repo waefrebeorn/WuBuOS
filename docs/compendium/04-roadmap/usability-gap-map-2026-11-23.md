@@ -526,7 +526,8 @@ What the audit found and what changed:
 | AHCI HBA reset | `ahci.c` | 100k MMIO polls, no relax | `pause` each iteration |
 | DRAM hedge worker | `wubu_dram_hedge.c` | `continue` spin, core pinned by affinity → one core at 100% forever | 256-spin PAUSE burst, then `sched_yield()` |
 | idle task | `tasking.c` | `hlt` once per tick: IRQ-runnable work waited up to 10 ms | `hlt` then `task_yield()` — dispatch on the interrupt |
-| hosted frame loop | `hosted_run.c` | blind `nanosleep` to the frame deadline | **open**: block in the event wait with the deadline as timeout, so input wakes the loop instead of waiting for the frame |
+| hosted frame loop | `hosted_run.c` | blind `nanosleep` to the frame deadline | waits inside `poll()` on the compositor socket, deadline as timeout, so input wakes the loop; no display -> plain sleep (never spin) |
+| dudect sampling | `tools/eddsa_dudect_probe.c` | 100 independent samples measured serially: 384.8 s | 8 affinity-pinned workers, pooled raw moments: 117.8 s / 141.7 s isolated, same sample count (`measured=100`), same thresholds |
 
 The panic paths keep `cli; hlt` on purpose: a panic is not a wait.
 
@@ -541,3 +542,23 @@ A large *t* with a sub-floor effect prints `WARN` and is never hidden; the
 deliberately leaky control (t ≈ −1965, ~45 % shift) is still flagged. The
 structural IR/GIMPLE constant-time gates in the same tier cover code-shape
 leaks that a sub-0.2 % timing drift would not.
+
+### The suite's own wall time
+
+`make -k -j24 test` is execution-bound, not compile-bound: the same ~430 s warm
+as cold, so caching the build cannot fix it. Timing the tiers separately named
+the pole: `test_medium_other` 417 s of it, everything else seconds. Inside that
+tier one script owned the time (`default_optin_gates.sh` 387 s), and inside the
+script one gate did (`eddsa_dudect_gate` 384.8 s — `sync_panel_gate` 7.3 s,
+`hosted_tls_gate` 2.6 s, `eddsa_ct_evidence` 0.2 s). Parallelising the wrapper
+bought 8.6 s; parallelising the *gate's 100 independent timing samples* across
+8 affinity-pinned workers bought the rest: **384.8 s → 117.8 s / 141.7 s** with
+the same sample count (`measured=100`), the same thresholds, the ladder flat at
+`t = +0.076 / +0.187` and the leaky control still flagged at `-80.6 / -42.3`.
+
+Under `-j24` the workers share the machine with the rest of the tier, so the
+isolated figure does not translate one-for-one: the **full suite measured
+430.9 s → 332.2 s (23 %)** on the same host, with every gate green and
+`dudect_ladder_t=+0.007` under load. Shrinking that further means thinning the
+oversubscription (24 tier jobs + 8 timing workers on 24 cores), not more
+parallelism.
