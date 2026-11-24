@@ -1721,9 +1721,6 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM  -Iinclude \
 	-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
 	-c $(HOSTED)/hosted.c -o build/hosted_test.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/xdg-shell-private.code -o /tmp/xdg-shell-private.o -Iinclude
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/viewporter-private.code -o /tmp/viewporter-private.o -Iinclude
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/primary-selection-private.code -o /tmp/primary-selection-private.o -Iinclude
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM  -Iinclude \
 	-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
 	$(sort wubu_gui_shot.c build/hosted_test.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) $(HOSTED_GLUE) \
@@ -2736,14 +2733,13 @@ test_styxfs:
 HOSTED_TEST_OBJS = $(HOSTED_OBJS_LIST:$(HOSTED)/hosted.o=)
 # Mirrors the `hosted` link model (HOSTED_TEST_OBJS + the SAME RT fragments the
 # hosted recipe pulls) so every symbol is defined exactly once. We do NOT link
-# full $(RT_OBJS) — it duplicates dozens of objects already in HOSTED_TEST_OBJS
-# (styx/exec/container/oci_http_client/...) and would cause `multiple definition`.
-test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_HOSTED_TEST -DWUBD_TEST_MAIN -I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(BRIDGE) -I$(GUI) -I$(RT) -I$(COMP) -I$(JIT) -I$(APPS)  -Iinclude  $(RT)/wubu_crc32.c \
-		$(HOSTED_TEST_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
-		$(HOSTED)/hosted_test.c $(HOSTED)/hosted.c \
-		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -lpthread -ljson-c -lvulkan -o $(HOSTED)/hosted_test
-	$(HOSTED)/hosted_test
+# full $(RT_OBJS) — it duplicates dozens of objects already in HOSTED_TEST_OBJS# NOTE: a `test_hosted` target lived here from 2026-08-04 until it was removed on
+# 2026-11-24. It could not build: the link line had rotted against the tree
+# (missing fs_add_file/fs_reset, wubu_revolver, fs_persist, styx_init,
+# wubu_screenshot_init, g_wl, wl_input_term/wl_shm_term, vbe_state) and it was
+# in no tier, so it never ran. Restoring a hosted end-to-end gate is a real
+# task: it needs the hosted wayland client + vbe + input wired explicitly, and
+# then a tier placement so it cannot rot silently again.
 
 FS_PERSIST_OBJS = $(HOSTED)/hosted_fs_persist.o
 $(HOSTED)/hosted_fs_persist.o: $(HOSTED)/hosted_fs_persist.c $(HOSTED)/hosted_fs_persist.h $(HOSTED)/hosted_internal.h
