@@ -9,3 +9,4 @@ Architecture Decision Records for WuBuOS (the body).
 | 001 | Centralized Window Chrome (dosgui) | 2026-08-05 |
 | 002 | Opaque Struct Seams (header layout exposure) | 2026-08-05 |
 | 003 | Unified Design Tokens (CLI + GUI cohesion) | 2026-08-05 |
+| 004 | Wayland is the display seam, never the kernel's WM | 2026-11-24 |
