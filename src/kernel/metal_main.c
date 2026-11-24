@@ -389,6 +389,7 @@ static void gop_fb_attach(struct limine_framebuffer *gfb)
     uint32_t *surf = (uint32_t *)(uintptr_t)(WUBU_GOP_FB_VA + off);
     vbe_set_render_target_pitched(surf, (int)gfb->width, (int)gfb->height,
                                   gfb->pitch);
+    vbe_set_scanout_phys((uint64_t)gfb->address);   /* the compositor seam */
     klog_printf("WuBuOS: display LIVE via GOP (%dx%d@32, fb phys=%x "
                 "pitch=%u, %u pages mapped)\n",
                 (int)gfb->width, (int)gfb->height, gfb->address,
@@ -722,6 +723,7 @@ void kernel_main(void *boot_info) {
         if (nmapped == pages) {
             vbe_set_render_target((uint32_t *)(uintptr_t)WUBU_BOCHS_LFB_VA,
                                   fb_width, fb_height);
+            vbe_set_scanout_phys(bochs_lfb_phys);   /* the compositor seam */
             klog_printf("WuBuOS: bare-metal display LIVE (%dx%d@32, "
                         "%u LFB pages mapped)\n", fb_width, fb_height,
                         nmapped);

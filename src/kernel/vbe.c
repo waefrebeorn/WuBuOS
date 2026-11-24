@@ -90,6 +90,14 @@ uint64_t vbe_bochs_enable(int w, int h, int bpp) {
 
 static VBEState g_vbe = {0};
 
+/* Physical base of the real scanout (0 while drawing into RAM). Recorded by
+ * whoever attaches the live framebuffer: the compositor seam maps THIS. */
+static uint64_t g_scanout_phys = 0;
+/* The VMM is metal-only: hosted builds link vbe.c without it, so the mapping
+ * seam is weak rather than a hard dependency. */
+extern int wubu_vmm_map_user_page(uint64_t virt, uint64_t phys, uint32_t flags)
+    __attribute__((weak));
+
 int vbe_init(int width, int height) {
     VBE_LOG("[DEBUG] vbe_init: width=%d, height=%d\n", width, height);
     g_vbe.width  = width;
@@ -123,6 +131,53 @@ void vbe_shutdown(void) {
 }
 
 VBEState *vbe_state(void) { return &g_vbe; }
+
+/* -- Present / compositor seam ------------------------------------ */
+
+void vbe_set_scanout_phys(uint64_t phys) { g_scanout_phys = phys; }
+uint64_t vbe_scanout_phys(void) { return g_scanout_phys; }
+
+/* Present from ANY buffer: a compositor's client buffers are packed
+ * (width * 4) while the scanout may be padded, so the source stride is a
+ * parameter and is never assumed to equal the scanout pitch -- one shared
+ * stride silently shears the copy on a padded surface. */
+void vbe_present_from(const uint32_t *src, size_t src_pitch,
+                      int x, int y, int w, int h) {
+    VBEState *v = &g_vbe;
+    if (!v->fb || !src || v->fb == src) return;
+    if (w <= 0 || h <= 0) return;
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > v->width)  w = v->width - x;
+    if (y + h > v->height) h = v->height - y;
+    if (w <= 0 || h <= 0) return;
+    for (int row = y; row < y + h; row++) {
+        uint32_t *dst = (uint32_t *)((uint8_t *)v->fb + (size_t)row * v->pitch) + x;
+        const uint32_t *s = (const uint32_t *)((const uint8_t *)src +
+                                               (size_t)row * src_pitch) + x;
+        for (int i = 0; i < w; i++) dst[i] = s[i];
+    }
+}
+
+void vbe_present_rect(int x, int y, int w, int h) {
+    VBEState *v = &g_vbe;
+    if (!v->back) return;
+    vbe_present_from(v->back, v->pitch, x, y, w, h);
+}
+
+int vbe_map_user(uint64_t virt, uint64_t *out_bytes) {
+    VBEState *v = &g_vbe;
+    if (!v->fb || !g_scanout_phys) return -1;   /* RAM/hosted: nothing to map */
+    if (!wubu_vmm_map_user_page) return -1;     /* hosted link: no VMM */
+    uint64_t bytes = (uint64_t)v->height * v->pitch;
+    uint64_t pages = (bytes + 4095u) / 4096u;
+    for (uint64_t i = 0; i < pages; i++)
+        if (wubu_vmm_map_user_page(virt + i * 4096u,
+                                   g_scanout_phys + i * 4096u, 7) != 0)
+            return -1;
+    if (out_bytes) *out_bytes = pages * 4096u;
+    return 0;
+}
 
 /* -- Scissor / clip rectangle ------------------------------------- */
 void vbe_set_clip(int x, int y, int w, int h) {

@@ -80,7 +80,28 @@ protocol's merits are separate questions.
   testable (`test_input_queue`, a socket round-trip, an shm map/unmap, a flip
   that changes what `vbe` scans out).
 
-## Attempted 2026-11-24: the first primitive, and why it is NOT shipped
+## Delivered 2026-11-24: the first primitive (item (a)), verified externally
+
+`wubu_vmm_map_user_page()` (US on the PTE **and every table above it**),
+`vbe_present_from(src, src_pitch, ...)` (explicit source stride, so a packed
+client buffer cannot shear into a padded scanout), `vbe_map_user()` and the
+`fbmap` console command. The gate boots the real firmware + kernel, runs the
+command, and treats **QEMU's physical memory as the oracle**:
+
+```
+fbmap: WROTE phys=c0000000 pitch=4096 dmg=8:8:ff00ff usr=16:16:cafeb0 map=ok bytes=300000
+damage present  8,8 expect 0x00ff00ff: ok
+ring-3 mapping  16,16 expect 0x00cafeb0: ok
+test_fbmap: PASS (client-buffer present + ring-3 scanout write both landed)
+```
+
+i.e. a 1x1 damage rect presented from a packed client buffer reached the live
+scanout, and a write through a ring-3-reachable mapping of that scanout reached
+it too. Item (a) of the primitive list below is done; (b) sockets with handle
+passing, (c) shm objects and (d) input ownership remain.
+
+### History: the first attempt, and why it was reverted
+
 
 The first step (user-mappable scanout + damage-rect present) was written,
 gated and then **reverted unshipped**, because it could not be proven:

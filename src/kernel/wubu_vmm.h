@@ -39,6 +39,8 @@ uint16_t wubu_vmm_refcount(uint64_t phys);
  * intermediate tables come from the page allocator). flags: 3 = RW+present.
  * Returns 0 on success. */
 int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags);
+/* Same, but reachable from ring 3 (US on the PTE and every table above it). */
+int wubu_vmm_map_user_page(uint64_t virt, uint64_t phys, uint32_t flags);
 /* Wave 3: 2 MB KV hugepage slab. The physical range is 512 contiguous
  * 4K pages, 2 MB aligned; the mapping is a single PS=1 PDE. */
 uint64_t wubu_vmm_alloc_huge(void);

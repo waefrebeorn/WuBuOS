@@ -274,7 +274,8 @@ static uint64_t vmm_phys_of(uint64_t va)
     return va;
 }
 
-int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
+static int vmm_map_page_ex(uint64_t virt, uint64_t phys, uint32_t flags,
+                            uint32_t inter_flags)
 {
     uint64_t *pml4 = (uint64_t *)vmm_pml4();
     uint32_t i4 = (uint32_t)(virt >> 39) & 0x1FF;
@@ -292,7 +293,7 @@ int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
         uint64_t tab = wubu_vmm_alloc_pages(1);
         if (!tab) return -1;
         for (int i = 0; i < 512; i++) ((uint64_t *)tab)[i] = 0;
-        pml4[i4] = tab | 3;
+        pml4[i4] = tab | inter_flags;
         pdp = (uint64_t *)tab;
     }
     uint64_t *pd = (uint64_t *)vmm_phys_of(pdp[i3] & ~0xFFFull);
@@ -300,7 +301,7 @@ int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
         uint64_t tab = wubu_vmm_alloc_pages(1);
         if (!tab) return -1;
         for (int i = 0; i < 512; i++) ((uint64_t *)tab)[i] = 0;
-        pdp[i3] = tab | 3;
+        pdp[i3] = tab | inter_flags;
         pd = (uint64_t *)tab;
     }
     uint64_t *pt;
@@ -317,14 +318,14 @@ int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
         uint64_t fl   = pd_ent & 0xFFFull;
         for (int i = 0; i < 512; i++)
             ((uint64_t *)tab)[i] = (base + (uint64_t)i * 4096u) | fl;
-        pd[i2] = tab | 3;
+        pd[i2] = tab | inter_flags;
         pt = (uint64_t *)tab;
         VMM_INVLPG(virt & ~0x1FFFFFull);
     } else if (!(pd_ent & 1)) {
         uint64_t tab = wubu_vmm_alloc_pages(1);
         if (!tab) return -1;
         for (int i = 0; i < 512; i++) ((uint64_t *)tab)[i] = 0;
-        pd[i2] = tab | 3;
+        pd[i2] = tab | inter_flags;
         pt = (uint64_t *)tab;
     } else {
         pt = (uint64_t *)vmm_phys_of(pd_ent & ~0xFFFull);
@@ -332,6 +333,18 @@ int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
     pt[i1] = phys | (flags & 0xFFFull);
     VMM_INVLPG(virt);
     return 0;
+}
+
+int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
+{
+    return vmm_map_page_ex(virt, phys, flags, 3);
+}
+
+/* Ring-3 reachable: US on the PTE AND on every table above it. A user PTE under
+ * kernel-only tables is still unreachable from ring 3. */
+int wubu_vmm_map_user_page(uint64_t virt, uint64_t phys, uint32_t flags)
+{
+    return vmm_map_page_ex(virt, phys, (flags & ~0x4u) | 0x4u, 3 | 0x4u);
 }
 
 /* ---- 2 MB hugepage KV slab ----------------------------------------- */

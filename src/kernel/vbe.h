@@ -45,6 +45,17 @@ typedef struct {
 
 /* Init: allocate framebuffer of given size */
 int  vbe_init(int width, int height);
+
+/* --- Present / compositor seam ----------------------------------- */
+void     vbe_set_scanout_phys(uint64_t phys);   /* 0 = RAM buffer / hosted */
+uint64_t vbe_scanout_phys(void);
+/* Present a damage rect from an arbitrary source buffer with its OWN stride. */
+void vbe_present_from(const uint32_t *src, size_t src_pitch,
+                      int x, int y, int w, int h);
+void vbe_present_rect(int x, int y, int w, int h);   /* back buffer -> scanout */
+/* Map the scanout into `virt` for ring 3 so a compositor can draw straight into
+ * it. 0 on success (bytes written to *out_bytes); -1 for a RAM/hosted target. */
+int  vbe_map_user(uint64_t virt, uint64_t *out_bytes);
 void vbe_shutdown(void);
 
 /* Access the allocated framebuffer (XRGB8888) and its dimensions. */

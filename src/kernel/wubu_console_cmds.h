@@ -27,6 +27,8 @@ int cmd_kv9p(int argc, char **argv);
 /* Report the real back buffer: size, non-black pixels, coarse colour classes
  * and an FNV hash. The render gates assert on this line. */
 int cmd_deskshot(int argc, char **argv);
+/* Damage present from a client buffer + scanout reachable from ring 3. */
+int cmd_fbmap(int argc, char **argv);
 int cmd_model(int argc, char **argv);
 
 #endif /* WUBU_CONSOLE_CMDS_H */

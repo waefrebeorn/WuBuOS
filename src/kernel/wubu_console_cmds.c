@@ -15,6 +15,8 @@
 #include "wubu_rtc.h"
 #include "wubu_theme.h"
 #include "wubu_vmm.h"
+#include "vbe.h"        /* deskshot/fbmap: the surface and the scanout seam */
+#include <stdlib.h>     /* fbmap's client buffer */
 #include "wubu_9pc.h"      /* kv9p: drive the 9P server through the client */
 #include "wubu_9psrv.h"
 #include "wubu_attest.h"
@@ -956,4 +958,51 @@ int cmd_deskshot(int argc, char **argv)
                 (unsigned)w, (unsigned)rows, (unsigned)nonblack,
                 (unsigned)colours, (unsigned)hash);
     return 0;
+}
+
+/* ---- fbmap: the display seam a ring-3 compositor needs ----------------
+ * Two things a compositor cannot do today, and the kernel reports exactly what
+ * it WROTE (the gate verifies it independently by dumping the physical frame):
+ *   1. present a damage rect from a CLIENT buffer (packed stride) into the
+ *      padded scanout;
+ *   2. reach that scanout through a ring-3 mapping (USER at every table level).
+ * Readback is deliberately NOT the proof: an MMIO window discards writes (that
+ * is how the NIC-BAR bug hid), so the gate reads the physical bytes instead. */
+int cmd_fbmap(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    VBEState *v = vbe_state();
+    if (!v || !v->fb) { klog_printf("fbmap: FAIL no framebuffer\n"); return 1; }
+    uint64_t phys = vbe_scanout_phys();
+    if (!phys) { klog_printf("fbmap: FAIL no scanout (RAM framebuffer)\n"); return 1; }
+
+    const int dx = 8, dy = 8;          /* damage probe */
+    const int ux = 16, uy = 16;        /* ring-3 mapping probe */
+    const uint32_t DCOLOUR = 0x00FF00FFu;
+    const uint32_t UCOLOUR = 0x00CAFEB0u;
+
+    uint32_t *client = (uint32_t *)malloc((size_t)v->width * (size_t)v->height * 4u);
+    if (!client) { klog_printf("fbmap: FAIL no client buffer\n"); return 1; }
+
+    uint32_t *scanout = v->fb;
+    vbe_set_render_target(client, v->width, v->height);
+    vbe_set_pixel(dx, dy, DCOLOUR);
+    vbe_set_render_target(scanout, v->width, v->height);
+    vbe_present_from(client, (size_t)v->width * 4u, dx, dy, 1, 1);
+    free(client);
+
+    const uint64_t va = 0xfffffffd40000000ull;
+    uint64_t bytes = 0;
+    int mapped = vbe_map_user(va, &bytes);
+    if (mapped == 0) {
+        volatile uint32_t *u = (volatile uint32_t *)(uintptr_t)va;
+        u[(size_t)uy * (size_t)(v->pitch / 4) + (size_t)ux] = UCOLOUR;
+    }
+    __asm__ __volatile__("mfence" ::: "memory");
+
+    klog_printf("fbmap: WROTE phys=%x pitch=%u dmg=%u:%u:%x usr=%u:%u:%x map=%s bytes=%x\n",
+                (unsigned)phys, (unsigned)v->pitch, (unsigned)dx, (unsigned)dy,
+                (unsigned)DCOLOUR, (unsigned)ux, (unsigned)uy, (unsigned)UCOLOUR,
+                mapped == 0 ? "ok" : "FAIL", (unsigned)bytes);
+    return mapped == 0 ? 0 : 1;
 }
