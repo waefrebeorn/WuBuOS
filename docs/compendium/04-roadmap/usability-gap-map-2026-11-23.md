@@ -528,6 +528,7 @@ What the audit found and what changed:
 | idle task | `tasking.c` | `hlt` once per tick: IRQ-runnable work waited up to 10 ms | `hlt` then `task_yield()` — dispatch on the interrupt |
 | hosted frame loop | `hosted_run.c` | blind `nanosleep` to the frame deadline | waits inside `poll()` on the compositor socket, deadline as timeout, so input wakes the loop; no display -> plain sleep (never spin) |
 | dudect sampling | `tools/eddsa_dudect_probe.c` | 100 independent samples measured serially: 384.8 s | 8 affinity-pinned workers, pooled raw moments: 117.8 s / 141.7 s isolated, same sample count (`measured=100`), same thresholds |
+| buddy sprite blit | `wubu_bonzi.c` | 344k steps every frame (26% of the boot) — per-pixel alpha test, scale loop, bounds check | opaque runs + expanded colour rows baked once (scale 1-2, 73 KB), then `rep movsl` per run: ~2k per frame; the one-time bake is 69k, so the boot is 1.30M -> 1.20M |
 
 The panic paths keep `cli; hlt` on purpose: a panic is not a wait.
 
