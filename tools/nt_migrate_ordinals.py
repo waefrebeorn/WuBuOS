@@ -148,23 +148,63 @@ def main():
                   indent=1)
         print("\nwrote build/nt_ordinal_plan.json")
 
+    # A partial migration is WORSE than none: the test suite calls 136 ordinals by
+    # number, and if only some of them move, the remaining calls land on whatever
+    # handler now occupies that number -- assertions silently start checking a
+    # different syscall. Measured on this tree: 10 test ordinals would lose their
+    # handler. So --apply refuses unless --force is passed, and the migration of
+    # the TESTS has to land in the same change.
+    if "--apply" in sys.argv and touched and "--force" not in sys.argv:
+        print("\nREFUSING to apply: %d ordinal(s) the tests call by number would "
+              "lose their handler (%s).\nMigrate the test call sites in the same "
+              "change, or pass --force if you really mean to leave them."
+              % (len(touched), touched))
+        return 1
+
     if "--apply" in sys.argv:
-        n = 0
+        # MOVE deletes the old line AND adds the new assignment; DROP only deletes.
+        # (An earlier version tested tuple membership and silently turned every
+        # MOVE into a DROP -- which unregisters the syscall. That is the exact
+        # failure mode this tool exists to prevent, so the kind is explicit here
+        # and the tool refuses to run if a move would not be re-added.)
         by_file = collections.defaultdict(list)
-        for f, o, h, tgt in p["MOVE"] + p["DROP"]:
-            by_file[f].append((o, h, tgt))
+        for f, o, h, tgt in p["MOVE"]:
+            by_file[f].append(("MOVE", o, h, tgt))
+        for f, o, h, tgt in p["DROP"]:
+            by_file[f].append(("DROP", o, h, tgt))
+
+        moved = dropped = 0
         for f, items in by_file.items():
             path = os.path.join(VSL, f)
             src = open(path).read()
-            for o, h, tgt in items:
-                old = re.compile(r"^[ \t]*tbl\[%d-1\]\s*=\s*%s\s*;[^\n]*\n" % (o, re.escape(h)), re.M)
-                src = old.sub("", src)
-                if any(x[1] == h for x in items if x[0] == o and x[2] == tgt):
-                    pass
+            additions = []
+            for kind, o, h, tgt in items:
+                pat = re.compile(r"^[ \t]*tbl\[%d-1\]\s*=\s*%s\s*;[^\n]*\n"
+                                 % (o, re.escape(h)), re.M)
+                if not pat.search(src):
+                    print("  MISS %s tbl[%d-1] = %s" % (f, o, h))
+                    continue
+                src = pat.sub("", src, count=1)
+                if kind == "MOVE":
+                    additions.append("    tbl[%d-1] = %s;   /* moved from %d: "
+                                     "Windows 11 24H2 numbering */\n" % (tgt, h, o))
+                    moved += 1
+                else:
+                    dropped += 1
+            if additions:
+                # append after the LAST existing assignment in this file: that is
+                # inside the register function, so no brace hunt is needed
+                last = None
+                for m in re.finditer(r"^[ \t]*tbl\[\d+-1\]\s*=[^\n]*\n", src, re.M):
+                    last = m
+                if last is None:
+                    print("  REFUSED %s: no assignment anchor for %d addition(s)"
+                          % (f, len(additions)))
+                    continue
+                src = src[:last.end()] + "".join(additions) + src[last.end():]
             open(path, "w").write(src)
-            n += len(items)
-        print("\nAPPLIED %d edit(s); BLOCK entries untouched. Re-run the audit."
-              % n)
+        print("\nAPPLIED %d move(s), %d drop(s); BLOCK/UNKNOWN untouched."
+              % (moved, dropped))
     return 0
 
 
