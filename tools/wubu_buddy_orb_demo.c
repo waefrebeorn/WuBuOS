@@ -24,6 +24,9 @@
 #include <X11/keysym.h>
 
 #include <math.h>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -309,6 +312,22 @@ static void normalize3(float v[3])
 
 int main(void)
 {
+    /* ONE orb per session. The desktop forks this binary on start, and it calls
+     * setsid() so the orb survives a compositor restart -- which also means every
+     * desktop start (including one that fails later, e.g. "no Wayland display")
+     * used to leave another orb running: measured, two orbs at ~5% CPU each for
+     * over three hours. An exclusive lock makes the second instance exit quietly
+     * instead of doubling the animation cost on screen. */
+    const char *rd = getenv("XDG_RUNTIME_DIR");
+    char lockpath[512];
+    snprintf(lockpath, sizeof lockpath, "%s/wubu-buddy.lock",
+             (rd && *rd) ? rd : "/tmp");
+    int lockfd = open(lockpath, O_CREAT | O_RDWR, 0600);
+    if (lockfd >= 0 && flock(lockfd, LOCK_EX | LOCK_NB) != 0) {
+        fprintf(stderr, "wubu-buddy: already running (%s)\n", lockpath);
+        return 0;                      /* one orb per session; not an error */
+    }
+
     Display *dpy = XOpenDisplay(NULL);
     if (!dpy) { fprintf(stderr, "no X display\n"); return 1; }
 
