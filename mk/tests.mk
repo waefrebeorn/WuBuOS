@@ -121,14 +121,27 @@ test_ed25519_ir_ct_negctl:
 # scripts inject. They restore it from an EXIT trap, which a killed run never
 # runs -- and the ladder shipped `if (swap) TRY(ge_cswap(...))` for weeks that
 # way, so four CT gates silently stopped being able to prove anything.
+#
+# A negative control injects into the SHIPPED source for the duration of one
+# detector run, so a single sample can catch a HEALTHY control mid-injection and
+# report a catastrophe (observed at -j24: the suite went red while
+# default_crypto_negative_control.sh held the lock with the branch in place).
+# Sampling five times over ~8 s separates a transient injection from real
+# residue: a killed run's leftover never clears, an active control's does. No
+# lock is taken -- waiting behind the whole CT family would cost the suite more
+# than it proves.
 test_no_ct_residue:
-	@hits=$$(grep -rn "INJECTED CT REGRESSION" src/ include/ 2>/dev/null | grep -v "^tools/"); \
-	if [ -n "$$hits" ]; then \
-	    echo "$$hits"; \
-	    echo "test_no_ct_residue: FAIL (an injected CT regression is still in the tree)"; \
-	    exit 1; \
-	fi; \
-	echo "test_no_ct_residue: PASS (no injected CT regression in src/)"
+	@for attempt in 1 2 3 4 5; do \
+	  hits=$$(grep -rn "INJECTED CT REGRESSION" src/ include/ 2>/dev/null | grep -v "^tools/"); \
+	  if [ -z "$$hits" ]; then \
+	      echo "test_no_ct_residue: PASS (no injected CT regression in src/)"; \
+	      exit 0; \
+	  fi; \
+	  sleep 2; \
+	done; \
+	echo "$$hits"; \
+	echo "test_no_ct_residue: FAIL (an injected CT regression is still in the tree after 8 s)"; \
+	exit 1
 
 test_ed25519_gimple_ct:
 	flock $(CT_GATE_LOCK) bash tools/eddsa_gimple_ct_gate.sh
