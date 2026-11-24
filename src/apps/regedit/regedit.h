@@ -67,6 +67,20 @@ int           regedit_value_count(const RegeditState *reg);
 int  regedit_get_expand_depth(const RegeditState *reg);
 bool regedit_search_open(const RegeditState *reg);
 const char *regedit_get_search_text(const RegeditState *reg);
+/* Window callbacks and the one-shot demo hive the launcher seeds. */
+void regedit_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+void regedit_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+void regedit_seed_default_hive(RegeditState *reg);
+
+/* Visible tree rows (the renderer's row list, so a test can assert that what
+ * is drawn is also what a click selects). */
+int           regedit_row_count(const RegeditState *reg);
+const RegKey *regedit_row_key(const RegeditState *reg, int i);
+int           regedit_row_depth(const RegeditState *reg, int i);
+int           regedit_row_selected(const RegeditState *reg);
+bool          regedit_row_rect(const RegeditState *reg, int i,
+                               int *x, int *y, int *w, int *h);
+
 /* UI-state setters (for tests / programmatic control). */
 void regedit_set_search_text(RegeditState *reg, const char *text);
 void regedit_set_search_open(RegeditState *reg, bool open);
