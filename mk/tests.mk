@@ -3968,9 +3968,16 @@ test_all: test_hw_accel test_hw_adreno600 test_hw_adreno700 test_hw_aec test_hw_
 # CACHE / TEST_BIN are defined in mk/vars.mk (before any rule reads them).
 
 # Cached-object pattern rule: any kernel .c -> build/testobj/*.o
+# -MMD -MP + the .d includes are NOT optional here. Without them a cached
+# object never notices a header change: wubu_pci_dev_t grew, build/testobj/
+# wubu_storage.o kept the old size, and wubu_pci_scan wrote 64-byte entries into
+# a 48-byte-element array -- a stack smash that only surfaced once a test in the
+# device family actually ran (test_hw_hw_detect: SIGSEGV in __stack_chk_fail).
 $(CACHE)/%.o: $(KERNEL)/%.c
 	@mkdir -p $(CACHE)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -include wubu_gnu_compat.h -no-pie -I$(KERNEL) -c $< -o $@ -Iinclude
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -include wubu_gnu_compat.h -no-pie -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude
+
+-include $(wildcard $(CACHE)/*.d)
 
 # The full verified core module set (pre-compiled once).
 LUAWWW := $(LUA)/www/~WuBu~/src/lv/src
