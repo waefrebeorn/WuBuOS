@@ -60,7 +60,7 @@ cp "$ROOT/src/kernel/kernel.elf" build/KERNEL.ELF
 echo "=== 5/6 host 9P server + demo module ==="
 $CC -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
     -include "$ROOT/src/runtime/wubu_gnu_compat.h" -Wno-format-truncation \
-    -I "$ROOT/src/runtime" -I "$ROOT/src/kernel" \
+    -I "$ROOT/src/runtime" -I "$ROOT/src/kernel" -I "$ROOT/include" \
     "$ROOT/tools/agi-9p-server.c" \
     "$ROOT/src/runtime/styx_names.c" "$ROOT/src/runtime/styx_enc.c" \
     "$ROOT/src/runtime/styx_serve.c" "$ROOT/src/runtime/styx_parse.c" \
@@ -68,6 +68,7 @@ $CC -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
     "$ROOT/src/runtime/styxfs_callbacks.c" "$ROOT/src/runtime/styxfs_posix.c" \
     "$ROOT/src/runtime/styxfs_path.c" "$ROOT/src/runtime/styxfs_host.o" \
     "$ROOT/src/runtime/styxfs_util.c" "$ROOT/src/runtime/wubu_container.c" \
+    "$ROOT/src/runtime/wubu_crc32.c" "$ROOT/src/runtime/wubu_guest_root.c" \
     "$ROOT/src/runtime/wubu_spawn.c" -o build/agi-9p-server
 mkdir -p "$RUN/n9root/apps"
 # IMPORT demo module: entry = (U9_MAGIC() + 49); the kernel exports U9_MAGIC
