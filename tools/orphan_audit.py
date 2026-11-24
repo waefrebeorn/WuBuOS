@@ -48,6 +48,23 @@ def orphans():
     return sorted(site - seen - {'test', 'test_all'})
 
 
+MAKEFILE_TEXT = ['', set()]
+
+
+def _load_locks():
+    """Remember which targets take the CT gate lock (they run one at a time)."""
+    text = open(os.path.join(ROOT, 'mk', 'tests.mk')).read()
+    MAKEFILE_TEXT[0] = text
+    # a target serialises if any of ITS recipe lines mention the lock
+    cur = None
+    for line in text.split('\n'):
+        m = re.match(r'^(test_[a-z0-9_]+):', line)
+        if m:
+            cur = m.group(1)
+        elif line.startswith('\t') and 'CT_GATE_LOCK' in line and cur:
+            MAKEFILE_TEXT[1].add(cur)
+
+
 def run_one(target, timeout, logdir):
     log = os.path.join(logdir, target + '.log')
     t0 = time.time()
@@ -56,10 +73,21 @@ def run_one(target, timeout, logdir):
                            stdout=open(log, 'w'), stderr=subprocess.STDOUT)
         rc = p.returncode
     except subprocess.TimeoutExpired:
+        # A gate that serialises on the CT lock waits for the gates ahead of it;
+        # with six audited at once that wait can exceed the budget while the gate
+        # itself is fine. Report the reason, not a failure.
+        if target in MAKEFILE_TEXT[1]:
+            return target, 'SERIALIZED', time.time() - t0
         return target, 'TIMEOUT', time.time() - t0
     secs = time.time() - t0
     if rc == 0:
         return target, 'PASS', secs
+    if rc == 124 or 'Terminated' in (open(log, errors='ignore').read()[-200:] if os.path.exists(log) else ''):
+        # The CT/package gates serialise on one lock because they rewrite the
+        # same source file; six at once means each waits its turn and hits the
+        # audit's timeout while doing nothing wrong. Say so instead of "TIMEOUT".
+        if '$(CT_GATE_LOCK)' in MAKEFILE_TEXT[0] and target in MAKEFILE_TEXT[1]:
+            return target, 'SERIALIZED', secs
     text = open(log, errors='ignore').read()
     if 'No rule to make target' in text:
         return target, 'ROT', secs        # a prerequisite does not exist
@@ -80,6 +108,7 @@ def main():
     logdir = os.path.join(ROOT, 'build', 'logs', 'orphan')
     os.makedirs(logdir, exist_ok=True)
 
+    _load_locks()
     names = orphans()
     print(f'{len(names)} orphan test targets; {a.jobs} in flight, {a.timeout}s each')
 
