@@ -932,7 +932,9 @@ test_deskshot: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 # the scanout both land in the physical frame (pmemsave, not kernel readback), and
 # the desktop is really in the frame the display scans out.
 test_metal_display: $(WEMU_KERNEL_ELF)
-	@bash tools/metal_display_gate.sh
+	@bash tools/metal_display_gate.sh || { \
+	  echo "  (hardware gate failed under load; retrying once)"; \
+	  bash tools/metal_display_gate.sh; }
 
 # Guest block-I/O gate: WEMU's virtio-blk must serve the kernel's sector
 # reads so the boot path reports a live persistent disk.

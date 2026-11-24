@@ -133,11 +133,26 @@ if phys is not None and pitch is not None:
         f = f'/tmp/metal-px-{pid}.bin'
         if os.path.exists(f):
             os.unlink(f)
-        s.sendall(f'pmemsave {off} {n} "{f}"\n'.encode())
+        try:
+            s.sendall(f'pmemsave {off} {n} "{f}"\n'.encode())
+        except (BrokenPipeError, OSError):
+            return None          # monitor gone: QEMU died (see below)
         drain()
         if not os.path.exists(f):
             return None
         return open(f, 'rb').read()
+
+    def guest_died():
+        """True when QEMU has exited; prints why, with the serial tail."""
+        rc = p.poll()
+        if rc is None:
+            return False
+        print(f'  FAIL: the guest exited (code {rc}) before the check could run')
+        tail = buf.decode('latin-1', 'replace').splitlines()[-8:]
+        for l in tail:
+            if l.strip():
+                print('  | ' + l.strip()[:150])
+        return True
 
     # The probe pixels are TRANSIENT: the shell repaints (the buddy animates), so
     # a sample taken a second after the write can legitimately read the live
@@ -182,6 +197,11 @@ if phys is not None and pitch is not None:
         fail += 1
 
     # ---- 2. scanout: is the desktop really in the frame? --------------------
+    if guest_died():
+        fail += 1
+        s.close()
+        print('test_metal_display:', f'FAIL ({fail} check(s))')
+        sys.exit(1)
     w = h = 0
     sizes = re.findall(r'bare-metal display LIVE \((\d+)x(\d+)@(\d+)', log)
     if sizes:
@@ -209,6 +229,8 @@ if phys is not None and pitch is not None:
     started = time.time()
     stable = 0
     while time.time() - started < 30:
+        if p.poll() is not None:
+            break
         if window_painted() >= 90.0:
             stable += 1
             if stable >= 2:
