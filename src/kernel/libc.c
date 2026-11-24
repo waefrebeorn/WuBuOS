@@ -289,13 +289,19 @@ static int libc_puts(void (*putc)(char), const char *s) {
     return count;
 }
 
-int vsprintf(char *buf, const char *fmt, va_list args) {
+static int vsprintf_b(char *buf, size_t lim, const char *fmt, va_list args) {
     char *out = buf;
     const char *p = fmt;
+    size_t total = 0;               /* would-be length, snprintf's contract */
+/* The argument MUST be evaluated before the bound test: PUT(*p++) used to
+     * leave p un-advanced once the buffer was full, so the format loop spun
+     * forever on the character it could not store. */
+#define PUT(ch) do { char _pc = (char)(ch); total++; \
+        if (lim == 0 || (size_t)(out - buf) + 1 < lim) *out++ = _pc; } while (0)
 
     while (*p) {
         if (*p != '%') {
-            *out++ = *p++;
+            PUT(*p++);
             continue;
         }
         p++;  /* skip '%' */
@@ -331,16 +337,15 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
             case 'd': case 'i': {
                 long val = is_long ? va_arg(args, long) : (long)va_arg(args, int);
                 if (val < 0) {
-                    *out++ = '-';
+                    PUT('-');
                     val = -val;
                 }
                 itoa((int)val, numbuf, 10);
                 int len = (int)strlen(numbuf);
                 if (zero_pad && width > len) {
-                    for (int i = 0; i < width - len; i++) *out++ = '0';
+                    for (int i = 0; i < width - len; i++) PUT('0');
                 }
-                strcpy(out, numbuf);
-                out += strlen(numbuf);
+                for (const char *q = numbuf; *q; q++) PUT(*q);
                 break;
             }
             case 'u': {
@@ -361,10 +366,9 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
                     numbuf[idx - 1 - i] = tmp;
                 }
                 if (zero_pad && width > idx) {
-                    for (int i = 0; i < width - idx; i++) *out++ = '0';
+                    for (int i = 0; i < width - idx; i++) PUT('0');
                 }
-                strcpy(out, numbuf);
-                out += strlen(numbuf);
+                for (const char *q = numbuf; *q; q++) PUT(*q);
                 break;
             }
             case 'x': case 'X': {
@@ -387,10 +391,9 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
                     numbuf[idx - 1 - i] = tmp;
                 }
                 if (zero_pad && width > idx) {
-                    for (int i = 0; i < width - idx; i++) *out++ = '0';
+                    for (int i = 0; i < width - idx; i++) PUT('0');
                 }
-                strcpy(out, numbuf);
-                out += strlen(numbuf);
+                for (const char *q = numbuf; *q; q++) PUT(*q);
                 break;
             }
             case 's': {
@@ -398,20 +401,19 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
                 if (!s) s = "(null)";
                 int len = (int)strlen(s);
                 if (width > len) {
-                    for (int i = 0; i < width - len; i++) *out++ = ' ';
+                    for (int i = 0; i < width - len; i++) PUT(' ');
                 }
-                strcpy(out, s);
-                out += len;
+                for (const char *q = s; *q; q++) PUT(*q);
                 break;
             }
             case 'c': {
                 char c = (char)va_arg(args, int);
-                *out++ = c;
+                PUT(c);
                 break;
             }
             case 'p': {
-                *out++ = '0';
-                *out++ = 'x';
+                PUT('0');
+                PUT('x');
                 unsigned long val = (unsigned long)va_arg(args, void*);
                 int idx = 0;
                 if (val == 0) { numbuf[idx++] = '0'; }
@@ -426,26 +428,28 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
                     numbuf[i] = numbuf[idx - 1 - i];
                     numbuf[idx - 1 - i] = tmp;
                 }
-                strcpy(out, numbuf);
-                out += strlen(numbuf);
+                for (const char *q = numbuf; *q; q++) PUT(*q);
                 break;
             }
             case '%': {
-                *out++ = '%';
+                PUT('%');
                 break;
             }
             default: {
                 /* Unknown specifier: pass through literally */
-                *out++ = '%';
-                if (spec) *out++ = spec;
+                PUT('%');
+                if (spec) PUT(spec);
                 break;
             }
         }
     }
 
-    *out = '\0';
-    return (int)(out - buf);
+    if (lim == 0) *out = '\0';
+    else buf[(size_t)(out - buf) < lim ? (size_t)(out - buf) : lim - 1] = '\0';
+    return (int)total;
 }
+
+int vsprintf(char *buf, const char *fmt, va_list args) { return vsprintf_b(buf, 0, fmt, args); }
 
 int sprintf(char *buf, const char *fmt, ...) {
     va_list args;
@@ -724,14 +728,5 @@ int __snprintf_chk(char *str, size_t size, int flag, size_t dstlen,
 int vsnprintf(char *str, size_t size, const char *fmt, va_list ap)
 {
     if (!str || size == 0) return 0;
-    va_list ap2;
-    va_copy(ap2, ap);
-    int n = vsprintf(str, fmt, ap2);
-    va_end(ap2);
-    if ((size_t)n >= size) {
-        /* truncate + terminate (the standard contract) */
-        str[size - 1] = '\0';
-        return n;
-    }
-    return n;
+    return vsprintf_b(str, size, fmt, ap);
 }
