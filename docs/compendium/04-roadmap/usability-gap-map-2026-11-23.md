@@ -402,5 +402,30 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   a real 2 MB mapping inside the guest.
 - Hosted builds keep `calloc` and `g_wubu_kv_slabs == 0`, so the existing
   KV tests are untouched.
-- Still open: 9P serving of the tensor to the host, and a GPU ring buffer
-  in the same arena.
+- Still open: a GPU ring buffer in the same arena.
+
+## Landed increment — the kernel speaks 9P as a SERVER for /n/kv
+
+- `wubu_9psrv.c` + `wubu_9pwire.h`: a kernel-clean 9P2000 server whose tree
+  IS the kvfs mount table (`/` → `kv` → mount points → tick files) and whose
+  file bytes come from `wubu_kvfs_route_read`, i.e. out of the live ring-0
+  tensor. Tversion/attach/walk/open/read/clunk/stat; directory reads emit
+  real 9P stat entries; writes answer Rerror ("body-owned"), never silently.
+- The wire vocabulary now lives in ONE header, shared by the CLIENT
+  (`wubu_9pc`, which fetches /apps over COM2) and the SERVER, so the on-wire
+  codec cannot drift.
+- `wubu_kvfs_mount_at()` exposes the mount table for walking without seeing
+  the struct.
+- `kvfs` no longer calls the vmm directly: it takes a **slab provider**
+  installed by the boot path (`metal_main`), so hosted builds and every
+  hosted gate that compiles kvfs with `-DMYSEED_METAL` link without the vmm
+  (that coupling had broken `test_syscall` and `test_era_apps`).
+- Gate: `test_9psrv` wires the kernel client's transport straight into the
+  server codec — version/attach/walk/open/read/clunk round trips, the tick
+  read must equal what `wubu_kvfs_route_write` put in the tensor, a
+  past-EOF read is 0 bytes not an error, `/kv` lists `world`, a write and an
+  unsupported message both return Rerror, and Tstat reports one block of
+  floats (1024 bytes).
+- Still open: the COM2 transport binding (poll frames from `wubu_n9`, feed
+  the codec) plus a host-side mount script so a real Linux client can mount
+  /n/kv off the metal body.

@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: test_metal_model test_vmm_huge runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -1492,6 +1492,15 @@ test_vmm_huge: $(KERNEL)/test/test_vmm_huge.c $(KERNEL)/wubu_sync.c
 		-I$(KERNEL) -Iinclude $(KERNEL)/test/test_vmm_huge.c \
 		$(KERNEL)/wubu_sync.c -o $(KERNEL)/test_vmm_huge
 	$(KERNEL)/test_vmm_huge
+
+# The kernel 9P server against the kernel 9P client: the client's transport is
+# wired straight into wubu_9psrv_serve(), so one mis-encoded field fails here.
+test_9psrv: $(KERNEL)/test/test_9psrv.c $(KERNEL)/wubu_9psrv.c $(KERNEL)/wubu_9pc.c $(KERNEL)/wubu_kvfs.c
+	$(CC) -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(KERNEL) -Iinclude $(KERNEL)/test/test_9psrv.c \
+		$(KERNEL)/wubu_9psrv.c $(KERNEL)/wubu_9pc.c $(KERNEL)/wubu_kvfs.c \
+		-o $(KERNEL)/test_9psrv
+	$(KERNEL)/test_9psrv
 
 test_metal_model: $(KERNEL)/test/test_metal_model.c $(KERNEL)/wubu_metal_model.c
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -Iinclude \

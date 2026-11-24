@@ -25,6 +25,8 @@
 #include "wubu_probe.h"  /* Gap DB: unified hardware discovery dispatcher */
 #include "ps2.h"
 #include "klog.h"
+#include "wubu_vmm.h"     /* Wave 3: the 2 MB slab arena behind the KV tensor */
+#include "wubu_kvfs.h"    /* the tensor's backing provider contract */
 #include "../hosted/wubu_metal.h"
 
 /* kernel libc (freestanding): declared here for the boot-path users */
@@ -401,6 +403,27 @@ extern void wubu_shell_run(void *arg);
 /* =================================================================
  * Kernel Main  --  Bare Metal Entry
  * ================================================================= */
+
+/* ---- the KV tensor's backing: 2 MB slabs from the vmm arena ----------
+ * One physically contiguous, 2 MB-aligned run mapped PS=1 per slab, so the
+ * tensor the AGI reads and a GPU would DMA are the same memory. A refusal
+ * returns NULL and kvfs falls back to the heap. */
+static void *kv_slab_acquire(size_t bytes, uint32_t *out_slabs)
+{
+    if (!out_slabs || bytes == 0) return NULL;
+    uint64_t slabs = ((uint64_t)bytes + WUBU_VMM_HUGE_SLAB_BYTES - 1) /
+                     WUBU_VMM_HUGE_SLAB_BYTES;
+    if (slabs == 0 || slabs > WUBU_VMM_HUGE_SLOTS) return NULL;
+    uint64_t va = wubu_vmm_huge_arena_alloc((uint32_t)slabs);
+    if (!va) return NULL;
+    *out_slabs = (uint32_t)slabs;
+    return (void *)(uintptr_t)va;
+}
+
+static void kv_slab_release(void *mem, uint32_t slabs)
+{
+    if (mem) wubu_vmm_huge_arena_free((uint64_t)(uintptr_t)mem, slabs);
+}
 
 void kernel_main(void *boot_info) {
     (void)boot_info;  /* Parsed from registers in crt0.S */
@@ -827,9 +850,11 @@ void kernel_main(void *boot_info) {
      * region is mounted over the static tensor; console `kv` commands
      * persist a compact state file on the boot volume. */
     {
-        extern int wubu_kvfs_kernel_init(uint32_t, uint32_t);
-        extern int wubu_kvfs_mount(void *, const char *, uint32_t, uint32_t);
-        extern void *g_wubu_kvfs;
+        /* The tensor is backed by the vmm's 2 MB slab arena: one physically
+         * contiguous, 2 MB-aligned, PS=1-mapped span (DMA/GPU visible) rather
+         * than heap pages. kvfs zeroes and probes whatever the provider hands
+         * back and falls back to the heap if the arena refuses. */
+        wubu_kvfs_set_slab_provider(kv_slab_acquire, kv_slab_release);
         if (wubu_kvfs_kernel_init(256u, 4096u) == 0 && g_wubu_kvfs) {
             (void)wubu_kvfs_mount(g_wubu_kvfs, "/kv/world", 0u, 256u);
         }

@@ -89,11 +89,28 @@ extern size_t        g_wubu_kv_capacity;
  * arena (metal, physically contiguous + 2 MB aligned); 0 = heap (hosted). */
 extern uint32_t      g_wubu_kv_slabs;
 
+/* ---- who backs the tensor -------------------------------------------
+ * The tensor's memory is a BOOT decision, so kvfs asks a provider instead of
+ * calling the vmm itself: the kernel installs the 2 MB slab arena before
+ * wubu_kvfs_kernel_init(), and every hosted build/gate runs with no provider
+ * (plain heap). acquire() returns a writable span of at least `bytes`, tells
+ * the caller how many slabs it is, and NULL when it cannot honour the size.
+ * release() gives a refused span back (used when the readback probe fails). */
+typedef void *(*wubu_kvfs_slab_fn)(size_t bytes, uint32_t *out_slabs);
+typedef void (*wubu_kvfs_slab_release_fn)(void *mem, uint32_t slabs);
+void wubu_kvfs_set_slab_provider(wubu_kvfs_slab_fn acquire,
+                                 wubu_kvfs_slab_release_fn release);
+
+/* Enumerate the mount table (kvfs owns the namespace; a 9P server or a
+ * diagnostic walks it without seeing the struct). 0 = filled, -1 = no such
+ * live slot. */
+int wubu_kvfs_mount_at(const wubu_kvfs_t *fs, int idx, wubu_kvfs_mount_t *out);
+
 /* Called at kernel init; returns 0 on success, -1 on failure. */
 int wubu_kvfs_kernel_init(uint32_t block_size, uint32_t total_blocks);
 
 /* ---- THE DOCTRINE: the OS state IS the KV cache, served as 9P ----
- * These route /n/kv/* reads to the live KV tensor (not the on-disk
+ * These route /n/kv reads to the live KV tensor (not the on-disk
  * placeholder), so the filesystem and the KV cache are the SAME store.
  * Used by the Styx/9P server's read/write callbacks. */
 const char *wubu_kvfs_route_path(const char *disk_path, const char *ns_root);

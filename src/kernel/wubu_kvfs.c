@@ -14,9 +14,6 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "wubu_kvfs.h"
-#ifdef MYSEED_METAL
-#include "wubu_vmm.h"      /* 2 MB slab arena: the metal tensor backing */
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +51,17 @@ float       *g_wubu_kv_base = NULL;
 size_t       g_wubu_kv_capacity = 0;
 uint32_t     g_wubu_kv_slabs = 0;
 
+/* Who backs the tensor. NULL = the heap (hosted default). */
+static wubu_kvfs_slab_fn g_kv_slab_fn = NULL;
+static wubu_kvfs_slab_release_fn g_kv_slab_release_fn = NULL;
+
+void wubu_kvfs_set_slab_provider(wubu_kvfs_slab_fn acquire,
+                                 wubu_kvfs_slab_release_fn release)
+{
+    g_kv_slab_fn = acquire;
+    g_kv_slab_release_fn = release;
+}
+
 /* ---- FNV-1a hash ---- */
 static uint64_t fnv1a(const char *s) {
     uint64_t h = 0xcbf29ce484222325ULL;
@@ -69,7 +77,6 @@ static uint64_t fnv1a(const char *s) {
 static int kvfs_grow(wubu_kvfs_t *fs) {
     int new_cap = fs->cap_mounts ? fs->cap_mounts * 2 : 16;
     size_t old = fs->n_mounts * sizeof(wubu_kvfs_mount_t);
-    size_t nu  = new_cap * sizeof(wubu_kvfs_mount_t);
     wubu_kvfs_mount_t *nm = (wubu_kvfs_mount_t *)calloc(new_cap, sizeof(wubu_kvfs_mount_t));
     if (!nm) return -1;
     memcpy(nm, fs->mounts, old);
@@ -373,6 +380,13 @@ int wubu_kvfs_mount_count(const wubu_kvfs_t *fs) {
     return fs ? fs->n_live : 0;
 }
 
+int wubu_kvfs_mount_at(const wubu_kvfs_t *fs, int idx, wubu_kvfs_mount_t *out) {
+    if (!fs || !out || idx < 0 || idx >= fs->n_mounts) return -1;
+    if (fs->mounts[idx].n_blocks == 0) return -1;   /* unmounted tombstone */
+    *out = fs->mounts[idx];
+    return 0;
+}
+
 void wubu_kvfs_free(wubu_kvfs_t *fs) {
     if (!fs) return;
     free(fs->mounts);
@@ -389,23 +403,20 @@ int wubu_kvfs_kernel_init(uint32_t block_size, uint32_t total_blocks) {
     if (!g_wubu_kvfs) return -1;
     size_t total_floats = (size_t)total_blocks * block_size;
 
-#ifdef MYSEED_METAL
-    /* The KV tensor is the AGI's working set. Back it with 2 MB huge slabs
-     * from the vmm arena: one physically contiguous, 2 MB-aligned span
-     * (DMA/GPU visible, one PS=1 PDE per 2 MB) instead of heap pages that
-     * calloc scatters. A zeroed slab is written and read back through the
-     * mapping before it is trusted -- the boot log is the gate. */
-    {
-        size_t bytes = total_floats * sizeof(float);
-        uint32_t slabs = (uint32_t)((bytes + WUBU_VMM_HUGE_SLAB_BYTES - 1) /
-                                    WUBU_VMM_HUGE_SLAB_BYTES);
-        uint64_t va = slabs ? wubu_vmm_huge_arena_alloc(slabs) : 0;
-        if (va) {
-            float *p = (float *)(uintptr_t)va;
-            const size_t per_slab = (size_t)(WUBU_VMM_HUGE_SLAB_BYTES /
-                                             sizeof(float));
+    /* The tensor is the AGI's working set, so WHO BACKS IT is a boot
+     * decision, not a kvfs detail: the kernel installs a provider (the 2 MB
+     * slab arena) before this call. Absent a provider -- hosted builds, every
+     * hosted gate -- the tensor is heap memory. Whatever we get is zeroed and
+     * probed through the returned pointer before it is trusted. */
+    if (g_kv_slab_fn) {
+        uint32_t slabs = 0;
+        void *mem = g_kv_slab_fn(total_floats * sizeof(float), &slabs);
+        if (mem && slabs) {
+            float *p = (float *)mem;
+            const size_t per_slab = total_floats / slabs + 1;
             for (size_t i = 0; i < total_floats; i++) p[i] = 0.0f;
-            for (uint32_t s = 0; s < slabs; s++) p[(size_t)s * per_slab] = 1.0f + (float)s;
+            for (uint32_t s = 0; s < slabs; s++)
+                p[(size_t)s * per_slab] = 1.0f + (float)s;
             int ok = 1;
             for (uint32_t s = 0; s < slabs; s++) {
                 size_t at = (size_t)s * per_slab;
@@ -416,18 +427,16 @@ int wubu_kvfs_kernel_init(uint32_t block_size, uint32_t total_blocks) {
                 g_wubu_kv_base = p;
                 g_wubu_kv_slabs = slabs;
                 g_wubu_kv_capacity = total_floats;
-                printf("kvfs: tensor on %u x 2MB huge slabs va=%llx\n",
-                       (unsigned)slabs, (unsigned long long)va);
+                printf("kvfs: tensor on %u slab(s) va=%llx\n",
+                       (unsigned)slabs, (unsigned long long)(uintptr_t)p);
                 return 0;
             }
-            wubu_vmm_huge_arena_free(va, slabs);
-            printf("kvfs: huge slab readback FAILED (va=%llx slabs=%u)\n",
-                   (unsigned long long)va, (unsigned)slabs);
+            if (g_kv_slab_release_fn) g_kv_slab_release_fn(mem, slabs);
+            printf("kvfs: slab readback FAILED (slabs=%u)\n", (unsigned)slabs);
         } else {
-            printf("kvfs: no 2MB arena room for %u slabs\n", (unsigned)slabs);
+            printf("kvfs: provider refused the tensor backing\n");
         }
     }
-#endif
     /* The KV tensor backing store — ring-0 memory. */
     g_wubu_kv_base = (float *)calloc(total_floats, sizeof(float));
     if (!g_wubu_kv_base) {
