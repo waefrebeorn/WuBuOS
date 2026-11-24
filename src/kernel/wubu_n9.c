@@ -49,7 +49,12 @@
  * of steps discovering that no host is on the other end of COM2: on a miss we
  * latch "link absent" for the rest of the boot and every later read returns
  * immediately (A3 then fails once, cheaply, instead of once per byte). */
-#define N9_PROBE_MAX (1u << 16)
+/* First-contact probe. The boot pays this ONCE when no host is attached
+ * (it is latched absent afterwards), and 65536 polls cost 393k guest steps
+ * -- 11% of the whole boot -- for a UART that is simply not there. 4096 is
+ * still far longer than a host needs to answer the guest's ready signal;
+ * the A3 proof (host attached) is the gate that guards this number. */
+#define N9_PROBE_MAX (1u << 12)
 
 static void n9_com2_init(void)
 {

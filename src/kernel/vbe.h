@@ -119,6 +119,11 @@ int  vbe_probe_native_mode(int *out_w, int *out_h);
 
 void vbe_set_pixel(int x, int y, uint32_t color);
 uint32_t vbe_get_pixel(int x, int y);
+/* Scanline base for callers that already resolved their bounds. NULL when y
+ * is off-surface. Lets a sprite/scanline loop write pixels inline instead of
+ * paying the bounds+clip check per pixel through vbe_set_pixel. */
+uint32_t *vbe_scanline(int y);
+int vbe_surface_width(void);
 
 /* Filled rectangle */
 void vbe_fill_rect(int x, int y, int w, int h, uint32_t color);

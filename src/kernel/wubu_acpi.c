@@ -22,6 +22,12 @@ static uint64_t rd64(uint64_t p){ return *(volatile uint64_t *)(uintptr_t)p; }
 /* 8/4-byte signature compare (no libc dependency). */
 static int sig_eq8(uint64_t p, const char *sig)
 {
+    /* Byte-at-a-time on purpose: the scan steps 16 bytes at a time across
+     * the whole 128 KB BIOS area and the first byte rejects almost every
+     * window, so this costs ~1 read per step. A single 64-bit load looked
+     * cheaper but measured 6.5x WORSE (1.06M vs 163k guest steps): it pays
+     * the full wide-read path for every window instead of stopping at
+     * byte 0. Keep the early exit. */
     for (int i = 0; i < 8; i++)
         if ((char)rd8(p + (uint64_t)i) != sig[i]) return 0;
     return 1;

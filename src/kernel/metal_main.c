@@ -438,9 +438,12 @@ void kernel_main(void *boot_info) {
     /* 1. Zero BSS FIRST -- before any subsystem init.  klog_init() below
      * sets g_klog_ready (a BSS variable); zeroing BSS *after* init would
      * wipe that flag and every later klog_printf would silently no-op. */
-    uint64_t *bss = (uint64_t *)_bss_start;      /* linker symbols: char[] */
-    uint64_t *bss_end = (uint64_t *)_bss_end;    /* decay + explicit cast */
-    while (bss < bss_end) *bss++ = 0;
+    /* crt0.S already zeroed _bss_start.._bss_end with one `rep stosb`
+     * before it called us (it owns that region: WuBuFW's live page tables
+     * sit inside it while the loader runs). This loop was a second full
+     * pass over ~700 KB -- measured 348k of the boot's guest steps -- and
+     * it also wiped the klog state crt0 had just initialised, which is why
+     * klog_init() is called again below. One owner: crt0. */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'1', %%al\n outb %%al, %%dx\n movb $'7', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* Diagnostic: emit fixed bytes (no deref) to bracket klog_init. */

@@ -188,20 +188,28 @@ static void bn_dispatch(wubu_bonzi_t *b, const char *line)
  * the transparent margins around the baked buddy. */
 static void bn_draw_buddy(int x0, int y0, int scale)
 {
-    for (int yy = 0; yy < WUBU_BUDDY_SPRITE_SIZE; yy++)
-        for (int xx = 0; xx < WUBU_BUDDY_SPRITE_SIZE; xx++) {
-            const unsigned char *px =
-                &wubu_buddy_rgba[(yy * WUBU_BUDDY_SPRITE_SIZE + xx) * 4];
-            if (px[3] > 128) {
+    int sw = vbe_surface_width();
+    for (int yy = 0; yy < WUBU_BUDDY_SPRITE_SIZE; yy++) {
+        const unsigned char *srow =
+            &wubu_buddy_rgba[yy * WUBU_BUDDY_SPRITE_SIZE * 4];
+        for (int sy = 0; sy < scale; sy++) {
+            int fy = y0 + yy * scale + sy;
+            uint32_t *dst = vbe_scanline(fy);
+            if (!dst) continue;
+            for (int xx = 0; xx < WUBU_BUDDY_SPRITE_SIZE; xx++) {
+                const unsigned char *px = &srow[xx * 4];
+                if (px[3] <= 128) continue;
                 uint32_t c = ((uint32_t)px[0] << 16) |
                              ((uint32_t)px[1] << 8) |
                              ((uint32_t)px[2]);
-                int fx = x0 + xx * scale, fy = y0 + yy * scale;
-                for (int sy = 0; sy < scale; sy++)
-                    for (int sx = 0; sx < scale; sx++)
-                        vbe_set_pixel(fx + sx, fy + sy, c);
+                int fx = x0 + xx * scale;
+                for (int sx = 0; sx < scale; sx++) {
+                    int dx = fx + sx;
+                    if (dx >= 0 && dx < sw) dst[dx] = c;
+                }
             }
         }
+    }
 }
 
 static void bn_draw(wubu_bonzi_t *b)

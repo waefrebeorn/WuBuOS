@@ -46,6 +46,8 @@ static void bm_clear(uint32_t idx) {
     g_bitmap[idx >> 3] &= (uint8_t)~(1u << (idx & 7));
     g_free_pages++;
 }
+/* Where the next first-fit scan starts (allocation hint, not an invariant). */
+static uint32_t g_alloc_hint;
 static uint32_t bm_test(uint32_t idx) {
     return (g_bitmap[idx >> 3] >> (idx & 7)) & 1u;
 }
@@ -57,6 +59,22 @@ static void bm_set_range(uint32_t from, uint32_t to) {
     if (from >= to) return;
     uint32_t i = from;
     while (i < to && (i & 7u)) { if (!bm_test(i)) bm_set(i); i++; }
+    /* 64 pages per word. The byte-at-a-time SWAR measured 603k guest steps
+     * (17% of the boot) on a 256 MB memmap; the word form does the same work
+     * with 8x fewer loop iterations. __builtin_memcpy keeps the 8-byte load
+     * unaligned-safe without a libgcc helper (kernel links -nostdlib). */
+    while (i + 64 <= to) {
+        uint64_t cur;
+        __builtin_memcpy(&cur, g_bitmap + (i >> 3), sizeof cur);
+        cur = ~cur;
+        cur = cur - ((cur >> 1) & 0x5555555555555555ull);
+        cur = (cur & 0x3333333333333333ull) + ((cur >> 2) & 0x3333333333333333ull);
+        cur = (cur + (cur >> 4)) & 0x0F0F0F0F0F0F0F0Full;
+        g_free_pages -= (uint32_t)((cur * 0x0101010101010101ull) >> 56);
+        cur = ~0ull;
+        __builtin_memcpy(g_bitmap + (i >> 3), &cur, sizeof cur);
+        i += 64;
+    }
     while (i + 8 <= to) {
         uint8_t cur = (uint8_t)~g_bitmap[i >> 3];
         /* popcount without libgcc: the kernel links -nostdlib */
@@ -81,6 +99,7 @@ void wubu_vmm_init(void)
     for (uint32_t i = 0; i < WUBU_VMM_BITMAP_BITS; i++)
         g_refs[i] = 0;
     g_free_pages = WUBU_VMM_BITMAP_BITS;
+    g_alloc_hint = 0;
 
     /* mark USED: kernel image + heap + vbe buffers + early stack */
     /* heap (mem_alloc): 0x400000 .. 0x4400000 (64 MB) */
@@ -131,15 +150,20 @@ void wubu_vmm_init(void)
                      (uint32_t)WUBU_VMM_BITMAP_BITS);
 }
 
-uint64_t wubu_vmm_alloc_pages(uint32_t n)
+/* First-fit for n consecutive free pages inside [from,to). */
+static uint64_t bm_scan_alloc(uint32_t from, uint32_t to, uint32_t n)
 {
-    if (n == 0 || n > 64) return 0;
-    uint64_t out = 0;
-    wubu_spin_lock(&g_vmm_lock);
-    /* first-fit scan for n consecutive free pages */
     uint32_t run = 0, start = 0;
-    uint32_t limit = (uint32_t)((g_alloc_end - WUBU_VMM_PHYS_BASE) / PAGE);
-    for (uint32_t i = 0; i < limit; i++) {
+    for (uint32_t i = from; i < to; i++) {
+        /* A fully-used 64-page word can be skipped with one load: boot
+         * allocations walk over megabytes the kernel already owns page by
+         * page otherwise. Only taken when the word is entirely used, so a
+         * free page inside it is never missed. */
+        if ((i & 63u) == 0 && i + 64 <= to) {
+            uint64_t w;
+            __builtin_memcpy(&w, g_bitmap + (i >> 3), sizeof w);
+            if (w == ~0ull) { i += 63; run = 0; continue; }
+        }
         if (bm_test(i) == 0) {
             if (run == 0) start = i;
             if (++run == n) {
@@ -147,13 +171,30 @@ uint64_t wubu_vmm_alloc_pages(uint32_t n)
                     bm_set(j);
                     g_refs[j] = 1;      /* gap B8: fresh alloc, ref=1 */
                 }
-                out = WUBU_VMM_PHYS_BASE + (uint64_t)start * PAGE;
-                break;
+                return WUBU_VMM_PHYS_BASE + (uint64_t)start * PAGE;
             }
         } else {
             run = 0;
         }
     }
+    return 0;
+}
+
+uint64_t wubu_vmm_alloc_pages(uint32_t n)
+{
+    if (n == 0 || n > 64) return 0;
+    uint64_t out = 0;
+    wubu_spin_lock(&g_vmm_lock);
+    /* First fit, starting where the last allocation ended. Every alloc used to
+     * rescan from page 0 over the kernel image + heap that boot had already
+     * marked used; that was 293k guest steps (8.5%) before the first console
+     * line. The hint is only a starting point: a second pass covers [0,hint)
+     * so a hole below it is still found. */
+    uint32_t limit = (uint32_t)((g_alloc_end - WUBU_VMM_PHYS_BASE) / PAGE);
+    uint32_t hint = g_alloc_hint < limit ? g_alloc_hint : 0;
+    out = bm_scan_alloc(hint, limit, n);
+    if (!out && hint) out = bm_scan_alloc(0, hint, n);
+    if (out) g_alloc_hint = (uint32_t)((out - WUBU_VMM_PHYS_BASE) / PAGE) + n;
     wubu_spin_unlock(&g_vmm_lock);
     return out;
 }
