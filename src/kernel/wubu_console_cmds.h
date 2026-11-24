@@ -22,6 +22,8 @@ int cmd_agi(int argc, char **argv);
 int cmd_holyc(int argc, char **argv);
 int cmd_fs(int argc, char **argv);
 int cmd_kv(int argc, char **argv);
+/* The 9P server's own proof: the kernel client walks /n/kv in-kernel. */
+int cmd_kv9p(int argc, char **argv);
 int cmd_model(int argc, char **argv);
 
 #endif /* WUBU_CONSOLE_CMDS_H */

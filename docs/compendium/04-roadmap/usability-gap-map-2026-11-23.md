@@ -426,6 +426,13 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   past-EOF read is 0 bytes not an error, `/kv` lists `world`, a write and an
   unsupported message both return Rerror, and Tstat reports one block of
   floats (1024 bytes).
+- In-kernel proof: console `kv9p [/kv/path]` drives the SERVER through the
+  CLIENT inside the kernel (`kv9p_tx` → `wubu_9psrv_serve`), and `kv write`
+  now reads its own bytes straight back over 9P. Guest evidence:
+  `kv: wrote 11 22 33 44` then
+  `kv9p: /kv/world/tick_0 -> 16 bytes, [11 22 33 44]`, fault=0.
+- `wubu_9psrv.o` is linked into `kernel.elf` (KERNEL_OBJS), so the module
+  cannot rot as a test-only orphan.
 - Still open: the COM2 transport binding (poll frames from `wubu_n9`, feed
   the codec) plus a host-side mount script so a real Linux client can mount
   /n/kv off the metal body.

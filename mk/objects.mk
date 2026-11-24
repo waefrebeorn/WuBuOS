@@ -60,7 +60,7 @@ KERNEL_OBJS = $(KERNEL)/WuBuKernel/src/wubu_driver_contract.o \
               $(KERNEL)/wubu_recovery.o $(KERNEL)/wubu_atom.o \
               $(KERNEL)/wubu_psych.o $(KERNEL)/wubu_bonzi_study.o $(KERNEL)/wubu_tutor.o \
               $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o \
-              $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/libc_string.o $(KERNEL)/klog.o $(KERNEL)/wubu_pe.o $(KERNEL)/wubu_pe_personality.o $(KERNEL)/wubu_modsym.o $(KERNEL)/wubu_zx.o $(KERNEL)/wubu_zxreg.o $(KERNEL)/wubu_9pc.o $(KERNEL)/wubu_n9.o $(KERNEL)/wubu_elf.o $(KERNEL)/wubu_macho.o \
+              $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/libc_string.o $(KERNEL)/klog.o $(KERNEL)/wubu_pe.o $(KERNEL)/wubu_pe_personality.o $(KERNEL)/wubu_modsym.o $(KERNEL)/wubu_zx.o $(KERNEL)/wubu_zxreg.o $(KERNEL)/wubu_9pc.o $(KERNEL)/wubu_9psrv.o $(KERNEL)/wubu_n9.o $(KERNEL)/wubu_elf.o $(KERNEL)/wubu_macho.o \
               $(KERNEL)/wubu_lzx.o $(KERNEL)/wubu_inflate.o $(KERNEL)/wubu_zip.o $(KERNEL)/wubu_cab.o \
               $(KERNEL)/wubu_hw_detect.o \
               $(KERNEL)/wubu_gpu_icd.o \

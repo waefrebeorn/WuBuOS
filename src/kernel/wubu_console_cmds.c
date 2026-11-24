@@ -15,6 +15,8 @@
 #include "wubu_rtc.h"
 #include "wubu_theme.h"
 #include "wubu_vmm.h"
+#include "wubu_9pc.h"      /* kv9p: drive the 9P server through the client */
+#include "wubu_9psrv.h"
 #include "wubu_attest.h"
 #include "wubu_hid.h"
 #include "interrupt.h"
@@ -178,6 +180,9 @@ static int kv_float_to_int(float f)
 /* Wave 3: a tiny ring-0 KV state surface backed by the boot volume.
  * The namespace is real (wubu_kvfs path routing over a float tensor);
  * the compact file makes the state survive a reboot. */
+/* proof-of-loop: read a KV path back through the kernel 9P server */
+static int kv9p_read(const char *path);
+
 int cmd_kv(int argc, char **argv)
 {
     extern int fat32_create(fat32_volume *, uint32_t, const char *,
@@ -216,6 +221,8 @@ int cmd_kv(int argc, char **argv)
         fat32_close(&f);
         fat32_flush(vol);
         klog_printf("kv: wrote %d %d %d %d\n", iv[0], iv[1], iv[2], iv[3]);
+        /* and prove the 9P server serves those same bytes back */
+        (void)kv9p_read("/kv/world/tick_0");
         return 0;
     }
     if (strcmp(sub, "read") == 0) {
@@ -238,6 +245,88 @@ int cmd_kv(int argc, char **argv)
     }
     klog_printf("kv: usage: kv write n1 n2 n3 n4 | kv read\n");
     return -1;
+}
+
+/* kv9p -- drive the kernel 9P SERVER through the kernel 9P CLIENT, in-kernel.
+ * One codec pair, one namespace: if either side mis-encodes a field the read
+ * comes back short or wrong. The bytes are served from the LIVE tensor. */
+static uint8_t g_kv9p_in[512];
+static uint8_t g_kv9p_out[WUBU_9PSRV_MSIZE];
+
+static int kv9p_tx(const uint8_t *req, uint32_t reqlen, uint8_t *rsp,
+                   uint32_t *rsplen, void *ud)
+{
+    (void)ud;
+    return wubu_9psrv_serve(req, reqlen, rsp, WUBU_9PSRV_MSIZE, rsplen) == 0
+           ? 0 : -1;
+}
+
+static int kv9p_read(const char *path)
+{
+    if (!g_wubu_kvfs || !g_wubu_kv_base) {
+        klog_printf("kv9p: namespace not initialized\n");
+        return -1;
+    }
+    /* split the path into walk components */
+    const char *name[8];
+    int nname = 0;
+    for (const char *p = path; *p && nname < 8; ) {
+        while (*p == '/') p++;
+        if (!*p) break;
+        name[nname++] = p;
+        while (*p && *p != '/') p++;
+    }
+    if (nname == 0) { klog_printf("kv9p: usage: kv9p </kv/path>\n"); return -1; }
+
+    wubu_9psrv_reset();
+    w9pc_t c;
+    memset(&c, 0, sizeof c);
+    c.in = g_kv9p_in;   c.in_cap = (uint32_t)sizeof g_kv9p_in;
+    c.out = g_kv9p_out; c.out_cap = (uint32_t)sizeof g_kv9p_out;
+    c.tx = kv9p_tx;     c.ud = NULL;
+
+    if (w9pc_version(&c, WUBU_9PSRV_MSIZE, "9P2000") != 0 ||
+        w9pc_attach(&c, 1, 1, (uint32_t)~0u, "") != 0) {
+        klog_printf("kv9p: version/attach failed\n");
+        return -1;
+    }
+    /* the client takes NUL-terminated names: copy each component out */
+    static char names[8][64];
+    const char *wn[8];
+    for (int i = 0; i < nname; i++) {
+        uint32_t k = 0;
+        while (name[i][k] && name[i][k] != '/' && k < 63) {
+            names[i][k] = name[i][k];
+            k++;
+        }
+        names[i][k] = '\0';
+        wn[i] = names[i];
+    }
+    if (w9pc_walk(&c, 2, 1, 2, wn, nname) != 0) {
+        klog_printf("kv9p: walk failed (no such path)\n");
+        return -1;
+    }
+    if (w9pc_open(&c, 3, 2, 0) != 0) {
+        klog_printf("kv9p: open failed\n");
+        return -1;
+    }
+    float v[4] = { 0, 0, 0, 0 };
+    uint32_t got = 0;
+    if (w9pc_read(&c, 4, 2, 0, (uint8_t *)v, sizeof v, &got) != 0) {
+        klog_printf("kv9p: read failed\n");
+        return -1;
+    }
+    (void)w9pc_clunk(&c, 5, 2);
+    klog_printf("kv9p: %s -> %u bytes, [%d %d %d %d]\n", path, (unsigned)got,
+                kv_float_to_int(v[0]), kv_float_to_int(v[1]),
+                kv_float_to_int(v[2]), kv_float_to_int(v[3]));
+    return 0;
+}
+
+int cmd_kv9p(int argc, char **argv)
+{
+    const char *path = argc > 1 ? argv[1] : "/kv/world/tick_0";
+    return kv9p_read(path);
 }
 
 int cmd_model(int argc, char **argv)
