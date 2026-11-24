@@ -8,12 +8,18 @@ behavior gate: a RAM sim disk, a dropped T_OUT, or a missing console file
 command cannot produce `HELLO.TXT: 5 bytes` on the second boot.
 """
 import os
+import atexit
 import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMG = os.path.join(ROOT, "build", "wemu_fs_gate.img")
-HELPER = os.path.join(ROOT, "build", "make_fat_image")
+# Per-process helper path: four WEMU gates build this same helper and run it,
+# and under `make -j24 test` they used to share one output file -- one gate
+# exec'ing it while another had it open for writing, which is ETXTBSY at best
+# and a half-written binary at worst.
+HELPER = os.path.join(ROOT, "build", "make_fat_image.%d" % os.getpid())
+atexit.register(lambda: os.path.exists(HELPER) and os.unlink(HELPER))
 KERNEL = os.path.join(ROOT, "src", "kernel", "kernel.elf")
 GATE = os.path.join(ROOT, "tools", "wemu_kernel_gate")
 FAT_SOURCES = ["fat32_format.c", "fat32.c", "fat32_fat.c", "fat32_dir.c",
