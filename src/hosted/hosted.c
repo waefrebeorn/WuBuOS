@@ -35,6 +35,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -109,6 +110,9 @@ static void repl_launch_callback(void) {
  * Public API Implementation
  * ══════════════════════════════════════════════════════════════════ */
 
+/* --bench-render N: compose N frames headless and time them (see main). */
+static int bench_frames = 0;
+
 int hosted_init(hosted_state_t *state, int argc, char **argv) {
     g_hosted_state = state;
     /* Register the real Proton PE loader with the launch layer (SteamOS
@@ -130,6 +134,14 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         else if (strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) {
             state->screenshot_path = argv[++i];
             state->mode = HMODE_HEADLESS;
+        }
+        /* Measurement entry point: compose N frames with no display at all and
+         * time them. The idle desktop repaints in full every frame, and this is
+         * how that cost gets measured on a box with no compositor running
+         * (`wubu -h --bench-render 240`, WUBU_RENDER_PROBE=1 for the phase
+         * split). */
+        else if (strcmp(argv[i], "--bench-render") == 0 && i + 1 < argc) {
+            bench_frames = atoi(argv[++i]);
         }
     }
 
@@ -429,6 +441,21 @@ int main(int argc, char **argv) {
     hosted_state_t state;
     int init_ret = hosted_init(&state, argc, argv);
     if (init_ret != 0) return 1;
+    if (bench_frames > 0) {
+        struct timespec a, b;
+        clock_gettime(CLOCK_MONOTONIC, &a);
+        for (int i = 0; i < bench_frames; i++) {
+            hosted_render_desktop(&state);
+            vbe_swap();
+        }
+        clock_gettime(CLOCK_MONOTONIC, &b);
+        double ms = (double)(b.tv_sec - a.tv_sec) * 1e3
+                  + (double)(b.tv_nsec - a.tv_nsec) / 1e6;
+        printf("bench-render: %d frames, %.3f ms/frame\n",
+               bench_frames, ms / bench_frames);
+        hosted_shutdown(&state);
+        return 0;
+    }
     int ret = hosted_run(&state);
     hosted_shutdown(&state);
     return ret;

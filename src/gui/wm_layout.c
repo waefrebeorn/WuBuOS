@@ -94,8 +94,70 @@ void load_default_wallpaper(void) {
     g_dwm.wallpaper_mode = (s && s->theme.wallpaper_path[0]) ? s->theme.wallpaper_mode : 1;
 }
 
-void draw_wallpaper(int fb_w, int fb_h) {
-    int task_h = taskbar_height_dynamic();
+/* ---- The wallpaper layer is static: compose once, blit after ------------
+ * Measured with `wubu -h --bench-render 240`: a 1024x768 desktop frame cost
+ * 3.24 ms and draw_wallpaper owned ~3.1 ms of it, because the FILL/STRETCH
+ * paths ran two integer divisions plus vbe_set_pixel for each of 786k pixels.
+ * The image, its crop and the theme background only change when the user
+ * changes them, so compose into a cache and memcpy the rows.
+ * Every input that can alter the layer is part of the key, and the fast path
+ * is refused whenever a non-full clip rect is active. */
+static uint32_t *wp_cache;
+static int wp_cache_w, wp_cache_h, wp_cache_task_h;
+static const uint32_t *wp_cache_src;
+static int wp_cache_sw, wp_cache_sh, wp_cache_mode;
+static uint32_t wp_cache_bg;
+
+static int wallpaper_clip_is_full(int fb_w, int fb_h) {
+    int x = 0, y = 0, w = 0, h = 0;
+    vbe_get_clip(&x, &y, &w, &h);
+    /* Zero size means no clip rect is active (the hosted target switch leaves
+     * it cleared), which is the same thing as a full-surface clip. */
+    if (w <= 0 || h <= 0) return 1;
+    return x == 0 && y == 0 && w >= fb_w && h >= fb_h;
+}
+
+static int wallpaper_cache_hit(int fb_w, int fb_h, int task_h) {
+    if (!wp_cache || wp_cache_w != fb_w || wp_cache_h != fb_h) return 0;
+    if (wp_cache_task_h != task_h || wp_cache_src != g_dwm.wallpaper) return 0;
+    if (wp_cache_sw != g_dwm.wallpaper_w || wp_cache_sh != g_dwm.wallpaper_h) return 0;
+    if (wp_cache_mode != g_dwm.wallpaper_mode) return 0;
+    if (wp_cache_bg != tc()->desktop_bg) return 0;
+    return wallpaper_clip_is_full(fb_w, fb_h);
+}
+
+static void wallpaper_cache_blit(int fb_w, int fb_h) {
+    for (int y = 0; y < fb_h; y++) {
+        uint32_t *dst = vbe_scanline(y);
+        if (!dst) return;
+        memcpy(dst, wp_cache + (size_t)y * (size_t)fb_w, (size_t)fb_w * 4u);
+    }
+}
+
+static void wallpaper_cache_store(int fb_w, int fb_h, int task_h) {
+    /* Never capture a clipped repaint: the snapshot must be the whole layer. */
+    if (!wallpaper_clip_is_full(fb_w, fb_h)) return;
+    if (!wp_cache || wp_cache_w != fb_w || wp_cache_h != fb_h) {
+        free(wp_cache);
+        wp_cache = (uint32_t *)malloc((size_t)fb_w * (size_t)fb_h * 4u);
+        if (!wp_cache) { wp_cache_w = wp_cache_h = 0; return; }
+        wp_cache_w = fb_w;
+        wp_cache_h = fb_h;
+    }
+    for (int y = 0; y < fb_h; y++) {
+        const uint32_t *src = vbe_scanline(y);
+        if (!src) return;
+        memcpy(wp_cache + (size_t)y * (size_t)fb_w, src, (size_t)fb_w * 4u);
+    }
+    wp_cache_task_h = task_h;
+    wp_cache_src = g_dwm.wallpaper;
+    wp_cache_sw = g_dwm.wallpaper_w;
+    wp_cache_sh = g_dwm.wallpaper_h;
+    wp_cache_mode = g_dwm.wallpaper_mode;
+    wp_cache_bg = tc()->desktop_bg;
+}
+
+static void wallpaper_compose(int fb_w, int fb_h, int task_h) {
 
     /* Always base-fill the WHOLE screen with the theme background first.
      * Wallpaper modes (CENTER/FIT/FILL) leave surrounding margins unpainted,
@@ -153,6 +215,16 @@ void draw_wallpaper(int fb_w, int fb_h) {
      * removed 2026-08-06 — it read as a stuck blue dialog box in the
      * middle of the desktop (user: "you never removed that thing").
      * The logo belongs on a boot/login splash, not the live desktop. */
+}
+
+void draw_wallpaper(int fb_w, int fb_h) {
+    int task_h = taskbar_height_dynamic();
+    if (wallpaper_cache_hit(fb_w, fb_h, task_h)) {
+        wallpaper_cache_blit(fb_w, fb_h);
+        return;
+    }
+    wallpaper_compose(fb_w, fb_h, task_h);
+    wallpaper_cache_store(fb_w, fb_h, task_h);
 }
 
 void snap_window_to_gaad(DosGuiWindow *w) {
