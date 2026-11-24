@@ -49,12 +49,15 @@ uint64_t wubu_acpi_find_rsdp(void)
     if (ebda_seg >= 0x8000) {                 /* sanity: > 512 KB */
         uint64_t ebda = (uint64_t)ebda_seg << 4;
         for (uint64_t off = 0; off < 1024; off += 16) {
-            if (sig_eq8(ebda + off, "RSD PTR ")) return ebda + off;
+            if ((char)rd8(ebda + off) == 'R' && sig_eq8(ebda + off, "RSD PTR "))
+                return ebda + off;
         }
     }
-    /* 2) the legacy BIOS area 0xE0000..0xFFFFF. */
+    /* 2) the legacy BIOS area 0xE0000..0xFFFFF. The 'R' pre-test is in the
+     * loop so 8191 of 8192 windows never make the sig_eq8() call: the call
+     * plus one read per window was 164k guest steps (11% of the boot). */
     for (uint64_t p = 0xE0000ull; p < 0x100000ull; p += 16) {
-        if (sig_eq8(p, "RSD PTR ")) return p;
+        if ((char)rd8(p) == 'R' && sig_eq8(p, "RSD PTR ")) return p;
     }
     return 0;
 }
