@@ -123,12 +123,32 @@ int wubu_proton_build_wine_cmd(const char *prefix_id, const char *const argv[],
         out[argc++] = home;
     }
 
-    /* wineserver keeps its socket/lock under XDG_RUNTIME_DIR; without a
-     * writable bind there it aborts (double free) before the prefix is up. */
+    /* wineserver keeps its socket under /run/user/<uid> (wine 9 on Ubuntu
+     * computes that path from the uid, NOT from XDG_RUNTIME_DIR) and ABORTS
+     * -- "free(): invalid pointer" / "double free or corruption", SIGABRT --
+     * when it cannot create it. Without a rw bind of that directory every
+     * sandboxed launch dies.
+     *
+     * Measured, both ways: relying on the ambient XDG_RUNTIME_DIR made this
+     * gate depend on whoever started make (set by a desktop session -> pass;
+     * unset from cron/CI/a bare shell -> fail), and pointing wine at a
+     * private runtime dir (under /tmp or under the prefix) STILL aborted,
+     * because wine insists on /run/user/<uid>. So: resolve the session
+     * runtime dir from the environment or from the uid, bind it rw, and pass
+     * it through explicitly. No session dir at all is an honest failure, not
+     * something we can paper over. */
+    char session_rt[PROTON_PATH_MAX];
     const char *xdg_rt = getenv("XDG_RUNTIME_DIR");
-    if (xdg_rt && xdg_rt[0] && access(xdg_rt, F_OK) == 0) {
+    if (!(xdg_rt && xdg_rt[0] && access(xdg_rt, F_OK) == 0)) {
+        snprintf(session_rt, sizeof(session_rt), "/run/user/%u", (unsigned)getuid());
+        xdg_rt = access(session_rt, F_OK) == 0 ? session_rt : NULL;
+    }
+    if (xdg_rt) {
         out[argc++] = "--bind";
         out[argc++] = xdg_rt;
+        out[argc++] = xdg_rt;
+        out[argc++] = "--setenv";
+        out[argc++] = "XDG_RUNTIME_DIR";
         out[argc++] = xdg_rt;
     }
 
@@ -192,7 +212,21 @@ int wubu_proton_build_wine_cmd(const char *prefix_id, const char *const argv[],
 static int run_wine_command(const char *prefix_id, const char *const argv[], bool wait) {
     const char *bwrap_argv[128];
     int argc = wubu_proton_build_wine_cmd(prefix_id, argv, bwrap_argv, 128);
-    if (argc < 0) return -1;
+    if (argc < 0) {
+        if (getenv("WUBU_PROTON_TRACE"))
+            fprintf(stderr, "[proton] cannot build the command (prefix=%s)\n",
+                    prefix_id ? prefix_id : "?");
+        return -1;
+    }
+    /* WUBU_PROTON_TRACE=1 prints the exact sandbox command and the child's
+     * exit status: a PE launch has many moving parts (bwrap binds, WINEPREFIX,
+     * wine64 vs wrapper) and "it did not run" is not a diagnosis. */
+    const int trace = getenv("WUBU_PROTON_TRACE") != NULL;
+    if (trace) {
+        fprintf(stderr, "[proton] exec:");
+        for (int i = 0; i < argc; ++i) fprintf(stderr, " %s", bwrap_argv[i]);
+        fprintf(stderr, "\n");
+    }
 
     pid_t pid = fork();
     if (pid == 0) {
@@ -211,7 +245,9 @@ static int run_wine_command(const char *prefix_id, const char *const argv[], boo
         if (wait) {
             int status;
             waitpid(pid, &status, 0);
-            return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+            int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+            if (trace) fprintf(stderr, "[proton] child exited rc=%d\n", rc);
+            return rc;
         }
         return 0;
     }
