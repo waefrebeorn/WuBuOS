@@ -124,16 +124,30 @@ stays green at what it can actually prove.
 The RISC-V backend passing 19/19 on real RISC-V code is the strongest evidence
 this tree has that it emits correct instructions at all.
 
-`mips` is deliberately NOT in the gate, and the gate says so every run:
+`mips` joined them once it emitted real machine code, and it cost three more
+bugs to get there:
 
-    mips: SKIP (not real machine code: emits a custom 0xFC000000 control escape
-                (in-tree interpreter only))
+1. `MIR_RET` ended a program with MIPS **BREAK** — a debugger trap, not an exit.
+   The in-tree interpreter read it as "stop"; real MIPS (and qemu) raises an
+   exception. Now `jr $ra` + nop.
+2. The compare "true" value was written with `ori` to the **wrong register**:
+   `mips_ori(rs, rt, imm)` was called as `(T0, 0, 1)`, i.e. destination `$zero`,
+   and writes to `$zero` are discarded — every comparison answered 0.
+3. **Branch delay slots.** A MIPS branch executes the instruction after it
+   whether or not it is taken, and the encoder put the "true" instruction exactly
+   there: `beqz $t0, done ; li $t0, 1` ran the `li` on the false path too, so
+   every false comparison answered 1. A nop occupies each delay slot now.
 
-That escape (see `MIR_RET` in `wubu_isa_mips.c`) is understood by the in-tree
-interpreter and by nothing else, so the mips output is a hybrid rather than MIPS.
-Running it under qemu-mipsel returns -1 for every case; reporting that as a
-failure would blame the backend for a design the gate cannot test, and reporting
-it as a pass would be a lie. It is named.
+```
+arm64: 19 case(s), 0 failed  [qemu-aarch64-static]
+riscv: 19 case(s), 0 failed  [qemu-riscv64-static]
+mips:  19 case(s), 0 failed  [qemu-mipsel-static]
+== 57 case(s) executed, 0 failed ==
+```
+
+None of the three could be seen through the in-tree interpreter, which read
+BREAK as "stop", discarded the `$zero` write identically, and happened to place
+the delay slot instruction where it did not matter.
 
 ## Why this is the right shape
 
