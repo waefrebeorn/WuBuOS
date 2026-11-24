@@ -483,50 +483,58 @@ int cmd_vmm(int argc, char **argv)
     (void)argc; (void)argv;
     uint64_t *demo = (uint64_t *)0xffffffff90000000ull;
     if (argc >= 2 && strcmp(argv[1], "huge") == 0) {
-        extern uint64_t wubu_vmm_alloc_huge(void);
-        extern int wubu_vmm_map_huge(uint64_t, uint64_t, uint32_t);
+        extern uint64_t wubu_vmm_huge_arena_alloc(uint32_t);
+        extern void     wubu_vmm_huge_arena_free(uint64_t, uint32_t);
+        extern int      wubu_vmm_huge_arena_owned(uint64_t);
+        extern uint32_t wubu_vmm_huge_arena_free_slots(void);
         extern uint64_t wubu_vmm_huge_pde(uint64_t);
-        extern int wubu_vmm_unmap_huge(uint64_t);
-        extern void wubu_vmm_free_huge(uint64_t);
-        const uint64_t va = 0xffffffff91000000ull;
-        uint64_t phys = wubu_vmm_alloc_huge();
-        if (!phys) {
-            extern uint64_t wubu_vmm_free_count(void);
-            extern uint32_t wubu_vmm_huge_runs(void);
-            klog_printf("vmm: huge alloc FAILED (free4k=%u aligned_runs=%u)\n",
-                        (unsigned)wubu_vmm_free_count(),
-                        (unsigned)wubu_vmm_huge_runs());
+        /* `vmm huge [slabs]` -- the same arena the KV tensor uses. */
+        uint32_t slabs = 1u;
+        if (argc >= 3) {
+            uint32_t n = 0; int digits = 0;
+            for (const char *s = argv[2]; *s; s++) {
+                if (*s < '0' || *s > '9') { digits = 0; break; }
+                n = n * 10u + (uint32_t)(*s - '0');
+                digits = 1;
+            }
+            if (digits && n >= 1u && n <= 16u) slabs = n;
+        }
+        uint32_t before = wubu_vmm_huge_arena_free_slots();
+        uint64_t va = wubu_vmm_huge_arena_alloc(slabs);
+        if (!va) {
+            klog_printf("vmm huge: arena alloc FAILED (slabs=%u free=%u)\n",
+                        (unsigned)slabs, (unsigned)before);
             return 0;
         }
-        int rc = wubu_vmm_map_huge(va, phys, 3u);
-        uint64_t pde = wubu_vmm_huge_pde(va);
-        klog_printf("vmm huge dbg phys=%x rc=%d pde=%x\n",
-                    (unsigned)phys, rc, (unsigned)pde);
-        uint64_t huge_val = 0x12345678abcdefull, readback = 0;
-        uint64_t huge_va = va;
-        if (rc == 0) {
-            __asm__ volatile("mov %1,(%2)" : "=r"(readback)
-                             : "r"(huge_val), "r"(huge_va) : "memory");
-            __asm__ volatile("mov (%1),%0" : "=r"(readback)
-                             : "r"(huge_va) : "memory");
-        }
-        /* 4K regression: a normal mapping must still work alongside it. */
-        uint64_t p4 = wubu_vmm_alloc_pages(1);
-        int rc4 = p4 ? wubu_vmm_map_page(va + 0x200000ull, p4, 3u) : -1;
-        uint64_t rb4 = 0, p4_va = va + 0x200000ull;
-        if (rc4 == 0) {
-            __asm__ volatile("mov %0,(%1)" : : "r"((uint64_t)0x55aa55aaull),
-                             "r"(p4_va) : "memory");
-            __asm__ volatile("mov (%1),%0" : "=r"(rb4) : "r"(p4_va) : "memory");
-        }
-        klog_printf("vmm huge: align=%d mapped=%d pde=%x ps=%d rb=%llx 4k=%d rb4=%llx\n",
-                    (phys & 0x1fffffull) ? 0 : 1, rc, (unsigned)pde,
-                    (int)((pde >> 7) & 1u), (unsigned long long)readback,
-                    rc4, (unsigned long long)rb4);
-        if (rc4 == 0) wubu_vmm_unmap(va + 0x200000ull);
-        if (p4) wubu_vmm_free_pages(p4, 1);
-        if (rc == 0) wubu_vmm_unmap_huge(va);
-        wubu_vmm_free_huge(phys);
+        uint64_t pde0 = wubu_vmm_huge_pde(va);
+        uint64_t pde1 = slabs > 1 ? wubu_vmm_huge_pde(va + 0x200000ull) : 0;
+        uint64_t phys0 = pde0 & 0x000ffffffffff000ull;
+        uint64_t phys1 = pde1 & 0x000ffffffffff000ull;
+        /* Write through the mapping at every slab boundary + the last float.
+         * Plain pointer stores: no absolute high-half `mov` for the guest
+         * decoder to trip over. */
+        volatile uint64_t *p = (volatile uint64_t *)(uintptr_t)va;
+        const uint64_t qwords = (uint64_t)slabs * (0x200000ull / 8ull);
+        for (uint32_t s = 0; s < slabs; s++)
+            p[(uint64_t)s * (0x200000ull / 8ull)] = 0xa5a50000ull + s;
+        p[qwords - 1] = 0x5a5affffull;
+        int rb_ok = 1;
+        for (uint32_t s = 0; s < slabs; s++)
+            if (p[(uint64_t)s * (0x200000ull / 8ull)] != 0xa5a50000ull + s)
+                rb_ok = 0;
+        if (p[qwords - 1] != 0x5a5affffull) rb_ok = 0;
+        klog_printf("vmm huge: slabs=%u va=%x owned=%d ps0=%d phys0=%x "
+                    "phys1=%x contig=%d rb=%d free=%u/%u\n",
+                    (unsigned)slabs, (unsigned long)va,
+                    wubu_vmm_huge_arena_owned(va),
+                    (int)((pde0 >> 7) & 1u),
+                    (unsigned long)phys0, (unsigned long)phys1,
+                    slabs > 1 ? (phys1 == phys0 + 0x200000ull) : 1,
+                    rb_ok, (unsigned)wubu_vmm_huge_arena_free_slots(),
+                    (unsigned)before);
+        wubu_vmm_huge_arena_free(va, slabs);
+        klog_printf("vmm huge: released, free slots=%u\n",
+                    (unsigned)wubu_vmm_huge_arena_free_slots());
         return 0;
     }
     if (argc >= 2 && strcmp(argv[1], "touch") == 0) {

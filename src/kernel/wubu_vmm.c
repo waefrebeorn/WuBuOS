@@ -24,6 +24,9 @@
  * bitmap with wubu_sync's spinlock (gap D6 -- the first real metal user
  * of the sync module). cli-based: atomic on this single CPU. */
 static wubu_spinlock_t g_vmm_lock;
+/* 2 MB slab arena slot bitmap (one bit per 2 MB slot of the VA window). */
+static uint8_t g_harena_used[(WUBU_VMM_HUGE_SLOTS + 7u) / 8u];
+static wubu_spinlock_t g_harena_lock;
 
 /* ---- the allocator bitmap ------------------------------------------ */
 
@@ -50,6 +53,9 @@ static uint32_t bm_test(uint32_t idx) {
 void wubu_vmm_init(void)
 {
     wubu_spin_init(&g_vmm_lock);
+    wubu_spin_init(&g_harena_lock);
+    for (uint32_t i = 0; i < (WUBU_VMM_HUGE_SLOTS + 7u) / 8u; i++)
+        g_harena_used[i] = 0;
     for (uint32_t i = 0; i < WUBU_VMM_BITMAP_BITS / 8; i++)
         g_bitmap[i] = 0;
     for (uint32_t i = 0; i < WUBU_VMM_BITMAP_BITS; i++)
@@ -180,6 +186,23 @@ void wubu_vmm_free_pages(uint64_t phys, uint32_t n)
 /* the crt0 top-level tables (identity slot at PML4[0]) */
 #define PML4_BASE 0x300000ull
 
+/* The LIVE top-level table. On metal that is whatever CR3 holds right now:
+ * a loader/harness may install its own PML4 (the WEMU kernel gate builds
+ * tables at 0x5000000 and enters at .long_mode_start), so walking a
+ * hardcoded crt0 symbol maps pages into a DEAD table and every access
+ * faults. Hosted gates install their scratch at the documented PML4_BASE.
+ * CR3 is read into RAX explicitly to keep the encoding REX.B-free. */
+static uint64_t vmm_pml4(void)
+{
+#ifdef MYSEED_METAL
+    uint64_t cr3;
+    __asm__ volatile("mov %%cr3, %0" : "=a"(cr3));
+    return cr3 & 0x000ffffffffff000ull;
+#else
+    return PML4_BASE;
+#endif
+}
+
 static uint64_t vmm_phys_of(uint64_t va)
 {
     /* kernel higher-half -> phys; identity stays */
@@ -190,11 +213,16 @@ static uint64_t vmm_phys_of(uint64_t va)
 
 int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
 {
-    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint64_t *pml4 = (uint64_t *)vmm_pml4();
     uint32_t i4 = (uint32_t)(virt >> 39) & 0x1FF;
     uint32_t i3 = (uint32_t)(virt >> 30) & 0x1FF;
     uint32_t i2 = (uint32_t)(virt >> 21) & 0x1FF;
     uint32_t i1 = (uint32_t)(virt >> 12) & 0x1FF;
+
+    /* Callers that map a KERNEL object (the vdso, a driver struct) pass its
+     * higher-half VA, not a physical address. Convert once, here: a raw VA
+     * in a PTE sets NX + reserved bits and the mapping is dead on arrival. */
+    phys = vmm_phys_of(phys);
 
     uint64_t *pdp = (uint64_t *)vmm_phys_of(pml4[i4] & ~0xFFFull);
     if (!(pml4[i4] & 1)) {
@@ -212,13 +240,31 @@ int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
         pdp[i3] = tab | 3;
         pd = (uint64_t *)tab;
     }
-    uint64_t *pt = (uint64_t *)vmm_phys_of(pd[i2] & ~0xFFFull);
-    if (!(pd[i2] & 1)) {
+    uint64_t *pt;
+    uint64_t pd_ent = pd[i2];
+    if (pd_ent & 0x80u) {
+        /* A 2 MB leaf is already here (crt0's identity PD, or a loader's
+         * tables). Split it into a 512-entry PT covering the SAME 2 MB with
+         * the same permission bits, so a 4 KiB mapping can live inside it;
+         * leaving the PS leaf in place would make us write a PTE into raw
+         * physical memory. */
+        uint64_t tab = wubu_vmm_alloc_pages(1);
+        if (!tab) return -1;
+        uint64_t base = pd_ent & 0x000fffffffe00000ull;
+        uint64_t fl   = pd_ent & 0xFFFull;
+        for (int i = 0; i < 512; i++)
+            ((uint64_t *)tab)[i] = (base + (uint64_t)i * 4096u) | fl;
+        pd[i2] = tab | 3;
+        pt = (uint64_t *)tab;
+        VMM_INVLPG(virt & ~0x1FFFFFull);
+    } else if (!(pd_ent & 1)) {
         uint64_t tab = wubu_vmm_alloc_pages(1);
         if (!tab) return -1;
         for (int i = 0; i < 512; i++) ((uint64_t *)tab)[i] = 0;
         pd[i2] = tab | 3;
         pt = (uint64_t *)tab;
+    } else {
+        pt = (uint64_t *)vmm_phys_of(pd_ent & ~0xFFFull);
     }
     pt[i1] = phys | (flags & 0xFFFull);
     VMM_INVLPG(virt);
@@ -243,19 +289,24 @@ uint32_t wubu_vmm_huge_runs(void)
     return runs;
 }
 
-uint64_t wubu_vmm_alloc_huge(void)
+uint64_t wubu_vmm_alloc_huge_n(uint32_t slabs)
 {
+    if (slabs == 0 || slabs > WUBU_VMM_HUGE_SLOTS) return 0;
+    uint32_t want = slabs * HUGE_PAGES;
     uint64_t out = 0;
     wubu_spin_lock(&g_vmm_lock);
     uint32_t limit = (uint32_t)((g_alloc_end - WUBU_VMM_PHYS_BASE) / PAGE);
-    for (uint32_t first = 0;
-         first + HUGE_PAGES <= limit; first += HUGE_PAGES) {
-        int ok = 1;
-        for (uint32_t j = 0; j < HUGE_PAGES; j++) {
-            if (bm_test(first + j)) { ok = 0; break; }
+    /* first-fit scan for `want` consecutive free pages, 2 MB aligned */
+    for (uint32_t first = 0; first + want <= limit; first += HUGE_PAGES) {
+        uint32_t j = 0;
+        for (; j < want; j++) {
+            if (bm_test(first + j)) break;
         }
-        if (!ok) continue;
-        for (uint32_t j = 0; j < HUGE_PAGES; j++) bm_set(first + j);
+        if (j != want) continue;
+        for (j = 0; j < want; j++) {
+            bm_set(first + j);
+            g_refs[first + j] = 1;      /* fresh alloc, ref=1 (gap B8) */
+        }
         out = WUBU_VMM_PHYS_BASE + (uint64_t)first * PAGE;
         break;
     }
@@ -263,9 +314,14 @@ uint64_t wubu_vmm_alloc_huge(void)
     return out;
 }
 
+uint64_t wubu_vmm_alloc_huge(void)
+{
+    return wubu_vmm_alloc_huge_n(1);
+}
+
 static uint64_t *vmm_pd_for(uint64_t virt)
 {
-    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint64_t *pml4 = (uint64_t *)vmm_pml4();
     uint32_t i4 = (uint32_t)(virt >> 39) & 0x1FFu;
     uint32_t i3 = (uint32_t)(virt >> 30) & 0x1FFu;
     if (!(pml4[i4] & 1u)) return NULL;
@@ -285,7 +341,7 @@ int wubu_vmm_map_huge(uint64_t virt, uint64_t phys, uint32_t flags)
 {
     if (!phys || !virt || (phys & 0x1FFFFFull) || (virt & 0x1FFFFFull))
         return -1;
-    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint64_t *pml4 = (uint64_t *)vmm_pml4();
     uint32_t i4 = (uint32_t)(virt >> 39) & 0x1FFu;
     uint32_t i3 = (uint32_t)(virt >> 30) & 0x1FFu;
     uint64_t *pdp;
@@ -321,10 +377,123 @@ int wubu_vmm_unmap_huge(uint64_t virt)
     return 0;
 }
 
-void wubu_vmm_free_huge(uint64_t phys)
+void wubu_vmm_free_huge_n(uint64_t phys, uint32_t slabs)
 {
     if (!phys || (phys & 0x1FFFFFull)) return;
-    wubu_vmm_free_pages(phys, 512u);
+    if (slabs == 0 || slabs > WUBU_VMM_HUGE_SLOTS) return;
+    wubu_vmm_free_pages(phys, slabs * HUGE_PAGES);
+}
+
+void wubu_vmm_free_huge(uint64_t phys)
+{
+    wubu_vmm_free_huge_n(phys, 1);
+}
+
+/* ---- 2 MB slab arena ----------------------------------------------- */
+
+static int ha_test(uint32_t s) {
+    return (g_harena_used[s >> 3] >> (s & 7u)) & 1u;
+}
+static void ha_set(uint32_t s) {
+    g_harena_used[s >> 3] |= (uint8_t)(1u << (s & 7u));
+}
+static void ha_clear(uint32_t s) {
+    g_harena_used[s >> 3] &= (uint8_t)~(1u << (s & 7u));
+}
+
+uint32_t wubu_vmm_huge_arena_free_slots(void)
+{
+    uint32_t n = 0;
+    wubu_spin_lock(&g_harena_lock);
+    for (uint32_t i = 0; i < WUBU_VMM_HUGE_SLOTS; i++)
+        if (!ha_test(i)) n++;
+    wubu_spin_unlock(&g_harena_lock);
+    return n;
+}
+
+int wubu_vmm_huge_arena_owned(uint64_t va)
+{
+    if (va < WUBU_VMM_HUGE_VA_BASE) return 0;
+    uint64_t off = va - WUBU_VMM_HUGE_VA_BASE;
+    if (off % WUBU_VMM_HUGE_SLAB_BYTES) return 0;
+    uint32_t slot = (uint32_t)(off / WUBU_VMM_HUGE_SLAB_BYTES);
+    if (slot >= WUBU_VMM_HUGE_SLOTS) return 0;
+    wubu_spin_lock(&g_harena_lock);
+    int used = ha_test(slot);
+    wubu_spin_unlock(&g_harena_lock);
+    if (!used) return 0;
+    /* a reserved slot must also carry a live PS=1 PDE */
+    return (wubu_vmm_huge_pde(va) & 0x81u) == 0x81u;
+}
+
+uint64_t wubu_vmm_huge_arena_alloc(uint32_t slabs)
+{
+    if (slabs == 0 || slabs > WUBU_VMM_HUGE_SLOTS) return 0;
+
+    /* 1. reserve a run of slots (bookkeeping only -- no lock held across
+     *    the page allocator / mapping calls, which take g_vmm_lock) */
+    uint32_t first = WUBU_VMM_HUGE_SLOTS;
+    wubu_spin_lock(&g_harena_lock);
+    for (uint32_t i = 0; i + slabs <= WUBU_VMM_HUGE_SLOTS && first == WUBU_VMM_HUGE_SLOTS; i++) {
+        uint32_t j = 0;
+        for (; j < slabs; j++)
+            if (ha_test(i + j)) break;
+        if (j == slabs) {
+            first = i;
+            for (j = 0; j < slabs; j++) ha_set(i + j);
+        }
+    }
+    wubu_spin_unlock(&g_harena_lock);
+    if (first == WUBU_VMM_HUGE_SLOTS) return 0;
+
+    uint64_t va0 = WUBU_VMM_HUGE_VA_BASE +
+                   (uint64_t)first * WUBU_VMM_HUGE_SLAB_BYTES;
+
+    /* 2. back it with ONE physically contiguous run */
+    uint64_t phys = wubu_vmm_alloc_huge_n(slabs);
+    if (!phys) {
+        wubu_spin_lock(&g_harena_lock);
+        for (uint32_t j = 0; j < slabs; j++) ha_clear(first + j);
+        wubu_spin_unlock(&g_harena_lock);
+        return 0;
+    }
+
+    /* 3. one PS=1 PDE per slab; roll everything back on any failure */
+    for (uint32_t i = 0; i < slabs; i++) {
+        uint64_t va = va0 + (uint64_t)i * WUBU_VMM_HUGE_SLAB_BYTES;
+        uint64_t pa = phys + (uint64_t)i * WUBU_VMM_HUGE_SLAB_BYTES;
+        if (wubu_vmm_map_huge(va, pa, 3u) != 0) {
+            while (i > 0) {
+                i--;
+                wubu_vmm_unmap_huge(va0 + (uint64_t)i * WUBU_VMM_HUGE_SLAB_BYTES);
+            }
+            wubu_vmm_free_huge_n(phys, slabs);
+            wubu_spin_lock(&g_harena_lock);
+            for (uint32_t j = 0; j < slabs; j++) ha_clear(first + j);
+            wubu_spin_unlock(&g_harena_lock);
+            return 0;
+        }
+    }
+    return va0;
+}
+
+void wubu_vmm_huge_arena_free(uint64_t va, uint32_t slabs)
+{
+    if (!slabs || slabs > WUBU_VMM_HUGE_SLOTS) return;
+    if (va < WUBU_VMM_HUGE_VA_BASE) return;
+    uint64_t off = va - WUBU_VMM_HUGE_VA_BASE;
+    if (off % WUBU_VMM_HUGE_SLAB_BYTES) return;
+    uint32_t first = (uint32_t)(off / WUBU_VMM_HUGE_SLAB_BYTES);
+    if (first + slabs > WUBU_VMM_HUGE_SLOTS) return;
+    uint64_t pde = wubu_vmm_huge_pde(va);
+    if ((pde & 0x81u) != 0x81u) return;          /* not a live huge mapping */
+    uint64_t phys = pde & 0x000ffffffffff000ull;
+    for (uint32_t i = 0; i < slabs; i++)
+        wubu_vmm_unmap_huge(va + (uint64_t)i * WUBU_VMM_HUGE_SLAB_BYTES);
+    wubu_vmm_free_huge_n(phys, slabs);
+    wubu_spin_lock(&g_harena_lock);
+    for (uint32_t i = 0; i < slabs; i++) ha_clear(first + i);
+    wubu_spin_unlock(&g_harena_lock);
 }
 
 /* ---- demand-zero regions ------------------------------------------- */
@@ -379,7 +548,7 @@ uint32_t wubu_vmm_demand_count(void) { return g_demand_n; }
 /* Gap B3: unmap a VA -- clear its PTE + invalidate the TLB entry. */
 int wubu_vmm_unmap(uint64_t virt)
 {
-    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint64_t *pml4 = (uint64_t *)vmm_pml4();
     uint32_t i4 = (uint32_t)(virt >> 39) & 0x1FF;
     uint32_t i3 = (uint32_t)(virt >> 30) & 0x1FF;
     uint32_t i2 = (uint32_t)(virt >> 21) & 0x1FF;
@@ -416,7 +585,7 @@ int wubu_vmm_cow_fault(uint64_t va)
     uint64_t page_base = va & ~(PAGE - 1);
     /* walk the live tables for the current PTE (identity rules: the
      * demand region lives in the higher-half window) */
-    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint64_t *pml4 = (uint64_t *)vmm_pml4();
     uint32_t i4 = (uint32_t)(page_base >> 39) & 0x1FF;
     uint32_t i3 = (uint32_t)(page_base >> 30) & 0x1FF;
     uint32_t i2 = (uint32_t)(page_base >> 21) & 0x1FF;

@@ -48,6 +48,28 @@ uint64_t wubu_vmm_huge_pde(uint64_t virt);
 int wubu_vmm_unmap_huge(uint64_t virt);
 void wubu_vmm_free_huge(uint64_t phys);
 
+/* ---- 2 MB slab arena: a VA window for long-lived huge slabs ---------
+ * Each slot is one 2 MB slab = one PS=1 PDE. A caller asking for `slabs`
+ * consecutive slots gets ONE VA span and ONE physically contiguous span,
+ * which is what a GPU/DMA-visible tensor needs. The window lives in its
+ * own PML4[511] PDP entry (i3 = 500), distinct from the kernel image
+ * (i3 = 510), so kernel growth can never collide with an arena slab. */
+#define WUBU_VMM_HUGE_SLAB_BYTES 0x200000ull
+#define WUBU_VMM_HUGE_SLOTS      16u
+#define WUBU_VMM_HUGE_VA_BASE    0xfffffffd00000000ull
+
+/* Physically contiguous run of `slabs` huge pages (2 MB aligned). */
+uint64_t wubu_vmm_alloc_huge_n(uint32_t slabs);
+void     wubu_vmm_free_huge_n(uint64_t phys, uint32_t slabs);
+
+/* Arena: reserve slots + back them with a contiguous phys run + map them.
+ * Returns the VA span (0 on OOM / no free run). */
+uint64_t wubu_vmm_huge_arena_alloc(uint32_t slabs);
+void     wubu_vmm_huge_arena_free(uint64_t va, uint32_t slabs);
+uint32_t wubu_vmm_huge_arena_free_slots(void);
+/* Is `va` the base of a live arena span? (1 = yes) */
+int      wubu_vmm_huge_arena_owned(uint64_t va);
+
 /* Gap B3: unmap a VA (clear its PTE + invlpg). 0 on success. */
 int wubu_vmm_unmap(uint64_t virt);
 /* Gap B4: copy-on-write -- map shared (RO) + the fault handler. */

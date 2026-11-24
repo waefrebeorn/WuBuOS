@@ -85,6 +85,9 @@ void wubu_kvfs_free(wubu_kvfs_t *fs);
 extern wubu_kvfs_t *g_wubu_kvfs;
 extern float        *g_wubu_kv_base;   /* the actual KV tensor (ring-0) */
 extern size_t        g_wubu_kv_capacity;
+/* How the tensor is backed: >0 = that many 2 MB huge slabs from the vmm
+ * arena (metal, physically contiguous + 2 MB aligned); 0 = heap (hosted). */
+extern uint32_t      g_wubu_kv_slabs;
 
 /* Called at kernel init; returns 0 on success, -1 on failure. */
 int wubu_kvfs_kernel_init(uint32_t block_size, uint32_t total_blocks);

@@ -377,3 +377,30 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
   The hosted gate is the honest gate for page-table bits; no guest marker
   is claimed for hugepages.
 - Still open: routing the KVFS slab through this 2 MB path.
+
+## Landed increment — the KV tensor IS the 2 MB arena
+
+- `wubu_vmm_huge_arena_alloc/free` (arena): a 16-slot, 32 MB VA window at
+  `0xfffffffd00000000` — its own PML4[511] PDP entry (i3=500), so kernel
+  growth in i3=510 can never collide with a slab. An ask for N consecutive
+  slots is backed by ONE physically contiguous 2 MB-aligned run and mapped
+  as one PS=1 PDE per slab, which is what a DMA/GPU-visible tensor needs.
+  Any failure rolls back mappings, pages and slot bits; `free` requires a
+  live PS=1 PDE at the span base before it touches anything.
+- `wubu_kvfs_kernel_init` backs the ring-0 KV tensor with the arena on
+  metal (`256 x 4096` = 4 MB = 2 slabs), zeroes it **through the mapping**,
+  writes/reads a probe at every slab base, and only then publishes
+  `g_wubu_kv_base`. `g_wubu_kv_slabs` reports the backing (0 = hosted heap),
+  and the boot log prints `kvfs: tensor on 2 x 2MB huge slabs va=...`.
+- Console `vmm huge [slabs]` drives the same arena: per-slab boundary
+  write + last-qword write, readback, physical-contiguity check, then
+  release. Plain pointer stores (no absolute high-half `mov`).
+- Gate: `test_vmm_huge` covers the arena — 2-slab physical contiguity,
+  PS=1 on both PDEs, slot accounting, over-sized ask refused, free
+  clearing the PDE, first-fit reuse. The ring-0 behaviour gate is
+  `test_wemu_kv`: `kv write 11 22 33 44` → reboot → `kv read` now crosses
+  a real 2 MB mapping inside the guest.
+- Hosted builds keep `calloc` and `g_wubu_kv_slabs == 0`, so the existing
+  KV tests are untouched.
+- Still open: 9P serving of the tensor to the host, and a GPU ring buffer
+  in the same arena.
