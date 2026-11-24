@@ -16,7 +16,9 @@
 # not a valid oracle for this configuration.
 set -uo pipefail
 FW=$(cd "$(dirname "$0")/../src/firmware" && pwd)
-ESP=${SCANOUT_ESP:-/tmp/scanout-esp.img}
+# PID-keyed: two gates running at once (or a stray manual run) must not fight
+# over the same ESP image and monitor socket.
+ESP=${SCANOUT_ESP:-/tmp/scanout-esp-$$.img}
 echo "=== building firmware + ESP ==="
 bash "$FW/build-esp.sh" "$ESP" > /tmp/scanout-build.log 2>&1 || { tail -20 /tmp/scanout-build.log; exit 1; }
 
@@ -24,8 +26,8 @@ python3 - "$FW" "$ESP" <<'PY'
 import os, re, select, socket, subprocess, sys, time
 
 fw, esp = sys.argv[1], sys.argv[2]
-mon = '/tmp/scanout-mon.sock'
-dump = '/tmp/scanout-lfb.bin'
+mon = f'/tmp/scanout-mon-{os.getpid()}.sock'
+dump = f'/tmp/scanout-lfb-{os.getpid()}.bin'
 for p in (mon, dump):
     if os.path.exists(p):
         os.unlink(p)
@@ -66,7 +68,6 @@ phys = int(m[-1], 16)
 sizes = re.findall(r'bare-metal display LIVE \((\d+)x(\d+)@(\d+)', log)
 w, h = (int(sizes[-1][0]), int(sizes[-1][1])) if sizes else (1024, 768)
 print(f'  kernel reports: LFB phys={phys:#x} {w}x{h}')
-time.sleep(8)                      # let the desktop draw
 
 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 s.settimeout(10)
@@ -89,27 +90,55 @@ def drain(until=b'(qemu)', tmo=12.0):
 
 drain()
 size = w * h * 4
-s.sendall(f'pmemsave {phys} {size} "{dump}"\n'.encode())
-drain()
+
+def grab():
+    if os.path.exists(dump):
+        os.unlink(dump)
+    s.sendall(f'pmemsave {phys} {size} "{dump}"\n'.encode())
+    drain()
+    if not os.path.exists(dump):
+        return None
+    data = open(dump, 'rb').read()
+    if len(data) < size:
+        return None
+    nz = 0
+    seen = set()
+    for i in range(0, len(data) - 3, 4):
+        px = data[i:i+3]
+        if px != b'\x00\x00\x00':
+            nz += 1
+            if len(seen) < 8000:
+                seen.add(px)
+    return len(data) // 4, nz, len(seen)
+
+# A single-buffer scanout can be sampled MID-FRAME, and under -j24 the guest is
+# slow enough that a fixed sleep caught a 26% painted desktop (measured). Poll
+# until the frame is nearly fully painted TWICE in a row, so the gate measures a
+# finished frame instead of racing the renderer.
+total = nz = colours = 0
+pct = 0.0
+for attempt in range(40):
+    st = grab()
+    if st:
+        total, nz, colours = st
+        pct = 100.0 * nz / max(total, 1)
+        if pct >= 90.0:
+            time.sleep(1.0)
+            st2 = grab()
+            if st2 and 100.0 * st2[1] / max(st2[0], 1) >= 90.0:
+                total, nz, colours = st2
+                pct = 100.0 * nz / max(total, 1)
+                break
+    time.sleep(1.0)
+
 s.sendall(b'quit\n'); s.close(); time.sleep(1)
 p.terminate()
 
-if not os.path.exists(dump):
+if not total:
     print('  FAIL: pmemsave produced nothing (address not in QEMU\'s space?)')
     sys.exit(1)
-data = open(dump, 'rb').read()
-nz = 0
-seen = set()
-for i in range(0, len(data) - 3, 4):
-    px = data[i:i+3]
-    if px != b'\x00\x00\x00':
-        nz += 1
-        if len(seen) < 8000:
-            seen.add(px)
-total = len(data) // 4
-pct = 100.0 * nz / max(total, 1)
-print(f'  scanout dump: {total} px, non-black {nz} ({pct:.1f}%), colours {len(seen)}')
-ok = pct >= 90.0 and len(seen) >= 64
+print(f'  scanout dump: {total} px, non-black {nz} ({pct:.1f}%), colours {colours}')
+ok = pct >= 90.0 and colours >= 64
 print('test_scanout:', 'PASS (the metal desktop is in the live framebuffer)' if ok
       else 'FAIL (framebuffer empty or flat -- the frame never reached the scanout)')
 sys.exit(0 if ok else 1)
