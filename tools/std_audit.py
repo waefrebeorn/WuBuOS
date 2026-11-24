@@ -42,6 +42,7 @@ EXCLUDED_PREFIXES = (
     "/~WuBu~/thirdparty/",
     "wubuoffice/",          # separate subproject with its own build
     "reference/",           # read-only reference material
+    ".cache/",              # downloaded dev roots (mbedtls etc.) are not ours
 )
 
 # Geometry must come from wubu_tokens.h.  These are the literal forms that mean
@@ -61,8 +62,11 @@ def collect_sources(root):
     for dirpath, dirnames, filenames in os.walk(root):
         # Build trees are generated, not written -- CMake's own probe sources
         # would otherwise dominate the report.
+        # Hidden directories are not source: .cache holds downloaded dev roots
+        # (mbedtls, etc.) and counting their headers as our "placeholders" made
+        # the marker report 120 hits in code we do not own.
         dirnames[:] = [d for d in dirnames
-                       if d not in (".git",) and not d.startswith("build")]
+                       if not d.startswith(".") and not d.startswith("build")]
         for fn in filenames:
             if fn.endswith((".c", ".h")):
                 full = os.path.join(dirpath, fn)
