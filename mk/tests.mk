@@ -218,7 +218,7 @@ test_ed25519_fixed_ladder_o0_negctl:
 # End-to-end package-signing differential through the fixed-width ladder:
 # the real pkgmgr Ed25519 gate with only the scalar-mult leaf swapped.
 test_pkg_ed25519_fixed:
-	flock $(CT_GATE_LOCK) WUBU_EDDSA_FIXED=1 bash tools/pkg_ed25519_gate.sh
+	WUBU_EDDSA_FIXED=1 flock $(CT_GATE_LOCK) bash tools/pkg_ed25519_gate.sh
 
 # Documented LEGACY override: the same end-to-end differential through the
 # mbedTLS MPI ladder (WUBU_EDDSA_FIXED=0).  Proves the escape hatch works.
