@@ -73,10 +73,21 @@ typedef struct {
     int        drag_node;
     int        wire_from;     /* node id while wiring, -1 otherwise */
     int        wire_port;
-    int        ran_ok;        /* last run result (nodes executed) */
+    int        ran_ok;        /* nodes executed in the last run */
 } ComfyState;
 
+/* Optional cross-layer plumbing: WuBuFX app launch and the Bonzi speech line
+ * live in the desktop layers, not in every link. Weak, so an APP/SAY node in a
+ * shell without them reports honestly ("no app"/"said") instead of failing to
+ * link -- the same pattern control.c uses for the thermal provider. */
+extern DosGuiWindow *wubufx_app_launch(const char *name) __attribute__((weak));
+extern const char *bonzi_handle_line(const char *line) __attribute__((weak));
+
 static ComfyState *g_comfy = NULL;
+
+/* Created on first use: the documented programmatic API must work before any
+ * window exists (see comfy_state()). */
+static ComfyState *comfy_state(void);
 
 /* -- Output log ---------------------------------------------------- */
 static void comfy_out(ComfyState *c, const char *msg) {
@@ -145,20 +156,18 @@ static void comfy_exec_node(ComfyState *c, ComfyNode *n) {
         }
         case COMFY_APP: {
             /* launch the named app via WuBuFX (real plumbing) */
-            DosGuiWindow *w = wubufx_app_launch(n->label);
+            DosGuiWindow *w = wubufx_app_launch ? wubufx_app_launch(n->label) : NULL;
             snprintf(n->sval, sizeof(n->sval), w ? "launched %s" : "no app %s", n->label);
             n->has_num = 0;
-            c->ran_ok++;
             break;
         }
         case COMFY_SAY: {
             /* feed the upstream string to Bonzi (real plumbing) */
             ComfyNode *src = comfy_upstream(c, n - c->nodes, 0, NULL);
             const char *msg = src ? src->sval : n->label;
-            bonzi_handle_line(msg);
+            if (bonzi_handle_line) bonzi_handle_line(msg);
             snprintf(n->sval, sizeof(n->sval), "said: %s", msg);
             n->has_num = 0;
-            c->ran_ok++;
             break;
         }
         case COMFY_PRINT: {
@@ -173,7 +182,7 @@ static void comfy_exec_node(ComfyState *c, ComfyNode *n) {
 
 /* Topological-ish eval: repeat passes until stable (handles DAGs). */
 int comfy_run_graph(void) {
-    ComfyState *c = g_comfy;
+    ComfyState *c = comfy_state();
     if (!c) return 0;
     c->ran_ok = 0;
     int n = c->n_nodes;
@@ -201,12 +210,39 @@ int comfy_run_graph(void) {
         if (!progressed) break;
     }
     comfy_out(c, "--- graph run complete ---");
+    /* Every node that ran is work: TEXT emits, CALC computes, PRINT logs. Only
+     * APP and SAY used to increment this, so a TEXT->CALC->PRINT graph reported
+     * "0 nodes ran" while plainly having run three. */
+    c->ran_ok = total;
     return c->ran_ok;
 }
 
+/* Clear the graph. The state is one per process, so anything that wants a
+ * fresh graph -- a "New" action, a test -- must be able to say so instead of
+ * appending to whatever ran before. */
+void comfy_reset_graph(void) {
+    ComfyState *c = comfy_state();
+    if (!c) return;
+    c->n_nodes = 0;
+    c->n_edges = 0;
+    c->out_n = 0;
+    c->drag_node = -1;
+    c->wire_from = -1;
+    c->wire_port = 0;
+    c->ran_ok = 0;
+}
+
 /* -- Programmatic graph build (for tests) ------------------------- */
+/* The header promises the graph can be built "programmatically (no GUI
+ * needed)", but the state used to be created only by comfy_launch(), so every
+ * call returned -1 until a window existed. Create it on first use instead. */
+static ComfyState *comfy_state(void) {
+    if (!g_comfy) g_comfy = calloc(1, sizeof(ComfyState));
+    return g_comfy;
+}
+
 int comfy_add_node(const char *type, const char *label, int x, int y) {
-    ComfyState *c = g_comfy;
+    ComfyState *c = comfy_state();
     if (!c || c->n_nodes >= COMFY_MAX_NODES) return -1;
     int t = -1;
     for (int i = 0; i < COMFY_NTYPES; i++)
@@ -228,7 +264,7 @@ int comfy_add_node(const char *type, const char *label, int x, int y) {
 }
 
 int comfy_add_edge(int from, int from_port, int to, int to_port) {
-    ComfyState *c = g_comfy;
+    ComfyState *c = comfy_state();
     if (!c || c->n_edges >= COMFY_MAX_EDGES) return -1;
     if (from < 0 || from >= c->n_nodes || to < 0 || to >= c->n_nodes) return -1;
     c->edges[c->n_edges].from_node = from;

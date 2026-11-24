@@ -19,8 +19,13 @@
 /* Public API: launch the Comfy node-graph editor window. */
 DosGuiWindow *comfy_launch(void);
 
-/* Execute the current graph. Returns number of nodes that ran real work. */
+/* Execute the current graph. Returns how many nodes executed (a node that ran
+ * is work: TEXT emits, CALC computes, PRINT logs, APP launches, SAY speaks).
+ * A graph that cannot progress (a cycle) returns 0 instead of hanging. */
 int comfy_run_graph(void);
+
+/* Clear the graph (fresh state; the graph is one per process). */
+void comfy_reset_graph(void);
 
 /* For testing: programmatically add a node / edge (no GUI needed). */
 int  comfy_add_node(const char *type, const char *label, int x, int y);
