@@ -148,6 +148,26 @@ CHeapCtrl *mem_heap_ctrl(void) {
 
 /* -- Allocation --------------------------------------------------- */
 
+#ifdef WUBU_HOSTED
+/* A hosted binary IS a glibc process. glibc's own internals -- opendir(),
+ * stdio, getline -- call malloc() and then free() what they got. If the kernel
+ * heap answers those calls, opendir() fails with "No memory available to
+ * program: call to malloc failed" and wubu_pci_scan() returns 0 devices on a
+ * machine whose bus is fine; if only malloc is forwarded but free is not, glibc
+ * aborts on an invalid free. One allocator underneath, in both directions. */
+extern void *__libc_malloc(size_t);
+extern void  __libc_free(void *);
+
+extern void *__libc_calloc(size_t, size_t);
+extern void *__libc_realloc(void *, size_t);
+
+void *mem_alloc(size_t size)            { return __libc_malloc(size); }
+void *mem_calloc(size_t n, size_t size) { return __libc_calloc(n, size); }
+void *mem_realloc(void *p, size_t size) { return __libc_realloc(p, size); }
+void  mem_free(void *ptr)               { __libc_free(ptr); }
+
+#else /* !WUBU_HOSTED: metal keeps the red-zoned kernel heap */
+
 void *mem_alloc(size_t size) {
     if (!g_heap) return NULL;
     if (size == 0) size = 1;
@@ -366,6 +386,8 @@ void *mem_realloc(void *ptr, size_t new_size) {
 }
 
 /* -- Diagnostics -------------------------------------------------- */
+
+#endif /* !WUBU_HOSTED */
 
 long mem_debug_walk(void) {
     if (!g_heap) return -1;
