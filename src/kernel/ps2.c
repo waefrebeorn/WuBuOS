@@ -20,6 +20,7 @@ static inline uint8_t inb(uint16_t port) {
     return ret;
 }
 
+static inline void cpu_relax(void) { __asm__ __volatile__("pause"); }
 static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
@@ -29,16 +30,23 @@ static inline void outb(uint16_t port, uint8_t val) {
  * is ~25k polls: the old 100k bound only made an absent controller expensive. */
 #define PS2_WAIT_MAX 25000
 
+/* `pause` between port reads: Intel's HT guidance for fast spin loops -- it
+ * de-pipelines the loop so a sibling thread keeps the execution resources
+ * (and on modern cores it also hints the I/O interleave). */
 static inline void ps2_wait_write(void) {
-    for (int i = 0; i < PS2_WAIT_MAX; i++)
+    for (int i = 0; i < PS2_WAIT_MAX; i++) {
         if (!(inb(0x64) & 2))
             return;
+        cpu_relax();
+    }
 }
 
 static inline void ps2_wait_read(void) {
-    for (int i = 0; i < PS2_WAIT_MAX; i++)
+    for (int i = 0; i < PS2_WAIT_MAX; i++) {
         if (inb(0x64) & 1)
             return;
+        cpu_relax();
+    }
 }
 
 /* A controller with no device behind it never reports data. Latch that on the
@@ -149,8 +157,11 @@ void ps2_init(int screen_w, int screen_h, ps2_probe_t *probe) {
         probe->flags = 0;
     }
 
-    /* Drain stale data */
-    while (inb(0x64) & 1)
+    /* Drain stale data. BOUNDED: a controller (or a device streaming make/
+     * break) that keeps reporting DR would otherwise hang the boot here
+     * forever -- the only unbounded waits left in the kernel. The 8042
+     * output buffer is 1 byte and its FIFO a handful, so 256 is generous. */
+    for (int i = 0; i < 256 && (inb(0x64) & 1); i++)
         (void)inb(0x60);
 
     /* Controller self-test (0xAA -> 0x55) + report the result. */
@@ -202,8 +213,8 @@ void ps2_init(int screen_w, int screen_h, ps2_probe_t *probe) {
         if (mid >= 0) probe->flags |= PS2_PROBE_MOUSE_OK;
     }
 
-    /* Drain again before interrupts go live */
-    while (inb(0x64) & 1)
+    /* Drain again before interrupts go live -- bounded for the same reason. */
+    for (int i = 0; i < 256 && (inb(0x64) & 1); i++)
         (void)inb(0x60);
 
     ps2_mouse_x = g_screen_w / 2;

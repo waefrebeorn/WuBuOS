@@ -35,11 +35,27 @@ fi
 
 skips=0
 fails=0
+# The four gates are independent and the two timing gates dominate the wall
+# time (the whole tier measured 417 s of the suite's 430 s, and >180 s of that
+# was this wrapper running them one after another). Run them concurrently --
+# same scripts, same assertions, same fail-closed accounting; only the
+# scheduling changed. Each gate writes its own log and rc file so the
+# accounting below is identical to the serial loop.
+pids=()
+for spec in "${GATES[@]}"; do
+    script=${spec%%:*}
+    tag=${spec##*:}
+    ( bash "$ROOT/tools/$script" >"$TMP/$tag.log" 2>&1; echo $? >"$TMP/$tag.rc" ) &
+    pids+=($!)
+done
+for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
+
 for spec in "${GATES[@]}"; do
     script=${spec%%:*}
     tag=${spec##*:}
     log="$TMP/$tag.log"
-    if bash "$ROOT/tools/$script" >"$log" 2>&1; then
+    rc=$(cat "$TMP/$tag.rc" 2>/dev/null || echo 99)
+    if [ "$rc" = "0" ]; then
         cat "$log"
         if grep -q "^\[$tag\] SKIP:" "$log"; then
             skips=$((skips + 1))
@@ -48,7 +64,6 @@ for spec in "${GATES[@]}"; do
             fails=$((fails + 1))
         fi
     else
-        rc=$?
         cat "$log" >&2
         echo "[default_optin] FAIL: $script exited $rc" >&2
         fails=$((fails + 1))

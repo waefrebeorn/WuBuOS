@@ -45,16 +45,18 @@
 
 /* Bounded poll (no busy-forever): ~8 frames' worth before giving up. */
 #define N9_POLL_MAX (1u << 22)
-/* First contact gets a SHORT bound. A boot must not spend tens of millions
- * of steps discovering that no host is on the other end of COM2: on a miss we
- * latch "link absent" for the rest of the boot and every later read returns
- * immediately (A3 then fails once, cheaply, instead of once per byte). */
-/* First-contact probe. The boot pays this ONCE when no host is attached
- * (it is latched absent afterwards), and 65536 polls cost 393k guest steps
- * -- 11% of the whole boot -- for a UART that is simply not there. 4096 is
- * still far longer than a host needs to answer the guest's ready signal;
- * the A3 proof (host attached) is the gate that guards this number. */
+/* First contact gets a SHORT bound and a latch: a boot must not spend
+ * millions of polls discovering that no host is on the other end of COM2
+ * (65536 polls measured 393k guest steps, 11% of the whole boot). On a miss
+ * the link is marked absent for the rest of the boot, so every later read
+ * returns immediately and A3 fails once, cheaply, instead of once per byte.
+ * 4096 polls is still far longer than a host needs to answer the guest's
+ * ready signal; the A3 proof (host attached) is the gate guarding this. */
 #define N9_PROBE_MAX (1u << 12)
+
+/* Between UART polls (Intel HT guidance for fast spin loops: keep the
+ * execution resources for the sibling thread instead of hammering the port). */
+static inline void n9_relax(void) { __asm__ __volatile__("pause"); }
 
 static void n9_com2_init(void)
 {
@@ -73,6 +75,7 @@ static int n9_tx(uint8_t c)
 {
     for (uint32_t i = 0; i < N9_POLL_MAX; i++) {
         if (inb(COM2_LSR) & 0x20) { outb(COM2_DATA, c); return 0; }
+        n9_relax();
     }
     return -1;   /* THR never emptied within the bound */
 }
@@ -91,6 +94,7 @@ static int n9_rx(uint8_t *out)
             g_n9_link = 1;
             return 0;
         }
+        n9_relax();
     }
     if (g_n9_link == 0) g_n9_link = -1;      /* first contact failed: absent */
     return -1;

@@ -87,6 +87,15 @@ int hosted_wl_connect(hosted_state_t *state) {
     return 0;
 }
 
+int hosted_wl_wait_ms(int timeout_ms) {
+    if (!g_wl.display) return -1;   /* headless: caller sleeps, never spins */
+    struct pollfd pfd;
+    pfd.fd = wl_display_get_fd(g_wl.display);
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    return poll(&pfd, 1, timeout_ms) > 0;
+}
+
 void hosted_wl_dispatch(void) {
     if (!g_wl.display) return;
 

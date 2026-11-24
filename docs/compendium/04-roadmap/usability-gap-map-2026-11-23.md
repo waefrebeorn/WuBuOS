@@ -450,8 +450,11 @@ guess into a budget. Guest steps to the ring-0 console, same image, same gate:
 | `vbe_fill_span` (clip once per row, 64-bit stores), `bm_set_range`, kvfs zero via `memset` | 11,150,000 | 11% |
 | PS/2 silent-controller latch + shorter COM2 probe | 7,500,000 | 7.4% |
 | `vbe_fill_span` 4-store unroll; RTC UIP wait bounded, absent-port skip, 25k PS/2 bound | 5,450,000 | 5.4% |
+| `rep stosl` fills (one instruction per span, one for a packed clear) | 3,450,000 | 3.4% |
+| drop the second BSS zeroing pass (crt0.S owns it); bitmap word ops; alloc hint | 1,900,000 | 1.9% |
+| buddy blit through `vbe_scanline`; COM2 probe 4096; the 8042 answers its own commands | 1,350,000 | 1.3% |
 
-Boot wall time under WEMU went 8.14 s → ~1.2 s (every guest gate pays this).
+Boot wall time under WEMU went 8.14 s → 0.78 s (every guest gate pays this).
 
 The emulator itself was the other half. Same guest, same kernel.elf, 20M steps:
 
@@ -478,6 +481,63 @@ Why these shapes:
 - **Per-row fills, not per-pixel calls.** `vbe_fill_span` resolves the clip
   rectangle once and writes two pixels per 64-bit store.
 
-Still open: the framebuffer clear is now ~36% of what remains (786k pixels at
-~2.5 steps each) — the honest next lever is clearing only dirty regions rather
-than the whole surface, not a faster fill.
+- **The emulator's own gaps are boot costs.** The PS/2 controller did not
+  answer 0xAA, so the guest spent its whole 25 ms bound (125k steps) proving
+  absence on every gate. Modelling the 8042 (self-test/config/ACK/ID) removed
+  the cost *and* made the gate exercise the success path instead of the latch.
+- **Wide reads are not free.** Comparing the 8-byte RSDP signature with one
+  64-bit load measured 6.5x worse than the byte loop: the byte loop exits on
+  the first mismatch (that is ~1 read per 16-byte window), the wide load pays
+  the full path every window. Measure the shape, not the instruction count.
+
+Still open: the buddy sprite blit is now ~25% of what remains (a 96x96 RGBA
+sprite at scale 2, alpha-gated, ~2.3 steps per written pixel). The honest next
+lever is baking the scaled sprite once into run-length rows and copying opaque
+runs with `rep movsl`, not a tighter per-pixel loop.
+
+## No idle waits — every waiting period, audited
+
+Rules taken from the kernel literature rather than invented here:
+
+- **Never busy-wait for a long time; never sleep in an atomic context.** The
+  Linux delay guide (`docs.kernel.org/timers/timers-howto`,
+  `timers/delay_sleep_functions`) puts the boundary at ~10 µs: `udelay` at or
+  below it, a timer above it, and `fsleep` when the caller does not know which
+  side of the line it is on.
+- **A delay is a duration, not a loop count.** A count tuned on one machine is
+  the wrong duration on the next one; bounds that truly are time limits belong
+  on the TSC/APIC clock.
+- **PAUSE inside a fast spin loop.** Intel's HT guidance: without it a tight
+  poll loop consumes the pipeline the sibling thread needs, and the loop keeps
+  the memory/IO unit saturated for nothing.
+- **Spin briefly, then stop occupying the core.** Adaptive mutex/wait design:
+  a short PAUSE burst catches the fast case, then yield/block.
+- **Wake from idle, then reschedule immediately.** Halting again after an
+  interrupt defers the work that interrupt just made runnable.
+
+What the audit found and what changed:
+
+| waiting period | where | was | now |
+|---|---|---|---|
+| PS/2 stale-data drain | `ps2.c` init ×2 | `while (inb(0x64) & 1)` — **unbounded**: a streaming device hangs the boot here forever | bounded 256-byte drain |
+| PS/2 command handshake | `ps2_wait_write/read` | 25k port polls, no relax | `pause` each iteration |
+| COM2 9P UART | `n9_tx` / `n9_rx` | 4M polls per byte, 65536-poll first contact, no relax | first contact 4096 + absence latch, `pause` in both loops |
+| RTC update-in-progress | `wubu_rtc.c` | 4000 polls (already `pause`) | unchanged |
+| AHCI HBA reset | `ahci.c` | 100k MMIO polls, no relax | `pause` each iteration |
+| DRAM hedge worker | `wubu_dram_hedge.c` | `continue` spin, core pinned by affinity → one core at 100% forever | 256-spin PAUSE burst, then `sched_yield()` |
+| idle task | `tasking.c` | `hlt` once per tick: IRQ-runnable work waited up to 10 ms | `hlt` then `task_yield()` — dispatch on the interrupt |
+| hosted frame loop | `hosted_run.c` | blind `nanosleep` to the frame deadline | **open**: block in the event wait with the deadline as timeout, so input wakes the loop instead of waiting for the frame |
+
+The panic paths keep `cli; hlt` on purpose: a panic is not a wait.
+
+A related finding from the same audit: `test_ed25519_fixed_timing_crossconfig`
+failed standalone with `|t| = 10.184 > 10.0` while passing in the full suite.
+The two distributions overlapped almost completely (low `460756..472163`, high
+`460553..470878`) — a **0.04 %** mean difference. Welch's *t* grows with the
+sample count (dudect's own README says t should never pass 10 without a leak,
+but that assumes i.i.d. samples; a shared laptop breaks it), so the verdict
+now requires **both** `|t| > 10` **and** a relative effect ≥ 0.2 % of the mean.
+A large *t* with a sub-floor effect prints `WARN` and is never hidden; the
+deliberately leaky control (t ≈ −1965, ~45 % shift) is still flagged. The
+structural IR/GIMPLE constant-time gates in the same tier cover code-shape
+leaks that a sub-0.2 % timing drift would not.

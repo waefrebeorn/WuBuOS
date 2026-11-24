@@ -110,6 +110,11 @@ int  hosted_wl_connect(hosted_state_t *state);
 void hosted_wl_disconnect(void);
 /* Pump pending Wayland events. */
 void hosted_wl_dispatch(void);
+/* Block until the compositor socket has something to read, or `timeout_ms`
+ * elapses. Returns 1 when an event is pending, 0 on timeout, -1 when there is
+ * no display at all (caller must sleep itself -- never spin headless).
+ * poll() does not consume the event: the next hosted_wl_dispatch() does. */
+int  hosted_wl_wait_ms(int timeout_ms);
 /* Blit the VBE back-buffer into the current SHM buffer + commit. */
 void hosted_wl_frame_render(void);
 

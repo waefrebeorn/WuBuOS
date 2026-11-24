@@ -226,8 +226,21 @@ static void *wdh_worker(void *arg)
         sched_setaffinity(0, sizeof(set), &set);
     }
     uint64_t last = 0;
+    int spins = 0;
     while (!r->stop) {
-        if (r->ticket == last) continue;   /* spin until new index */
+        if (r->ticket == last) {
+            /* Adaptive wait: spin (with PAUSE) for a short burst -- the next
+             * ticket usually lands within it -- then yield the core instead
+             * of burning it. Every worker is pinned to a core by affinity, so
+             * a pure `continue` spin leaves that core at 100% with nothing to
+             * show for it, and a slow generation starves whatever else could
+             * run there. */
+            if (++spins < 256) { __builtin_ia32_pause(); continue; }
+            spins = 0;
+            sched_yield();
+            continue;
+        }
+        spins = 0;
         last = r->ticket;
         __sync_synchronize();              /* acquire: see cur_idx write */
         uint64_t idx = r->cur_idx;

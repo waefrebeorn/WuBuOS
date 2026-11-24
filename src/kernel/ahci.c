@@ -30,7 +30,10 @@ ahci_dev_type_t ahci_dev_type_from_sig(uint32_t signature) {
 int ahci_hba_reset(ahci_hba_t *hba) {
     if (!hba) return -1;
     hba->ghc |= AHCI_GHC_HR;              /* assert reset */
+    /* PAUSE between MMIO polls: without it this loop saturates its core and
+     * starves a sibling thread (Intel's HT guidance for fast spin loops). */
     for (int i = 0; i < 100000 && (hba->ghc & AHCI_GHC_HR); i++) {
+        __asm__ __volatile__("pause");
         /* Simulated hardware: the controller completes the reset and
          * clears HR after a couple of model ticks (real silicon takes
          * ~1 ms; the model collapses that to a bounded delay). */

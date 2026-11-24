@@ -151,8 +151,19 @@ int hosted_run(hosted_state_t *state) {
         long elapsed = (now.tv_sec - last.tv_sec) * 1000000000L +
                        (now.tv_nsec - last.tv_nsec);
         if (elapsed < frame_ns) {
-            struct timespec slp = {0, frame_ns - elapsed};
-            nanosleep(&slp, NULL);
+            /* Wait for the frame deadline IN THE EVENT WAIT, not in a blind
+             * sleep: an input or compositor event then wakes the loop at
+             * once, so a keystroke lands on the next frame instead of up to
+             * a full frame later. poll() only reports readiness -- the next
+             * iteration's hosted_wl_dispatch() consumes it. Headless (no
+             * display) keeps the plain sleep. */
+            long wait_ms = (frame_ns - elapsed) / 1000000L;
+            if (wait_ms < 1) wait_ms = 1;
+            if (hosted_wl_wait_ms((int)wait_ms) < 0) {
+                /* No display (headless): nothing can wake us early. */
+                struct timespec slp = {0, frame_ns - elapsed};
+                nanosleep(&slp, NULL);
+            }
         }
         clock_gettime(CLOCK_MONOTONIC, &last);
     }

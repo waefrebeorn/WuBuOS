@@ -364,8 +364,18 @@ void task_idle(void *arg) {
     (void)arg;
     /* Gap D1: the idle task HALTs instead of busy-yielding. This task's
      * primed rflags has IF set (0x200), so the PIT's vector-32 interrupt
-     * wakes each hlt; there is no sti to shadow. */
-    for (;;) __asm__ __volatile__("hlt");
+     * wakes each hlt; there is no sti to shadow.
+     *
+     * No downtime (Linux's "wake from idle, then reschedule" pattern): an
+     * interrupt can make a task runnable (I/O completion, a timer wake, an
+     * unblock). Halting again and waiting for the next tick would defer that
+     * work by up to 10 ms; yield right after the wake so it starts on the
+     * interrupt itself. task_yield() returns here at once when nothing else
+     * is ready, so an idle system still sleeps in hlt. */
+    for (;;) {
+        __asm__ __volatile__("hlt");
+        task_yield();
+    }
 }
 
 /* -- Yield / Block / Unblock / Sleep ------------------------------ */
