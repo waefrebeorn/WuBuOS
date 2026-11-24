@@ -36,6 +36,14 @@ int main(void)
 
     printf("=== wubu_hw_detect_selftest (magic OS self-detection) ===\n");
 
+    /* The ICD chain FIRST. malloc() here is the kernel bump heap, and the KV-FS
+     * section below allocates its 4 MB tensor plus mounts; after that even
+     * malloc(512) returns NULL, so wubu_hw_vulkan_icd_chain() -- which strdups
+     * its answer -- reported NULL and looked like a broken ICD probe. The check
+     * needs no KV-FS, so it goes where the heap is still fresh. */
+    char *icd_chain = wubu_hw_vulkan_icd_chain();
+    int icd_chainlen = icd_chain ? (int)strlen(icd_chain) : 0;
+
     /* 1. init KV-FS */
     if (g_wubu_kvfs) { wubu_kvfs_free(g_wubu_kvfs); g_wubu_kvfs = NULL; }
     if (g_wubu_kv_base) { free(g_wubu_kv_base); g_wubu_kv_base = NULL; }
@@ -115,13 +123,13 @@ int main(void)
               "GALLIUM_DRIVER=d3d12 will be set (wsl + dzn)");
     }
 
-    /* 9. GPU env emission (via the ICD chain) */
-    char envbuf[512];
-    char *chain = wubu_hw_vulkan_icd_chain();
-    int chainlen = chain ? strlen(chain) : 0;
-    CHECK(chainlen > 0, "gpu ICD chain emitted");
-    CHECK(chain != NULL && strstr(chain, "vulkan/icd.d") != NULL, "ICD chain contains vulkan ICD");
-    if (chain) free(chain);
+    /* 9. GPU env emission (via the ICD chain) -- sampled at the top of main */
+    CHECK(icd_chainlen > 0, "gpu ICD chain emitted");
+    CHECK(icd_chain != NULL && strstr(icd_chain, "vulkan/icd.d") != NULL,
+          "ICD chain contains vulkan ICD");
+    /* deliberately NOT freed: the chain comes from the kernel bump heap via
+     * strdup(), and handing that pointer to free() in a hosted process crashes
+     * at exit. The process ends here; leaking a 200-byte probe string is fine. */
 
     /* cleanup */
     if (g_wubu_kvfs) wubu_kvfs_free(g_wubu_kvfs);
