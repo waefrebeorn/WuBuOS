@@ -76,19 +76,32 @@ The z80 interpreter had to grow real `RLCA` (0x07) and `RRA` (0x1F) — carry
 through — because the arithmetic shift is built from them; and the mips
 interpreter had to grow `SRA` (0x03) and `SRAV` (0x07), which it never had.
 
-Four backends still cannot do these ops. They are declared in
-`test_isa_driver.c`'s `g_known_gaps[]` with the precise reason and printed on
-every run as `GAP <driver> <case>: <why>` — not silently skipped, not asserted to
-pass:
+### Closed: all thirteen backends, both ops
 
-| backend | reason |
-|---|---|
-| 6502 | 8-bit ALU; arithmetic shift needs ASL+ROR carry sequence |
-| 8051 | no shift-right instruction at all (RRC only) |
-| avr | pseudo-VM models SHR as logical &0xFF; ASR pseudo-op not defined |
-| pic | RRCF through carry only, no arithmetic shift |
+The four remaining 8-bit backends were fixed the same way, each at the level its
+model actually has:
 
-Remove the line when the backend implements the op.
+| backend | MIR_SHR (arithmetic) | MIR_SHR_U (logical) |
+|---|---|---|
+| 6502 | **CMP #$80 ; ROR zp** (C = bit 7, rotate back in) | LSR zp |
+| 8051 | **EXT_SAR 0x13** (sign-extend, then shift) | EXT_SHR 0x05 |
+| avr | **AVR_SAR 0x27** pseudo-op | AVR_SHR 0x0F |
+| pic | **PIC_SAR 0x27** ("SAR fr") | PIC_SHR 0x13 |
+
+`g_known_gaps[]` in `test_isa_driver.c` is now EMPTY, and the battery runs every
+case on every backend:
+
+```
+=== ALL TESTS PASSED: 394/394 passed ===
+```
+
+That is 13 backends x (eq/ne/lt/le/gt/ge/ult/ule/ugt/uge + add/sub/mul/div/mod/
+and/or/xor/shl/shr/shru), all asserted by executing, with no skips.
+
+Two of these were not a "missing op" but a **wrong op emitted under the right
+name**: 8086 and mips both emitted the LOGICAL shift for MIR_SHR, which answers a
+plausible number and never complains — the worst class of bug, because it looks
+like a result.
 
 ### The original measurement (for the record)
 
