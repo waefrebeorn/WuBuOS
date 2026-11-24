@@ -296,7 +296,10 @@ void vsl_nt_atoms_register(vsl_syscall_fn_t *tbl, int size) {
      * handlers instead of duplicating them (same concern, no new logic). */
     tbl[321-1] = vsl_nt_assign_job;
     tbl[339-1] = vsl_nt_free_user_phys_pages;
-    tbl[395-1] = vsl_nt_alloc_user_phys_pages;
+    /* 395 belongs to NtRevertContainerImpersonation (vsl_nt_misc_w11.c) -- this
+     * ghost alias used to overwrite it, so the real handler was unreachable and
+     * the syscall answered "allocate physical pages" instead of reverting the
+     * identity. 17 above is this handler's real ordinal. */
     tbl[396-1] = vsl_nt_allocate_luid;
     tbl[158-1] = vsl_nt_query_information_atom;
     tbl[256-1] = vsl_nt_set_uuid_seed;

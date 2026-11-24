@@ -918,7 +918,9 @@ void vsl_nt_misc_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[165-1] = vsl_nt_query_install_ui_language;
     tbl[402-1] = vsl_nt_query_default_ui_language;   /* ghost high ordinal */
     tbl[403-1] = vsl_nt_query_install_ui_language;   /* ghost high ordinal */
-    tbl[408-1] = vsl_nt_set_default_ui_language;     /* ghost high ordinal */
+    /* 408 is NtSetCachedSigningLevel (vsl_nt_misc_w11.c). A ghost alias here
+     * overwrote it, so the signing-level cache was never populated and every
+     * read-back answered "not cached". */
     /* System environment */
     tbl[180-1] = vsl_nt_query_system_environment_value;
     tbl[181-1] = vsl_nt_query_system_environment_value_ex;

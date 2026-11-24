@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: test_no_ct_residue test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_no_ct_residue test_nt_ordinals test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -2950,6 +2950,13 @@ test_spd_parity:
 	@if [ "$$(id -u)" != 0 ] && ! sudo -n true 2>/dev/null; then \
 	    echo "test_spd_parity: SKIP (reads SPD over i2c; needs root or passwordless sudo)"; \
 	else sudo -n ./tools/spd_parity; fi
+
+# Every NT syscall ordinal must have one owner: the table is filled by several
+# TUs, so a duplicate silently decides the winner by link order (that is how 395
+# and 408 ended up answering the wrong syscall). Known ambiguities are frozen in
+# tools/nt_ordinal_baseline.json and the list may only shrink.
+test_nt_ordinals:
+	@python3 tools/nt_ordinal_audit.py
 
 test_standards:
 	python3 tools/std_audit.py --baseline tools/std_audit_baseline.json
