@@ -57,10 +57,40 @@ Extending the battery with arithmetic (add/sub/mul/div/mod/and/or/xor/shl) passe
 on every backend. The two shifts do not, and they are **not** in the battery yet
 because a green gate must not hide them:
 
-| op | fails on |
+### Status after the fix pass (commit 300f839 / 642ca47e)
+
+`MIR_SHR_U` existed in exactly **one** backend (x86-64). Everywhere else the op
+fell through the switch and the destination kept its old value — a wrong answer,
+never an error. Implemented and verified by execution:
+
+| backend | MIR_SHR (arithmetic) | MIR_SHR_U (logical) |
+|---|---|---|
+| arm64 | ASRV, 64-bit (was LSRV with sf=0) | LSRV (was: no case) |
+| riscv | SRA | **SRL** (was: no case) |
+| m68k | ASR.L | **LSR.L** (was: no case) |
+| 8086 | **SAR (D1 /7)** (was SHR /5) | SHR (D1 /5) |
+| z80 | **RLCA; LD A,(v); RRA** (was SRL for both) | SRL A |
+| mips | **SRAV 0x07** (was SRLV 0x06) | SRLV 0x06 (was: no case) |
+
+The z80 interpreter had to grow real `RLCA` (0x07) and `RRA` (0x1F) — carry
+through — because the arithmetic shift is built from them; and the mips
+interpreter had to grow `SRA` (0x03) and `SRAV` (0x07), which it never had.
+
+Four backends still cannot do these ops. They are declared in
+`test_isa_driver.c`'s `g_known_gaps[]` with the precise reason and printed on
+every run as `GAP <driver> <case>: <why>` — not silently skipped, not asserted to
+pass:
+
+| backend | reason |
 |---|---|
-| `MIR_SHR` (arithmetic, 64-bit) | 8086, 6502, z80, mips, 8051, avr, pic |
-| `MIR_SHR_U` (logical, 64-bit) | 8086, m68k, 6502, riscv, z80, mips, 8051, avr, pic |
+| 6502 | 8-bit ALU; arithmetic shift needs ASL+ROR carry sequence |
+| 8051 | no shift-right instruction at all (RRC only) |
+| avr | pseudo-VM models SHR as logical &0xFF; ASR pseudo-op not defined |
+| pic | RRCF through carry only, no arithmetic shift |
+
+Remove the line when the backend implements the op.
+
+### The original measurement (for the record)
 
 Both are recent additions (see `wubu_mir.h`: SHR is `sar`, SHR_U is `shr`). Two
 different fixes are needed and they must be told apart per backend:
