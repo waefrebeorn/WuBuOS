@@ -216,6 +216,17 @@ if phys is not None and pitch is not None:
     best_score = 1 << 30
     window = min(65536, w * 4 * 16)
 
+    def window_colours():
+        """Distinct colours in the same 64 KiB window.
+
+        Non-black alone accepts a flat fill: the retry once sampled a frame that
+        was 100.0% non-black with 4 colours and called it the desktop. A real
+        frame has hundreds."""
+        w = read_at(phys, 65536)
+        if not w:
+            return 0
+        return len({w[i:i + 3] for i in range(0, len(w) - 3, 4)})
+
     def window_painted():
         b = read_at(phys, window)
         if not b or len(b) < window:
@@ -231,7 +242,7 @@ if phys is not None and pitch is not None:
     while time.time() - started < 30:
         if p.poll() is not None:
             break
-        if window_painted() >= 90.0:
+        if window_painted() >= 90.0 and window_colours() >= 16:
             stable += 1
             if stable >= 2:
                 break
@@ -275,7 +286,14 @@ if phys is not None and pitch is not None:
         if not ok:
             fail += 1
 
-    s.sendall(b'quit\n'); s.close()
+    # A dead guest makes this the last thing that happens; an unguarded
+    # sendall() raised BrokenPipe AFTER both checks printed PASS, so the
+    # target "failed" and re-ran the whole boot for nothing.
+    try:
+        s.sendall(b'quit\n')
+    except OSError:
+        pass
+    s.close()
     time.sleep(1)
 
 p.terminate()

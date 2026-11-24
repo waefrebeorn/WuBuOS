@@ -28,7 +28,7 @@ test_oci_tls:
 # Opt-in Ed25519 package-signature differential gate (mbedTLS dev root
 # required; NOT in the default `make test` tier).
 test_pkg_ed25519:
-	bash tools/pkg_ed25519_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/pkg_ed25519_gate.sh
 
 # Same package gate through the opt-in OpenSSL native backend (needs the
 # OpenSSL dev headers + libcrypto; policy checks and all tamper/negative
@@ -218,7 +218,7 @@ test_ed25519_fixed_ladder_o0_negctl:
 # End-to-end package-signing differential through the fixed-width ladder:
 # the real pkgmgr Ed25519 gate with only the scalar-mult leaf swapped.
 test_pkg_ed25519_fixed:
-	WUBU_EDDSA_FIXED=1 bash tools/pkg_ed25519_gate.sh
+	flock $(CT_GATE_LOCK) WUBU_EDDSA_FIXED=1 bash tools/pkg_ed25519_gate.sh
 
 # Documented LEGACY override: the same end-to-end differential through the
 # mbedTLS MPI ladder (WUBU_EDDSA_FIXED=0).  Proves the escape hatch works.
@@ -312,17 +312,17 @@ pkg_key_ctl:
 # Opt-in differential gate for the authorized revocation CLI (mbedTLS root
 # required; deliberately NOT in the default `make test` tier).
 test_pkg_key_revoke:
-	bash tools/pkg_key_revoke_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/pkg_key_revoke_gate.sh
 
 # Opt-in differential gate for the authenticated revocation-feed import
 # (mbedTLS root required; NOT in the default `make test` tier).
 test_pkg_revoke_feed:
-	bash tools/pkg_revoke_feed_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/pkg_revoke_feed_gate.sh
 
 # Opt-in differential gate for signed cross-device revocation-feed sync
 # (loopback HTTP fixture + ephemeral keys; mbedTLS root required).
 test_pkg_revoke_sync:
-	bash tools/pkg_revoke_sync_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/pkg_revoke_sync_gate.sh
 
 .PHONY: test_pkg_revoke_sync
 
@@ -330,7 +330,7 @@ test_pkg_revoke_sync:
 # bounded scheduled loop (loopback HTTP + ephemeral signed feeds). DEFAULT-tier
 # member via test_default_optin; SKIPs explicitly when no mbedTLS dev root.
 test_sync_panel:
-	bash tools/sync_panel_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/sync_panel_gate.sh
 .PHONY: test_sync_panel
 
 # Differential gate proving the default hosted build has NO TLS (HTTPS fails
@@ -361,13 +361,13 @@ test_default_crypto_negative_control:
 # Opt-in differential gate for trust-anchor expiry, admin rotation/recovery
 # and M-of-N feed-apply quorum (mbedTLS root required; not in default tier).
 test_pkg_key_policy:
-	bash tools/pkg_key_policy_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/pkg_key_policy_gate.sh
 
 # Opt-in CLI-level differential gate: signed expiry, global feed quorum and
 # escrow lost-admin recovery through the public operator CLI (mbedTLS root
 # required; not in the default tier).
 test_pkg_key_recovery:
-	bash tools/pkg_key_recovery_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/pkg_key_recovery_gate.sh
 
 test_oci:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT)/wubu_crc32.c \
