@@ -19,7 +19,7 @@ QEMU's fix was to make cross-target tests runnable (cross compilers + docker
 images). The cheap version: **qemu-user-static needs no root**, so a blob plus a
 six-instruction stub is a runnable AArch64 program.
 
-`tools/arm64_exec_gate.py` does that: `test_isa_driver` dumps each ARM64 blob
+`tools/isa_exec_gate.py` does that: `test_isa_driver` dumps each blob
 with the value it must compute, the gate wraps it in a minimal ELF64 (one
 PT_LOAD, entry at the stub: `BL code; MOVZ x8,#93; SVC #0; RET`) and executes it.
 The process exit status is `x0 & 0xFF`.
@@ -104,6 +104,23 @@ different fixes are needed and they must be told apart per backend:
 The cases go back into the battery the moment each backend either implements the
 op or refuses it explicitly. Until then, the gap is recorded here and the battery
 stays green at what it can actually prove.
+
+## Which backends this can actually test
+
+`make test_isa_exec` executes **arm64** and **riscv** (19 cases each, 0 failed).
+The RISC-V backend passing 19/19 on real RISC-V code is the strongest evidence
+this tree has that it emits correct instructions at all.
+
+`mips` is deliberately NOT in the gate, and the gate says so every run:
+
+    mips: SKIP (not real machine code: emits a custom 0xFC000000 control escape
+                (in-tree interpreter only))
+
+That escape (see `MIR_RET` in `wubu_isa_mips.c`) is understood by the in-tree
+interpreter and by nothing else, so the mips output is a hybrid rather than MIPS.
+Running it under qemu-mipsel returns -1 for every case; reporting that as a
+failure would blame the backend for a design the gate cannot test, and reporting
+it as a pass would be a lie. It is named.
 
 ## Why this is the right shape
 

@@ -703,15 +703,16 @@ test_mir_regalloc: $(JIT_OBJS)
 	$(COMP)/test_mir_regalloc
 
 # WuBuOS Universal Test Gauntlet
-# ARM64 execution gate: the ISA driver test dumps ARM64 code blobs (with the
-# value each must compute) and this EXECUTES them under qemu-aarch64-static, so
-# the backend is verified by running, not only by encoding. test_isa_driver is a
-# prerequisite, so make builds and runs it normally; the second invocation only
-# re-runs a fast dump pass with WUBU_ARM64_EXEC_DIR set.
-test_arm64_exec: test_isa_driver
-	@rm -rf build/arm64probe && mkdir -p build/arm64probe
-	@WUBU_ARM64_EXEC_DIR=build/arm64probe $(COMP)/test_isa_driver >/dev/null 2>&1 || true
-	@python3 tools/arm64_exec_gate.py
+# ISA execution gate: the driver test dumps the emitted code of every cross
+# backend (WUBU_EXEC_DUMP) and tools/isa_exec_gate.py EXECUTES each blob under the
+# matching qemu-user emulator, so those backends are verified by running, not only
+# by encoding. test_isa_driver is a prerequisite, so make builds and runs it
+# normally; the second invocation is a fast dump pass.
+test_isa_exec: test_isa_driver
+	@rm -rf build/isaexec && mkdir -p build/isaexec
+	@WUBU_EXEC_DUMP_DIR=build/isaexec WUBU_EXEC_DUMP=arm64,riscv \
+	   $(COMP)/test_isa_driver >/dev/null 2>&1 || true
+	@python3 tools/isa_exec_gate.py
 
 test_gauntlet: $(JIT_OBJS)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(COMP)/test_gauntlet -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/holyd_mir_eval.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/wubu_mir_interp.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_lang_router.c $(COMP)/test_gauntlet/wubu_test_gauntlet.c $(COMP)/test_gauntlet/suites/gauntlet_comprehensive.c $(COMP)/test_gauntlet_runner.c -lm -ldl -o $(COMP)/gauntlet_runner -Iinclude $(RT)/wubu_crc32.c $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/wubu_tgemm_avx512.c $(COMP)/wubu_isa_vulkan.c $(COMP)/wubu_mir_ssa.c $(COMP)/wubu_host_tensor.c $(COMP)/wubu_isa_spirv.c $(COMP)/holyd_semantic.c -DWUBU_NO_OMP -lm
