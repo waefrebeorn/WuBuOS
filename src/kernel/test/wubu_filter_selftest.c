@@ -3,6 +3,10 @@
  */
 #include "wubu_filter.h"
 #include "wubu_hw_detect.h"
+#ifndef M_PI
+#define M_PI 3.14159265358979323846  /* <math.h> hides it under _POSIX_C_SOURCE */
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
