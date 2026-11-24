@@ -113,10 +113,24 @@ gated and then **reverted unshipped**, because it could not be proven:
   against a QEMU `memsave` of the LFB physo range -- which does not depend on the
   kernel's read path at all).
 
-Lesson worth keeping: a memory-mapped framebuffer is not ordinary RAM to test
-against -- but a *direct store followed by a read of the same address returning 0*
-is not explainable by caching, so do not accept "it's write-combining" as an
-answer without the external (memsave) check.
+**Resolved 2026-11-24 (`a36ffb2f`):** the writes were going to a device BAR. The
+bochs path read PCI config `0x80001010` (bus 0 dev 2 fn 0) believing it was the
+VGA; on q35 that slot is a NIC (`0:2.0 id=0x10D38086`), so the kernel took the
+NIC's BAR0 (0xC1000000) as the framebuffer and drew the desktop into a network
+device's MMIO window -- which discards writes, hence "direct store reads back 0".
+The kernel now finds the display by class (`0:1.0 BAR0=c0000008` -> 0xC0000000),
+which matches the loader's handoff.
+
+## Still open: nothing has ever SEEN the metal desktop
+
+After the BAR fix a QEMU `screendump` is still a black 640x480 (1044 non-black
+pixels, 1 colour) while the kernel reports a 1024x768 mode at phys 0xC0000000.
+Either the firmware hands off a RAM buffer instead of programming the VGA to scan
+it out, or the mode set needs the dispi LFB-enable register the kernel does not
+write. **Every metal gate so far reads the back buffer or the serial log -- none
+of them has ever observed the scanout**, which is why this stayed invisible.
+Closing it needs one of: a `screendump` that is non-black, or a documented
+hardware note saying WuBuFW's handoff is intentionally not scanout.
 
 ## Verification of this ADR's claims
 
