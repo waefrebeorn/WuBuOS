@@ -577,7 +577,19 @@ to machine load, so treat 330-390 s as the honest range, not a single number.
    walked 16 bytes at a time -- the `'R'` pre-test already halved it),
    `vsprintf` 7.4 % (boot log formatting), `wubu_vmm_init` 7.1 % + `bm_set_range`
    5.2 % (bitmap marking), sprite bake 5.7 % (one-time).
-4. **The metal desktop has no screenshot gate.** Every render change so far was
-   verified by arithmetic review plus the boot/behaviour gates, never by
-   comparing pixels, because `run-agi9p.sh` boots with `-display none`. A QEMU
-   `screendump` in that script would close a real verification gap.
+4. ~~The metal desktop has no screenshot gate.~~ **Closed, and the obvious
+   approach was measured wrong first.** A QEMU `screendump` in `run-agi9p.sh`
+   returns a black 640x480 (1044 non-black pixels): the guest programs the
+   Bochs VBE LFB itself (`LFB phys=c1000000`) and draws into its own buffer, so
+   the emulated VGA surface never sees it. Instead the kernel scans the buffer
+   it really drew into (`deskshot` command), and `test_deskshot` asserts >= 25 %
+   of the surface non-black and >= 8 colour classes: 1920x1080,
+   nonblack=2073565 of 2073600, colours=256, hash=b906654f. A blank or flat
+   framebuffer now fails the suite.
+
+### Build-system lesson worth keeping
+
+Four test targets each compiled `tools/wemu_kernel_gate` inline, so `-j24` had
+one job relinking the binary while another executed it: `Text file busy`
+(ETXTBSY) and a red suite that passed when run alone. Shared test binaries need
+one rule with prerequisites; targets depend on it and only execute it.
