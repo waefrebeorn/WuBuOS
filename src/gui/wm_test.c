@@ -1130,6 +1130,41 @@ static void test_show_desktop_hotkey(void) {
 /* Win+Shift+Arrow moves the window to the adjacent desktop; plain Win+Arrow
  * snaps. The snap block used to match ANY Win+Arrow and sat first, so the move
  * shortcut could never fire -- a superset binding swallowing a specific one. */
+
+/* Spies for the shell shortcuts: wm_input calls these through weak symbols, so
+ * the test can observe the DISPATCH without linking the real apps. */
+static int g_fm_calls, g_cp_calls;
+DosGuiWindow *launch_file_manager(void) { g_fm_calls++; return NULL; }
+DosGuiWindow *control_launch(void) { g_cp_calls++; return NULL; }
+
+/* Win+E / Win+I / Win+Q are the three most-used Windows shortcuts and none of
+ * them existed: a user's first instincts in this shell did nothing. */
+static void test_shell_shortcuts_reach_their_launchers(void) {
+    TEST("Win+E opens File Explorer, Win+I Control Panel, Win+Q Start (and combos do not)");
+    wm_init(1024, 768);
+    g_fm_calls = g_cp_calls = 0;
+
+    wm_handle_key('e', MOD_WIN);
+    CHECK(g_fm_calls == 1, "Win+E dispatched the file manager");
+    wm_handle_key('i', MOD_WIN);
+    CHECK(g_cp_calls == 1, "Win+I dispatched the control panel");
+    wm_handle_key('q', MOD_WIN);
+    CHECK(startmenu_is_open(), "Win+Q opened the start menu");
+    startmenu_close();   /* leave no state behind: a menu left open makes the
+                          * NEXT test's shortcuts land on it (measured: 4 later
+                          * tests failed until this was closed) */
+
+    /* A combo must not fire the plain binding (the superset-swallows-specific
+     * shape that broke Win+Shift+Arrow). */
+    wm_handle_key('e', MOD_WIN | MOD_SHIFT);
+    CHECK(g_fm_calls == 1, "Win+Shift+E does NOT open File Explorer");
+    wm_handle_key('i', MOD_WIN | MOD_CTRL);
+    CHECK(g_cp_calls == 1, "Win+Ctrl+I does NOT open Control Panel");
+
+    wm_shutdown();
+    PASS();
+}
+
 static void test_win_shift_arrow_moves_between_desktops(void) {
     TEST("Win+Shift+Left/Right moves the window to another desktop (not a snap)");
     wm_init(1024, 768);
@@ -1836,6 +1871,7 @@ int main(void) {
     test_win_arrow_hotkey();
     test_modifier_bits_match_input_h();
     test_show_desktop_hotkey();
+    test_shell_shortcuts_reach_their_launchers();
     test_win_shift_arrow_moves_between_desktops();
     test_add_desktop_and_overview();
     test_osd_levels_and_hotkey();

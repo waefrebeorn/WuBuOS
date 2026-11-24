@@ -1720,13 +1720,13 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
           $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM  -Iinclude \
 	-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
-	-c $(HOSTED)/hosted.c -o /tmp/hosted_test.o
+	-c $(HOSTED)/hosted.c -o build/hosted_test.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/xdg-shell-private.code -o /tmp/xdg-shell-private.o -Iinclude
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/viewporter-private.code -o /tmp/viewporter-private.o -Iinclude
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/primary-selection-private.code -o /tmp/primary-selection-private.o -Iinclude
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM  -Iinclude \
 	-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
-	$(sort wubu_gui_shot.c /tmp/hosted_test.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) $(HOSTED_GLUE) \
+	$(sort wubu_gui_shot.c build/hosted_test.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) $(HOSTED_GLUE) \
 	$(HOSTED_PRIVATE_OBJS) $(HOSTED_LINK_ONLY) src/kernel/vbe.c \
 	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
 	$(RT)/wubu_onboarding.c $(GUI)/shell/wubu_shell_greeter.o \
@@ -2013,7 +2013,7 @@ test_wubu_zx9p: $(KERNEL)/test/wubu_zx9p_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wu
 #       9P and run it (the server rejecting a malformed frame is the proof the
 #       codec is correct).
 test_w9pc: $(KERNEL)/wubu_9pc.c $(KERNEL)/wubu_9pc.h $(KERNEL)/test/w9pc_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c
-	$(CC) -ffreestanding -nostdlib -fno-pie -fno-pic -mcmodel=kernel -std=c11 -I$(KERNEL) -c $(KERNEL)/wubu_9pc.c -o /tmp/w9pc_kernel.o && echo "[w9pc] kernel-clean compile PASS" -Iinclude
+	$(CC) -ffreestanding -nostdlib -fno-pie -fno-pic -mcmodel=kernel -std=c11 -I$(KERNEL) -c $(KERNEL)/wubu_9pc.c -o build/w9pc_kernel.o && echo "[w9pc] kernel-clean compile PASS" -Iinclude
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) $(KERNEL)/test/w9pc_test.c $(KERNEL)/wubu_9pc.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_spawn.c $(RT)/wubu_guest_root.c -o $(KERNEL)/w9pc_test -Iinclude $(RT)/wubu_crc32.c
 	$(KERNEL)/./w9pc_test
 
@@ -2128,7 +2128,7 @@ test_wubu_firstboot: $(RT)/wubu_firstboot.c $(RT)/wubu_firstboot.h $(RT)/wubu_in
 # test points g_ns_root at a temp dir directly (memory-constrained rule: link
 # wubu_ns_fs.o + sources, NOT the heavy wubu_ns_bridge.o).
 test_ns_background: $(RT)/wubu_ns_background.c $(RT)/wubu_ns_background.h $(RT)/wubu_session_boot.c $(RT)/wubu_bus.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_logind.c $(RT)/wubu_auth.c $(RT)/wubu_ns_background_test.c
-	$(CC) -O0 -g -std=c11 -Wall -D_GNU_SOURCE -I$(RT) -c $(RT)/wubu_ns_background_test.c -o /tmp/wubu_ns_background_test.o -Iinclude
+	$(CC) -O0 -g -std=c11 -Wall -D_GNU_SOURCE -I$(RT) -c $(RT)/wubu_ns_background_test.c -o build/wubu_ns_background_test.o -Iinclude
 	# Link the FS core from source here: other -j24 targets rebuild the shared
 	# wubu_ns_fs.o concurrently, and reading a half-written object produced
 	# spurious ns_mkdir/ns_write undefined references.
@@ -2136,7 +2136,7 @@ test_ns_background: $(RT)/wubu_ns_background.c $(RT)/wubu_ns_background.h $(RT)/
 		$(RT)/wubu_ns_fs.c \
 		$(RT)/wubu_ns_background.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/wubu_logind.c $(RT)/wubu_auth.c \
 		$(RT)/wubu_effect.c $(RT)/wubu_ns_effect.c \
-		/tmp/wubu_ns_background_test.o \
+		build/wubu_ns_background_test.o \
 		-o $(RT)/wubu_ns_background_test
 	$(RT)/./wubu_ns_background_test
 
@@ -2196,11 +2196,11 @@ test_deskenv: $(RT)/wubu_deskenv.c $(RT)/wubu_deskenv.h $(RT)/wubu_deskenv_test.
 # plane is observable end-to-end AND power ops flow through the wired
 # authority. Links the P3 runtime modules + wubu_ns_fs.o (NOT the heavy bridge).
 test_session_mgr: $(RT)/wubu_session_mgr.c $(RT)/wubu_session_mgr.h $(RT)/wubu_session_daemon.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/wubu_logind.c $(RT)/wubu_auth.c $(RT)/wubu_ns_background.c $(RT)/wubu_deskenv.c $(RT)/wubu_session_mgr_test.c
-	$(CC) -O0 -g -std=c11 -Wall -D_GNU_SOURCE -I$(RT) -c $(RT)/wubu_session_mgr_test.c -o /tmp/wubu_session_mgr_test.o -Iinclude
+	$(CC) -O0 -g -std=c11 -Wall -D_GNU_SOURCE -I$(RT) -c $(RT)/wubu_session_mgr_test.c -o build/wubu_session_mgr_test.o -Iinclude
 	$(CC) -O0 -g -no-pie -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o \
 		$(RT)/wubu_session_mgr.c $(RT)/wubu_session_daemon.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/wubu_logind.c $(RT)/wubu_auth.c $(RT)/wubu_ns_background.c $(RT)/wubu_deskenv.c \
-		/tmp/wubu_session_mgr_test.o \
+		build/wubu_session_mgr_test.o \
 		-o $(RT)/wubu_session_mgr_test
 	$(RT)/./wubu_session_mgr_test
 
@@ -3805,44 +3805,44 @@ test_ns_9p:
 	$(RT)/wubu_ns_9p_test
 
 test_ns_snap:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_snap_test.c -o /tmp/wubu_ns_snap_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_snap_test.c -o build/wubu_ns_snap_test.o -Iinclude
 	$(CC) -O0 -no-pie  -Iinclude  src/runtime/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_snap.o \
 		$(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o \
 		$(RT)/wubu_fs_util.o \
 		$(RT)/wubu_spawn.c \
-		/tmp/wubu_ns_snap_test.o \
+		build/wubu_ns_snap_test.o \
 		-o $(RT)/wubu_ns_snap_test
 	$(RT)/wubu_ns_snap_test
 
 
 test_ns_pkg:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_pkg_test.c -o /tmp/wubu_ns_pkg_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_pkg_test.c -o build/wubu_ns_pkg_test.o -Iinclude
 	$(CC) -O0 -no-pie  -Iinclude  src/runtime/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_pkg.o $(RT)/wubu_pkg.o \
 		$(RT)/wubu_spawn.c \
-		/tmp/wubu_ns_pkg_test.o \
+		build/wubu_ns_pkg_test.o \
 		-o $(RT)/wubu_ns_pkg_test
 	$(RT)/wubu_ns_pkg_test
 
 
 test_ns_kernel:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernel_test.c -o /tmp/wubu_ns_kernel_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernel_test.c -o build/wubu_ns_kernel_test.o -Iinclude
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernel.c -o $(RT)/wubu_ns_kernel.o -Iinclude
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_fs.c -o $(RT)/wubu_ns_fs.o -Iinclude
 	$(CC) -O0 -no-pie  -Iinclude  src/runtime/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_kernel.o \
 		$(RT)/wubu_spawn.c \
-		/tmp/wubu_ns_kernel_test.o \
+		build/wubu_ns_kernel_test.o \
 		-o $(RT)/wubu_ns_kernel_test
 	$(RT)/wubu_ns_kernel_test
 
 test_ns_ec:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_ec_test.c -o /tmp/wubu_ns_ec_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_ec_test.c -o build/wubu_ns_ec_test.o -Iinclude
 	$(CC) -O0 -no-pie  -Iinclude  src/runtime/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o \
 		$(RT)/wubu_ns_ec.c $(RT)/wubu_ec_control.c \
-		/tmp/wubu_ns_ec_test.o \
+		build/wubu_ns_ec_test.o \
 		-o $(RT)/wubu_ns_ec_test
 	$(RT)/wubu_ns_ec_test
 
@@ -3870,65 +3870,65 @@ test_agent: $(RT)/wubu_agent.c $(RT)/wubu_agent_test.c $(RT)/wubu_ns_fs.o
 	$(RT)/wubu_agent_test
 
 test_ns_kernels:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernels_test.c -o /tmp/wubu_ns_kernels_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernels_test.c -o build/wubu_ns_kernels_test.o -Iinclude
 	$(CC) -O0 -no-pie  -Iinclude  src/runtime/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o \
 		$(RT)/wubu_ns_kernels.c $(RT)/wubu_kernel_xchg.c \
-		/tmp/wubu_ns_kernels_test.o \
+		build/wubu_ns_kernels_test.o \
 		-o $(RT)/wubu_ns_kernels_test
 	$(RT)/wubu_ns_kernels_test
 
 test_ns_steaminput:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) -c $(RT)/wubu_ns_steaminput_test.c -o /tmp/wubu_ns_steaminput_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) -c $(RT)/wubu_ns_steaminput_test.c -o build/wubu_ns_steaminput_test.o -Iinclude
 	$(CC) -O0 -no-pie -I$(RT) -I$(KERNEL)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o \
 		$(RT)/wubu_ns_steaminput.c $(RT)/wubu_steaminput.c \
 		$(KERNEL)/input.c \
-		/tmp/wubu_ns_steaminput_test.o \
+		build/wubu_ns_steaminput_test.o \
 		-o $(RT)/wubu_ns_steaminput_test
 	$(RT)/wubu_ns_steaminput_test
 
 # the /n/dram control subtree (DRAM-refresh hedge over Styx/9P)
 test_ns_dram:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) -c $(RT)/wubu_ns_dram_test.c -o /tmp/wubu_ns_dram_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) -c $(RT)/wubu_ns_dram_test.c -o build/wubu_ns_dram_test.o -Iinclude
 	$(CC) -O0 -no-pie -I$(RT) -I$(KERNEL)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o \
 		$(RT)/wubu_ns_dram.c $(KERNEL)/wubu_dram_hedge.c \
-		/tmp/wubu_ns_dram_test.o \
+		build/wubu_ns_dram_test.o \
 		-o $(RT)/wubu_ns_dram_test -lm -lpthread
 	$(RT)/wubu_ns_dram_test
 
 test_steamrt:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_steamrt_test.c -o /tmp/wubu_steamrt_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_steamrt_test.c -o build/wubu_steamrt_test.o -Iinclude
 	$(CC) -O0 -no-pie -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(RT)/wubu_steamrt.c \
-		/tmp/wubu_steamrt_test.o \
+		build/wubu_steamrt_test.o \
 		-o $(RT)/wubu_steamrt_test
 	$(RT)/wubu_steamrt_test
 
 test_ns_steamrt:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_steamrt_test.c -o /tmp/wubu_ns_steamrt_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_steamrt_test.c -o build/wubu_ns_steamrt_test.o -Iinclude
 	$(CC) -O0 -no-pie -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o \
 		$(RT)/wubu_ns_steamrt.c $(RT)/wubu_steamrt.c \
-		/tmp/wubu_ns_steamrt_test.o \
+		build/wubu_ns_steamrt_test.o \
 		-o $(RT)/wubu_ns_steamrt_test
 	$(RT)/wubu_ns_steamrt_test
 
 test_session:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_session_test.c -o /tmp/wubu_session_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_session_test.c -o build/wubu_session_test.o -Iinclude
 	$(CC) -O0 -no-pie -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(RT)/wubu_session.c \
-		/tmp/wubu_session_test.o \
+		build/wubu_session_test.o \
 		-o $(RT)/wubu_session_test
 	$(RT)/wubu_session_test
 
 test_ns_session:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_session_test.c -o /tmp/wubu_ns_session_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_session_test.c -o build/wubu_ns_session_test.o -Iinclude
 	$(CC) -O0 -no-pie -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
 		$(RT)/wubu_ns_fs.o \
 		$(RT)/wubu_ns_session.c $(RT)/wubu_session.c \
-		/tmp/wubu_ns_session_test.o \
+		build/wubu_ns_session_test.o \
 		-o $(RT)/wubu_ns_session_test
 	$(RT)/wubu_ns_session_test
 
@@ -6360,7 +6360,7 @@ test_hw_zonseqwrite: $(KERNEL)/test/wubu_zonseqwrite_selftest.c $(KERNEL)/wubu_z
 	$(TEST_BIN)/test_hw_zonseqwrite
 
 test_ns_win32:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -Wno-unused-function -I$(RT) -I$(RT)/wubu_cap -I$(RT)/win32k -c $(RT)/win32k/wubu_ns_win32_test.c -o /tmp/wubu_ns_win32_test.o -Iinclude
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -Wno-unused-function -I$(RT) -I$(RT)/wubu_cap -I$(RT)/win32k -c $(RT)/win32k/wubu_ns_win32_test.c -o build/wubu_ns_win32_test.o -Iinclude
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(RT)/wubu_cap -I$(RT)/win32k -c $(RT)/win32k/wubu_ns_win32.c -o $(RT)/wubu_ns_win32.o -Iinclude
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(RT)/wubu_cap -I$(RT)/win32k -pthread -c $(RT)/win32k/wubu_win32k.c -o $(RT)/wubu_win32k.o -Iinclude
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_fs.c -o $(RT)/wubu_ns_fs.o -Iinclude
@@ -6369,7 +6369,7 @@ test_ns_win32:
 		$(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_token.o \
 		$(RT)/wubu_cap/wubu_cap_revoke.o $(RT)/wubu_cap/wubu_cap_handle.o \
 		$(RT)/wubu_cap/wubu_cap_system.o \
-		/tmp/wubu_ns_win32_test.o -o $(RT)/wubu_ns_win32_test -lpthread
+		build/wubu_ns_win32_test.o -o $(RT)/wubu_ns_win32_test -lpthread
 	$(RT)/wubu_ns_win32_test
 
 # -- wubu_daemon_client behavior gate --

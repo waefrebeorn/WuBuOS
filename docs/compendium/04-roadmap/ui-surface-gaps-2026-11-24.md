@@ -17,6 +17,10 @@ control with no hit-test is a screenshot, not a control.
 | Calculator's 30 painted buttons unclickable | `src/apps/calc/calc.c` | `test_calc` 10: clicks the cell labelled "7" and reads 7 back; out-of-grid click is a no-op. Commit `a05405af` |
 | Registry Editor was a blank window (launcher bound nothing, draw was a `(void)` stub); values had no owner; `expanded_keys[]` was `int` holding cast pointers | `src/apps/regedit/regedit.c` | `test_regedit` 4, plus `build/regedit_frame.ppm` inspected: tree, expansion, values pane, matching selection. Commit `91a1169c` |
 | Control Panel categories unclickable and `active_tab` never read (nine tabs promised, one static page delivered) | `src/apps/control/control.c` | `test_control` 31/31 including 11 interaction assertions; `build/control_frame.ppm` inspected. Commit `b1b65ace` |
+| Win+Shift+Arrow swallowed by the Win+Arrow snap block (the shortcut could never fire) | `src/gui/wm_input.c` | `test_wm` with a RED-then-GREEN proof: fails on the pre-fix ordering, passes after. Commit `dda69b76` |
+| **Win+E / Win+I / Win+Q did not exist** — the three most-used Windows shell shortcuts, so a user's first instincts did nothing | `src/gui/wm_input.c` | `test_wm` drives the dispatcher with spies for the launchers, plus negative controls (`Win+Shift+E`, `Win+Ctrl+I` must not fire) |
+| Two desktop orbs at ~5.4 % CPU each for 3 h (every desktop start left one behind: `setsid()`) | `tools/wubu_buddy_orb_demo.c` | `flock` single-instance guard; second start exits 0 with "already running". Commit `4fcb1974` |
+| The orb's affect model ran **15× too fast** and scanned sensors 9× per frame (poll called inside the per-blob loop with a hardcoded `0.5f` dt) | `tools/wubu_buddy_orb_demo.c`, `src/runtime/wubu_buddy_emotion.c` | steady-state CPU 6 % → 1 % at 30 fps (9 % → 1 % at 240); mood now eases (`energy 0.25→0.22`, `warmth 0.31→0.43`). Commit `7b13fa74` |
 
 ## Open items
 

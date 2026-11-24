@@ -26,6 +26,12 @@
 #include "shell/power_menu.h"
 #include "../kernel/wubu_gesture.h"
 #include "shell/startmenu.h"
+
+/* The shell's launchers are optional cross-layer calls: unit tests link the WM
+ * without apps.c, and a shell without them must not fail to link. A test can
+ * provide a strong definition to observe the dispatch (wm_test does). */
+extern DosGuiWindow *launch_file_manager(void) __attribute__((weak));
+extern DosGuiWindow *control_launch(void) __attribute__((weak));
 #include "shell/taskbar_tasks.h"
 
 /* The app registry lives in src/apps; a test or minimal build may not link it.
@@ -183,6 +189,26 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
     /* Win+Ctrl+D: create a virtual desktop (Windows 11 parity). */
     if ((mods & MOD_WIN) && (mods & MOD_CTRL) && (key == 0x20 || key == 'd' || key == 'D')) {
         wm_add_desktop();
+        return;
+    }
+
+    /* Win+E: File Explorer, Win+I: Control Panel, Win+Q: Start. These are the
+     * three most-used Windows shell shortcuts and none of them existed: a user
+     * coming from Windows presses them first and nothing happens. Each requires
+     * the extra modifiers to be ABSENT so it cannot swallow a combo. */
+    if ((mods & MOD_WIN) && !(mods & (MOD_CTRL | MOD_SHIFT)) &&
+        (key == 'e' || key == 'E')) {
+        if (launch_file_manager) launch_file_manager();
+        return;
+    }
+    if ((mods & MOD_WIN) && !(mods & (MOD_CTRL | MOD_SHIFT)) &&
+        (key == 'i' || key == 'I')) {
+        if (control_launch) control_launch();
+        return;
+    }
+    if ((mods & MOD_WIN) && !(mods & (MOD_CTRL | MOD_SHIFT)) &&
+        (key == 'q' || key == 'Q' || key == 's' || key == 'S')) {
+        startmenu_open();
         return;
     }
 
