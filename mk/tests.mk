@@ -557,8 +557,10 @@ test_peephole_superopt:
 # #25 JIT performance differential harness: compiles the same battery with and
 # without the machine-code optimizations, asserts results agree, and reports
 # code-size deltas (size-targeted opts must shrink; div is a latency win).
-test_jit_perf_diff:
-	bash tools/jit_perf_diff.sh
+# REMOVED 2026-11-24: test_jit_perf_diff ran tools/jit_perf_diff.sh, which has
+# never existed in this tree (`No such file or directory`, exit 127). A real
+# one would measure JIT codegen against the interpreter on a fixed workload
+# and fail only on a regression beyond a stated floor. Write the script first.
 test_memory: $(KERNEL)/memory.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/test/legacy/memory_test.c -o $(KERNEL)/memory_test -Iinclude src/runtime/wubu_crc32.c
 	$(KERNEL)/memory_test
@@ -2921,7 +2923,9 @@ test_spd_parity:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Iinclude -I$(KERNEL) -I$(RT) \
 		$(KERNEL)/wubu_thermal_read.c $(KERNEL)/wubu_drv_thermal.c \
 		tools/spd_parity.c -ldl -lm -o tools/spd_parity
-	sudo -n ./tools/spd_parity
+	@if [ "$$(id -u)" != 0 ] && ! sudo -n true 2>/dev/null; then \
+	    echo "test_spd_parity: SKIP (reads SPD over i2c; needs root or passwordless sudo)"; \
+	else sudo -n ./tools/spd_parity; fi
 
 test_standards:
 	python3 tools/std_audit.py --baseline tools/std_audit_baseline.json

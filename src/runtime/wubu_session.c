@@ -32,6 +32,9 @@
  */
 #include "../egojar.h"
 #include "wubu_session.h"
+/* hosted_state_t: the launcher mutates the host session state, which is the
+ * caller's struct, not ours. */
+#include "../hosted/hosted.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -155,8 +158,19 @@ const char *wubu_session_mode_name(int mode)
 int wubu_session_launch_game(void *hosted, const uint8_t *game,
                              size_t size, const char *name)
 {
-    (void)hosted;
-    if (!game || size == 0 || !name) return -1;
+    /* The session transition is the CONTRACT here (the test asserts it, and the
+     * launcher's caller relies on it): a game launch must flip the session to
+     * GAME mode with fullscreen before the exec attempt, so the display is
+     * already the game's even if the child fails. This used to (void)hosted and
+     * never touch the state at all, and it rejected a NULL name -- which is
+     * exactly what the launch path passes for unnamed shortcuts. */
+    if (!game || size == 0) return -1;
+    if (hosted) {
+        hosted_state_t *st = (hosted_state_t *)hosted;
+        st->mode = HMODE_GAME;
+        st->fullscreen = true;
+    }
+    if (!name) name = "game";
 
     /* write the game to a temp file (the shortcut's target) */
     char path[600];
