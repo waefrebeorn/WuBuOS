@@ -165,10 +165,16 @@ black" in this configuration must say which surface it looked at.
 
 ## Gate cost discipline (learned the expensive way)
 
-A gate that boots hardware must not rebuild the world. Two QEMU gates wired into
-`test_critical_kernel` took the full suite from 378 s to **995 s**, because each
-ran a nested `make -C ROOT kernel` from inside an already `-j24` suite (a serial
-nested make plus 24-way oversubscription) and rebuilt a 64 MB ESP image every run.
+A gate that boots hardware must not rebuild the world -- and **measure with the
+machine idle.** Two QEMU gates were first blamed for taking the suite from 378 s to
+995 s / 1015 s. The real cause was my own load test: ~20 `yes` processes were left
+running for 57 minutes (`kill %1..%20` inside `sh -c` silently does nothing, there
+is no job control), so those runs were taken at load average 22. After killing
+them, `make -k test_critical_kernel` is **37 s** with the gate in it.
+
+The gate's own waste was still real and is fixed independently: it ran a nested
+`make -C ROOT kernel` from inside an already `-j24` suite (serial nested make plus
+24-way oversubscription) and rebuilt a 64 MB ESP image every run.
 
 Rules that came out of it:
 - the test target depends on the artifacts (`$(WEMU_KERNEL_ELF)`) so **make** owns
