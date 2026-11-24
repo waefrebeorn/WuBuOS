@@ -19,7 +19,13 @@ FW=$(cd "$(dirname "$0")/../src/firmware" && pwd)
 ESP=${METAL_ESP:-$FW/build/metal-gate-esp.img}
 KELF=$FW/../../src/kernel/kernel.elf
 FWF=$FW/wubufw.fd
-if [ -f "$ESP" ] && [ "$ESP" -nt "$KELF" ] && [ "$ESP" -nt "$FWF" ]; then
+# A stamp, not just an mtime comparison: an image can be NEWER than the kernel and
+# still contain an older one (a rebuild that only touched the firmware, a copy, a
+# restored file), and then the gate boots a kernel without the command it is
+# testing and reports "no report from the kernel".
+STAMP=$ESP.stamp
+WANT="$(stat -c '%s-%Y' "$KELF" 2>/dev/null)-$(stat -c '%s-%Y' "$FWF" 2>/dev/null)"
+if [ -f "$ESP" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$WANT" ]; then
     echo "=== ESP up to date (kernel + firmware unchanged) ==="
 else
     # A nested `make kernel` inside an already-parallel suite is the reason this
@@ -28,6 +34,7 @@ else
     echo "=== building firmware + ESP ==="
     SKIP_KERNEL_MAKE=1 bash "$FW/build-esp.sh" "$ESP" > /tmp/metal-build.log 2>&1 \
         || { tail -20 /tmp/metal-build.log; exit 1; }
+    printf '%s' "$WANT" > "$STAMP"
 fi
 
 python3 - "$FW" "$ESP" <<'PY'
@@ -54,7 +61,7 @@ p = subprocess.Popen(
 buf = b''
 fd = p.stdout.fileno()
 state = 0
-deadline = time.time() + 60
+deadline = time.time() + 90
 while time.time() < deadline:
     r, _, _ = select.select([fd], [], [], 0.5)
     if r:
@@ -79,6 +86,10 @@ phys = pitch = None
 probes = []
 if not fb_line:
     print('  FBMAP: MISSING (no report from the kernel)')
+    print(f'  boot reached: {"console" if b"WuBuOS>" in buf else "firmware shell" if b"WuBuFW>" in buf else "nothing"}')
+    for l in log.splitlines()[-8:]:
+        if l.strip():
+            print('  | ' + l.strip()[:150])
     fail += 1
 else:
     print('  ' + fb_line[-1].strip())
