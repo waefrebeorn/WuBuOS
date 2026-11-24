@@ -163,6 +163,21 @@ console surface reports 640x480 black even when the LFB is fully painted, so the
 kernel was never the thing being measured. Anything that claims "the screen is
 black" in this configuration must say which surface it looked at.
 
+## Gate cost discipline (learned the expensive way)
+
+A gate that boots hardware must not rebuild the world. Two QEMU gates wired into
+`test_critical_kernel` took the full suite from 378 s to **995 s**, because each
+ran a nested `make -C ROOT kernel` from inside an already `-j24` suite (a serial
+nested make plus 24-way oversubscription) and rebuilt a 64 MB ESP image every run.
+
+Rules that came out of it:
+- the test target depends on the artifacts (`$(WEMU_KERNEL_ELF)`) so **make** owns
+  the build order; the gate script never invokes make;
+- build-esp.sh honours `SKIP_KERNEL_MAKE=1` for exactly this reason;
+- the ESP is cached and rebuilt only when it is older than the kernel or firmware;
+- a hardware gate gets a seconds budget, not a minutes one: with a cached image
+  `test_metal_display` is 4 s standalone.
+
 ## Verification of this ADR's claims
 
 Re-runnable today:
