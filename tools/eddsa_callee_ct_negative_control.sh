@@ -18,6 +18,14 @@ source "$ROOT/tools/eddsa_gimple_toolchain.sh"
 source "$ROOT/tools/eddsa_callee_toolchain.sh"
 
 SRC="src/gui/wubu_pkg_ed25519.c"
+# A killed run cannot run its EXIT trap: a previous run may have left the
+# injected regression in the tree (it did once -- the constant-time ladder
+# shipped an `if (swap)` branch for weeks). Refuse to start on a dirty source.
+if grep -q 'INJECTED CT REGRESSION' "$SRC"; then
+    echo "[negctl] FAIL: $SRC still carries an INJECTED CT REGRESSION -- restore it" >&2
+    exit 1
+fi
+
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/wubu-callee-negctl.XXXXXX") || exit 2
 cp "$SRC" "$TMP/original.c"
 restore() { cp "$TMP/original.c" "$SRC"; }

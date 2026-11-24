@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_no_ct_residue test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -114,6 +114,19 @@ test_ed25519_ir_ct_negctl:
 # FAILS CLOSED (exit 1, never PASS) when gcc cannot emit an optimized GIMPLE
 # dump -- so it is opt-in, like the clang-dependent IR gate above.  The
 # always-on structural guard stays in the default tier.
+# No source may carry the constant-time regression the Ed25519 negative-control
+# scripts inject. They restore it from an EXIT trap, which a killed run never
+# runs -- and the ladder shipped `if (swap) TRY(ge_cswap(...))` for weeks that
+# way, so four CT gates silently stopped being able to prove anything.
+test_no_ct_residue:
+	@hits=$$(grep -rn "INJECTED CT REGRESSION" src/ include/ 2>/dev/null | grep -v "^tools/"); \
+	if [ -n "$$hits" ]; then \
+	    echo "$$hits"; \
+	    echo "test_no_ct_residue: FAIL (an injected CT regression is still in the tree)"; \
+	    exit 1; \
+	fi; \
+	echo "test_no_ct_residue: PASS (no injected CT regression in src/)"
+
 test_ed25519_gimple_ct:
 	bash tools/eddsa_gimple_ct_gate.sh
 
