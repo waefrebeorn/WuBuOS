@@ -28,6 +28,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VSL = os.path.join(ROOT, "src", "runtime", "vsl")
 BASELINE = os.path.join(ROOT, "tools", "nt_ordinal_baseline.json")
+# The authoritative numbering for the sys_Nt* handlers (Windows 11 24H2).
+TRUTH = os.path.join(ROOT, "tools", "nt_syscall_win11_24h2.txt")
 
 ASSIGN = re.compile(r"tbl\[(\d+)-1\]\s*=\s*([A-Za-z_0-9]+)")
 
@@ -40,6 +42,28 @@ def scan():
             ordinal = int(m.group(1))
             owners[ordinal].append((os.path.basename(path), m.group(2)))
     return {k: v for k, v in owners.items() if len(v) > 1}
+
+
+def truth_table():
+    """ordinal -> syscall name, Windows 11 24H2. Empty if the file is absent."""
+    t = {}
+    try:
+        for line in open(TRUTH):
+            if line.startswith("#") or not line.strip():
+                continue
+            o, name = line.split("\t")
+            t[int(o)] = name.strip()
+    except (OSError, ValueError):
+        pass
+    return t
+
+
+def handler_nt_name(h):
+    """vsl_nt_map_view_of_section -> NtMapViewOfSection; sys_NtFoo -> NtFoo."""
+    if h.startswith("sys_Nt"):
+        return h[4:]
+    h = h[len("vsl_nt_"):] if h.startswith("vsl_nt_") else h
+    return "Nt" + "".join(p[:1].upper() + p[1:] for p in h.split("_") if p)
 
 
 def main():
@@ -68,6 +92,25 @@ def main():
         print("  %d baseline entr%s no longer collide -- delete them from %s: %s"
               % (len(fixed), "y" if len(fixed) == 1 else "ies",
                  os.path.basename(BASELINE), ", ".join(sorted(fixed, key=int))))
+    # Annotate every collision with what the real table says the ordinal IS, and
+    # which candidate (if any) matches it. Informational: nothing is removed --
+    # moving a handler to its 24H2 ordinal is a migration, not a delete.
+    truth = truth_table()
+    if truth:
+        annotated = 0
+        for k in sorted(current, key=int):
+            want = truth.get(int(k))
+            if not want:
+                continue
+            who = current[k]
+            match = [w for w in who
+                     if handler_nt_name(w.split(":")[1]).lower() == want.lower()]
+            if len(match) == 1:
+                annotated += 1
+        print("  %d of %d collision(s) have exactly one owner matching the "
+              "Windows 11 24H2 name (see %s)"
+              % (annotated, len(current), os.path.basename(TRUTH)))
+
     if new:
         for k in sorted(new, key=int):
             print("  NEW COLLISION ordinal %s:" % k)
