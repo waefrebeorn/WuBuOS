@@ -40,6 +40,9 @@ int vbe_height(void) { return 480; }
 void vbe_clear(uint32_t c) { (void)c; }
 void vbe_swap(void) {}
 void vbe_set_pixel(int x, int y, uint32_t c) { (void)x; (void)y; (void)c; }
+/* The buddy blit walks scanlines: NULL means "no surface", which it skips. */
+uint32_t *vbe_scanline(int y) { (void)y; return NULL; }
+int vbe_surface_width(void) { return 640; }
 void vbe_fill_rect(int x, int y, int w, int h, uint32_t c) { (void)x;(void)y;(void)w;(void)h;(void)c; }
 void vbe_rect(int x, int y, int w, int h, uint32_t c) { (void)x;(void)y;(void)w;(void)h;(void)c; }
 void vbe_hline(int x1, int x2, int y, uint32_t c) { (void)x1;(void)x2;(void)y;(void)c; }
