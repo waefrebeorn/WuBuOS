@@ -412,7 +412,7 @@ test_ci_status:
 ci_status:
 	python3 tools/ci_status.py
 
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_drv_pci_bus test_netstack test_ci_boot_assert test_ci_status test_wemu_kernel
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_pci_modern test_virtio_blk test_virtio_net test_drv_pci_bus test_netstack test_ci_boot_assert test_ci_status test_wemu_kernel test_deskshot
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -893,6 +893,34 @@ test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
 		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
 	./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
+
+
+# Pixel truth about the metal desktop. Every render change until now was
+# verified by reading arithmetic, because every QEMU gate boots with
+# -display none and a screendump there is a black 640x480 (the guest programs
+# the Bochs VBE LFB itself -- measured). The kernel's `deskshot` command scans
+# the buffer it actually drew into; this gate boots to the console, runs it and
+# asserts the desktop is really there. On-demand only, so the boot pays nothing.
+test_deskshot: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
+	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
+		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
+	@mkdir -p build
+	@WEMU_KERNEL_STEPS=40000000 WEMU_KERNEL_MARKER='WuBuOS>' WEMU_KERNEL_SEND=deskshot \
+	 WEMU_KERNEL_EXPECT='colours=' ./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF) \
+	 > build/deskshot.log 2>&1 || { cat build/deskshot.log; exit 1; }
+	@DS=$$(grep -ao 'deskshot: [0-9]*x[0-9]* nonblack=[0-9a-f]* colours=[0-9a-f]* hash=[0-9a-f]*' build/deskshot.log | tail -1); \
+	 if [ -z "$$DS" ]; then echo "FAIL: deskshot produced no report"; cat build/deskshot.log; exit 1; fi; \
+	 WX=$$(echo "$$DS" | sed -n 's/.*deskshot: \([0-9]*\)x\([0-9]*\).*/\1/p'); \
+	 HY=$$(echo "$$DS" | sed -n 's/.*deskshot: \([0-9]*\)x\([0-9]*\).*/\2/p'); \
+	 NB=$$(echo "$$DS" | sed -n 's/.*nonblack=\([0-9a-f]*\).*/\1/p'); \
+	 CO=$$(echo "$$DS" | sed -n 's/.*colours=\([0-9a-f]*\).*/\1/p'); \
+	 NB=$$(printf '%d' "0x$${NB:-0}"); CO=$$(printf '%d' "0x$${CO:-0}"); \
+	 TOTAL=$$(( $${WX:-0} * $${HY:-0} )); \
+	 echo "  $$DS"; \
+	 MIN=$$((TOTAL / 4)); \
+	 if [ "$$NB" -lt "$$MIN" ] || [ "$$CO" -lt 8 ]; then \
+	   echo "FAIL: desktop framebuffer blank or flat (nonblack=$$NB of $$TOTAL, colours=$$CO)"; exit 1; fi; \
+	 echo "test_deskshot: PASS ($$NB non-black of $$TOTAL pixels, $$CO colour classes)"
 
 # Guest block-I/O gate: WEMU's virtio-blk must serve the kernel's sector
 # reads so the boot path reports a live persistent disk.

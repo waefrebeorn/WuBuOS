@@ -78,6 +78,9 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();
     if (strcmp(argv[0], "kv") == 0)                return cmd_kv(argc, argv);
     if (strcmp(argv[0], "kv9p") == 0)              return cmd_kv9p(argc, argv);
+    /* Pixel truth for the render gates: the framebuffer the kernel actually
+     * drew into, not what an emulator's VGA surface happens to show. */
+    if (strcmp(argv[0], "deskshot") == 0)          return cmd_deskshot(argc, argv);
     if (strcmp(argv[0], "model") == 0)             return cmd_model(argc, argv);
     if (strcmp(argv[0], "fs") == 0 ||
         strcmp(argv[0], "ls") == 0 ||

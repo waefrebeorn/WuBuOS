@@ -915,3 +915,45 @@ int cmd_holyc(int argc, char **argv)
                 "metal-side live coding is the 'live' command (Live Colonel)\n");
     return 0;
 }
+
+/* ---- deskshot: pixel truth about the desktop the kernel really drew ----
+ * Every render change until now was verified by reading arithmetic, because
+ * the QEMU gates boot with -display none and the guest draws into its own
+ * Bochs VBE buffer (LFB phys=0xC1000000) rather than the emulated VGA
+ * surface -- a screendump there is a black 640x480 (measured). This scans the
+ * live back buffer on demand: non-black pixel count, a coarse colour-class
+ * count (256 buckets, so it stays O(1) per pixel) and an FNV hash for
+ * regression detection. On demand only: a full 1024x768 scan is ~2.4M guest
+ * steps, which the boot must not pay. */
+int cmd_deskshot(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    int w = vbe_surface_width();
+    int h = vbe_height();
+    klog_printf("deskshot: scanning %ux%u\n", (unsigned)w, (unsigned)h);
+    if (w <= 0 || h <= 0) {
+        klog_printf("deskshot: no surface\n");
+        return 1;
+    }
+    uint32_t nonblack = 0, hash = 2166136261u;
+    uint8_t bucket[256];
+    for (int i = 0; i < 256; i++) bucket[i] = 0;
+    int rows = 0;
+    for (int y = 0; y < h; y++) {
+        const uint32_t *row = vbe_scanline(y);
+        if (!row) break;
+        rows++;
+        for (int x = 0; x < w; x++) {
+            uint32_t c = row[x];
+            hash = (hash ^ c) * 16777619u;
+            if (c) nonblack++;
+            bucket[(uint8_t)((c * 2654435761u) >> 24)] = 1;
+        }
+    }
+    uint32_t colours = 0;
+    for (int i = 0; i < 256; i++) colours += bucket[i] ? 1u : 0u;
+    klog_printf("deskshot: %ux%u nonblack=%x colours=%x hash=%x\n",
+                (unsigned)w, (unsigned)rows, (unsigned)nonblack,
+                (unsigned)colours, (unsigned)hash);
+    return 0;
+}
