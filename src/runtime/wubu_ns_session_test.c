@@ -12,8 +12,13 @@
 #include "wubu_session.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
-#define NSROOT "/tmp/ns_session_test"
+/* PID-keyed: a fixed /tmp path is shared state, and this test `rm -rf`s it --
+ * run concurrently with anything else using /tmp/ns_session_test (or a second
+ * copy of itself) it destroys the other run's tree. */
+static char nsroot_buf[128];
+#define NSROOT nsroot_buf
 /* FAIL: use wubu_test.h */
 
 static int read_file(const char *p, char *out, size_t cap)
@@ -30,7 +35,13 @@ static int read_file(const char *p, char *out, size_t cap)
 int main(void)
 {
     printf("=== wubu_ns_session_test (the /n/session subtree) ===\n");
-    system("rm -rf " NSROOT);
+    snprintf(nsroot_buf, sizeof nsroot_buf, "/tmp/ns_session_test.%ld",
+             (long)getpid());
+    {
+        char cmd[192];
+        snprintf(cmd, sizeof cmd, "rm -rf %s", nsroot_buf);
+        if (system(cmd) != 0) { /* nothing to remove is fine */ }
+    }
     *(const char **)&g_ns_root = NSROOT;
 
     wubu_rt_session_init(WUBU_SESSION_DESKTOP);
@@ -61,7 +72,9 @@ int main(void)
     if (wubu_ns_session_set("bogus") == 0) FAIL("bogus session accepted");
     printf("  PASS: the desktop switch + bad-name refusal\n");
 
-    system("rm -rf " NSROOT);
+    { char cmd[192];
+      snprintf(cmd, sizeof cmd, "rm -rf %s", NSROOT);
+      if (system(cmd) != 0) { /* nothing to remove is fine */ } }
     printf("=== ALL NS-SESSION TESTS PASSED ===\n");
     return 0;
 }

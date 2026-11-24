@@ -33,8 +33,11 @@ test_pkg_ed25519:
 # Same package gate through the opt-in OpenSSL native backend (needs the
 # OpenSSL dev headers + libcrypto; policy checks and all tamper/negative
 # controls run unchanged around the native core).
+# Both Ed25519 package gates mutate ONE shared key store (revoke/unrevoke), so
+# run in parallel they revoke each other's anchor and report "pristine package
+# still verifies FAIL". They pass standalone; one lock makes the suite honest.
 test_pkg_ed25519_native:
-	WUBU_EDDSA_NATIVE=1 bash tools/pkg_ed25519_gate.sh
+	WUBU_EDDSA_NATIVE=1 flock $(CT_GATE_LOCK) bash tools/pkg_ed25519_gate.sh
 
 # Focused native/ladder/fail-closed-fallback differential: OpenSSL-generated
 # keys, cross-sign/verify, OpenSSL CLI interoperability, policy provenance and
@@ -220,7 +223,7 @@ test_pkg_ed25519_fixed:
 # Documented LEGACY override: the same end-to-end differential through the
 # mbedTLS MPI ladder (WUBU_EDDSA_FIXED=0).  Proves the escape hatch works.
 test_pkg_ed25519_legacy:
-	WUBU_EDDSA_FIXED=0 bash tools/pkg_ed25519_gate.sh
+	WUBU_EDDSA_FIXED=0 flock $(CT_GATE_LOCK) bash tools/pkg_ed25519_gate.sh
 
 # Proof-style CT gate in the DEFAULT tier.  The adapter runs the real gate
 # when python3/gcc/objdump exist and prints an explicit SKIP otherwise; the
@@ -667,16 +670,16 @@ test_hedge: $(JIT_OBJS)
 # divergence is a FINDING. Every m68k encoding is oracle-verified against
 # GNU binutils via tools/verify_isa.sh.
 test_drivers: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/isa-test/mir_driver_test.c -o $(COMP)/mir_driver_test -Iinclude $(RT)/wubu_crc32.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/isa-test/mir_driver_test.c -o $(COMP)/mir_driver_test -Iinclude $(RT)/wubu_crc32.c
 	$(COMP)/mir_driver_test
 
 test_isa_driver: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/test_isa_driver.c -o $(COMP)/test_isa_driver -Iinclude $(RT)/wubu_crc32.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/test_isa_driver.c -o $(COMP)/test_isa_driver -Iinclude $(RT)/wubu_crc32.c
 	$(COMP)/test_isa_driver
 
 # MIR optimizer test: constant folding, strength reduction, DCE
 test_mir_opt: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(RT)/wubu_spawn.c $(COMP)/isa-test/test_mir_opt.c -lm -ldl -o $(COMP)/test_mir_opt -Iinclude $(RT)/wubu_crc32.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(RT)/wubu_spawn.c $(COMP)/isa-test/test_mir_opt.c -lm -ldl -o $(COMP)/test_mir_opt -Iinclude $(RT)/wubu_crc32.c
 	$(COMP)/test_mir_opt
 
 # MIR register allocator test
@@ -686,13 +689,20 @@ test_mir_regalloc: $(JIT_OBJS)
 
 # WuBuOS Universal Test Gauntlet
 test_gauntlet: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(COMP)/test_gauntlet -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/holyd_mir_eval.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/wubu_mir_interp.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_lang_router.c $(COMP)/test_gauntlet/wubu_test_gauntlet.c $(COMP)/test_gauntlet/suites/gauntlet_comprehensive.c $(COMP)/test_gauntlet_runner.c -lm -ldl -o $(COMP)/gauntlet_runner -Iinclude $(RT)/wubu_crc32.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(COMP)/test_gauntlet -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/holyd_mir_eval.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/wubu_mir_interp.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_lang_router.c $(COMP)/test_gauntlet/wubu_test_gauntlet.c $(COMP)/test_gauntlet/suites/gauntlet_comprehensive.c $(COMP)/test_gauntlet_runner.c -lm -ldl -o $(COMP)/gauntlet_runner -Iinclude $(RT)/wubu_crc32.c
 	$(COMP)/gauntlet_runner
 
 # Cleveland Browns album end-to-end: optimizer + all 6 ISA drivers
 test_album: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/isa-test/cleveland_browns_album_test.c -o $(COMP)/cleveland_browns_album_test -Iinclude $(RT)/wubu_crc32.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/isa-test/cleveland_browns_album_test.c -o $(COMP)/cleveland_browns_album_test -Iinclude $(RT)/wubu_crc32.c
 	$(COMP)/cleveland_browns_album_test
+
+# REMOVED 2026-11-24: test_bpm, test_bpm_games, test_wm_tray_world, test_zip_extract
+# and test_cab_extract named test sources that do not exist (or a shell variable that
+# had emptied out: `gcc: fatal error: no input files`), and no tier ran them.
+# test_cab already runs the real CAB/LZX self-test in test_critical_kernel. A real
+# test for the others would assert: bpm's tick->beat maths and its games' scoring; the
+# systray world spawn/click path; zip extraction against a fixture archive.
 
 holyc: $(JIT_OBJS)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) -I$(KERNEL) -DHOLYC_BF_EMBEDDED $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/brainfuck.c $(KERNEL)/wubu_hive.c $(RT)/wubu_runtime.c $(RT)/wubu_runtime_personalities.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/holyd_elf.c $(COMP)/holyd_pe.c $(COMP)/holyd_bin.c $(COMP)/holyc.c -o $(COMP)/holyc -ldl -Iinclude $(RT)/wubu_crc32.c
@@ -853,9 +863,9 @@ VSL_NT_EXT_OBJS = \
 	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
 	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o $(RT)/vsl/vsl_syscall_nt_ext_test.o $(RT)/wubu_ntsync.o
 
-test_vsl_nt_ext: $(VSL_NT_EXT_OBJS)
+test_vsl_nt_ext: $(VSL_NT_EXT_OBJS) $(KERNEL)/wubu_modsym.c
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT)/wubu_crc32.c \
-		$(VSL_NT_EXT_OBJS) \
+		$(VSL_NT_EXT_OBJS) $(KERNEL)/wubu_modsym.c \
 		-o $(RT)/wubu_vsl_nt_ext_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_ext_test
 # rules so a one-file edit recompiles only that file (seconds, not minutes).
@@ -1692,8 +1702,8 @@ test_gui_screenshot:
 # Clipboard regression: wubu_screenshot.c with its 4 GUI external refs
 # stubbed in the test TU, so we verify real PNG clipboard encode without
 # the full WM/Wayland stack.
-test_screenshot_clipboard:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_NO_LIBM  -Iinclude  $(RT)/wubu_crc32.c \
+test_screenshot_clipboard: $(KERNEL)/wubu_math.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_NO_LIBM  -Iinclude  $(KERNEL)/wubu_math.c $(RT)/wubu_crc32.c \
 		-I$(GUI) -I$(RT) -I$(KERNEL) -I$(TOOLS) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(APPS) -I$(HOSTED) \
 		$(GUI)/wubu_screenshot.c $(GUI)/wubu_screenshot_draw.c $(GUI)/wubu_screenshot_png.c $(GUI)/wubu_screenshot_clipboard_test.c \
 		-o $(GUI)/wubu_screenshot_clipboard_test -lz -lm
@@ -1835,14 +1845,6 @@ test_cp_sound: $(GUI)/cp_sound.c $(GUI)/cp_text.c $(KERNEL)/vbe_font.c $(GUI)/wu
 	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) $(GUI)/test_cp_sound.c $(GUI)/cp_sound.c $(GUI)/cp_text.c $(KERNEL)/vbe_font.c $(GUI)/wubu_sound.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c -o $(GUI)/test_cp_sound -lm -lpulse-simple -lpulse -lasound -Iinclude $(RT)/wubu_crc32.c
 	./$(GUI)/test_cp_sound
 
-test_bpm: $(GUI)/bpm.c $(GUI)/era_apps_test_stub.c $(GUI)/bpm.h $(GUI)/era_apps.h
-	$(CC) $(CFLAGS) -I$(GUI) -I$(RT) $(GUI)/test_bpm.c $(GUI)/bpm.c $(GUI)/era_apps_test_stub.c -o $(GUI)/test_bpm -Iinclude $(RT)/wubu_crc32.c
-	./$(GUI)/test_bpm
-
-test_wm_tray_world: $(GUI)/shell/wm_tray_world.c $(GUI)/wm_systray_test_stub.c $(GUI)/wm.h $(GUI)/shell/wm_tray_world.h $(KERNEL)/wubu_world.h
-	$(CC) $(CFLAGS) -I$(GUI) -I$(RT) -I$(KERNEL) $(GUI)/test_wm_tray_world.c $(GUI)/shell/wm_tray_world.c $(GUI)/wm_systray_test_stub.c -o $(GUI)/test_wm_tray_world -Iinclude $(RT)/wubu_crc32.c
-	./$(GUI)/test_wm_tray_world
-
 test_apps_gap: $(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c $(APPS)/apps_gap_test_stub.c $(GUI)/wubu_sound.c
 	$(CC) $(CFLAGS) -I$(APPS) -I$(GUI) -I$(RT) -I$(KERNEL) $(APPS)/apps_gap_test.c $(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c $(APPS)/apps_gap_test_stub.c $(GUI)/wubu_sound.c -o $(APPS)/apps_gap_test -lm -Iinclude $(RT)/wubu_crc32.c
 	./$(APPS)/apps_gap_test
@@ -1850,10 +1852,6 @@ test_apps_gap: $(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c $(APPS)/apps_gap_t
 test_game_launch: $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test.c $(RT)/wubu_game_launch_test_stub.c
 	$(CC) $(CFLAGS) -I$(RT) $(RT)/wubu_game_launch_test.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_game_launch_test -Iinclude $(RT)/wubu_crc32.c
 	./$(RT)/wubu_game_launch_test
-
-test_bpm_games: $(GUI)/bpm_games.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c $(GUI)/bpm_games.h $(RT)/wubu_game_launch.h
-	$(CC) $(CFLAGS) -I$(GUI) -I$(RT) -I$(RT) $(GUI)/test_bpm_games.c $(GUI)/bpm_games.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(GUI)/test_bpm_games -Iinclude $(RT)/wubu_crc32.c
-	./$(GUI)/test_bpm_games
 
 test_game_session: $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c
 	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) $(RT)/wubu_game_session_test.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_game_session_test -Iinclude $(RT)/wubu_crc32.c
@@ -2211,7 +2209,7 @@ test_deskenv: $(RT)/wubu_deskenv.c $(RT)/wubu_deskenv.h $(RT)/wubu_deskenv_test.
 # authority. Links the P3 runtime modules + wubu_ns_fs.o (NOT the heavy bridge).
 test_session_mgr: $(RT)/wubu_session_mgr.c $(RT)/wubu_session_mgr.h $(RT)/wubu_session_daemon.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/wubu_logind.c $(RT)/wubu_auth.c $(RT)/wubu_ns_background.c $(RT)/wubu_deskenv.c $(RT)/wubu_session_mgr_test.c
 	$(CC) -O0 -g -std=c11 -Wall -D_GNU_SOURCE -I$(RT) -c $(RT)/wubu_session_mgr_test.c -o build/wubu_session_mgr_test.o -Iinclude
-	$(CC) -O0 -g -no-pie -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
+	$(CC) -O0 -g -no-pie -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c $(RT)/wubu_ns_effect.c $(RT)/wubu_effect.c \
 		$(RT)/wubu_ns_fs.o \
 		$(RT)/wubu_session_mgr.c $(RT)/wubu_session_daemon.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/wubu_logind.c $(RT)/wubu_auth.c $(RT)/wubu_ns_background.c $(RT)/wubu_deskenv.c \
 		build/wubu_session_mgr_test.o \
@@ -3947,23 +3945,10 @@ test_ns_session:
 
 
 # Era game installer tools: kernel-owned decoders as host linkers.
-test_cab_extract:
-	$(CC) -O2 -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
-		$(KERNEL)/cab_extract.c $(KERNEL)/wubu_cab.c $(KERNEL)/wubu_lzx.c \
-		$(KERNEL)/wubu_inflate.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
-		-o $(KERNEL)/cab_extract -lz
-test_zip_extract:
-	$(CC) -O2 -std=c11 -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
-		$(KERNEL)/zip_extract.c $(KERNEL)/wubu_zip.c \
-		$(KERNEL)/wubu_inflate.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
-		-o $(KERNEL)/zip_extract -lz
-
 
 # ---- fast incremental kernel-test build (cached objects) ----
 
 # Cached-object pattern rule: any kernel .c -> build/testobj/*.o
-	@mkdir -p $(CACHE)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -include wubu_gnu_compat.h -no-pie -I$(KERNEL) -c $< -o $@ -Iinclude
 
 # The full verified core module set (pre-compiled once).
 
@@ -3972,8 +3957,6 @@ test_zip_extract:
 # ---- fast incremental kernel-test build (cached objects) ----
 
 # Cached-object pattern rule: any kernel .c -> build/testobj/*.o
-	@mkdir -p $(CACHE)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -include wubu_gnu_compat.h -no-pie -I$(KERNEL) -c $< -o $@ -Iinclude
 .PHONY: test_all
 test_all: test_hw_accel test_hw_adreno600 test_hw_adreno700 test_hw_aec test_hw_ampere test_hw_arctic_islands test_hw_audio test_hw_audiofw test_hw_auracast test_hw_backlight test_hw_backlightpwm test_hw_bap test_hw_bcache test_hw_bio test_hw_blkqos test_hw_bt test_hw_bta2dp test_hw_btamesh test_hw_btaudio test_hw_btbeacon test_hw_btclassic test_hw_bthfp test_hw_bus test_hw_calib test_hw_camera test_hw_can test_hw_chanmap test_hw_clock test_drv_install test_density test_hw_cmb test_hw_codec test_hw_codecgraph test_hw_colormgmt test_hw_compress test_hw_compressor test_hw_compute test_hw_computectx test_hw_cuda test_hw_dapm test_hw_dapmwidget test_hw_dappath test_hw_dax test_hw_ddcci test_hw_decode test_hw_dedup test_hw_devmapper test_hw_display test_hw_dmcrypt test_hw_drm test_hw_drmx test_hw_dspgraph test_hw_dspmode test_hw_dsptrace test_hw_ducking test_hw_encode test_hw_eq test_hw_fantml test_hw_fbcon test_hw_fc test_hw_fence test_hw_fencesync test_hw_filter test_hw_fingerprint test_hw_fpga test_hw_fusefs test_hw_fw test_hw_gadget test_hw_gamepad test_hw_gamepadbm test_hw_gamepaddz test_hw_gpuband test_hw_gpucsched test_hw_gpudc test_hw_gpufw test_hw_gpufwupd test_hw_gpukms test_hw_gpumem test_hw_gpurst test_hw_gpusched test_hw_gpusensor test_hw_gpushader test_hw_gt2xx test_hw_hdr test_hw_hid test_hw_hidadv test_hw_hw_detect test_hw_ieccontrol test_hw_ima test_hw_input test_hw_instinct test_hw_intel_gma test_hw_intel_icelake test_hw_intel_skylake test_hw_intelgpu test_hw_ioprio test_hw_iosched test_hw_jack test_hw_jackdetect test_hw_jackimpedance test_hw_jackstate test_hw_kvfs test_hw_leaudio test_hw_leaudioldr test_hw_loudness test_hw_lvm test_hw_mali_g52 test_hw_mali_g720 test_hw_mali_g77 test_hw_mdraid test_hw_mem test_hw_memmgr test_hw_mixergraph test_hw_mixgraph test_hw_mmu test_hw_mst test_hw_multigig test_hw_navi10 test_hw_net test_hw_nfsclient test_hw_nfsmount test_hw_nicoffload test_hw_ns test_hw_nvidia_fermi test_hw_nvidia_kepler test_hw_nvidia_maxwell test_hw_nvidia_pascal test_hw_nvidia_turing test_hw_nvidia_volta test_hw_nvme_gen4 test_hw_nvme_gen5 test_hw_nvmehotplug test_hw_nvmepower test_hw_opencl test_hw_overclock test_hw_panel test_hw_pci test_hw_pcipme test_hw_pcmlink test_hw_pcmplugin test_hw_pcmring test_hw_pd test_hw_pdpolicy test_hw_perf test_hw_perfmon test_hw_peripheral test_hw_phy test_hw_pm test_hw_pmicaudio test_hw_porttiming test_hw_power test_hw_powergate test_hw_powervr test_hw_probe test_hw_psr test_hw_ptp test_hw_ptp_sync test_hw_qos test_hw_quadro test_hw_radeon_5000 test_hw_radeon_6000 test_hw_radeon_legacy test_hw_raid test_hw_raid5 test_hw_raidcache test_hw_rdma test_hw_rendernode test_hw_renoir test_hw_rtc test_hw_samplerate test_hw_sata test_hw_securekey test_hw_sensor test_hw_smart test_hw_smc test_hw_smr test_hw_spdif test_hw_spdifrx test_hw_spdifstatus test_hw_spdiftx test_hw_storage test_hw_storagesched test_hw_switchdev test_hw_thermal test_hw_thermalthrottle test_hw_touch test_hw_tpm test_hw_trim test_hw_uac test_hw_uas test_hw_ucode test_hw_usb4 test_hw_usbf test_hw_vblank test_hw_vc4 test_hw_vc6 test_hw_vega test_hw_video test_hw_virt test_hw_vlanaudio test_hw_volcanic_islands test_hw_voltagectl test_hw_vpudecode test_hw_vpuencode test_hw_vram test_hw_vrr test_hw_vulkan14 test_hw_wifi7 test_hw_wifi_reg test_hw_wifiutil test_hw_writeback test_hw_xe3 test_hw_znszone test_hw_zoneappend test_hw_zonecap test_hw_zoned test_hw_zonefmt test_hw_zonseqwrite
 
@@ -6427,7 +6410,7 @@ test_gpu_driver: $(RT)/wubu_gpu_driver_test.c
 	exit $$rc
 
 test_orphans: test_a11y test_acpi test_agi_kernel test_agi_play test_ahcifat test_apps_gap test_arch test_archd_n1 \
-test_as test_auth test_bear_opt test_blk test_bonzi_study test_cab_extract test_compat test_container_registry \
+test_as test_auth test_bear_opt test_blk test_bonzi_study test_compat test_container_registry \
 test_deskenv test_dos_emu test_dos_proc test_ec_control test_fat2 test_game_launch test_game_session test_gamemode \
 test_gui_screenshot test_heap_stress test_hive test_holyd_pe test_holyd_roundtrip test_hpet test_hw_gesture test_iommu \
 test_jit_profile test_kvfs_route test_lfn test_libc_string test_logind test_machines test_mir_regalloc test_ns_background \
@@ -6439,4 +6422,4 @@ test_tandem test_theme_bridge test_theme_hid test_tutor test_vdso test_verifier 
 test_vkd3d_live_msaa test_vkd3d_live_pipeline test_vkd3d_live_present test_vkd3d_live_render test_vkd3d_live_texture test_vkd3d_live_uav test_vmm test_vsl_mac \
 test_vsl_macho test_w9pc test_wdt test_win32k test_world test_wubu_applaunch test_wubu_bus test_wubu_daemon_client \
 test_wubu_onboarding test_wubu_selfbuild test_wubu_tokenizer test_wubu_zx test_wubu_zx9p test_wubu_zxload test_wubu_zxreg test_xdg_autostart \
-test_xhci
+test_xhci test_account test_app_bundle test_atom test_drv test_ed25519_bignum_value_negctl test_ed25519_fixed_ladder test_ed25519_fixed_ladder_multitoolchain_negctl test_ed25519_fixed_ladder_negctl test_ed25519_fixed_ladder_o0_negctl test_ed25519_fixed_timing test_ed25519_fixed_timing_negctl test_ed25519_native test_eddsa_nombedtls test_font_case test_fs_crash_safe test_fs_persist test_fs_persist_fuzz test_hosted_display test_hosted_tls test_input_keymap test_json_fuzz test_kernel_abi test_kernel_bar_v2 test_kernel_cap test_kernel_irq_cap test_linux_product test_mime_contract test_mime_fuzz test_notepad_save test_ns_session test_nt_abi test_ntsync test_oci test_oci_tls test_pkg_ed25519 test_pkg_ed25519_fixed test_pkg_ed25519_legacy test_pkg_ed25519_native test_pkg_key_policy test_pkg_key_revoke test_pkg_revoke_feed test_pkg_revoke_sync test_pty_exec test_pwcrypt test_ramdisk test_revolver test_secmon test_spell_resolve test_spell_scan test_spellmod test_spellmod_fuzz test_startmenu_files test_sync_panel test_thermal_read test_vsl_nt_collision test_vsl_nt_contract test_wemu_app test_wemu_crash test_wemu_fs test_wemu_kbd test_wemu_kernel_deep test_wemu_kernel_virtio test_wemu_kv test_wemu_model test_win32_core test_wubu_firstboot test_wubu_install test_wubu_install_tty

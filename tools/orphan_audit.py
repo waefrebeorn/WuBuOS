@@ -20,17 +20,32 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def orphans():
-    mk = open(os.path.join(ROOT, 'mk', 'tests.mk')).read()
+    """test_* targets that `make test` cannot reach.
+
+    Make continuations MUST be joined first: an aggregate like test_orphans
+    spans a dozen lines, and reading only its first line made 116 targets look
+    unreachable when they were already in a tier (a mistake this file made
+    once, which produced a duplicate tier built on a phantom gap). Then walk
+    the graph from `test`.
+    """
+    mk = open(os.path.join(ROOT, 'mk', 'tests.mk')).read().replace('\\\n', ' ')
     site = set(re.findall(r'^(test_[a-z0-9_]+):', mk, re.M))
-    reached = set()
+    edges = {}
     for line in mk.split('\n'):
         m = re.match(r'^([a-z0-9_.-]+):\s*(.*)$', line)
         if not m:
             continue
-        names = re.findall(r'(?<![\w$()/.-])(test_[a-z0-9_]+)(?![\w])', m.group(2))
-        if len(names) >= 5:            # an aggregate (test_all, a tier, ...)
-            reached |= set(names)
-    return sorted(site - reached - {'test_all'})
+        names = re.findall(r'(?<![\w$(){}/.-])(test_[a-z0-9_]+)(?![\w])', m.group(2))
+        if names:
+            edges[m.group(1)] = set(names)
+    seen, frontier = {'test'}, {'test'}
+    while frontier:
+        nxt = set()
+        for t in frontier:
+            nxt |= edges.get(t, set()) - seen
+        seen |= nxt
+        frontier = nxt
+    return sorted(site - seen - {'test', 'test_all'})
 
 
 def run_one(target, timeout, logdir):
