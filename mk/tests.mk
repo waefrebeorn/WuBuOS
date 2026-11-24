@@ -2611,6 +2611,14 @@ test_era_apps: $(EDR_RT_OBJS) $(GUI)/era_apps.o $(GUI)/wubu_theme.o $(COMP_OBJS)
 	fi
 	$(GUI)/era_apps_test
 
+# Container-spawning gates share kernel state: cgroups under the wubu-ct
+# root, the namespace registry and the reaper that scans it. Under -j24 they
+# race each other (guests_panel relaunching while hosted_pe's cgroup cleanup
+# walks the same tree), which showed up as "second click relaunches" failing
+# only in a parallel tier and passing standalone. One flock serialises just
+# those gates; everything else in the tier still runs fully parallel.
+CT_GATE_LOCK := /tmp/wubu-ct-gates.lock
+
 # Desktop PE executor gate: hosted_pe_executor -> GUI Proton manager ->
 # bwrap + wine in the resolved-or-created "default" prefix. The unit leg
 # always runs (NULL-prefix safety, prefix resolution, argv shape, honest
@@ -2628,7 +2636,7 @@ test_hosted_pe: $(HOSTED)/hosted_pe.c $(HOSTED)/hosted_pe_test.c $(GUI)/wubu_pro
 	else \
 		echo "[hosted-pe] mingw-w64 not installed; full PE leg will be skipped"; \
 	fi
-	$(HOSTED)/hosted_pe_test
+	flock $(CT_GATE_LOCK) $(HOSTED)/hosted_pe_test
 
 test_explorer:
 		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/explorer.c $(GUI)/explorer_input.c $(GUI)/explorer_ops.c $(GUI)/explorer_info.c $(GUI)/explorer_zip.c $(GUI)/explorer_format.c $(GUI)/explorer_drives.c $(GUI)/explorer_tree.c $(GUI)/explorer_preview.c $(GUI)/explorer_render.c $(GUI)/explorer_fs.c $(GUI)/explorer_fsops.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/explorer_test_stub.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(KERNEL)/vbe.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/explorer_test.c -lm -o $(GUI)/explorer_test -Iinclude $(RT)/wubu_crc32.c
@@ -2887,7 +2895,7 @@ $(RT)/wubu_effect.c \
 		$(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_ns_guests.c $(RT)/wubu_ns_fs.c $(RT)/wubu_guest_import.c \
 		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_fallback.c \
 		-o $(GUI)/guests_panel_test -lm
-	$(GUI)/guests_panel_test
+	flock $(CT_GATE_LOCK) $(GUI)/guests_panel_test
 
 test_arch:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT)/wubu_crc32.c \

@@ -89,15 +89,23 @@ static int wait_guest_exit(const char *name, int timeout_ms) {
     return -1;
 }
 
-/* A click launches a child container; under load the registry entry can
- * appear a moment after the callback returns. Poll briefly and retry the
- * real button click a bounded number of times before declaring failure. */
+/* A click launches a child container; under load (a -j24 tier, 24 gates
+ * forking at once) the registry entry can appear well after the callback
+ * returns -- the relaunch after the first guest exited was the flaky case.
+ * Poll for up to 4 s per attempt, retry the real button click 5 times, and
+ * say how long it actually took so a slow machine is visible instead of
+ * being reported as a broken feature. */
 static int click_launch(DosGuiWindow *win, int x, int y) {
-    for (int attempt = 0; attempt < 3; attempt++) {
+    for (int attempt = 0; attempt < 5; attempt++) {
         win->on_mouse(win, x, y, 1, 1);
-        for (int t = 0; t < 100; t++) {
-            if (wubu_ct_registry_find(g_guest)) return 1;
-            usleep(10000);
+        for (int t = 0; t < 200; t++) {
+            if (wubu_ct_registry_find(g_guest)) {
+                if (attempt || t >= 10)
+                    printf("  (launch visible on attempt %d after %d ms)\n",
+                           attempt + 1, t * 20);
+                return 1;
+            }
+            usleep(20000);
         }
     }
     return 0;
