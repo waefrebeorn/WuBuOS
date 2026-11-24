@@ -43,7 +43,7 @@ test_pkg_ed25519_native:
 # keys, cross-sign/verify, OpenSSL CLI interoperability, policy provenance and
 # every tamper/forgery case.  Needs the mbedTLS dev root and OpenSSL 3.
 test_ed25519_native:
-	bash tools/ed25519_native_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_native_gate.sh
 
 # Reproducible, SHA-256-pinned dev root for every opt-in crypto gate above.
 # Keeps CI independent of any developer's ~/.hermes/cache/scratch directory.
@@ -60,33 +60,33 @@ test_optin_crypto:
 # installed software; proves native+ladder / ladder / fail-closed states and
 # that no network fetch is attempted.  Member of the DEFAULT test suite.
 test_eddsa_build_config:
-	bash tools/eddsa_config_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_config_gate.sh
 
 # Runtime equivalence + tamper gate on the SAME detected config the hosted
 # product ships.  Native and ladder must agree; forgeries must be refused.
 # Member of the DEFAULT test suite; SKIPs only when no backend is compiled.
 test_eddsa_runtime: test_eddsa_nombedtls
-	bash tools/eddsa_runtime_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_runtime_gate.sh
 
 # Differential gate for the native backend compiled with NO mbedTLS headers:
 # bignum-free canonical-S / small-subgroup policy, sign/verify + all forgeries,
 # and (when a dev root is supplied) agreement with the mbedTLS build's policy.
 test_eddsa_nombedtls:
-	bash tools/eddsa_nombedtls_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_nombedtls_gate.sh
 
 # Reproducible constant-time evidence artifact: source branch audit, compiled
 # instruction/branch table, and a dynamic constant-selection sweep.  Explicitly
 # NOT a formal proof; the doc records why.  Member of the DEFAULT test suite
 # (via test_default_optin).
 test_ed25519_ct_evidence:
-	bash tools/eddsa_ct_evidence.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_ct_evidence.sh
 
 # Dudect-style NON-FORMAL statistical leakage gate for the Ed25519 signing
 # scalar multiply (same-run baseline, fixed thresholds, no retries).
 # Member of the DEFAULT test suite (test_default_optin); SKIPs (no fetch) if
 # no mbedTLS root.
 test_ed25519_dudect:
-	bash tools/eddsa_dudect_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_dudect_gate.sh
 
 # ROOT-INDEPENDENT structural ladder guard for the Ed25519 signing core.
 # Reads the shipped source as TEXT: no mbedTLS headers, no compiler, no dev
@@ -94,7 +94,7 @@ test_ed25519_dudect:
 # closing that blind spot) and goes RED on the secret-dependent cswap the
 # negative control injects.  The statistical dudect gate above is unchanged.
 test_ed25519_ladder_guard:
-	bash tools/eddsa_ladder_guard.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_ladder_guard.sh
 
 # COMPILER-IR constant-time gate (next increment after the source guard).
 # Compiles the shipped ladder to LLVM IR at -O2 with a LOCAL clang only and
@@ -102,13 +102,13 @@ test_ed25519_ladder_guard:
 # (exit 1, never PASS) when clang is unavailable -- so it is deliberately NOT
 # in the default tier; the always-on structural guard above stays there.
 test_ed25519_ir_ct:
-	bash tools/eddsa_ir_ct_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_ir_ct_gate.sh
 
 # Standalone negative control for the IR checker: injects the `if (swap)`
 # regression, requires both the source guard and the IR detector to go red,
 # restores the source and requires green.  Runs without a compiler.
 test_ed25519_ir_ct_negctl:
-	bash tools/eddsa_ir_ct_negative_control.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_ir_ct_negative_control.sh
 
 # COMPILED-TREE constant-time gate (next increment after the LLVM-IR gate).
 # Uses the LOCAL gcc we actually have: compiles the shipped ladder at -O2 with
@@ -131,7 +131,7 @@ test_no_ct_residue:
 	echo "test_no_ct_residue: PASS (no injected CT regression in src/)"
 
 test_ed25519_gimple_ct:
-	bash tools/eddsa_gimple_ct_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_gimple_ct_gate.sh
 
 # Standalone negative control for the compiled-GIMPLE checker: injects the
 # `if (swap)` regression into the working-tree source, recompiles at -O2, and
@@ -139,7 +139,7 @@ test_ed25519_gimple_ct:
 # restores and requires green.  Records a verified negative (no fake PASS) if
 # no capable gcc is present.
 test_ed25519_gimple_ct_negctl:
-	bash tools/eddsa_gimple_ct_negative_control.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_gimple_ct_negative_control.sh
 
 # CALLEE-CT gate (next increment after the intraprocedural GIMPLE gate):
 # interprocedural secret-taint across the ladder and EVERY reachable callee in
@@ -149,14 +149,14 @@ test_ed25519_gimple_ct_negctl:
 # gcc/objdump/mbedTLS archive are absent, so it is opt-in like the other CT
 # gates; the always-on structural ladder guard stays in the default tier.
 test_ed25519_callee_ct:
-	bash tools/eddsa_callee_ct_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_callee_ct_gate.sh
 
 # Standalone negative control for the callee-CT gate: injects a secret-dependent
 # cswap at BOTH levels (GIMPLE 'if (swap)' in the ladder and an assembly-level
 # branchy cswap fixture), requires both detectors to go red, restores the
 # shipped source and requires green.  Fails closed with no local gcc.
 test_ed25519_callee_ct_negctl:
-	bash tools/eddsa_callee_ct_negative_control.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_callee_ct_negative_control.sh
 
 # BIGNUM-VALUE gate (next increment after the callee-CT gate): bounded
 # abstract interpretation of the SHIPPED mbedTLS bignum machine code from the
@@ -165,14 +165,14 @@ test_ed25519_callee_ct_negctl:
 # helpers.  Fails closed with an EXACT verified negative when the local
 # devroot has headers + .a only, so it is opt-in like the other CT gates.
 test_ed25519_bignum_value:
-	bash tools/eddsa_bignum_value_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_bignum_value_gate.sh
 
 # Standalone negative control for the bignum-value auditor: compiles a callee
 # fixture clean (branch-free select) and with an INJECTED secret-dependent
 # branch on an mpi limb value, and requires the detector to accept the first
 # and refute the second.  Fails closed with no local gcc.
 test_ed25519_bignum_value_negctl:
-	bash tools/eddsa_bignum_value_negctl.sh
+	flock $(CT_GATE_LOCK) bash tools/eddsa_bignum_value_negctl.sh
 
 # BIGNUM-FREE FIXED-WIDTH LADDER gate (next increment after the bignum-value
 # verified negative): a self-contained 4x64-limb Ed25519 scalar-mult leaf with
@@ -182,13 +182,13 @@ test_ed25519_bignum_value_negctl:
 # objdump): the mbedTLS ladder remains the default so the default tier is
 # unchanged.  The bignum-free path is an ADDITIONAL surface, not a replacement.
 test_ed25519_fixed_ladder:
-	bash tools/ed25519_fixed_ladder_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_ladder_gate.sh
 
 # Standalone negative control for the fixed-width checker: injects a real
 # secret-dependent branch into a temp copy of the shipped ladder (never the
 # working tree), requires both detectors RED, then the shipped source GREEN.
 test_ed25519_fixed_ladder_negctl:
-	bash tools/ed25519_fixed_ladder_negctl.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_ladder_negctl.sh
 
 # second-toolchain / optimization-level structural CT gate: runs the shipped
 # ladder's existing source + real-machine-code checks under gcc 13.3 -O2, -O3
@@ -196,11 +196,11 @@ test_ed25519_fixed_ladder_negctl:
 # non-vacuous with an injected secret-dependent branch.  Fails closed with
 # VERIFIED_NEGATIVE evidence if fewer than two distinct compilers are usable.
 test_ed25519_fixed_ladder_multitoolchain:
-	bash tools/ed25519_fixed_ladder_multitoolchain.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_ladder_multitoolchain.sh
 
 # Standalone per-configuration injected-branch non-vacuity control.
 test_ed25519_fixed_ladder_multitoolchain_negctl:
-	bash tools/ed25519_fixed_ladder_multitoolchain.sh --negctl
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_ladder_multitoolchain.sh --negctl
 
 # STACK-AWARE -O0 structural CT gate: closes the -O0 gap the register-only
 # checker cannot cover (secret bit/swap live in [rbp-X] slots at -O0).  Tracks
@@ -209,11 +209,11 @@ test_ed25519_fixed_ladder_multitoolchain_negctl:
 # Fails closed with VERIFIED_NEGATIVE evidence if fewer than two distinct
 # compiler binaries are usable.
 test_ed25519_fixed_ladder_o0:
-	bash tools/ed25519_fixed_ladder_o0_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_ladder_o0_gate.sh
 
 # Standalone per-configuration injected-branch non-vacuity control for -O0.
 test_ed25519_fixed_ladder_o0_negctl:
-	bash tools/ed25519_fixed_ladder_o0_gate.sh --negctl
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_ladder_o0_gate.sh --negctl
 
 # End-to-end package-signing differential through the fixed-width ladder:
 # the real pkgmgr Ed25519 gate with only the scalar-mult leaf swapped.
@@ -229,18 +229,18 @@ test_pkg_ed25519_legacy:
 # when python3/gcc/objdump exist and prints an explicit SKIP otherwise; the
 # strict standalone target above still fails closed.
 test_ed25519_fixed_ladder_default:
-	bash tools/ed25519_fixed_ladder_default.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_ladder_default.sh
 
 # FULL fixed-width EdDSA path: zero mbedTLS integer symbols in the shipped
 # fixed sources and in the preprocessed fixed-mode dispatcher, a non-vacuous
 # injected-bignum negative control, and an RFC 8032 sign/verify cross-check
 # against an independent OpenSSL EVP oracle.
 test_ed25519_fixed_full:
-	bash tools/ed25519_fixed_full_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_full_gate.sh
 
 # Standalone negative control for the zero-bignum detector.
 test_ed25519_fixed_full_negctl:
-	bash tools/ed25519_fixed_full_negctl.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_full_negctl.sh
 
 # Dudect-style timing gate for the SHIPPED DEFAULT bignum-free fixed EdDSA
 # path (WUBU_EDDSA_FIXED_LADDER).  Self-contained probe, no mbedTLS bignum and
@@ -248,12 +248,12 @@ test_ed25519_fixed_full_negctl:
 # double-and-add control, fixed thresholds, non-vacuous.  FAILS CLOSED when the
 # compiler/toolchain is absent (no SKIP, no fabricated PASS).
 test_ed25519_fixed_timing:
-	bash tools/ed25519_fixed_timing_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_timing_gate.sh
 
 # Standalone negative control: require the detector to FLAG the deliberately
 # secret-dependent path.  Also fails closed when the toolchain is absent.
 test_ed25519_fixed_timing_negctl:
-	bash tools/ed25519_fixed_timing_negctl.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_timing_negctl.sh
 
 # Cross-configuration timing evidence: run the SAME existing same-run gate
 # (and its standalone negative control) under at least two distinct, diverse
@@ -261,10 +261,10 @@ test_ed25519_fixed_timing_negctl:
 # the shipped ladder flat and the secret-dependent control flagged in EACH.
 # Fails closed with VERIFIED_NEGATIVE evidence if a configuration is unavailable.
 test_ed25519_fixed_timing_crossconfig:
-	bash tools/ed25519_fixed_timing_crossconfig.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_timing_crossconfig.sh
 
 test_ed25519_fixed_timing_crossconfig_negctl:
-	bash tools/ed25519_fixed_timing_crossconfig.sh --negctl
+	flock $(CT_GATE_LOCK) bash tools/ed25519_fixed_timing_crossconfig.sh --negctl
 
 .PHONY: mbedtls-devroot test_pkg_ed25519_fixed test_pkg_ed25519_legacy test_ed25519_fixed_ladder test_ed25519_fixed_ladder_default test_ed25519_fixed_ladder_negctl test_ed25519_fixed_ladder_multitoolchain test_ed25519_fixed_ladder_multitoolchain_negctl test_ed25519_fixed_ladder_o0 test_ed25519_fixed_ladder_o0_negctl test_ed25519_fixed_full test_ed25519_fixed_full_negctl test_ed25519_fixed_timing test_ed25519_fixed_timing_negctl test_ed25519_fixed_timing_crossconfig test_ed25519_fixed_timing_crossconfig_negctl test_pkg_ed25519_native test_ed25519_native test_optin_crypto test_eddsa_build_config test_eddsa_runtime test_eddsa_nombedtls test_ed25519_ct_evidence test_ed25519_dudect test_ed25519_ladder_guard test_ed25519_ir_ct test_ed25519_ir_ct_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_bignum_value test_ed25519_bignum_value_negctl test_formal_ct_tool_probe test_default_optin test_default_crypto_negative_control
 
@@ -281,7 +281,7 @@ test_formal_ct_tool_probe:
 	bash tools/formal_ct_tool_probe.sh
 
 test_ed25519_timing:
-	bash tools/ed25519_timing_gate.sh
+	flock $(CT_GATE_LOCK) bash tools/ed25519_timing_gate.sh
 
 # Operator CLI for authorized Ed25519 key revocation. Opt-in: needs a
 # WUBU_MBEDTLS_ROOT mbedTLS dev root (the Ed25519 primitive lives there).
@@ -355,7 +355,7 @@ test_default_optin:
 # copy of the shipped ladder, then restores it).  Proves the default tier does
 # detect a real constant-time regression in ge_mul_ladder.
 test_default_crypto_negative_control:
-	bash tools/default_crypto_negative_control.sh
+	flock $(CT_GATE_LOCK) bash tools/default_crypto_negative_control.sh
 .PHONY: test_default_crypto_negative_control
 
 # Opt-in differential gate for trust-anchor expiry, admin rotation/recovery
