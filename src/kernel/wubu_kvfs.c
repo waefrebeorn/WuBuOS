@@ -210,7 +210,11 @@ int wubu_kvfs_mount(wubu_kvfs_t *fs, const char *path,
     fs->n_mounts++;
     wubu_kvfs_mount_t *m = &fs->mounts[idx];
     memset(m, 0, sizeof(*m));
-    strncpy(m->path, path, 255);
+    /* strncpy(m->path, path, 255) does NOT terminate when the path is 255+
+     * chars, and the selftest mounts a 255-char path on purpose: the mount's
+     * path field then ran on into the rest of the struct -- the heap corruption
+     * glibc reports as "corrupted top size" right after that mount. */
+    snprintf(m->path, sizeof(m->path), "%s", path);
     m->path[255] = '\0';
     m->start_block = start_block;
     m->n_blocks = n_blocks;
@@ -415,8 +419,16 @@ int wubu_kvfs_kernel_init(uint32_t block_size, uint32_t total_blocks) {
             float *p = (float *)mem;
             const size_t per_slab = total_floats / slabs + 1;
             memset(p, 0, total_floats * sizeof(float));   /* rep stosb */
-            for (uint32_t s = 0; s < slabs; s++)
-                p[(size_t)s * per_slab] = 1.0f + (float)s;
+            /* Bounded: the verify loop below already refuses at >=
+             * total_floats, but the WRITE above it did not, so a slab count
+             * that does not divide the tensor could scribble past its end --
+             * the kind of off-by-one a bump heap absorbs and glibc's allocator
+             * calls "corrupted top size". */
+            for (uint32_t s = 0; s < slabs; s++) {
+                size_t at = (size_t)s * per_slab;
+                if (at >= total_floats) break;
+                p[at] = 1.0f + (float)s;
+            }
             int ok = 1;
             for (uint32_t s = 0; s < slabs; s++) {
                 size_t at = (size_t)s * per_slab;
