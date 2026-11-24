@@ -80,6 +80,44 @@ protocol's merits are separate questions.
   testable (`test_input_queue`, a socket round-trip, an shm map/unmap, a flip
   that changes what `vbe` scans out).
 
+## Attempted 2026-11-24: the first primitive, and why it is NOT shipped
+
+The first step (user-mappable scanout + damage-rect present) was written,
+gated and then **reverted unshipped**, because it could not be proven:
+
+- `wubu_vmm_map_user_page()` (US at every table level), `vbe_present_from()` (an
+  explicit source stride, so a packed client buffer cannot shear into a padded
+  scanout) and `vbe_map_user()` all compiled and mapped the real LFB
+  (`phys=0xc1000000`, `bytes=0x300000` = exactly 1024x768x4).
+- **But no write to that scanout could be read back at the probe pixel.** The
+  measurement, repeated through three formulations (raw pointer, `vbe_set_pixel`
+  + `vbe_get_pixel`, and a 1x1 present from a client buffer):
+
+  ```
+  fbmap: FAIL phys=c1000000 bytes=300000 damage=FAIL user=FAIL
+  fbmap: dbg  w=1024 pitch=4096 got=0 want=ff00ff fbva=ffffffff98000000 rb=123456
+  fbmap: dbg3 direct=0                       (write v->fb[idx]=0xAB12CD, read 0)
+  fbmap: dbg4 fb=ffffffff:98000000 back=ffffffff:98000000 fbrd=0 bkrd=0
+  ```
+
+  A write at pixel (20,20) read back fine (`rb=123456`), while (6,6) never did --
+  with `fb == back`, `pitch == 4096`, `mfence` in place, and a direct store into
+  `v->fb[idx]`. That contradiction is unresolved. **Nothing here may be claimed
+  until it is.**
+
+- Consequence: the metal desktop's present path may be fine and the probe wrong,
+  or the pointer the console command sees may not be the surface that scans out.
+  Either way the honest state is: *the compositor seam is still unbuilt*, and the
+  next session starts by resolving that single contradiction (a 2-pixel write
+  matrix at several offsets, printing the pointer both ways, ideally checked
+  against a QEMU `memsave` of the LFB physo range -- which does not depend on the
+  kernel's read path at all).
+
+Lesson worth keeping: a memory-mapped framebuffer is not ordinary RAM to test
+against -- but a *direct store followed by a read of the same address returning 0*
+is not explainable by caching, so do not accept "it's write-combining" as an
+answer without the external (memsave) check.
+
 ## Verification of this ADR's claims
 
 Re-runnable today:
