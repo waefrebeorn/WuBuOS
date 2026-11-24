@@ -1,0 +1,9 @@
+{
+ "note": "concerns and symbols modelled on BOTH sides of the WEMU/WuBuNOS boundary; this list may only shrink",
+ "shared_concerns": [
+  "x86 decode",
+  "x87 / float",
+  "ELF loading"
+ ],
+ "shared_symbols": []
+}

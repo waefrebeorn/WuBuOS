@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: test_no_ct_residue test_nt_ordinals test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -2955,6 +2955,23 @@ test_spd_parity:
 # TUs, so a duplicate silently decides the winner by link order (that is how 395
 # and 408 ended up answering the wrong syscall). Known ambiguities are frozen in
 # tools/nt_ordinal_baseline.json and the list may only shrink.
+# WEMU and WuBuNOS are two models of the same machine in one tree. Shared concerns
+# are fine; silent divergence is not. This freezes today's overlap and fails on a
+# new one until someone writes down which side owns it.
+test_cross_tree_overlap:
+	@python3 tools/cross_tree_overlap.py
+
+# Execute WuBuNOS's x86-64 output inside WEMU. Today every blob is host-bound (the
+# x86-64 backend is a JIT that bakes &wubu_jit_mem_ptr into the code), so this
+# reports SKIP with that reason instead of pretending to test; it becomes a real
+# gate the moment either side makes the output relocatable.
+test_wemu_blob_gate:
+	@$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(WEMU_SUB)/include -I$(WEMU_SUB)/src \
+	   tools/wemu_blob_gate.c $(WEMU_SUB)/src/*.c -lm -o build/wemu_blob_gate
+	@rm -rf build/isaexec && mkdir -p build/isaexec
+	@WUBU_EXEC_DUMP_DIR=build/isaexec WUBU_EXEC_DUMP=x86-64 $(COMP)/test_isa_driver >/dev/null 2>&1 || true
+	@./build/wemu_blob_gate build/isaexec/x86-64
+
 test_nt_ordinals:
 	@python3 tools/nt_ordinal_audit.py
 
