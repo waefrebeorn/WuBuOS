@@ -22,6 +22,24 @@
 #include <math.h>
 
 /* Full definition of opaque struct */
+/* Button actions -- the grid tables and the mouse handler share these. */
+typedef enum {
+    A_NONE = 0,
+    A_DIG0, A_DIG1, A_DIG2, A_DIG3, A_DIG4,
+    A_DIG5, A_DIG6, A_DIG7, A_DIG8, A_DIG9,
+    A_DOTA, A_ADD, A_SUB, A_MUL, A_DIV, A_POW,
+    A_EQ, A_CLR, A_CE, A_NEG, A_RECIP, A_SQRT,
+    A_SIN, A_COS, A_TAN, A_LN, A_LOG, A_EXP, A_PERC,
+    A_MEM, A_RCL, A_BASE, A_MODE
+} CalcAct;
+
+typedef struct {
+    int      x, y, w, h;
+    CalcAct  act;
+    const char *label;
+} CalcCell;
+#define CALC_CELLS 30   /* 6 rows x 5 cols */
+
 struct CalcState {
     double  display_val;
     double  memory;
@@ -36,9 +54,13 @@ struct CalcState {
     double  graph_y_min, graph_y_max;
     char    graph_expr[256];
     int     graph_point_count;
-    /* UI hit-regions: filled by calc_layout so on_key can map clicks; here we
-     * drive entirely from the keyboard (and a button grid map for clicks). */
     int     btn_cols, btn_rows;
+    /* Hit-regions for the button grid. calc_layout() is the ONLY place that
+     * computes them; calc_draw() renders these rects and calc_mouse()
+     * hit-tests the same ones, so the grid cannot drift between what the user
+     * sees and what the pointer hits. */
+    CalcCell btn[CALC_CELLS];
+    int      btn_n;
 };
 
 CalcState* calc_create(void) {
@@ -63,15 +85,6 @@ void calc_destroy(CalcState *calc) {
 
 /* -- Button grid definition (Standard layout) -------------------- */
 /* Each cell is a label + a semantic action code. Keys mirror these. */
-typedef enum {
-    A_NONE = 0,
-    A_DIG0, A_DIG1, A_DIG2, A_DIG3, A_DIG4,
-    A_DIG5, A_DIG6, A_DIG7, A_DIG8, A_DIG9,
-    A_DOTA, A_ADD, A_SUB, A_MUL, A_DIV, A_POW,
-    A_EQ, A_CLR, A_CE, A_NEG, A_RECIP, A_SQRT,
-    A_SIN, A_COS, A_TAN, A_LN, A_LOG, A_EXP, A_PERC,
-    A_MEM, A_RCL, A_BASE, A_MODE
-} CalcAct;
 
 static const char *g_std_labels[6][5] = {
     {"MC","7","8","9","/"},
@@ -138,10 +151,49 @@ static void calc_do_action(CalcState *c, CalcAct a) {
     }
 }
 
+/* -- Grid inspection ---------------------------------------------- */
+
+int calc_button_count(const CalcState *c) { return c ? c->btn_n : 0; }
+
+bool calc_button_rect(const CalcState *c, int i, int *x, int *y, int *w, int *h) {
+    if (!c || i < 0 || i >= c->btn_n) return false;
+    if (x) *x = c->btn[i].x;
+    if (y) *y = c->btn[i].y;
+    if (w) *w = c->btn[i].w;
+    if (h) *h = c->btn[i].h;
+    return true;
+}
+
+const char *calc_button_label(const CalcState *c, int i) {
+    if (!c || i < 0 || i >= c->btn_n) return NULL;
+    return c->btn[i].label;
+}
+
 /* -- Rendering ---------------------------------------------------- */
 
-static void calc_layout(CalcState *c) {
-    (void)c;
+static void calc_layout(CalcState *c, int cx, int cy, int cw, int ch) {
+    if (!c) return;
+    c->btn_n = 0;
+    if (cw < 16 || ch < 16) return;
+    int disp_h = 28;
+    int gx = cx + 4, gy = cy + 18 + disp_h + 6;
+    int gw = cw - 8, gh = ch - (18 + disp_h + 6) - 4;
+    int cols = c->btn_cols, rows = c->btn_rows;
+    if (cols <= 0 || rows <= 0) return;
+    int bw_w = gw / cols, bw_h = gh / rows;
+    if (bw_w <= 0 || bw_h <= 0) return;
+    for (int r = 0; r < rows && r < 6; r++) {
+        for (int col = 0; col < cols && col < 5; col++) {
+            if (c->btn_n >= CALC_CELLS) return;
+            CalcCell *cell = &c->btn[c->btn_n++];
+            cell->x = gx + col * bw_w + 1;
+            cell->y = gy + r * bw_h + 1;
+            cell->w = bw_w - 2;
+            cell->h = bw_h - 2;
+            cell->act = g_std_act[r][col];
+            cell->label = g_std_labels[r][col];
+        }
+    }
 }
 
 /* Draw a single 3D button. */
@@ -244,18 +296,28 @@ void calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, CalcState *c
     int disp_h = 28;
     calc_draw_display(fb, cx + 4, cy + 18, cw - 8, disp_h, c);
 
-    /* Button grid. */
-    int gx = cx + 4, gy = cy + 18 + disp_h + 6;
-    int gw = cw - 8, gh = ch - (18 + disp_h + 6) - 4;
-    int cols = c->btn_cols, rows = c->btn_rows;
-    int bw_w = gw / cols, bw_h = gh / rows;
-    for (int r = 0; r < rows; r++) {
-        for (int col = 0; col < cols; col++) {
-            CalcAct a = g_std_act[r][col];
-            const char *lbl = g_std_labels[r][col];
-            calc_draw_button(gx + col*bw_w + 1, gy + r*bw_h + 1,
-                             bw_w - 2, bw_h - 2, lbl, false);
-            (void)a;
+    /* Button grid: laid out once, then drawn -- calc_mouse() hit-tests the
+     * very same rects. */
+    calc_layout(c, cx, cy, cw, ch);
+    for (int i = 0; i < c->btn_n; i++) {
+        const CalcCell *cell = &c->btn[i];
+        calc_draw_button(cell->x, cell->y, cell->w, cell->h, cell->label, false);
+    }
+}
+
+/* -- Mouse input -------------------------------------------------- */
+/* The grid was painted but unclickable: the calculator bound on_draw and
+ * on_key only, so a user could see 30 buttons and hit none of them. */
+void calc_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+    CalcState *c = win ? (CalcState*)win->user_data : NULL;
+    if (!c) return;
+    if (kind != 1 && !(btn & 1)) return;   /* act on press, not release */
+    for (int i = 0; i < c->btn_n; i++) {
+        const CalcCell *cell = &c->btn[i];
+        if (x >= cell->x && x < cell->x + cell->w &&
+            y >= cell->y && y < cell->y + cell->h) {
+            calc_do_action(c, cell->act);
+            return;
         }
     }
 }
@@ -295,8 +357,9 @@ DosGuiWindow* calc_launch(void) {
     if (win) {
         CalcState *c = calc_create();
         win->user_data = c;
-        win->on_draw = calc_draw_wm;
-        win->on_key  = calc_key;
+        win->on_draw  = calc_draw_wm;
+        win->on_key   = calc_key;
+        win->on_mouse = calc_mouse;
     }
     return win;
 }

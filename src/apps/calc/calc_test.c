@@ -6,6 +6,7 @@
  */
 
 #include "calc.h"
+#include "wm.h"        /* DosGuiWindow: the click test binds user_data */
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -124,7 +125,50 @@ static void test_base_clamp(void) {
     OK();
 }
 
+
+/* The button grid is painted; this proves it is also CLICKABLE and that the
+ * renderer and the hit-test share one geometry (the calculator used to bind
+ * on_draw and on_key only, so none of its 30 buttons responded). */
+static void test_button_grid_clickable(void) {
+    printf("\n=== Test: button grid is clickable ===\n");
+    DosGuiWindow *win = wm_create(40, 40, 280, 380, "Calculator");
+    CHECK(win != NULL, "window created");
+    CalcState *c = calc_create();
+    CHECK(c != NULL, "state created");
+    win->user_data = c;
+    calc_draw(win, NULL, 800, 600, c);
+    CHECK(calc_button_count(c) == 30, "grid laid out 30 cells (6x5)");
+
+    /* Every cell must have a real rect, or a click can never land. */
+    for (int i = 0; i < calc_button_count(c); i++) {
+        int x = 0, y = 0, w = 0, h = 0;
+        CHECK(calc_button_rect(c, i, &x, &y, &w, &h), "cell rect readable");
+        CHECK(w > 0 && h > 0, "cell has area");
+    }
+
+    /* Click the centre of the cell labelled "7" and expect 7 on the display. */
+    int hit = -1;
+    for (int i = 0; i < calc_button_count(c); i++) {
+        const char *l = calc_button_label(c, i);
+        if (l && l[0] == '7' && l[1] == 0) { hit = i; break; }
+    }
+    CHECK(hit >= 0, "found the 7 button");
+    int x = 0, y = 0, w = 0, h = 0;
+    calc_button_rect(c, hit, &x, &y, &w, &h);
+    calc_mouse(win, x + w / 2, y + h / 2, 1, 1);
+    CHECK(calc_get_display(c) == 7.0, "clicking 7 puts 7 on the display");
+
+    /* A click outside every button must change nothing. */
+    calc_mouse(win, 1, 1, 1, 1);
+    CHECK(calc_get_display(c) == 7.0, "a click outside the grid does nothing");
+
+    calc_destroy(c);
+    win->user_data = NULL;
+    OK();
+}
+
 int main(void) {
+    test_button_grid_clickable();
     printf("=== WuBuOS Calculator Engine Tests ===\n\n");
     test_add();
     test_sub_chain();

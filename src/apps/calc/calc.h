@@ -26,6 +26,16 @@ typedef struct CalcState CalcState;
 
 /* Create and destroy calculator */
 CalcState* calc_create(void);
+
+/* Window callbacks. calc_mouse() is the grid's hit-test: it reads the rects
+ * the last calc_draw() laid out, so what the user sees and what the pointer
+ * hits is one geometry. */
+void calc_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+
+/* Inspection for the grid (the cell table is module-private). */
+int  calc_button_count(const CalcState *calc);
+bool calc_button_rect(const CalcState *calc, int i, int *x, int *y, int *w, int *h);
+const char *calc_button_label(const CalcState *calc, int i);
 void calc_destroy(CalcState *calc);
 
 /* Draw callback for wm */
