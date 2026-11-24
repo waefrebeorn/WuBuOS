@@ -78,6 +78,17 @@ def run_one(target, timeout, logdir):
         # itself is fine. Report the reason, not a failure.
         if target in MAKEFILE_TEXT[1]:
             return target, 'SERIALIZED', time.time() - t0
+        # Otherwise the gate may simply be slower than the audit's budget --
+        # test_optin_crypto runs a real TLS handshake matrix and needs minutes.
+        # Give every timed-out target one honest second chance at triple the
+        # budget before calling it a timeout; a slow gate is not a broken one.
+        try:
+            p = subprocess.run(['make', target], cwd=ROOT, timeout=timeout * 3,
+                               stdout=open(log, 'w'), stderr=subprocess.STDOUT)
+            if p.returncode == 0:
+                return target, 'SLOW', time.time() - t0
+        except subprocess.TimeoutExpired:
+            pass
         return target, 'TIMEOUT', time.time() - t0
     secs = time.time() - t0
     if rc == 0:
