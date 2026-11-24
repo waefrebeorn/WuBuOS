@@ -273,9 +273,24 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
+    /* Win+Shift+Left/Right: Move focused window to adjacent desktop.
+     * This must be decided BEFORE the plain Win+Arrow snap below: that block
+     * matches any Win+Arrow, so it used to swallow Win+Shift+Arrow and the
+     * "move window to the other desktop" shortcut could never fire. */
+    if ((mods & (MOD_WIN | MOD_SHIFT)) == (MOD_WIN | MOD_SHIFT)) {
+        if (key == 0xE04B) {  /* Left arrow */
+            wm_move_focused_window(-1);
+            return;
+        } else if (key == 0xE04D) {  /* Right arrow */
+            wm_move_focused_window(1);
+            return;
+        }
+    }
+
     /* Win+Arrow: Snap Layouts (keyboard).  Left/Right = half screen,
-     * Up = maximize, Down = right half. */
-    if ((mods & MOD_WIN) && g_dwm.focused_id >= 0) {
+     * Up = maximize, Down = right half. SHIFT must be absent (it means
+     * "move to desktop", handled above). */
+    if ((mods & MOD_WIN) && !(mods & MOD_SHIFT) && g_dwm.focused_id >= 0) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
         if (w->alive) {
             if (key == 0xE04B) { snap_window_to_zone(w, 0); return; }
@@ -285,16 +300,6 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         }
     }
 
-    /* Win+Shift+Left/Right: Move focused window to adjacent desktop */
-    if ((mods & (MOD_WIN | MOD_SHIFT)) == (MOD_WIN | MOD_SHIFT)) {  /* Win + Shift */
-        if (key == 0xE04B) {  /* Left arrow */
-            wm_move_focused_window(-1);
-            return;
-        } else if (key == 0xE04D) {  /* Right arrow */
-            wm_move_focused_window(1);
-            return;
-        }
-    }
 }
 
 void wm_handle_mouse(int x, int y, int btn, int kind) {

@@ -1126,6 +1126,39 @@ static void test_show_desktop_hotkey(void) {
 }
 
 
+
+/* Win+Shift+Arrow moves the window to the adjacent desktop; plain Win+Arrow
+ * snaps. The snap block used to match ANY Win+Arrow and sat first, so the move
+ * shortcut could never fire -- a superset binding swallowing a specific one. */
+static void test_win_shift_arrow_moves_between_desktops(void) {
+    TEST("Win+Shift+Left/Right moves the window to another desktop (not a snap)");
+    wm_init(1024, 768);
+    wm_handle_key(0x20, MOD_WIN | MOD_CTRL);   /* Win+Ctrl+D: a second desktop to move to */
+
+    DosGuiWindow *w = wm_create(100, 100, 300, 200, "Move Me");
+    CHECK(w != NULL, "window created");
+    int start_desktop = w->desktop;
+    int w0 = w->w, h0 = w->h;
+
+    wm_handle_key(0xE04D, MOD_WIN | MOD_SHIFT);   /* Win+Shift+Right */
+    CHECK(w->desktop == start_desktop + 1, "moved to the next desktop");
+    CHECK(w->w == w0 && w->h == h0, "and was NOT snapped (geometry untouched)");
+
+    /* Negative control: plain Win+Right still snaps, and does not move desktops.
+     * Use a window on the CURRENT desktop: the one above was just moved away,
+     * and snap acts on the focused window of the desktop being shown. */
+    wm_set_current_desktop(w->desktop);
+    DosGuiWindow *w2 = wm_create(120, 140, 320, 240, "Snap Me");
+    CHECK(w2 != NULL, "second window created");
+    int w2_x = w2->x, w2_w = w2->w;
+    wm_handle_key(0xE04D, MOD_WIN);               /* Win+Right */
+    CHECK(w2->desktop == w->desktop, "plain Win+Right does not change desktop");
+    CHECK(w2->w != w2_w || w2->x != w2_x, "plain Win+Right snapped the window");
+
+    wm_shutdown();
+    PASS();
+}
+
 static void test_add_desktop_and_overview(void) {
     TEST("Win+Ctrl+D creates a desktop; Win+Tab opens the overview grid");
     wm_init(1024, 768);
@@ -1803,6 +1836,7 @@ int main(void) {
     test_win_arrow_hotkey();
     test_modifier_bits_match_input_h();
     test_show_desktop_hotkey();
+    test_win_shift_arrow_moves_between_desktops();
     test_add_desktop_and_overview();
     test_osd_levels_and_hotkey();
     test_quick_settings_panel();
