@@ -13,6 +13,11 @@
 #include "wubu_memmap.h"
 
 #define PAGE 4096ull
+#ifdef MYSEED_METAL
+#define VMM_INVLPG(va) __asm__ volatile("invlpg (%0)" : : "r"(va) : "memory")
+#else
+#define VMM_INVLPG(va) ((void)(va))
+#endif
 
 /* The allocator is shared between the #PF handler (ISR context, demand
  * fill) and the kernel main path (future heap/segments): protect the
@@ -24,6 +29,9 @@ static wubu_spinlock_t g_vmm_lock;
 
 static uint8_t g_bitmap[WUBU_VMM_BITMAP_BITS / 8];
 static uint64_t g_free_pages;
+/* Upper bound of usable RAM. Firmware memmap narrows it; with no memmap
+ * (WEMU guest gate) 256 MB is the conservative truth, not 1 GB. */
+static uint64_t g_alloc_end = WUBU_VMM_PHYS_END;
 /* Gap B8: per-page reference counts (uint16 per page; 0 = free). */
 static uint16_t g_refs[WUBU_VMM_BITMAP_BITS];
 
@@ -57,7 +65,7 @@ void wubu_vmm_init(void)
      * protected from the allocator. The rest of the boot layout (page
      * tables, heap, attestation stash, early stack) is fixed by the
      * linker script + crt0, so those stay explicit. */
-    extern char _kernel_start[], _kernel_end[], _stack_top[];
+    extern char _kernel_start[], _stack_top[];
     uint64_t k_start = (uint64_t)(uintptr_t)_kernel_start;
     uint64_t k_end   = (uint64_t)(uintptr_t)_stack_top;
     if (k_start >= 0xffffffff80000000ull) k_start -= 0xffffffff80000000ull;
@@ -81,13 +89,18 @@ void wubu_vmm_init(void)
      * says the largest usable region ends below 1 GB (e.g. 512 MB in
      * QEMU), everything above that is marked used. */
     wubu_memmap_info_t mm;
+    uint64_t real_end = WUBU_VMM_PHYS_END;
     if (wubu_memmap_init(&mm) > 0 && mm.found) {
-        uint64_t real_end = mm.base + mm.len;
-        if (real_end < WUBU_VMM_PHYS_END) {
-            for (uint64_t p = real_end; p < WUBU_VMM_PHYS_END; p += PAGE)
-                bm_set((uint32_t)((p - WUBU_VMM_PHYS_BASE) / PAGE));
-        }
+        uint64_t mapped_end = mm.base + mm.len;
+        if (mapped_end > WUBU_VMM_PHYS_BASE && mapped_end < real_end)
+            real_end = mapped_end;
+    } else {
+        real_end = 0x10000000ull;   /* WEMU / no-firmware default: 256 MB */
     }
+    if (real_end < WUBU_VMM_PHYS_BASE) real_end = WUBU_VMM_PHYS_BASE;
+    g_alloc_end = real_end;
+    for (uint64_t p = real_end; p < WUBU_VMM_PHYS_END; p += PAGE)
+        bm_set((uint32_t)((p - WUBU_VMM_PHYS_BASE) / PAGE));
 }
 
 uint64_t wubu_vmm_alloc_pages(uint32_t n)
@@ -97,7 +110,8 @@ uint64_t wubu_vmm_alloc_pages(uint32_t n)
     wubu_spin_lock(&g_vmm_lock);
     /* first-fit scan for n consecutive free pages */
     uint32_t run = 0, start = 0;
-    for (uint32_t i = 0; i < WUBU_VMM_BITMAP_BITS; i++) {
+    uint32_t limit = (uint32_t)((g_alloc_end - WUBU_VMM_PHYS_BASE) / PAGE);
+    for (uint32_t i = 0; i < limit; i++) {
         if (bm_test(i) == 0) {
             if (run == 0) start = i;
             if (++run == n) {
@@ -207,8 +221,110 @@ int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
         pt = (uint64_t *)tab;
     }
     pt[i1] = phys | (flags & 0xFFFull);
-    __asm__ volatile("invlpg (%0)" : : "r"(virt) : "memory");
+    VMM_INVLPG(virt);
     return 0;
+}
+
+/* ---- 2 MB hugepage KV slab ----------------------------------------- */
+#define HUGE_PAGES 512u
+
+uint32_t wubu_vmm_huge_runs(void)
+{
+    uint32_t runs = 0;
+    wubu_spin_lock(&g_vmm_lock);
+    for (uint32_t i = 0; i + HUGE_PAGES <= WUBU_VMM_BITMAP_BITS; i += HUGE_PAGES) {
+        int ok = 1;
+        for (uint32_t j = 0; j < HUGE_PAGES; j++) {
+            if (bm_test(i + j)) { ok = 0; break; }
+        }
+        if (ok) runs++;
+    }
+    wubu_spin_unlock(&g_vmm_lock);
+    return runs;
+}
+
+uint64_t wubu_vmm_alloc_huge(void)
+{
+    uint64_t out = 0;
+    wubu_spin_lock(&g_vmm_lock);
+    uint32_t limit = (uint32_t)((g_alloc_end - WUBU_VMM_PHYS_BASE) / PAGE);
+    for (uint32_t first = 0;
+         first + HUGE_PAGES <= limit; first += HUGE_PAGES) {
+        int ok = 1;
+        for (uint32_t j = 0; j < HUGE_PAGES; j++) {
+            if (bm_test(first + j)) { ok = 0; break; }
+        }
+        if (!ok) continue;
+        for (uint32_t j = 0; j < HUGE_PAGES; j++) bm_set(first + j);
+        out = WUBU_VMM_PHYS_BASE + (uint64_t)first * PAGE;
+        break;
+    }
+    wubu_spin_unlock(&g_vmm_lock);
+    return out;
+}
+
+static uint64_t *vmm_pd_for(uint64_t virt)
+{
+    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint32_t i4 = (uint32_t)(virt >> 39) & 0x1FFu;
+    uint32_t i3 = (uint32_t)(virt >> 30) & 0x1FFu;
+    if (!(pml4[i4] & 1u)) return NULL;
+    uint64_t *pdp = (uint64_t *)vmm_phys_of(pml4[i4] & ~0xFFFull);
+    if (!(pdp[i3] & 1u)) return NULL;
+    return (uint64_t *)vmm_phys_of(pdp[i3] & ~0xFFFull);
+}
+
+uint64_t wubu_vmm_huge_pde(uint64_t virt)
+{
+    uint64_t *pd = vmm_pd_for(virt);
+    if (!pd) return 0;
+    return pd[(virt >> 21) & 0x1FFu];
+}
+
+int wubu_vmm_map_huge(uint64_t virt, uint64_t phys, uint32_t flags)
+{
+    if (!phys || !virt || (phys & 0x1FFFFFull) || (virt & 0x1FFFFFull))
+        return -1;
+    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint32_t i4 = (uint32_t)(virt >> 39) & 0x1FFu;
+    uint32_t i3 = (uint32_t)(virt >> 30) & 0x1FFu;
+    uint64_t *pdp;
+    if (!(pml4[i4] & 1u)) {
+        uint64_t tab = wubu_vmm_alloc_pages(1);
+        if (!tab) return -1;
+        for (int i = 0; i < 512; i++) ((uint64_t *)tab)[i] = 0;
+        pml4[i4] = tab | 3;
+    }
+    pdp = (uint64_t *)vmm_phys_of(pml4[i4] & ~0xFFFull);
+    if (!(pdp[i3] & 1u)) {
+        uint64_t tab = wubu_vmm_alloc_pages(1);
+        if (!tab) return -1;
+        for (int i = 0; i < 512; i++) ((uint64_t *)tab)[i] = 0;
+        pdp[i3] = tab | 3;
+    }
+    uint64_t *pd = (uint64_t *)vmm_phys_of(pdp[i3] & ~0xFFFull);
+    uint64_t *entry = &pd[(virt >> 21) & 0x1FFu];
+    if (*entry & 1u) return -1;      /* never clobber an existing mapping */
+    *entry = phys | (flags & 0xFFFull) | 0x80u; /* PS=1 */
+    VMM_INVLPG(virt);
+    return 0;
+}
+
+int wubu_vmm_unmap_huge(uint64_t virt)
+{
+    uint64_t *pd = vmm_pd_for(virt);
+    if (!pd) return -1;
+    uint64_t *entry = &pd[(virt >> 21) & 0x1FFu];
+    if (!(*entry & 0x80u)) return -1;
+    *entry = 0;
+    VMM_INVLPG(virt);
+    return 0;
+}
+
+void wubu_vmm_free_huge(uint64_t phys)
+{
+    if (!phys || (phys & 0x1FFFFFull)) return;
+    wubu_vmm_free_pages(phys, 512u);
 }
 
 /* ---- demand-zero regions ------------------------------------------- */
@@ -274,7 +390,7 @@ int wubu_vmm_unmap(uint64_t virt)
     if (!(pd[i2] & 1)) return -1;
     uint64_t *pt = (uint64_t *)vmm_phys_of(pd[i2] & ~0xFFFull);
     pt[i1] = 0;
-    __asm__ __volatile__("invlpg (%0)" : : "r"(virt) : "memory");
+    VMM_INVLPG(virt);
     return 0;
 }
 

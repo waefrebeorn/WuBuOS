@@ -8,6 +8,13 @@
  */
 
 #include "wubu_sync.h"
+#ifdef MYSEED_METAL
+#define SYNC_CLI() __asm__ __volatile__("cli" ::: "memory")
+#define SYNC_STI() __asm__ __volatile__("sti" ::: "memory")
+#else
+#define SYNC_CLI() ((void)0)
+#define SYNC_STI() ((void)0)
+#endif
 
 static inline uint64_t read_rflags(void)
 {
@@ -33,7 +40,7 @@ void wubu_spin_lock(wubu_spinlock_t *l)
     extern void task_prio_set(struct CTask *, int);
     if (!l) return;
     uint64_t flags = read_rflags();
-    __asm__ __volatile__("cli" ::: "memory");   /* irq-safe acquire */
+    SYNC_CLI();   /* irq-safe acquire */
     while (__atomic_test_and_set(&l->locked, __ATOMIC_ACQUIRE)) {
         /* Gap D3: priority inheritance -- if a higher-priority task is
          * spinning on a lock a lower-priority task holds, boost the
@@ -68,7 +75,7 @@ void wubu_spin_unlock(wubu_spinlock_t *l)
     l->owner = NULL;
     __atomic_clear(&l->locked, __ATOMIC_RELEASE);
     if (l->irq_state & 0x200u)
-        __asm__ __volatile__("sti" ::: "memory");
+        SYNC_STI();
 }
 
 void wubu_fifo_init(wubu_fifo_t *f, uint32_t cap)

@@ -482,6 +482,53 @@ int cmd_vmm(int argc, char **argv)
     extern void     wubu_vmm_free_pages(uint64_t, uint32_t);
     (void)argc; (void)argv;
     uint64_t *demo = (uint64_t *)0xffffffff90000000ull;
+    if (argc >= 2 && strcmp(argv[1], "huge") == 0) {
+        extern uint64_t wubu_vmm_alloc_huge(void);
+        extern int wubu_vmm_map_huge(uint64_t, uint64_t, uint32_t);
+        extern uint64_t wubu_vmm_huge_pde(uint64_t);
+        extern int wubu_vmm_unmap_huge(uint64_t);
+        extern void wubu_vmm_free_huge(uint64_t);
+        const uint64_t va = 0xffffffff91000000ull;
+        uint64_t phys = wubu_vmm_alloc_huge();
+        if (!phys) {
+            extern uint64_t wubu_vmm_free_count(void);
+            extern uint32_t wubu_vmm_huge_runs(void);
+            klog_printf("vmm: huge alloc FAILED (free4k=%u aligned_runs=%u)\n",
+                        (unsigned)wubu_vmm_free_count(),
+                        (unsigned)wubu_vmm_huge_runs());
+            return 0;
+        }
+        int rc = wubu_vmm_map_huge(va, phys, 3u);
+        uint64_t pde = wubu_vmm_huge_pde(va);
+        klog_printf("vmm huge dbg phys=%x rc=%d pde=%x\n",
+                    (unsigned)phys, rc, (unsigned)pde);
+        uint64_t huge_val = 0x12345678abcdefull, readback = 0;
+        uint64_t huge_va = va;
+        if (rc == 0) {
+            __asm__ volatile("mov %1,(%2)" : "=r"(readback)
+                             : "r"(huge_val), "r"(huge_va) : "memory");
+            __asm__ volatile("mov (%1),%0" : "=r"(readback)
+                             : "r"(huge_va) : "memory");
+        }
+        /* 4K regression: a normal mapping must still work alongside it. */
+        uint64_t p4 = wubu_vmm_alloc_pages(1);
+        int rc4 = p4 ? wubu_vmm_map_page(va + 0x200000ull, p4, 3u) : -1;
+        uint64_t rb4 = 0, p4_va = va + 0x200000ull;
+        if (rc4 == 0) {
+            __asm__ volatile("mov %0,(%1)" : : "r"((uint64_t)0x55aa55aaull),
+                             "r"(p4_va) : "memory");
+            __asm__ volatile("mov (%1),%0" : "=r"(rb4) : "r"(p4_va) : "memory");
+        }
+        klog_printf("vmm huge: align=%d mapped=%d pde=%x ps=%d rb=%llx 4k=%d rb4=%llx\n",
+                    (phys & 0x1fffffull) ? 0 : 1, rc, (unsigned)pde,
+                    (int)((pde >> 7) & 1u), (unsigned long long)readback,
+                    rc4, (unsigned long long)rb4);
+        if (rc4 == 0) wubu_vmm_unmap(va + 0x200000ull);
+        if (p4) wubu_vmm_free_pages(p4, 1);
+        if (rc == 0) wubu_vmm_unmap_huge(va);
+        wubu_vmm_free_huge(phys);
+        return 0;
+    }
     if (argc >= 2 && strcmp(argv[1], "touch") == 0) {
         /* the FIRST touch faults: the #PF handler allocates + maps +
          * retries (demand paging on metal) */

@@ -361,3 +361,19 @@ Keep L21. Do not adopt objects; strengthen the ABI that consumers bind to.
 - Honest scope: this is one tiny deterministic GEMV, not a loaded model or
   a full forward pass. Weight loading, 2 MB huge-page KV slab, and 9P KV
   serving remain open.
+
+## Landed increment — Wave 3 2 MB KV slab
+
+- `wubu_vmm` adds `alloc_huge/map_huge/huge_pde/unmap_huge/free_huge`:
+  512 contiguous 4K pages, 2 MB alignment, one PS=1 PDE. Allocator now
+  respects the real RAM limit (firmware memmap, or 256 MB when absent) so
+  it cannot hand out pages outside WEMU guest RAM.
+- `test_vmm_huge` proves alignment, PS bit, exact PDE base, and that the
+  4 KiB mapping path still works beside a huge mapping. Hosted gate uses
+  a fixed page-table scratch; `invlpg` is no-op when not metal.
+- Trying to prove this through the WEMU guest exposed two real traps:
+  the gate's CR3 table base did not match the kernel's hardcoded PML4,
+  and an absolute `mov` to a high-half VA confused the guest decoder.
+  The hosted gate is the honest gate for page-table bits; no guest marker
+  is claimed for hugepages.
+- Still open: routing the KVFS slab through this 2 MB path.
