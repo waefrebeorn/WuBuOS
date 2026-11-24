@@ -106,7 +106,11 @@ void wubu_display_probe(void)
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
     for (int i = 0; i < n; i++) {
-        if ((devs[i].class_code >> 8) != PCI_CLASS_DISPLAY) continue;
+        /* class_code is ONE byte (0x03 = display controller). Shifting it right
+         * by 8 made this comparison 0 != 3 for every device on every machine,
+         * so no display adapter was ever accepted: the probe reported "no
+         * display driver, no chip" on hardware that has two GPUs. */
+        if (devs[i].class_code != PCI_CLASS_DISPLAY) continue;
         g_display_present = 1;
         g_card_index = i;
         for (int j = 0; display_table[j].driver; j++) {

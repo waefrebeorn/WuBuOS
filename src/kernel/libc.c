@@ -50,6 +50,25 @@ int libm_heap_init(void) {
 int libm_heap_init(void) { (void)heap_ptr; (void)heap_end; return 0; }
 #endif
 
+#ifdef WUBU_HOSTED
+/* A hosted binary is a glibc process. glibc's OWN internals -- opendir(),
+ * stdio, getline -- call malloc and then free() the pointer. Shadowing malloc
+ * with the kernel bump heap broke exactly that: opendir() died with "No memory
+ * available to program: call to malloc failed", so wubu_pci_scan() returned 0
+ * devices on a machine whose bus was perfectly readable, and the network probe
+ * reported "no wifi, no eth" forever. One allocator per process: forward to
+ * libc here, keep the kernel heap for metal. */
+extern void *__libc_malloc(size_t);
+extern void *__libc_calloc(size_t, size_t);
+extern void *__libc_realloc(void *, size_t);
+extern void  __libc_free(void *);
+
+void *malloc(size_t size)              { return __libc_malloc(size); }
+void *calloc(size_t n, size_t size)    { return __libc_calloc(n, size); }
+void *realloc(void *p, size_t size)    { return __libc_realloc(p, size); }
+void  free(void *ptr)                  { __libc_free(ptr); }
+
+#else /* !WUBU_HOSTED: metal keeps the kernel heap */
 void *malloc(size_t size) {
     /* The kernel heap is the ONE allocator of record. The legacy libm
      * bump (heap_ptr) was never initialized on metal (kernel_main never
@@ -83,6 +102,7 @@ void *calloc(size_t nmemb, size_t size) {
     }
     return ptr;
 }
+#endif /* !WUBU_HOSTED */
 
 /* String functions.
  *
