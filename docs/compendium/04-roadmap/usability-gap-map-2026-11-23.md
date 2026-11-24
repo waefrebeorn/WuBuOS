@@ -560,6 +560,24 @@ the same sample count (`measured=100`), the same thresholds, the ladder flat at
 Under `-j24` the workers share the machine with the rest of the tier, so the
 isolated figure does not translate one-for-one: the **full suite measured
 430.9 s → 332.2 s (23 %)** on the same host, with every gate green and
-`dudect_ladder_t=+0.007` under load. Shrinking that further means thinning the
-oversubscription (24 tier jobs + 8 timing workers on 24 cores), not more
-parallelism.
+`dudect_ladder_t=+0.007` under load. Two later full runs on the same tree came
+in at 376.9 s and 386.0 s, both green: the spread is the dudect gate reacting
+to machine load, so treat 330-390 s as the honest range, not a single number.
+
+### Next levers, in measured order
+
+1. **Damage tracking in the hosted desktop.** Idle redraw is 10-12 % of a core
+   because every frame repaints all 1024x768 pixels; only the mascot and the
+   clock change. Redraw the damaged rects and the idle rate stops mattering
+   (target ~1 %). This is the single biggest user-visible waste left.
+2. **The suite's remaining pole is the dudect gate under `-j24`** (~300 s of
+   ~380 s), not any other gate: 24 tier jobs plus 8 timing workers on 24 cores
+   thrash. Thinning the oversubscription is the lever, not more parallelism.
+3. **Boot leftovers are all small and separate:** RSDP scan 8.2 % (128 KB
+   walked 16 bytes at a time -- the `'R'` pre-test already halved it),
+   `vsprintf` 7.4 % (boot log formatting), `wubu_vmm_init` 7.1 % + `bm_set_range`
+   5.2 % (bitmap marking), sprite bake 5.7 % (one-time).
+4. **The metal desktop has no screenshot gate.** Every render change so far was
+   verified by arithmetic review plus the boot/behaviour gates, never by
+   comparing pixels, because `run-agi9p.sh` boots with `-display none`. A QEMU
+   `screendump` in that script would close a real verification gap.
