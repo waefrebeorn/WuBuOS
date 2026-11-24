@@ -19,6 +19,7 @@
 #include "fat32.h"       /* G6: the AGI checkpoint file */
 #include "ahci.h"        /* Gap DA: the boot volume's disk backend */
 #include "wubu_virtio_blk.h"  /* L1: real persistent storage (virtio-blk) */
+#include "wubu_pci.h"            /* wubu_pci_scan/find_class: display by class */
 #include "wubu_virtio_pci_modern.h" /* read-only modern-virtio boot probe */
 #include "wubu_virtio_net.h"  /* L5: bare-metal network (virtio-net) */
 #include "wubu_netstack.h"    /* L5: minimal Ethernet/ARP/IPv4/ICMP/UDP */
@@ -594,14 +595,31 @@ void kernel_main(void *boot_info) {
             klog_printf("WuBuOS: bochs mode now %ux%u bpp=%u\n",
                         vbe_dispi_read_reg(0x1), vbe_dispi_read_reg(0x2),
                         vbe_dispi_read_reg(0x3));
-            /* PCI config I/O: VGA dev 00:02.0, reg 0x10 (BAR0) -- the real
-             * linear-framebuffer base (QEMU std vga = 0xFD000000). PCI
-             * config is I/O ports 0xCF8/0xCFC. */
+            /* Find the DISPLAY by class, never by a hardcoded slot. This used
+             * to read config 00:02.0 -- on q35 that slot is the NIC (vendor
+             * 0x10D3), so the "LFB" was a network device's MMIO window: the
+             * desktop was drawn into it and the real scanout stayed empty. */
             uint32_t bar0 = 0;
-            __asm__ __volatile__("outl %0, %1" :: "a"(0x80001010u),
-                                 "Nd"((uint16_t)0xCF8));
-            __asm__ __volatile__("inl %1, %0" : "=a"(bar0)
-                                 : "Nd"((uint16_t)0xCFC));
+            {
+                extern int wubu_pci_scan(wubu_pci_dev_t *out, int max);
+                extern int wubu_pci_find_class(wubu_pci_dev_t *devs, int n,
+                                               uint8_t class_code, uint8_t subclass);
+                extern uint32_t wubu_pci_read32(uint8_t bus, uint8_t dev,
+                                                uint8_t fn, uint8_t off);
+                wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
+                int ndev = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
+                int di = wubu_pci_find_class(devs, ndev, 0x03, 0x00);   /* VGA */
+                if (di < 0) di = wubu_pci_find_class(devs, ndev, 0x03, 0x80);
+                if (di >= 0) {
+                    bar0 = wubu_pci_read32(devs[di].bus, devs[di].dev,
+                                           devs[di].fn, 0x10);
+                    klog_printf("WuBuOS: display at %x:%x.%x BAR0=%x (by class)\n",
+                                devs[di].bus, devs[di].dev, devs[di].fn, bar0);
+                } else {
+                    klog_printf("WuBuOS: no display-class PCI device; keeping "
+                                "the firmware framebuffer\n");
+                }
+            }
             klog_printf("WuBuOS: VGA PCI BAR0=%x\n", bar0);
             if (bar0)
                 lfb = (uint64_t)(bar0 & ~0xFFFull);   /* mask bar type bits */
