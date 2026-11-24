@@ -13,8 +13,17 @@ not reach, with a timeout. Logs: `build/logs/orphan/<target>.log`; TSV:
 - 662 `test_*` targets exist; **413 are reachable from `make test`; 249 are not.**
 - Audit 1 (before the fixes below): 166 PASS, 16 FAIL, 14 BUILD, 5 TIMEOUT.
 - Audit 4 (naive scheduler): 221 PASS, 7 FAIL, 7 BUILD, 14 TIMEOUT.
-- **Audit 6 (final, two-phase scheduler): 233 PASS, 7 FAIL, 7 BUILD, 1 TIMEOUT
-  of 248 targets.** 94% green.
+- **Audit 7 (final): 233 PASS, 7 FAIL, 7 BUILD, 1 SLOW of 248 targets.**
+  94% green. The last TIMEOUT became SLOW once a timed-out target got one retry
+  at triple the budget: test_optin_crypto runs a real TLS handshake matrix and
+  needs ~205 s, not the audit's 150 s.
+- Audit 7 also reports the three compiler backends honestly. test_album,
+  test_mir_opt and test_drivers now PASS (they were BUILD for want of TUs that
+  already existed in the tree), and test_isa_driver runs for the first time:
+  361/361 asserted plus 31 encode-only checks, because ARM64 and PTX emit
+  correctly but cannot execute on this host -- and after this pass they SAY so
+  (WUBU_ISA_NO_EXEC) instead of returning 0, which used to read as a wrong
+  answer in 22 places.
 - The 14 "timeouts" in audit 4 were the AUDIT's fault, not the gates': the
   Ed25519/package gates serialise on one lock (they rewrite the same source
   file), so auditing them in the parallel pool made six workers queue behind that
