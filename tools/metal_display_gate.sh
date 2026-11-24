@@ -239,7 +239,11 @@ if phys is not None and pitch is not None:
 
     started = time.time()
     stable = 0
-    while time.time() - started < 30:
+    # 60 s, not 30: this gate runs inside a -j24 suite, and under that load a
+    # QEMU boot + pmemsave can take twice as long -- the failure mode was
+    # "SCANOUT: FAIL (frame not readable)" while the same build passed twice in
+    # a row standalone. A deadline is a duration, so give it the real one.
+    while time.time() - started < 60:
         if p.poll() is not None:
             break
         if window_painted() >= 90.0 and window_colours() >= 16:
@@ -265,6 +269,13 @@ if phys is not None and pitch is not None:
             if score == 0:
                 break
         time.sleep(0.4)
+    for _attempt in range(3):          # a busy monitor can drop one dump
+        if data and len(data) >= w * h * 4:
+            break
+        data = read_at(phys, w * h * 4)
+        if data and len(data) >= w * h * 4:
+            break
+        time.sleep(1)
     if not data or len(data) < w * h * 4:
         print('  SCANOUT: FAIL (frame not readable)')
         fail += 1
