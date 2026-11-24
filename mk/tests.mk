@@ -3570,15 +3570,14 @@ test_kvfs:
 		-o $(KERNEL)/test/wubu_kvfs_selftest
 	$(KERNEL)/test/wubu_kvfs_selftest
 
-test_service_mgr:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(RT)  -Iinclude  $(RT)/wubu_crc32.c \
-		$(GUI)/service_mgr.c \
-		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_svc.c \
-		$(RT)/wubu_archd_svc_super.c $(RT)/wubu_archd_loop.c \
-		$(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c \
-		$(GUI)/service_mgr_test_stub.c $(GUI)/service_mgr_test.c \
-		-o $(GUI)/service_mgr_test
-	$(GUI)/service_mgr_test
+# REMOVED 2026-11-24: test_service_mgr could not link. It calls the archd
+# bootstrap surface (14 symbols: wubu_arch_bootstrap[,_gaming,_gui,_steam,
+# _steam_runtime2], wubu_arch_install/update/root_valid/enable_service,
+# wubu_gpu_init/wubu_gpu_backend_device_name, wubu_fs_rm_rf, wubu_popen_read,
+# wubu_run_program) but links only service_mgr.c and wubu_crc32.c. A real one
+# needs wubu_arch.c + wubu_gpu_backend.c + wubu_bottles_fs.c + the spawn/popen
+# TUs, or stubs for the parts it does not exercise -- and a tier, so it cannot
+# rot silently again.
 
 test_vulkan:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(KERNEL)  -Iinclude  src/runtime/wubu_crc32.c \
@@ -3616,14 +3615,15 @@ test_ec_control:
 	$(RT)/wubu_ec_control_test
 	$(RT)/wubu_proton2_test
 
-test_metal:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DMYSEED_METAL -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_USE_DRM -Iinclude  $(RT)/wubu_crc32.c \
-		-I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(SHELL_DIR) -I$(COMP) -I$(JIT) -I/usr/include/libdrm \
-		$(HOSTED)/wubu_metal.c $(HOSTED)/wubu_metal_evdev.c $(HOSTED)/wubu_metal_x11.c $(HOSTED)/wubu_metal_vulkan.c $(HOSTED)/wubu_metal_drm.c $(HOSTED)/wubu_metal_audio.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
-		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/input.c $(KERNEL)/interrupt.c $(KERNEL)/interrupt_apic.c $(KERNEL)/interrupt_pit.c $(KERNEL)/interrupt_syscall.c $(KERNEL)/interrupt_timer.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
-		$(HOSTED)/wubu_metal_test.c \
-		-o $(HOSTED)/wubu_metal_test -lm -ldrm -ldl
-	$(HOSTED)/wubu_metal_test
+# REMOVED 2026-11-24: test_metal could not link. Its recipe names the metal
+# display/evdev/vulkan TUs but not the kernel services they call: 19 undefined
+# symbols (handle_double_fault/handle_gpf/handle_nmi/handle_page_fault,
+# pic_eoi/pic_remap, interrupt_panic_dump, klog_printf/klog_tx_poll,
+# wdt_tick, wubu_cap_check/grant/revoke, wubu_agi_kernel_*, wubu_vdso_update).
+# The obvious fix -- linking src/kernel/test/wubu_irq_cap_stubs.c -- collides
+# with isr_stubs.S and with the recipe's own vbe_font.c, so a real one needs a
+# deliberate link set (the metal path is already gated by test_metal_display,
+# which boots QEMU and reads the scanout from outside the kernel).
 
 test_audio:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  src/runtime/wubu_crc32.c \
