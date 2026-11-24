@@ -51,10 +51,18 @@ void test_term_handle_key(void) {
     term_show(100, 100, 600, 400);
     TermState *term_before = term_state();
     printf("DEBUG: tab_count before handle_key = %d\n", term_before->tab_count);
-    term_handle_key('t', 0x05); /* Ctrl+Shift+T - new tab (ctrl=0x04, shift=0x01) */
+    /* Real platform bits: MOD_CTRL=0x02, MOD_SHIFT=0x01. The old value here
+     * was 0x05 (0x04 = MOD_ALT), which is exactly the bug this now pins. */
+    term_handle_key('t', 0x03); /* Ctrl+Shift+T - new tab (ctrl=0x02, shift=0x01) */
     TermState *term = term_state();
     printf("DEBUG: tab_count after handle_key = %d\n", term->tab_count);
     CHECK(term->tab_count == 3, "new tab created (now 3 tabs: new_tab + show + handle_key)");
+
+    /* Negative control: 0x05 is what this test used to pass as "Ctrl+Shift"
+     * (0x04 = MOD_ALT). If it opened a tab, the ALT mask is being read as
+     * Ctrl again -- the exact bug this pins. */
+    term_handle_key('t', 0x05);
+    CHECK(term_state()->tab_count == 3, "MOD_ALT is NOT read as Ctrl (old mask 0x04 stays dead)");
     term_shutdown();
     PASS();
 }

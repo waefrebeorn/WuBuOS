@@ -16,6 +16,7 @@
 #include "term_pty.h"        /* PTY/container session management */
 #include "wm.h"
 #include "../kernel/vbe.h"
+#include "../kernel/input.h"    /* MOD_* -- the real modifier bits */
 #include "../gui/wubu_theme.h"
 #include "../runtime/wubu_container.h"
 #include "../runtime/wubu_exec.h"
@@ -219,9 +220,13 @@ int term_spawn_container(const char *container_name) {
 void term_handle_key(uint32_t key, uint32_t mods) {
     if (!term_is_open()) return;
 
-    bool ctrl = mods & 0x04;
-    bool shift = mods & 0x01;
-    bool alt = mods & 0x08;
+    /* Use the platform's modifier bits. The raw masks here used to be
+     * 0x04/0x01/0x08, i.e. ALT/SHIFT/WIN -- so Ctrl+Shift+T needed Alt, and
+     * "Alt" fired on Super. The Wayland input layer sets MOD_CTRL=0x02,
+     * MOD_ALT=0x04, MOD_WIN=0x08 (see MOD_* in kernel/input.h). */
+    bool ctrl = (mods & MOD_CTRL) != 0;
+    bool shift = (mods & MOD_SHIFT) != 0;
+    bool alt = (mods & MOD_ALT) != 0;
 
     /* Global terminal shortcuts */
     if (ctrl && shift) {

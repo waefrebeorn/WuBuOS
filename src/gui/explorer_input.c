@@ -9,6 +9,7 @@
 #include "explorer_internal.h"
 #include "explorer.h"
 #include "../kernel/vbe.h"
+#include "../kernel/input.h"   /* MOD_* -- the real modifier bits */
 #include "../gui/wubu_mime.h"
 #include <stdio.h>
 #include <string.h>
@@ -113,8 +114,11 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
-    bool ctrl = mods & 0x04;  /* MOD_CTRL */
-    bool shift = mods & 0x01; /* MOD_SHIFT */
+    /* MOD_* from the platform (kernel/input.h): Ctrl is 0x02. This used to
+     * be 0x04, which is MOD_ALT -- so every Ctrl+C/V/X/F in Explorer was
+     * unbound and Alt did the work instead. */
+    bool ctrl = (mods & MOD_CTRL) != 0;
+    bool shift = (mods & MOD_SHIFT) != 0;
 
     switch (key) {
         case 0xE048: /* Up arrow */

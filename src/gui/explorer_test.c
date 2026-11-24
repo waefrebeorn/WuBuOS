@@ -435,17 +435,26 @@ static void test_find(void) {
     explorer_init();
 
     /* Shift+Ctrl+F activates find mode - simulate by calling handle_key with Ctrl+F */
-    explorer_handle_key('f', 0x04); /* Ctrl+F */
+    explorer_handle_key('f', 0x02); /* Ctrl+F -- MOD_CTRL is 0x02 */
     /* After activation, the find state should be accessible via status text */
     ExExplorerState *ex = explorer_state();
     TEST_ASSERT(strlen(ex->status_text) > 0, "Ctrl+F sets status text");
+
+    /* Negative control: 0x04 is MOD_ALT, the mask this test used to pass as
+     * Ctrl. It must not open find mode -- so a following 'z' must never land
+     * in the find query. */
+    explorer_handle_key(0x01, 0);   /* Escape: leave find mode */
+    explorer_handle_key('f', 0x04); /* MOD_ALT -- must NOT be Ctrl+F */
+    explorer_handle_key('z', 0);    /* would type into the query if find were open */
+    TEST_ASSERT(strstr(ex->status_text, "Find: z") == NULL,
+                "MOD_ALT is NOT read as Ctrl (find did not open)");
 
     /* Test escape cancels find */
     explorer_handle_key(0x01, 0); /* Escape */
     TEST_ASSERT(ex->status_text[0] != '\0', "Escape doesn't crash (status set)");
 
     /* Test typing in find mode */
-    explorer_handle_key('f', 0x04); /* Ctrl+F - reactivate */
+    explorer_handle_key('f', 0x02); /* Ctrl+F - reactivate (MOD_CTRL) */
     explorer_handle_key('t', 0);    /* Type 't' */
     TEST_ASSERT(ex->status_text[0] != '\0', "Typing in find mode sets status text");
 
