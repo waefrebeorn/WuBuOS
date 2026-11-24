@@ -66,7 +66,7 @@ void wubu_raid_probe(void)
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
     for (int i = 0; i < n; i++) {
-        if ((devs[i].class_code >> 8) != PCI_CLASS_STORAGE) continue;
+        if ((devs[i].class_code) != PCI_CLASS_STORAGE) continue;
         if (devs[i].subclass == PCI_SUBCLASS_RAID) {
             g_raid = 1;
             g_raid_drv[0] = '\0';

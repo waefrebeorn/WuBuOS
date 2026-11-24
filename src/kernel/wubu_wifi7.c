@@ -70,7 +70,7 @@ void wubu_wifi7_probe(void)
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
     for (int i = 0; i < n; i++) {
-        if ((devs[i].class_code >> 8) != PCI_CLASS_NETWORK ||
+        if (devs[i].class_code != PCI_CLASS_NETWORK ||
             devs[i].subclass != PCI_SUBCLASS_WIFI) continue;
         int v = devs[i].vendor, d = devs[i].device;
         if (v == PCI_VENDOR_INTEL && (d == INTEL_BE200 || d == INTEL_BE201)) {

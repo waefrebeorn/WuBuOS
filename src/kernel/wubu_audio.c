@@ -172,7 +172,7 @@ void wubu_audio_probe(void)
                 /* Check it's an audio device by class code or known ID. */
                 int is_audio = 0;
                 /* class 0x04 = multimedia, 0x0403 = audio controller */
-                if ((devs[i].class_code >> 8) == 0x0403) is_audio = 1;
+                if ((devs[i].class_code == 0x04 && devs[i].subclass == 0x03)) is_audio = 1;
                 /* Also check the device ID table. */
                 for (int j = 0; wubu_audio_ids[j].vendor; j++) {
                     if (wubu_audio_ids[j].vendor == devs[i].vendor &&

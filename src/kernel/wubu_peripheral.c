@@ -75,11 +75,11 @@ void wubu_peripheral_probe(void)
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
     for (int i = 0; i < n; i++) {
-        if ((devs[i].class_code >> 8) == PCI_CLASS_COMM &&
+        if ((devs[i].class_code) == PCI_CLASS_COMM &&
             devs[i].subclass == PCI_SUBCLASS_8250) {
             g_serial = 1;
             strcpy(g_serial_drv, "8250_pci");
-        } else if ((devs[i].class_code >> 8) == PCI_CLASS_SERIAL &&
+        } else if ((devs[i].class_code) == PCI_CLASS_SERIAL &&
                    devs[i].subclass == PCI_SUBCLASS_GPIO) {
             g_gpio = 1;
         }
