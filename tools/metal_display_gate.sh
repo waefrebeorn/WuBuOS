@@ -17,8 +17,18 @@
 set -uo pipefail
 FW=$(cd "$(dirname "$0")/../src/firmware" && pwd)
 ESP=${METAL_ESP:-$FW/build/metal-gate-esp.img}
-echo "=== building firmware + ESP ==="
-bash "$FW/build-esp.sh" "$ESP" > /tmp/metal-build.log 2>&1 || { tail -20 /tmp/metal-build.log; exit 1; }
+KELF=$FW/../../src/kernel/kernel.elf
+FWF=$FW/wubufw.fd
+if [ -f "$ESP" ] && [ "$ESP" -nt "$KELF" ] && [ "$ESP" -nt "$FWF" ]; then
+    echo "=== ESP up to date (kernel + firmware unchanged) ==="
+else
+    # A nested `make kernel` inside an already-parallel suite is the reason this
+    # gate cost 985 s: oversubscribed builds and a serial nested make. The suite
+    # builds the kernel first (the target depends on it); only the image is ours.
+    echo "=== building firmware + ESP ==="
+    SKIP_KERNEL_MAKE=1 bash "$FW/build-esp.sh" "$ESP" > /tmp/metal-build.log 2>&1 \
+        || { tail -20 /tmp/metal-build.log; exit 1; }
+fi
 
 python3 - "$FW" "$ESP" <<'PY'
 import os, re, select, socket, subprocess, sys, time
@@ -118,13 +128,42 @@ if phys is not None and pitch is not None:
             return None
         return open(f, 'rb').read()
 
+    # The probe pixels are TRANSIENT: the shell repaints (the buddy animates), so
+    # a sample taken a second after the write can legitimately read the live
+    # wallpaper instead. Re-run the command and read immediately, a few times --
+    # the requirement is "the write lands and is observable", not "persists".
+    def run_probes():
+        before = len(buf)
+        p.stdin.write(b'fbmap\n'); p.stdin.flush()
+        got_report = False
+        end = time.time() + 3.0
+        acc = b''
+        while time.time() < end:
+            r, _, _ = select.select([fd], [], [], 0.2)
+            if r:
+                acc += p.stdout.read(1)
+                if b'fbmap: WROTE' in acc:
+                    got_report = True
+                    break
+        res = []
+        for label, x, y, want in probes:
+            b = read_at(phys + y * pitch + x * 4, 4)
+            got = None if not b or len(b) < 4 else (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24))
+            res.append((label, x, y, want, got, got == want))
+        return got_report, res
+
     drain()
-    fbmap_ok = True
-    for label, x, y, want in probes:
-        b = read_at(phys + y * pitch + x * 4, 4)
-        got = None if not b or len(b) < 4 else (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24))
-        ok = got == want
-        fbmap_ok = fbmap_ok and ok
+    fbmap_ok = False
+    best = None
+    for attempt in range(6):
+        reported, res = run_probes()
+        best = res
+        if reported and all(r[5] for r in res):
+            fbmap_ok = True
+            break
+        time.sleep(0.2)
+
+    for label, x, y, want, got, ok in (best or []):
         print(f'  {label:15s} {x},{y} expect {want:#010x}: '
               f'{"ok" if ok else "MISMATCH (%s)" % (f"{got:#010x}" if got is not None else "no read")}')
     print('  FBMAP:', 'PASS' if fbmap_ok else 'FAIL')

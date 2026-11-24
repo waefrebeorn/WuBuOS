@@ -931,7 +931,7 @@ test_deskshot: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 # presented from a packed client buffer and a write through a ring-3 mapping of
 # the scanout both land in the physical frame (pmemsave, not kernel readback), and
 # the desktop is really in the frame the display scans out.
-test_metal_display:
+test_metal_display: $(WEMU_KERNEL_ELF)
 	@bash tools/metal_display_gate.sh
 
 # Guest block-I/O gate: WEMU's virtio-blk must serve the kernel's sector

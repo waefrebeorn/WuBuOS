@@ -13,7 +13,12 @@ CC=${CC:-gcc}
 OUT=${1:?usage: build-esp.sh /path/to/esp.img}
 
 echo "=== kernel.elf ==="
-make -C "$ROOT" kernel
+# Skippable: a gate running inside an already-parallel suite must not launch a
+# serial nested make (that oversubscription is what made test_metal_display cost
+# 985 s of suite wall time).
+if [ "${SKIP_KERNEL_MAKE:-0}" != "1" ]; then
+    make -C "$ROOT" kernel
+fi
 
 echo "=== firmware (WuBuFW) ==="
 ./build.sh
