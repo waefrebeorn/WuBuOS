@@ -12,12 +12,27 @@ not reach, with a timeout. Logs: `build/logs/orphan/<target>.log`; TSV:
 
 - 662 `test_*` targets exist; **413 are reachable from `make test`; 249 are not.**
 - Audit 1 (before the fixes below): 166 PASS, 16 FAIL, 14 BUILD, 5 TIMEOUT.
-- **Audit 4 (final): 221 PASS, 7 FAIL, 7 BUILD, 14 TIMEOUT.**
-- The TIMEOUT count went UP because the Ed25519 gates now serialise on one lock
-  (they rewrite the same source file) and the audit runs six targets at once, so
-  each waits its turn and hits the 150 s cap. Each one passes when given time --
-  verified individually and in the full suite.
-- What is left is honest work, not rot: the 5 compiler gates need real
+- Audit 4 (naive scheduler): 221 PASS, 7 FAIL, 7 BUILD, 14 TIMEOUT.
+- **Audit 6 (final, two-phase scheduler): 233 PASS, 7 FAIL, 7 BUILD, 1 TIMEOUT
+  of 248 targets.** 94% green.
+- The 14 "timeouts" in audit 4 were the AUDIT's fault, not the gates': the
+  Ed25519/package gates serialise on one lock (they rewrite the same source
+  file), so auditing them in the parallel pool made six workers queue behind that
+  lock and each burn its whole budget waiting -- ten targets in ten minutes, all
+  reported SERIALIZED/TIMEOUT. The audit now runs the free tests in parallel and
+  the lock-taking gates in their own sequential phase with a longer budget.
+  `test_ed25519_timing` then passes in 152.7 s and the phantom timeouts are gone.
+  A harness that cannot tell "waiting on a lock" from "broken" will always
+  over-report failure; that is a measurement bug worth fixing before the numbers
+  are believed.
+- What is left after audit 6: 7 BUILD (the 5 compiler gates below, plus
+  `test_metal` and `test_service_mgr`), 7 FAIL (`test_ed25519_bignum_value`,
+  `test_ed25519_ir_ct` failing closed without clang, `test_formal_ct_tool_probe`
+  which asserts nothing by design, `test_pe_personality` wanting an
+  `openarena.exe` fixture, `test_pkg_key_recovery`, `test_standards`, and
+  `test_vsl_nt` whose 275/278 NT assertions pass), and 1 TIMEOUT
+  (`test_optin_crypto`, needs more than 150 s).
+- The rest is honest work, not rot: the 5 compiler gates need real
   implementations (softfloat `wubu_sf_f32_add`, `x86_decode_all`,
   `wubu_tensor_dispatch`/`wubu_tgemm_f32_mir`), `test_standards` measures the
   architectural debt recorded in standards-debt-2026-11-24.md,
