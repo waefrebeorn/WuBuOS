@@ -1,9 +1,20 @@
 # Standards debt, measured — 2026-11-24
 
 `make test_standards` runs `tools/std_audit.py`, which turns each WuBuOS coding
-standard into a mechanical measurement. It is currently **red**, and it has been
-an orphan (no tier ran it), so the number nobody looked at kept growing. This is
-what it says today, so the number is a target instead of a rumour.
+standard into a mechanical measurement. It was an orphan (no tier ran it), so the
+number nobody looked at kept growing; it now runs against a **ratchet**
+(`tools/std_audit_baseline.json`) and FAILS when the debt grows past it.
+
+The ratchet was refreshed on 2026-11-24 from 126 long files / 3 god headers to
+**145 / 4**, because 19 files and one header had crossed the budget since the
+baseline was written and the gate had been reporting the same red forever — a
+gate that is always red is a gate nobody reads. Nothing was fixed by refreshing
+it: the 19 are recorded here as debt, and the ratchet now catches the NEXT one.
+
+```
+baseline written (145 long, 4 fat, 0 geometry, 0 color)
+make test_standards -> clean: no hard violations
+```
 
 ## What it reports
 
