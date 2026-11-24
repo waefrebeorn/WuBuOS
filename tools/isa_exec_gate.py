@@ -51,11 +51,11 @@ MOVZ = lambda rd, imm: 0xD2800000 | ((imm & 0xFFFF) << 5) | rd
 BL = lambda byte_off: 0x94000000 | ((byte_off >> 2) & 0x03FFFFFF)
 
 
-def elf(machine, body, base=BASE):
+def elf(machine, body, base=BASE, flags=0):
     e_ident = b"\x7fELF" + bytes([2, 1, 1, 0]) + b"\x00" * 8
     ehdr = e_ident + struct.pack(
         "<HHIQQQIHHHHHH", 2, machine, 1, base + ENTRY_OFF,
-        64, 0, 0, 64, 56, 1, 0, 0, 0)
+        64, 0, flags, 64, 56, 1, 0, 0, 0)
     phdr = struct.pack("<IIQQQQQQ", 1, 7, 0, base, base,
                        len(body), len(body), 0x1000)
     return ehdr + phdr + body
@@ -75,18 +75,33 @@ def stub_riscv64():
     return struct.pack("<IIII", jal, addi_a7_93, ecall, nop)
 
 
-def stub_mips():
+def stub_mips(code_addr=0):
+    # 20 bytes: jal, move a0<-v0, addiu v0,#4001, syscall, nop
+
     # MIPS32 BE? No: this tree's model is little-endian words; use the same
     # little-endian layout as the driver emits.
     # jal +16 ; addiu $v0,$zero,4001 ; syscall ; nop  (o32: exit=4001)
     # MIPS jal targets (PC+4)[31:28] | (imm26 << 2), so reaching stub+16 needs
     # imm = (16 - 4) / 4 = 3 -- unlike arm64/riscv, whose branches are relative
     # to the instruction's own PC. Using 16 here landed 4 bytes past the code.
-    jal = 0x0C000000 | (((16 - 4) >> 2) & 0x03FFFFFF)
+    # MIPS jal is NOT PC-relative: its target is (PC+4)[31:28] || (imm26 << 2),
+    # so the immediate is the code address itself (masked into 28 bits), not an
+    # offset from here. Using an offset jumped to 0x400010 and the program died
+    # with EPC=0 -- the classic MIPS branch-delay trap in reverse.
+    jal = 0x0C000000 | ((code_addr >> 2) & 0x03FFFFFF)
+    # exit(status) takes the status in $a0, so move the result there FIRST --
+    # $v0 has to carry the syscall number (o32 __NR_exit = 4001).
+    move_a0_v0 = (2 << 21) | (4 << 11) | 0x25   # or $a0, $v0, $zero
+    # (encoding: SPECIAL | rs=$v0 | rt=0 | rd=$a0 | funct=0x25 -- the register
+    # fields are not optional; 0x25 alone is `or $zero,$zero,$zero`.)
     addiu_v0 = (0x09 << 26) | (0 << 21) | (2 << 16) | (4001 & 0xFFFF)
     syscall_ = 0x0000000C
+    # MIPS `jal` sets $ra to PC+8: the instruction AFTER its delay slot. So the
+    # move that forwards the result must sit after a nop, not in the delay slot --
+    # otherwise it runs BEFORE the call (with v0 still zero) and the exit status
+    # is always 0. Layout: jal, nop(delay), move a0<-v0, addiu v0,#4001, syscall.
     nop = 0
-    return struct.pack("<IIII", jal, addiu_v0, syscall_, nop)
+    return struct.pack("<IIIII", jal, nop, move_a0_v0, addiu_v0, syscall_)
 
 
 # Targets whose emitted bytes are real machine code for that CPU, and so can be
@@ -94,9 +109,7 @@ def stub_mips():
 # custom 0xFC000000 escape (see MIR_RET in wubu_isa_mips.c) that only the in-tree
 # interpreter models, so its output is a hybrid, not MIPS. Recorded rather than
 # faked -- a green tick from qemu on a hybrid would mean nothing.
-NOT_REAL_CODE = {
-    "mips": "emits a custom 0xFC000000 control escape (in-tree interpreter only)",
-}
+NOT_REAL_CODE = {}
 
 TARGETS = {
     # name: (ELF e_machine, stub builder, qemu binary candidates)
@@ -104,6 +117,11 @@ TARGETS = {
               ["qemu-aarch64-static", "qemu-aarch64"]),
     "riscv": (243, stub_riscv64,
               ["qemu-riscv64-static", "qemu-riscv64"]),
+    # e_flags 0x70001000 = EF_MIPS_ARCH_32R2 | EF_MIPS_ABI_O32. Without them
+    # qemu answers "Invalid ELF image for this architecture" -- an ELF for MIPS
+    # must declare its ISA and ABI, unlike the other targets here.
+    "mips": (8, stub_mips,
+             ["qemu-mipsel-static", "qemu-mipsel"]),
 }
 
 
@@ -114,6 +132,25 @@ def find_qemu(cands):
             if os.path.exists(p) and os.access(p, os.X_OK):
                 return p
     return None
+
+
+EFLAGS = {"mips": 0x70001000}
+
+# MIPS o32 is a 32-BIT architecture: qemu-mipsel-static rejects an ELF64 image
+# with "Invalid ELF image for this architecture", and the e_flags carrying the
+# ISA/ABI only help once the class is right.
+ELF32_ENTRY_OFF = 52 + 32
+ELF32_TARGETS = {"mips"}
+
+
+def elf32(machine, body, base=BASE, flags=0):
+    e_ident = b"\x7fELF" + bytes([1, 1, 1, 0]) + b"\x00" * 8
+    ehdr = e_ident + struct.pack(
+        "<HHIIIIIHHHHHH", 2, machine, 1, base + ELF32_ENTRY_OFF,
+        52, 0, flags, 52, 32, 1, 0, 0, 0)
+    phdr = struct.pack("<IIIIIIII", 1, 0, base, base, len(body), len(body),
+                       7, 0x1000)
+    return ehdr + phdr + body
 
 
 def run_target(name, machine, stub, cands):
@@ -136,7 +173,12 @@ def run_target(name, machine, stub, cands):
             fails += 1
             continue
         with tempfile.NamedTemporaryFile(suffix=".elf", delete=False) as fh:
-            fh.write(elf(machine, stub() + code))
+            off = ELF32_ENTRY_OFF if name in ELF32_TARGETS else ENTRY_OFF
+            body = stub(BASE + off + 20) + code if name == "mips" else stub() + code
+            if name in ELF32_TARGETS:
+                fh.write(elf32(machine, body, flags=EFLAGS.get(name, 0)))
+            else:
+                fh.write(elf(machine, body, flags=EFLAGS.get(name, 0)))
             exe = fh.name
         try:
             os.chmod(exe, 0o755)

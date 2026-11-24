@@ -710,7 +710,7 @@ test_mir_regalloc: $(JIT_OBJS)
 # normally; the second invocation is a fast dump pass.
 test_isa_exec: test_isa_driver
 	@rm -rf build/isaexec && mkdir -p build/isaexec
-	@WUBU_EXEC_DUMP_DIR=build/isaexec WUBU_EXEC_DUMP=arm64,riscv \
+	@WUBU_EXEC_DUMP_DIR=build/isaexec WUBU_EXEC_DUMP=arm64,riscv,mips \
 	   $(COMP)/test_isa_driver >/dev/null 2>&1 || true
 	@python3 tools/isa_exec_gate.py
 
