@@ -148,7 +148,15 @@ CHeapCtrl *mem_heap_ctrl(void) {
 
 /* -- Allocation --------------------------------------------------- */
 
-#ifdef WUBU_HOSTED
+#ifdef WUBU_HOSTED_ASAN
+/* ASan build: route through the PUBLIC allocator so the sanitizer's
+ * interceptor sees every allocation (see libc.c). */
+void *mem_alloc(size_t size)            { return malloc(size); }
+void *mem_calloc(size_t n, size_t size) { return calloc(n, size); }
+void *mem_realloc(void *p, size_t size) { return realloc(p, size); }
+void  mem_free(void *ptr)               { free(ptr); }
+
+#elif defined(WUBU_HOSTED)
 /* A hosted binary IS a glibc process. glibc's own internals -- opendir(),
  * stdio, getline -- call malloc() and then free() what they got. If the kernel
  * heap answers those calls, opendir() fails with "No memory available to

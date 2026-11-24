@@ -360,6 +360,7 @@ char *wubu_kvfs_snapshot_json(const wubu_kvfs_t *fs, size_t *out_len) {
     int n = snprintf(buf, cap, "{\"block_size\":%u,\"total_blocks\":%u,"
                          "\"used_blocks\":%u,\"mounts\":[",
                      fs->block_size, fs->total_blocks, fs->used_blocks);
+    if (n < 0 || (size_t)n >= cap) { free(buf); return NULL; }  /* header truncated */
     size_t used = (size_t)n;
     for (int i = 0; i < fs->n_mounts && used + 1 < cap; i++) {
         if (fs->mounts[i].n_blocks == 0) continue;
@@ -372,10 +373,25 @@ char *wubu_kvfs_snapshot_json(const wubu_kvfs_t *fs, size_t *out_len) {
         if (w < 0 || (size_t)w >= cap - used) break;  /* bounded, no underflow */
         used += (size_t)w;
     }
+    /* The tail needs room. `cap - used` with used == cap is a size_t
+     * UNDERFLOW -- an enormous size handed to snprintf -- and that is exactly
+     * the 1-byte heap overflow ASan caught here ("WRITE of size 1 ... 0 bytes
+     * after 368-byte region"): the " ] } " closing the JSON ran off the end. */
     {
-        int w = snprintf(buf + used, cap - used, "]}");
-        if (w > 0) used += (size_t)w;
+        size_t left = used < cap ? cap - used : 0;
+        if (left >= 4) {
+            int w = snprintf(buf + used, left, "]}");
+            if (w > 0) used += (size_t)w;
+        } else if (used >= 2) {
+            /* no room for the tail: close the object in place */
+            buf[used - 1] = ']';
+            used -= 1;
+            if (used + 1 < cap) { buf[used] = '}'; used += 1; }
+            else used += 1;
+        }
     }
+    if (used >= cap) used = cap - 1;
+    buf[used] = '\0';
     if (out_len) *out_len = used;
     return buf;
 }
