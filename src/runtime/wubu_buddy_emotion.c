@@ -29,6 +29,7 @@ struct wubu_buddy_emotion {
     float energy, stress, warmth, heat, load;
     long ncpu;
     double last_gpu_query;    /* seconds since process start */
+    float  sensor_accum;      /* seconds since the last sensor scan */
 };
 
 /* --------------------------------------------------------------- scanning */
@@ -238,9 +239,18 @@ void wubu_buddy_emotion_poll(wubu_buddy_emotion *e, float dt)
     if (dt < 0.0f) dt = 0.0f;
     if (dt > 10.0f) dt = 10.0f;
 
-    scan_hwmon(e);
-    read_load(e);
-    read_gpu(e);
+    /* Sensors are sysfs walks (a directory scan plus a file open per zone). The
+     * machine state does not change faster than a few Hz, so refresh at most
+     * twice a second while still integrating the affect model with the REAL dt
+     * on every call -- the orb called this once per blob per frame with a
+     * hardcoded 0.5f, i.e. 9 scans a frame at a fake 15x timestep. */
+    e->sensor_accum += dt;
+    if (!e->initialized || e->sensor_accum >= 0.5f) {
+        scan_hwmon(e);
+        read_load(e);
+        read_gpu(e);
+        e->sensor_accum = 0.0f;
+    }
     map_affect(e, dt);
     e->initialized = 1;
 }

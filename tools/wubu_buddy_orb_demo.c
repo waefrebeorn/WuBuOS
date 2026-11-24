@@ -522,11 +522,16 @@ int main(void)
         if (!paused) tsec += dt;
 
         wubu_buddy_orb_set_time(orb, tsec);
+        /* ONE affect update per frame, with the REAL frame time. It used to be
+         * called inside the per-blob loop with a hardcoded 0.5f: that ran the
+         * sensor scan once per blob (9x per frame) AND told the affect model
+         * that half a second had passed on every frame, so its dynamics ran ~15x
+         * too fast at 30 fps. */
+        wubu_buddy_emotion_poll(emo, dt);
         int n = wubu_buddy_orb_blob_count(orb);
         for (int i = 0; i < n; ++i) {
             float c[3], r;
             wubu_buddy_orb_get_blob(orb, i, c, &r);
-            wubu_buddy_emotion_poll(emo, 0.5f);
         blobs[i][0]=c[0]+off[i][0]; blobs[i][1]=c[1]+off[i][1];
             blobs[i][2]=c[2]+off[i][2]; blobs[i][3]=r+off[i][3];
         }
@@ -614,7 +619,9 @@ int main(void)
                                        GL_COLOR_BUFFER_BIT, GL_LINEAR);
         /* live link: print what the buddy is feeling, straight from sensors */
         static float hud = 0.0f;
-        if (tsec - hud > 1.5f) {
+        static int trace = -1;
+        if (trace < 0) trace = getenv("WUBU_BUDDY_TRACE") ? 1 : 0;
+        if (trace && tsec - hud > 1.5f) {
             hud = tsec;
             fprintf(stderr,
                 "cpu %.1fC gpu %.1fC ssd %.1fC load %.2f | energy %.2f "
@@ -626,9 +633,32 @@ int main(void)
         }
         glXSwapBuffers(dpy, win);
 
-        /* one-shot framebuffer dump: bypasses X window capture entirely */
+        /* Pace the orb. A desktop pet that renders unthrottled costs real CPU on
+         * a laptop someone else is using (measured: 5.4% of a core, continuously,
+         * with only the swap as a limiter). WUBU_BUDDY_FPS defaults to 30. */
+        static long frame_ns = 0;
+        if (frame_ns == 0) {
+            const char *fps_env = getenv("WUBU_BUDDY_FPS");
+            long fps = fps_env && *fps_env ? atol(fps_env) : 30;
+            if (fps < 1) fps = 1;
+            if (fps > 240) fps = 240;
+            frame_ns = 1000000000L / fps;
+        }
+        {
+            static uint64_t t_frame_end = 0;
+            uint64_t now = wubutime_mono_ns(tm);
+            uint64_t spent = now - t_frame_end;
+            if (t_frame_end && spent < (uint64_t)frame_ns) {
+                struct timespec ts = { 0, (long)((uint64_t)frame_ns - spent) };
+                nanosleep(&ts, NULL);
+            }
+            t_frame_end = wubutime_mono_ns(tm);
+        }
+
+        /* one-shot framebuffer dump: bypasses X window capture entirely.
+         * Opt-in: it used to write /tmp/bod_snap.ppm on EVERY start. */
         static int dumped = 0;
-        if (!dumped && tsec > 1.0f) {
+        if (!dumped && tsec > 1.0f && getenv("WUBU_BUDDY_SNAPSHOT")) {
             dumped = 1;
             unsigned char *buf = malloc((size_t)SW * SH * 3);
             ((PFNglReadPixels)p_read)(0, 0, SW, SH, GL_RGB,
