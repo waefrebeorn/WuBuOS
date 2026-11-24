@@ -121,16 +121,26 @@ device's MMIO window -- which discards writes, hence "direct store reads back 0"
 The kernel now finds the display by class (`0:1.0 BAR0=c0000008` -> 0xC0000000),
 which matches the loader's handoff.
 
-## Still open: nothing has ever SEEN the metal desktop
+## Closed 2026-11-24 (`d3bb0043`): a gate now SEES the metal desktop
 
-After the BAR fix a QEMU `screendump` is still a black 640x480 (1044 non-black
-pixels, 1 colour) while the kernel reports a 1024x768 mode at phys 0xC0000000.
-Either the firmware hands off a RAM buffer instead of programming the VGA to scan
-it out, or the mode set needs the dispi LFB-enable register the kernel does not
-write. **Every metal gate so far reads the back buffer or the serial log -- none
-of them has ever observed the scanout**, which is why this stayed invisible.
-Closing it needs one of: a `screendump` that is non-black, or a documented
-hardware note saying WuBuFW's handoff is intentionally not scanout.
+`test_scanout` boots the real firmware + kernel, parses the address the kernel
+reports (`LFB phys=...`), and dumps that physical range out of QEMU with
+`pmemsave` -- no kernel cooperation, so the kernel's own read path cannot fool it.
+Measured on the fixed tree: **786 397 of 786 432 pixels non-black (100.0 %),
+3 213 distinct colours**, i.e. the wallpaper, icons, mascot and taskbar really are
+in the live framebuffer.
+
+Proven RED then GREEN against the bug that motivated it:
+
+| build | reported LFB | non-black | colours | verdict |
+|---|---|---|---|---|
+| pre-fix (`a36ffb2f^`) | `0xc1000000` (a NIC's BAR) | 12 851 (1.6 %) | 67 | FAIL |
+| with the fix | `0xc0000000` | 786 397 (100.0 %) | 3 213 | PASS |
+
+**A QEMU `screendump` is NOT a valid oracle here:** under `-display none` the VGA
+console surface reports 640x480 black even when the LFB is fully painted, so the
+kernel was never the thing being measured. Anything that claims "the screen is
+black" in this configuration must say which surface it looked at.
 
 ## Verification of this ADR's claims
 
