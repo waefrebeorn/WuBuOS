@@ -453,6 +453,19 @@ guess into a budget. Guest steps to the ring-0 console, same image, same gate:
 
 Boot wall time under WEMU went 8.14 s → ~1.2 s (every guest gate pays this).
 
+The emulator itself was the other half. Same guest, same kernel.elf, 20M steps:
+
+| wemu | 20M steps |
+|---|---|
+| before | 3.24 s |
+| one 16-byte fetch window per instruction | 2.60 s |
+| + RAM accesses skip the device hook; decode peeks inline | 2.20 s (1.47x) |
+
+`gprof` found that (this box blocks `perf`: `perf_event_paranoid=4`): 227M
+calls into the virtio MMIO hook per 20M steps just to be told "not my
+address", ~5.9 `peek` calls per instruction, ~4.8 `gpa_read` calls per step.
+A profiled build (`-pg`) is the tool that works here.
+
 Why these shapes:
 - **`rep stosb`/`rep movsb`, not an unrolled C loop.** GCC fuses adjacent
   8-byte stores into 16-byte SSE moves; a device window rejects the wider
