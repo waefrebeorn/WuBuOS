@@ -889,9 +889,16 @@ test_wemu_busybox: $(VSL_OBJS) $(WEMU_LIB) $(RT)/wubu_wemu_bridge.c src/runtime/
 # inside WEMU without a fault. Loader/page-table details live in the tool.
 # WEMU_KERNEL_ELF lets CI artifacts be replayed locally with the same gate.
 WEMU_KERNEL_ELF ?= src/kernel/kernel.elf
-test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
+
+# ONE rule for the gate binary. Four test targets used to each compile it
+# inline, so under -j24 one job relinked tools/wemu_kernel_gate while another
+# executed it: "./tools/wemu_kernel_gate: Text file busy" (ETXTBSY), seen as a
+# red in the full suite. Targets depend on the binary and only run it.
+tools/wemu_kernel_gate: tools/wemu_kernel_gate.c $(WEMU_LIB)
 	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
-		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
+		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o $@
+
+test_wemu_kernel: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 	./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
 
@@ -901,9 +908,7 @@ test_wemu_kernel: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 # the Bochs VBE LFB itself -- measured). The kernel's `deskshot` command scans
 # the buffer it actually drew into; this gate boots to the console, runs it and
 # asserts the desktop is really there. On-demand only, so the boot pays nothing.
-test_deskshot: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
-	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
-		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
+test_deskshot: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 	@mkdir -p build
 	@WEMU_KERNEL_STEPS=40000000 WEMU_KERNEL_MARKER='WuBuOS>' WEMU_KERNEL_SEND=deskshot \
 	 WEMU_KERNEL_EXPECT='colours=' ./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF) \
@@ -924,9 +929,7 @@ test_deskshot: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
 
 # Guest block-I/O gate: WEMU's virtio-blk must serve the kernel's sector
 # reads so the boot path reports a live persistent disk.
-test_wemu_kernel_virtio: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
-	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
-		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
+test_wemu_kernel_virtio: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 	WEMU_KERNEL_STEPS=100000000 WEMU_KERNEL_MARKER='virtio-blk: MODERN' \
 		./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
@@ -960,9 +963,7 @@ test_wemu_fs: test_wemu_kernel
 	python3 tools/wemu_fs_gate.py
 
 # Deep opt-in gate: run to the live console prompt. Too slow for tandem_check.
-test_wemu_kernel_deep: $(WEMU_LIB) tools/wemu_kernel_gate.c $(WEMU_KERNEL_ELF)
-	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
-		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o tools/wemu_kernel_gate
+test_wemu_kernel_deep: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 	WEMU_KERNEL_STEPS=200000000 WEMU_KERNEL_MARKER='WuBuOS>' \
 		WEMU_KERNEL_SEND='help' \
 		WEMU_KERNEL_EXPECT='WuBuOS live console' \
