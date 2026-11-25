@@ -24,11 +24,28 @@
 
 /* -- Default Context Menu Actions -- */
 
+/* The SELECTED icon, which is what keyboard shortcuts act on. The context-menu actions
+ * used the mouse position instead, so F2/Delete/Enter had nothing to address. */
+static int icon_selected_index(void) {
+    for (int i = 0; i < g_dwm.icon_count; i++)
+        if (g_dwm.icons[i].alive && g_dwm.icons[i].selected) return i;
+    return -1;
+}
+
+/* Open must work for a SHORTCUT too: a .desktop icon has no on_execute, only a target
+ * file, so the old "call on_execute if present" silently skipped exactly the icons a user
+ * double-clicks most. desktop_launch_icon() dispatches on the icon's TYPE. */
+void wm_open_icon(int idx) {
+    if (idx < 0 || idx >= g_dwm.icon_count || !g_dwm.icons[idx].alive) return;
+    g_dwm.focused_id = -1;
+    if (g_dwm.icons[idx].on_execute) g_dwm.icons[idx].on_execute();
+    else                            desktop_launch_icon(idx);
+}
+
 static void ctx_action_open(void) {
     int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
-    if (idx >= 0 && g_dwm.icons[idx].on_execute) {
-        g_dwm.icons[idx].on_execute();
-    }
+    if (idx < 0) idx = icon_selected_index();
+    wm_open_icon(idx);
 }
 
 /* -- Dialog Callback Functions -- */
@@ -330,8 +347,7 @@ static void ctx_action_refresh_desktop(void) {
     wubu_notify_simple("Desktop", "Refresh", "Re-scanned shortcuts", NULL, 1, 1500);
 }
 
-static void ctx_action_rename(void) {
-    int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+static void begin_rename(int idx) {
     if (idx >= 0) {
         g_rename_target = &g_dwm.icons[idx];
         g_rename_input[0] = '\0';
@@ -345,8 +361,17 @@ static void ctx_action_rename(void) {
     }
 }
 
-static void ctx_action_delete(void) {
+/* Keyboard entry points: Windows lets F2/Delete/Enter act on the SELECTED icon, and a
+ * context menu that can only be reached with the mouse is half a shell. */
+void wm_rename_selected_icon(void) { begin_rename(icon_selected_index()); }
+
+static void ctx_action_rename(void) {
     int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx < 0) idx = icon_selected_index();
+    begin_rename(idx);
+}
+
+static void begin_delete(int idx) {
     if (idx >= 0) {
         g_delete_target = &g_dwm.icons[idx];
         DosGuiWindow *dialog = wm_create_modal(WUBU_DIALOG_ORIGIN_X, WUBU_DIALOG_ORIGIN_Y,
@@ -356,6 +381,14 @@ static void ctx_action_delete(void) {
             dialog->on_draw = dialog_delete_on_draw;
         }
     }
+}
+
+void wm_delete_selected_icon(void) { begin_delete(icon_selected_index()); }
+
+static void ctx_action_delete(void) {
+    int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx < 0) idx = icon_selected_index();
+    begin_delete(idx);
 }
 
 static void ctx_action_properties(void) {

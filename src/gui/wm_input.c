@@ -184,6 +184,20 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
+    /* Desktop keyboard, the way Windows has it: with the desktop focused and an icon
+     * selected, Enter opens it, F2 renames, Delete deletes. Before this, a selected icon
+     * could only be acted on with the mouse. */
+    if (g_dwm.focused_id < 0) {
+        int sel = -1;
+        for (int i = 0; i < g_dwm.icon_count; i++)
+            if (g_dwm.icons[i].alive && g_dwm.icons[i].selected) { sel = i; break; }
+        if (sel >= 0) {
+            if (key == 0x1C) { wm_open_icon(sel); return; }          /* Enter */
+            if (key == 0x3C) { wm_rename_selected_icon(); return; }  /* F2 */
+            if (key == 0x53) { wm_delete_selected_icon(); return; }  /* Delete */
+        }
+    }
+
     /* P0 a11y: when the cluster is enabled and a window is focused, give
      * the a11y keyboard nav first crack (arrow-cycle focus, Enter/Space
      * activate). Otherwise arrow keys fall through to normal WM nav. */

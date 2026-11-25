@@ -533,6 +533,13 @@ static void test_icon_click_selects_then_opens(void) {
     wm_handle_mouse(cx, cy, 1, 1);
     CHECK(g_open_count == 2, "and the click after that opens again");
 
+    /* Enter on the selection opens it (Windows keyboard parity). */
+    g_open_count = 0;
+    wm_handle_mouse(cx, cy, 1, 1);            /* select only */
+    CHECK(g_open_count == 0, "selected without launching");
+    wm_handle_key(0x1C, 0);                    /* Enter */
+    CHECK(g_open_count == 1, "Enter opens the selected icon");
+
     /* Clicking empty desktop clears the selection, as Windows does. */
     wm_handle_mouse(700, 400, 1, 1);
     for (int i = 0; i < wm_get_icon_count(); i++)

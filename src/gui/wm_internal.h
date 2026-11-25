@@ -249,6 +249,12 @@ int wm_new_text_doc(void);
 /* Write a real .desktop shortcut into ~/Desktop; returns 0 on success. */
 int  wm_write_desktop_shortcut(const char *name, const char *exec);
 
+/* Desktop-icon actions addressed by SELECTION, so the keyboard can drive them (Windows:
+ * Enter opens, F2 renames, Delete deletes). The context menu uses the same code. */
+void wm_open_icon(int idx);
+void wm_rename_selected_icon(void);
+void wm_delete_selected_icon(void);
+
 /* Strip Freedesktop field codes (%f %U ...) from an Exec line. Shared with desktop.c:
  * the file that WRITES the Exec and the code that RUNS it must agree on its meaning. */
 void strip_field_codes(const char *in, char *out, size_t cap);
