@@ -553,6 +553,33 @@ static void test_editor_create_destroy(void) {
     PASS();
 }
 
+/* The JIT development loop: F5 in the Editor compiles and runs the buffer in the running
+ * OS (docs/compendium/04-roadmap/jit-dev-loop.md). Before this the Editor had no compile
+ * path at all -- the loop existed only as a terminal one-liner.
+ *
+ * WHAT THIS GATE PROVES, exactly: F5 is wired and reports an outcome. THIS GRAPH does not
+ * link the compiler, so here the outcome is the "no compiler in this build" branch; the
+ * product (hosted.c binds wubu_holyc_eval) runs the real eval through the same call. A
+ * gate must distinguish "did not run" from "ran and produced a value", so the status text
+ * is printed and asserted to NAME which case happened -- claiming a real run here would be
+ * the kind of lie this project keeps finding. */
+static void test_editor_f5_reports(void) {
+    TEST("editor: F5 is wired and reports what happened");
+    DosGuiWindow *win = editor_launch();
+    CHECK(win != NULL, "editor launched");
+    WubuEditor *e = (WubuEditor *)editor_engine_of_window(win);
+    CHECK(e != NULL, "engine bound to the window");
+    wubu_ed_insert_text(e, "3+4;");
+    editor_key(win, 0x3F, 0);                 /* F5 */
+    const char *st = editor_run_status();
+    printf("  [f5] status: %s\n", st ? st : "(null)");
+    CHECK(st != NULL && strstr(st, "F5 runs this buffer") == NULL,
+          "F5 replaced the idle hint with a result");
+    CHECK(st != NULL && (strstr(st, "Ran") || strstr(st, "Error") ||
+                         strstr(st, "no compiler")),
+          "the result names what happened");
+}
+
 static void test_editor_launch(void) {
     TEST("editor: launch returns window");
     DosGuiWindow *win = editor_launch();
@@ -810,6 +837,7 @@ int main(void) {
     printf("\n-- Editor --\n");
     test_editor_create_destroy();
     test_editor_launch();
+    test_editor_f5_reports();
     test_editor_typing();
     test_editor_mouse_positions_caret();
     

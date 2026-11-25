@@ -27,6 +27,70 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* ---- JIT run: the loop this OS exists for --------------------------------------
+ * docs/compendium/04-roadmap/jit-dev-loop.md. The Editor could not compile or run a
+ * single line: the loop lived only inside the terminal REPL, so a program that does not
+ * fit on one line could not be developed inside the OS at all.
+ *
+ * ONE eval path: this calls the same entry the HolyC terminal and the AGI use, so a human
+ * run and an agent run cannot drift. Declared WEAK because a test may link the editor
+ * without the compiler unit -- and when it is absent the Editor says so instead of
+ * pretending to run. */
+__attribute__((weak)) int  wubu_holyc_eval(const char *src, char *out, size_t out_size);
+__attribute__((weak)) uint32_t wubu_notify_simple(const char *app_name, const char *summary,
+                                                  const char *body, const char *icon,
+                                                  int urgency, int timeout_ms);
+
+static WubuEdTab *ed_tab(WubuEditor *e);   /* defined below; F5 runs before it */
+
+/* Last run's result, shown in the status bar. */
+static char g_ed_run_status[120] = "F5 runs this buffer";
+
+/* Flatten the active tab into source text. */
+static size_t ed_collect(WubuEdTab *tab, char *out, size_t cap) {
+    size_t o = 0;
+    if (!tab || !out || cap < 2) return 0;
+    out[0] = '\0';
+    for (int i = 0; i < tab->n_lines && o + 2 < cap; i++) {
+        const char *ln = tab->lines[i].text;
+        size_t n = tab->lines[i].len;
+        if (n > cap - o - 2) n = cap - o - 2;
+        memcpy(out + o, ln, n);
+        o += n;
+        out[o++] = '\n';
+    }
+    out[o] = '\0';
+    return o;
+}
+
+/* Read by the gate: what the last F5 did. */
+const char *editor_run_status(void) { return g_ed_run_status; }
+
+/* Compile and run the buffer IN the running OS. */
+static void ed_run_buffer(WubuEditor *e) {
+    WubuEdTab *tab = ed_tab(e);
+    if (!tab) return;
+    if (!wubu_holyc_eval) {
+        snprintf(g_ed_run_status, sizeof g_ed_run_status, "F5: no compiler in this build");
+        return;
+    }
+    static char src[8192];
+    static char res[512];
+    size_t n = ed_collect(tab, src, sizeof src);
+    if (n == 0) {
+        snprintf(g_ed_run_status, sizeof g_ed_run_status, "F5: buffer is empty");
+        return;
+    }
+    res[0] = '\0';
+    int rc = wubu_holyc_eval(src, res, sizeof res);
+    for (char *q = res; *q; q++) if (*q == '\n') *q = ' ';
+    snprintf(g_ed_run_status, sizeof g_ed_run_status, "%s: %.90s",
+             rc == 0 ? "Ran" : "Error", res[0] ? res : "(no output)");
+    if (wubu_notify_simple)
+        wubu_notify_simple("Editor", rc == 0 ? "Ran buffer" : "Compile error",
+                           res[0] ? res : "(no output)", NULL, rc == 0 ? 1 : 2, 3000);
+}
+
 #define ED_LINE_H    16
 #define ED_TABBAR_H  20
 #define ED_STATBAR_H 16
@@ -168,12 +232,13 @@ void editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h,
     int sby = ey + eh;
     vbe_fill_rect(cx, sby, cw, ED_STATBAR_H, c->win_face);
     vbe_rect(cx, sby, cw, 1, c->border_dark);
-    char status[160];
-    snprintf(status, sizeof(status), " Ln %d, Col %d   %s%s   %s",
+    char status[200];
+    snprintf(status, sizeof(status), " Ln %d, Col %d   %s%s   %s   |   %s",
              t->cursor_line + 1, t->cursor_col + 1,
              t->filename[0] ? t->filename : "Untitled",
              t->modified ? " *" : "",
-             t->syntax == SYNTAX_NONE ? "Plain" : "Syntax");
+             t->syntax == SYNTAX_NONE ? "Plain" : "Syntax",
+             g_ed_run_status);
     vbe_draw_text(cx + 4, sby + 3, status, c->btn_text, 1);
 }
 
@@ -217,6 +282,12 @@ void editor_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     }
 
     if (!t) return;
+
+    /* F5: compile and run the buffer in the running OS (TempleOS's loop). */
+    if (key == 0x3F) {   /* F5 */
+        ed_run_buffer(e);
+        return;
+    }
 
     switch (key) {
         case 8:                       /* Backspace */

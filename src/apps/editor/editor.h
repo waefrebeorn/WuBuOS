@@ -24,6 +24,9 @@ typedef struct DosGuiWindow DosGuiWindow;
 typedef struct EditorState EditorState;
 
 EditorState *editor_create(void);
+
+/* What the last F5 (compile & run) did -- "Ran: 3", "Error: ...", or the idle hint. */
+const char *editor_run_status(void);
 void         editor_destroy(EditorState *ed);
 
 /* Draw the editor into a window's content area. */
