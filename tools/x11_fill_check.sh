@@ -10,13 +10,15 @@
 # the server answer the first request and then appear to hang.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
-SOCK=/tmp/.X11-unix/X77
+# One X-socket gate at a time, and each on its OWN display. Three gates binding
+# /tmp/.X11-unix/X77 under `make -j24` fight over one socket and one of them fails
+# with "connection refused" -- which reads as a protocol bug and is not one.
+exec 9>"${WUBU_X11_LOCK:-/tmp/wubu-x11-gates.lock}"
+flock -w 300 9 || { echo "x11: FAIL (could not take the X gate lock)"; exit 1; }
+SOCK=/tmp/.X11-unix/X78
 rm -f "$SOCK" /tmp/x11_stub_frame.ppm
 
-gcc -std=c11 -O1 -Isrc/runtime tools/x11_handshake_stub.c \
-    src/runtime/wubu_x11_bridge.c src/runtime/wubu_x11_setup_reply.c \
-    src/runtime/wubu_x11_request.c src/runtime/wubu_x11_surface.c \
-    src/runtime/wubu_x11_windows.c -o build/x11_handshake_stub || {
+bash tools/x11_stub_build.sh || {
     echo "x11 fill: FAIL (stub did not build)"; exit 1; }
 
 ./build/x11_handshake_stub "$SOCK" >/tmp/x11_fill_stub.log 2>&1 &
