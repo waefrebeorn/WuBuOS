@@ -1822,39 +1822,6 @@ test_linux_product:
 	bash tools/linux_product_gate.sh
 
 
-# a11y_shot: Real-GUI video capture of the accessibility cluster.
-# Same minimal object graph as test_ui, plus the a11y harness +
-# screenshot sources. Writes 5 PPM frames to /tmp/wubu_a11y_shots.
-a11y_shot: wubu_a11y_shot.c
-	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM -I/usr/include/libdrm -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) -I$(RT) -I$(APPS) -I$(APPS)/calc -I$(TOOLS)  -Iinclude  $(RT_ALWAYS) \
-$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(GUI)/shell/window_chrome.c \
-$(RT)/wubu_effect.c \
-		$(GUI)/wubu_a11y.c $(GUI)/buddy_sprite.c $(GUI)/wubu_mascot.c wubu_a11y_shot.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm_test_stub.c \
-		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c \
-		$(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_spawn.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/styxfs_path.c $(RT)/wubu_fs_util.c $(RT)/wubu_netlink.c $(RT)/wubu_guest_root.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
-		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) \
-	$(TOOLS)/screenshot.c \
-	-o wubu_a11y_shot -no-pie -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c
-	./wubu_a11y_shot
-
-# desktop_shot: Full desktop-environment verification capture.
-# Same minimal object graph as a11y_shot, but the harness exercises every
-# a11y action + desktop chrome: clean desktop, cluster, move, minimize,
-# taskbar restore, rotate, resize, close, purge. Writes 10 PPM frames to
-# /tmp/wubu_desktop_shots.
-desktop_shot: wubu_desktop_shot.c
-	$(CC) $(CFLAGS) -O0 -g -DVBE_HOSTED -I/usr/include/libdrm -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) -I$(RT) -I$(APPS) -I$(APPS)/calc -I$(TOOLS)  -Iinclude  $(RT_ALWAYS) \
-	$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(GUI)/shell/window_chrome.c $(GUI)/shell/startmenu.c $(GUI)/shell/startmenu_db.c $(GUI)/shell/startmenu_search.c $(GUI)/shell/startmenu_tree.c $(GUI)/shell/startmenu_power.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/era_apps.c \
-	$(RT)/wubu_effect.c \
-				$(GUI)/wubu_a11y.c $(GUI)/buddy_sprite.c $(GUI)/wubu_mascot.c wubu_desktop_shot.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm_test_stub.c \
-		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c \
-		$(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_spawn.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/styxfs_path.c $(RT)/wubu_fs_util.c $(RT)/wubu_netlink.c $(RT)/wubu_guest_root.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
-		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) \
-		$(TOOLS)/screenshot.c \
-		-o wubu_desktop_shot -no-pie -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c
-	./wubu_desktop_shot
 
 
 test_gamelib:
@@ -2596,7 +2563,7 @@ test_wm_snap: $(GUI)/wm_window_state.c $(GUI)/wm_snap_test.c
 
 test_wm: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o $(GUI)/shell/window_chrome.o $(CACHE)/wubu_gesture.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED)  -Iinclude  $(RT_ALWAYS) \
-$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(RT)/wubu_guest_root.c $(GUI)/shell/win11_snap.c $(GUI)/shell/win11_widgets.c $(GUI)/shell/win11_shell.c $(RT)/wubu_hw_sensors_fallback.c \
+$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(RT)/wubu_guest_root.c $(GUI)/shell/win11_snap.c $(GUI)/shell/win11_widgets.c $(GUI)/shell/win11_shell.c $(RT)/wubu_hw_sensors_fallback.c \
 $(KERNEL)/wubu_thermal_read.c \
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/buddy_sprite.c $(GUI)/wubu_mascot.c $(GUI)/wm_test_stub.c \
@@ -2618,20 +2585,8 @@ $(RT)/wubu_effect.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(GUI)/shell/window_chrome.c $(RT)/wubu_guest_root.c \
-		$(GUI)/wubu_ui_test.c $(GUI)/wubu_a11y.c -o $(GUI)/wubu_ui_test -lm
+		$(GUI)/wubu_ui_test.c -o $(GUI)/wubu_ui_test -lm
 	$(GUI)/wubu_ui_test
-test_a11y:
-	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED)  -Iinclude  $(RT_ALWAYS) \
-$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/wubu_a11y_test.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(GUI)/shell/win11_snap.c $(GUI)/shell/win11_widgets.c $(GUI)/shell/win11_shell.c $(RT)/wubu_hw_sensors_fallback.c \
-$(KERNEL)/wubu_thermal_read.c \
-$(RT)/wubu_effect.c \
-		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/buddy_sprite.c $(GUI)/wubu_mascot.c $(GUI)/wm_test_stub.c \
-		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
-		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
-		$(GUI)/shell/window_chrome.c $(RT)/wubu_guest_root.c \
-		-o $(GUI)/wubu_a11y_test -lm
-	$(GUI)/wubu_a11y_test
 
 test_image_ffmpeg:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL)  -Iinclude  $(RT_ALWAYS) \
@@ -2665,7 +2620,7 @@ test_cmd:
 
 test_calc: $(CACHE)/wubu_gesture.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(HOSTED) -I$(RT)  -Iinclude  $(RT_ALWAYS) \
-$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
+$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
@@ -2677,7 +2632,7 @@ $(RT)/wubu_effect.c \
 
 test_regedit: $(CACHE)/wubu_gesture.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/regedit -I$(HOSTED) -I$(RT)  -Iinclude  $(RT_ALWAYS) \
-$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
+$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
@@ -2689,7 +2644,7 @@ $(RT)/wubu_effect.c \
 
 test_comfy: $(CACHE)/wubu_gesture.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/comfy -I$(HOSTED) -I$(RT)  -Iinclude  $(RT_ALWAYS) \
-$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
+$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
@@ -3112,7 +3067,7 @@ test_guest_import:
 # imported root through the ONE wubu_ct_* exec path.
 test_guests_panel: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o $(GUI)/shell/window_chrome.o $(CACHE)/wubu_gesture.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED)  -Iinclude  $(RT_ALWAYS) \
-$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(RT)/wubu_guest_root.c $(GUI)/shell/win11_snap.c $(GUI)/shell/win11_widgets.c $(GUI)/shell/win11_shell.c $(RT)/wubu_hw_sensors_fallback.c \
+$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(RT)/wubu_guest_root.c $(GUI)/shell/win11_snap.c $(GUI)/shell/win11_widgets.c $(GUI)/shell/win11_shell.c $(RT)/wubu_hw_sensors_fallback.c \
 $(KERNEL)/wubu_thermal_read.c \
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/buddy_sprite.c $(GUI)/wubu_mascot.c $(GUI)/wm_test_stub.c \
@@ -3641,7 +3596,7 @@ $(APPS)/wubu_editor.c $(APPS)/wubu_editor_bookmark.c $(APPS)/wubu_editor_macro.c
 
 test_control: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o $(GUI)/shell/window_chrome.o $(CACHE)/wubu_gesture.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/control -I$(HOSTED) -I$(RT)  -Iinclude  $(RT_ALWAYS) \
-$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
+$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
@@ -3927,7 +3882,7 @@ test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_wi
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c $(KERNEL)/interrupt.c $(WUBU_KERNEL_CONTRACT)/src/wubu_cap.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
 		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c \
-	$(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(RT)/wubu_guest_root.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
+	$(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/desktop_icons.c $(RT)/wubu_guest_root.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/holyc_repl.c \
 		$(APPS)/apps_test.c \
 		-o $(APPS)/apps_test -lm -lz $(GUI)/shell/window_chrome.c $(GUI)/shell/desktop_stubs.c
 	timeout 300 $(APPS)/apps_test
@@ -6327,7 +6282,7 @@ test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c \
 		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
 		$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c \
-		$(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c \
+		$(GUI)/shell/wm_clock.c \
 		$(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c \
 		$(GUI)/wm_layout.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c \
 		$(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c \
@@ -6364,7 +6319,7 @@ test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c $(APPS)/wubu_
 		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c \
 		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
 		$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c \
-		$(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c \
+		$(GUI)/shell/wm_clock.c \
 		$(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c \
 		$(GUI)/wm_layout.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c \
 		$(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c \
@@ -6398,7 +6353,7 @@ test_tutorial: $(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c
 		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c \
 		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
 		$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c \
-		$(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c \
+		$(GUI)/shell/wm_clock.c \
 		$(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c \
 		$(GUI)/wm_layout.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c \
 		$(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c \
@@ -6433,7 +6388,7 @@ test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws
 		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c \
 		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
 		$(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c \
-		$(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c \
+		$(GUI)/shell/wm_clock.c \
 		$(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c \
 		$(GUI)/wm_layout.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c \
 		$(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c \
@@ -6560,7 +6515,7 @@ test_wubu_daemon_client:
 test_greeter: $(GUI)/shell/wubu_shell_greeter.o $(GUI)/shell/wubu_shell_greeter_test.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED)  -Iinclude  $(RT_ALWAYS) \
 $(GUI)/shell/wubu_shell_greeter.c $(GUI)/shell/wubu_shell_greeter_test.c \
-$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(GUI)/shell/window_chrome.c \
+$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(GUI)/shell/window_chrome.c \
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/buddy_sprite.c $(GUI)/wubu_mascot.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
@@ -6573,7 +6528,7 @@ $(RT)/wubu_effect.c \
 greeter_shot: wubu_greeter_shot.c
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) -I$(TOOLS)  -Iinclude  $(RT_ALWAYS) \
 $(GUI)/shell/wubu_shell_greeter.c wubu_greeter_shot.c $(TOOLS)/screenshot.c \
-$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(GUI)/shell/window_chrome.c \
+$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_icon_registry.c $(GUI)/wm_input.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/alt_tab_switcher.c $(GUI)/shell/taskbar_overflow_menu.c $(GUI)/shell/projection_flyout.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/holyc_repl.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/desktop_icons.c $(GUI)/shell/window_chrome.c \
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/buddy_sprite.c $(GUI)/wubu_mascot.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
@@ -6589,7 +6544,7 @@ test_gpu_driver: $(RT)/wubu_gpu_driver_test.c
 	if [ $$rc -eq 2 ]; then echo "[skip] GPU gate skipped (no nvcc)"; exit 0; fi; \
 	exit $$rc
 
-test_orphans: test_a11y test_acpi test_agi_kernel test_agi_play test_ahcifat test_apps_gap test_arch test_archd_n1 \
+test_orphans: test_acpi test_agi_kernel test_agi_play test_ahcifat test_apps_gap test_arch test_archd_n1 \
 test_as test_auth test_bear_opt test_blk test_bonzi_study test_compat test_container_registry \
 test_deskenv test_dos_emu test_dos_proc test_ec_control test_fat2 test_game_launch test_game_session test_gamemode \
 test_gui_screenshot test_heap_stress test_hive test_holyd_pe test_holyd_roundtrip test_hpet test_hw_gesture test_iommu \

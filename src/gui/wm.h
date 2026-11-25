@@ -255,7 +255,9 @@ void taskbar_update_clock(time_t now);
 #define DOSGUI_ICON_MARGIN    WUBU_SPACE_LG   /* 4u == 16px desktop inset  */
 /* Win11's desktop cells are far wider than a Win98 tile: the label needs a whole cell, not
  * the 36px sliver that forced "My Computer" into "My..." and "Terminal" into "Tem...". */
-#define DOSGUI_ICON_TILE      (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 36) /* 76 */
+/* 84: wide enough that "Calculator" (the longest default name) fits on ONE line, so the
+ * two-line wrap is only ever needed for genuinely two-word names. */
+#define DOSGUI_ICON_TILE      (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 44) /* 84 */
 #define DOSGUI_ICON_COL_PITCH DOSGUI_ICON_TILE
 #define DOSGUI_ICON_ROW_PITCH DOSGUI_ICON_TILE
 

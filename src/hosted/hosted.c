@@ -186,7 +186,6 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
 
     /* Cell 400+401+402: DosGui — Fable windowing agent + desktop + start menu */
     wm_init(state->width, state->height);
-
     /* Wire the HolyC Terminal to the live ring-0 AGI compiler: the same
      * compile+run path a human uses, but with EDR disclosure of every
      * agent-authored eval (the transparency edict). The terminal module

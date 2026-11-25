@@ -210,36 +210,48 @@ static void chrome_icon_blit(int x, int y, int w, int h, const unsigned char *ma
     }
 }
 
+/* Caption glyph size is FIXED (Win11: 10x10 at 100%), centred in whatever button the theme
+ * gives. Scaling it to the button box is what "minimize and maximize are stretched" meant:
+ * a 46x32 caption button drew a 27x19 rectangle, i.e. a stretched square and a
+ * hairline-thin dash that grew with the button. */
+#define CHROME_GLYPH_PX 10
+
+static void chrome_glyph_box(int x, int y, int w, int h, int *gx, int *gy, int *gs) {
+    int s = CHROME_GLYPH_PX;
+    if (s > w - 6) s = w - 6;
+    if (s > h - 6) s = h - 6;
+    if (s < 6) s = 6;
+    *gx = x + (w - s) / 2;
+    *gy = y + (h - s) / 2;
+    *gs = s;
+}
+
 static void chrome_glyph_close(int x, int y, int w, int h, uint32_t fg) {
     /* The X comes from the baked icon table. Two hand-drawn diagonals is how this file
      * produced BOTH defects the user reported: four permutations ("two x in x close")
      * and, once fixed, a 1px hairline. Data can be re-baked; a procedure has to be
      * re-argued by hand every time. */
-    int s = (w < h) ? w : h;
-    if (s < 8) return;
-    int ox = x + (w - s) / 2, oy = y + (h - s) / 2;
+    int ox, oy, s;
+    chrome_glyph_box(x, y, w, h, &ox, &oy, &s);
     chrome_icon_blit(ox, oy, s, s, wubu_icon_action_close, WUBU_ICON_SIZE, fg);
 }
 
 static void chrome_glyph_max(int x, int y, int w, int h, uint32_t fg) {
-    int p = w / 5; /* glyph-art padding */
-    if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
-    for (int i = 0; i < w - 2 * p; i++) {
-        vbe_set_pixel(x + p + i, y + p, fg);
-        vbe_set_pixel(x + p + i, y + h - p - 1, fg);
-    }
-    for (int i = 0; i < h - 2 * p; i++) {
-        vbe_set_pixel(x + p, y + p + i, fg);
-        vbe_set_pixel(x + w - p - 1, y + p + i, fg);
+    int gx, gy, s;
+    chrome_glyph_box(x, y, w, h, &gx, &gy, &s);
+    for (int i = 0; i < s; i++) {
+        vbe_set_pixel(gx + i, gy, fg);
+        vbe_set_pixel(gx + i, gy + s - 1, fg);
+        vbe_set_pixel(gx, gy + i, fg);
+        vbe_set_pixel(gx + s - 1, gy + i, fg);
     }
 }
 
 static void chrome_glyph_min(int x, int y, int w, int h, uint32_t fg) {
-    int p = w / 5; /* glyph-art padding */
-    if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
-    int mid = y + h / 2;
-    for (int i = 0; i < w - 2 * p; i++)
-        vbe_set_pixel(x + p + i, mid, fg);
+    int gx, gy, s;
+    chrome_glyph_box(x, y, w, h, &gx, &gy, &s);
+    int mid = gy + s / 2;
+    for (int i = 0; i < s; i++) vbe_set_pixel(gx + i, mid, fg);
 }
 
 ChromeContentRect chrome_draw_window(DosGuiWindow *win,

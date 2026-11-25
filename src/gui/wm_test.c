@@ -2623,6 +2623,7 @@ static void test_rim_beads_are_opt_in(void) {
     PASS();
 }
 
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");

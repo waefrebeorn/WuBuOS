@@ -94,20 +94,45 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
 /* -- Full-screen render (the single entry point) ------------------- */
 
 
-/* Win11 desktop label: ONE centred line, ellipsised when it does not fit the cell.
- * The first version wrapped to two lines and, worse, dropped the ellipsis entirely because
- * it compared the truncated string's width against its own post-truncation length -- so
- * "My Computer" became "My Comput" with no dots. Fit first, then measure how much to keep. */
-static void wm_fit_label(const char *name, int max_w, char *out, size_t cap) {
-    if (!name) { out[0] = '\0'; return; }
-    if (vbe_text_width(name, 1) <= max_w) { snprintf(out, cap, "%s", name); return; }
-    int dots = vbe_text_width("...", 1);
-    size_t len = strlen(name);
-    if (len >= cap) len = cap - 1;
-    out[len] = '\0';
-    memcpy(out, name, len);
-    while (len > 0 && vbe_text_width(out, 1) > max_w - dots) out[--len] = '\0';
-    if (len + 3 < cap) memcpy(out + len, "...", 4);
+/* Win11 desktop label: up to TWO centred lines, split at a space; the second line is
+ * ellipsised only if it still overflows. Both earlier attempts are recorded here because each
+ * shipped a visible defect: the first dropped the ellipsis (it compared the truncated string's
+ * width against its own post-truncation length), the second wrapped where Windows ellipsises
+ * and left the column truncating names like "My Computer" for no reason -- the cell is now
+ * wide enough that a two-line wrap carries the whole name. */
+static void wm_fit_lines(const char *name, int max_w,
+                         char *l1, size_t cap1, char *l2, size_t cap2) {
+    l1[0] = '\0'; l2[0] = '\0';
+    if (!name) return;
+    if (vbe_text_width(name, 1) <= max_w) { snprintf(l1, cap1, "%s", name); return; }
+
+    /* Prefer the LAST space that leaves line 1 fitting. */
+    int split = -1;
+    for (const char *q = name; *q; q++) {
+        if (*q != ' ') continue;
+        char head[64];
+        snprintf(head, sizeof head, "%.*s", (int)(q - name), name);
+        if (vbe_text_width(head, 1) <= max_w) split = (int)(q - name);
+    }
+    if (split > 0) {
+        snprintf(l1, cap1, "%.*s", split, name);
+        snprintf(l2, cap2, "%s", name + split + 1);
+    } else {
+        snprintf(l1, cap1, "%s", name);          /* one long word: ellipsise below */
+    }
+
+    /* Ellipsise whatever overflows -- and REMEMBER that we cut, so the dots survive. */
+    char *lines[2] = { l1, l2 };
+    size_t caps[2] = { cap1, cap2 };
+    for (int i = 0; i < 2; i++) {
+        if (!lines[i][0]) continue;
+        if (vbe_text_width(lines[i], 1) <= max_w) continue;
+        int dots = vbe_text_width("...", 1);
+        size_t len = strlen(lines[i]);
+        while (len > 0 && vbe_text_width(lines[i], 1) > max_w - dots)
+            lines[i][--len] = '\0';
+        if (len + 3 < caps[i]) memcpy(lines[i] + len, "...", 4);
+    }
 }
 
 void wm_render(uint32_t *fb, int fb_w, int fb_h) {
@@ -159,15 +184,20 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
              * sliver turned "My Computer" into "My..." and the column into noise. */
             uint32_t txt_col = icon->selected ? tc()->win_title_text : tc()->icon_text;
             int cx = icon->x + DOSGUI_ICON_SIZE / 2;          /* cell centre */
-            char label[64];
-            wm_fit_label(icon->name, max_label_w, label, sizeof label);
-            int tw2 = vbe_text_width(label, 1);
-            int tx = cx - tw2 / 2;
-            if (icon->selected)
-                vbe_fill_rect(tx - 2, label_y - 1, tw2 + 4, WUBU_FONT_CAP_H + 2,
-                              tc()->select_bg);
-            vbe_draw_text(tx + 1, label_y, label, tc()->icon_text_shadow, 1);
-            vbe_draw_text(tx, label_y - 1, label, txt_col, 1);
+            char l1[64], l2[64];
+            wm_fit_lines(icon->name, max_label_w, l1, sizeof l1, l2, sizeof l2);
+            int lh = WUBU_FONT_CAP_H + 2;
+            for (int line = 0; line < 2; line++) {
+                const char *t = line ? l2 : l1;
+                if (!t[0]) continue;
+                int tw2 = vbe_text_width(t, 1);
+                int tx = cx - tw2 / 2;
+                if (icon->selected)
+                    vbe_fill_rect(tx - 2, label_y + line * lh - 1, tw2 + 4, lh,
+                                  tc()->select_bg);
+                vbe_draw_text(tx + 1, label_y + line * lh, t, tc()->icon_text_shadow, 1);
+                vbe_draw_text(tx, label_y + line * lh - 1, t, txt_col, 1);
+            }
         }
     }
 
