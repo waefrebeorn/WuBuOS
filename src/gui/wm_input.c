@@ -138,7 +138,16 @@ extern void win11_snap_toggle(void) __attribute__((weak));
 extern bool win11_snap_is_open(void) __attribute__((weak));
 extern bool win11_snap_key(uint32_t key) __attribute__((weak));
 
+/* The pointer path carries no modifiers: taskbar_modern_handle(x,y,btn,kind) has no mods
+ * parameter and WubuUiEvent has no mods field. Windows' shift-click-a-taskbar-button needs
+ * them, so the last state the KEYBOARD delivered is kept here. A modifier press is a key
+ * event, so this is current whenever a click follows one. */
+static uint32_t g_last_mods;
+
+uint32_t wm_last_mods(void) { return g_last_mods; }
+
 void wm_handle_key(uint32_t key, uint32_t mods) {
+    g_last_mods = mods;
     wubu_screensaver_activity();
 
     /* Win+L: lock / unlock. */

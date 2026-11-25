@@ -8,6 +8,7 @@
 
 #include "wubu_gui_metrics.h"
 #include "../wm_internal.h"
+#include "../kernel/input.h"     /* MOD_SHIFT: shift-click means new instance */
 #include "taskbar_tasks.h"
 #include "startmenu.h"
 #include <time.h>
@@ -280,6 +281,11 @@ int taskbar_slot_launch(int n) {
     return 0;
 }
 
+int taskbar_shift_new_instance(int slot_index) {
+    if (!(wm_last_mods() & MOD_SHIFT)) return 0;
+    return taskbar_new_instance(slot_index);
+}
+
 /* Middle click = a NEW instance (Windows). Only a pin knows its command; a window task does
  * not record how it was started, so a window slot returns 0 and the caller falls through to
  * the normal focus behaviour. */
@@ -356,6 +362,9 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind) {
         if (btn == 3 && kind == 1) {
             if (taskbar_new_instance(i)) return true;
         }
+        /* Shift + left click = new instance (Windows). Checked before the plain left path,
+         * which would otherwise focus the existing window instead. */
+        if (btn == 1 && kind == 1 && taskbar_shift_new_instance(i)) return true;
         /* Right-click = jump list (Windows). Before this the bar ignored the right
          * button entirely, so a taskbar button could only be clicked. */
         if (btn == 2) {

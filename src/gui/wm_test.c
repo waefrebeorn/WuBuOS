@@ -2134,6 +2134,20 @@ static void test_win_number_acts_on_taskbar_slot(void) {
     PASS();
 }
 
+
+static void test_pointer_path_sees_modifier_state(void) {
+    TEST("the pointer path can see the last modifier state (shift-click)");
+    wm_init(1024, 768);
+    wm_handle_key('x', MOD_SHIFT);
+    CHECK((wm_last_mods() & MOD_SHIFT) != 0, "shift is visible to the pointer path");
+    wm_handle_key('x', 0);
+    CHECK((wm_last_mods() & MOD_SHIFT) == 0, "cleared by the next key event");
+    /* Without shift held, the shift-click helper must decline so the caller focuses. */
+    CHECK(taskbar_shift_new_instance(0) == 0, "no shift -> not a new instance");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2141,6 +2155,7 @@ int main(void) {
 
     test_init();
     test_init_shutdown_no_crash();
+    test_pointer_path_sees_modifier_state();
     test_wheel_over_taskbar_cycles_focus();
     test_win_number_acts_on_taskbar_slot();
     test_win_d_show_desktop_with_focus();

@@ -173,6 +173,11 @@ int  taskbar_slot_launch(int n);
 int  taskbar_new_instance(int slot_index);
 /* Wheel over the taskbar / Win+Tab-less window cycling: move focus by delta (+1 next). */
 void wm_wheel_cycle(int delta);
+/* Last modifier state seen on a key event (the pointer path carries none). */
+uint32_t wm_last_mods(void);
+/* Shift+click on a taskbar button: new instance, like Windows. Returns 0 when the slot is a
+ * plain window task or the shift key was not held, so the caller falls through to focus. */
+int  taskbar_shift_new_instance(int slot_index);
 int  border_width(void);
 int  theme_radius(void);
 void load_default_wallpaper(void);
