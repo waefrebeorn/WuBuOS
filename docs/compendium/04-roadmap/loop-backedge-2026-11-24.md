@@ -120,6 +120,39 @@ LOAD `ldr x10, [x19, x11]` with x11 = the byte offset -> STORE symmetric.
 The driver's memory case is the acceptance test; the arm64 loop already passes
 under qemu-aarch64 (`test_isa_exec`: 60 executed, 0 failed).
 
+## arm64 loop: the back edge resolves FORWARD (measured, not fixed)
+
+`qemu-aarch64-static` runs the loop blob and answers 5 where 10 is wanted. The
+disassembly of the emitted loop names two defects, and they are separate:
+
+    0:  a9bf7bfd  stp  x29, x30, [sp, #-16]!
+    4:  910003fd  mov  x29, sp
+    8:  d10123ff  sub  sp, sp, #0x48
+    c:  d2800000  mov  x0, #0          ; acc = 0 -> x9
+   14:  d2800020  mov  x0, #1          ; i   = 1 -> x10
+   1c:  d2800080  mov  x0, #4          ; four= 4 -> x11
+   24:  aa0a03e9  mov  x9, x10         ; acc = i        <-- L_loop is HERE
+   28:  aa0b03ea  mov  x10, x11        ; i   = four
+   2c:  eb0a013f  cmp  x9, x10         ; compares acc,i -- MIR says i,four
+   30:  5400006c  b.gt 0x3c
+   38:  14000002  b    0x40            ; <-- should be `b 0x24`
+
+1. **The label offset is wrong.** `L_loop` sits at 0x24 and the back edge at 0x38
+   emits `b 0x40` (+8). The patch pass itself computes `rel = t - pos` with
+   `imm26 = rel/4` and masks correctly, so the *value* handed to it is wrong:
+   `label_off()` returns 0x40 for a label placed at 0x24. Check the label
+   recording path before touching the patch arithmetic -- the arithmetic is
+   already right, which is exactly why a wrong `t` looks correct in the encoding.
+2. **Operands are shifted by one vr.** `MIR_GT(a=i, b=four)` emits `cmp x9, x10`
+   (acc,i) instead of `cmp x10, x11` (i,four), and the two entry copies read
+   `acc = i; i = four` where the MIR asks for `acc = sum; i = next`. The consts
+   land in the right registers, so the vr->reg map is sound at the prologue; what
+   disagrees is the *operand resolution inside the loop body*.
+
+Because the back edge leaves the loop after one pass, the straight-line cases all
+pass (20/20 under qemu) and only the loop fails -- the same shape as riscv,
+6502, 8051, pic and avr: correct where the test looks, wrong at the back edge.
+
 ## Progress against that list
 
 **1. DONE** — every backend's op-switch default now records the op
