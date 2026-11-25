@@ -77,8 +77,12 @@ int desktop_init(void) {
      * desktop icon and a startmenu entry -- written by hand, edited in the
      * IDE, or created from a VWS template -- with no C change and no rebuild. */
     char apdir[512];
+    /* Scan BOTH sources: the user dir (app_wet_dir) and the applets that ship
+     * with the OS. Scanning only the former made every committed .wet file
+     * invisible at runtime -- a program that could never be launched. */
     app_wet_dir(apdir, sizeof apdir);
-    if (app_scan_wet_dir(apdir) > 0) {
+    extern int app_scan_wet_all(void);
+    if (app_scan_wet_all() > 0) {
         for (int i = 0; i < app_wet_count(); i++) {
             const DosGuiAppDef *d = app_wet_at(i);
             if (!d) continue;

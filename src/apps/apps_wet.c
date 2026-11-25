@@ -38,7 +38,20 @@ static int         g_wet_count;
 int app_wet_count(void) { return g_wet_count; }
 
 /* Where programs live.  A program is a file: the directory is the only place
- * a new one can come from. */
+ * a new one can come from.
+ *
+ * There are TWO sources, and until now only the first was ever scanned: the
+ * user directory, and the applets that SHIP with the OS. A .wet file committed
+ * to the tree was therefore invisible at runtime -- a program that can never be
+ * launched, discoverable only if someone copied it into $HOME by hand. The
+ * shipped dir is scanned after the user dir, so a user applet of the same name
+ * still wins the lookup (first registered wins in app_find_wet_by_name). */
+#ifndef WUBU_SHIPPED_APPLET_DIR
+#define WUBU_SHIPPED_APPLET_DIR "src/apps/applets"
+#endif
+
+const char *app_wet_shipped_dir(void) { return WUBU_SHIPPED_APPLET_DIR; }
+
 void app_wet_dir(char *out, size_t cap) {
     if (!out || cap == 0) return;
     const char *env = getenv("WUBU_APPLET_DIR");
@@ -47,6 +60,8 @@ void app_wet_dir(char *out, size_t cap) {
     if (home && home[0]) { snprintf(out, cap, "%s/.wubu/applets", home); return; }
     snprintf(out, cap, "/tmp/.wubu/applets");
 }
+
+int app_scan_wet_all(void);
 
 const DosGuiAppDef *app_wet_at(int i) {
     if (i < 0 || i >= g_wet_count) return NULL;
@@ -72,6 +87,17 @@ static bool has_wet_ext(const char *name) {
  * Idempotent for a given path (a second scan of the same dir is a no-op), so
  * a caller can refresh on every boot without duplicating entries.
  */
+/* Scan the user dir AND the shipped dir. One call site, one order. */
+int app_scan_wet_all(void) {
+    char user[1024];
+    app_wet_dir(user, sizeof user);
+    int n = app_scan_wet_dir(user);
+    if (n < 0) n = 0;
+    int m = app_scan_wet_dir(WUBU_SHIPPED_APPLET_DIR);
+    if (m > 0) n += m;
+    return n;
+}
+
 int app_scan_wet_dir(const char *dir) {
     if (!dir || !dir[0]) return -1;
     DIR *d = opendir(dir);
