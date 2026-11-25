@@ -27,24 +27,24 @@ instead of rediscovering each item after a user reports it.
 | Widgets | `win11_widgets.c` | present | have |
 | Wallpapers | `wubu_wallpaper.c` | **1** bundled image; harvest holds **20** at 3840×2400 | thin |
 | Cursors | 55 `cursor_theme|XCURSOR|xcb_cursor` hits | themed, not Windows-sized (harvest: 206 cursors, 24 px) | have |
-| Fonts | **no .ttf/.otf ships**; 1 `Segoe|NotoSans|fc-match` hit | bitmap font only -> the blocky glyphs | **GAP** |
+| Fonts | `src/gui/fonts/wubu_font_text.h` (baked Segoe UI Variable 13 px) | 94 glyphs, 5,681 coverage bytes; AA through `vbe_draw_text()` | have (one size) |
 | Taskbar jump lists | 0 `jump_list|recent_docs` hits | Win11 right-click on a pinned app lists recent files/tasks | **GAP** |
 | Visual styles (.msstyles) | 0 hits | deliberate: our theme is `wubu_theme.c` | n/a |
 
 ## The two real gaps
 
-### 1. Fonts: we ship none
+### 1. Fonts: baked, one size (was the largest gap)
 
-There is not a single `.ttf` or `.otf` in the tree outside `docs/reference/`. Every glyph
-is the built-in bitmap font, which is why text reads blocky at any size and why nothing
-scales with DPI. The harvest already resolved this: **152/152 fonts** from the image,
-including **Segoe UI Variable** with its axis table (`cap 1434 / x 1024 @ 2048 upem`), and
-CachyOS's Noto Sans at 10 pt (`98304`).
+There is still no `.ttf` shipped at runtime, and that is deliberate: the face is baked
+into a coverage table (`tools/font_bake.py` -> `src/gui/fonts/wubu_font_text.h`), so the
+product carries 5,681 bytes of coverage instead of a font engine. Segoe UI Variable at
+13 px, 94 glyphs, antialiased through `vbe_draw_text()`, with bytes outside the baked
+range falling back to the old bitmap glyph per character.
 
-The fix is a bake, not a port: rasterise a small weight run from a real font into a
-coverage table at 12/14/16 px, ship the coverage masks like `wubu_icons_data.h`, and keep
-the rasteriser's antialiasing rule identical to the icon bake's 4×4 supersample. Then the
-same "no bitmap in a render path" rule applies: the font is data behind a font module.
+What is still missing is the SIZE LADDER: Win11 renders 12/14/16/20 px for caption, body,
+subtitle and title. One baked size means one text size on screen. Each role needs its own
+bake (`--out src/gui/fonts/wubu_font_ui.h`, etc.) -- scaling a coverage mask reintroduces
+the blockiness the bake exists to remove.
 
 ### 2. Jump lists: absent
 
