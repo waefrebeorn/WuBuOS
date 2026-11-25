@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.." || exit 1
 SOCK=/tmp/.X11-unix/X77
 gcc -std=c11 -O1 -Isrc/runtime tools/x11_handshake_stub.c \
     src/runtime/wubu_x11_bridge.c src/runtime/wubu_x11_setup_reply.c \
-    -o build/x11_handshake_stub || exit 1
+    src/runtime/wubu_x11_request.c -o build/x11_handshake_stub || exit 1
 ./build/x11_handshake_stub "$SOCK" >/tmp/x11_stub.log 2>&1 &
 STUB=$!
 python3 - "$SOCK" <<'PY' &
@@ -43,8 +43,13 @@ DISPLAY=:77 timeout 10 xdpyinfo >/tmp/x11_client.out 2>&1
 wait $STUB 2>/dev/null
 kill $PROXY 2>/dev/null
 cat /tmp/x11_stub.log
-if grep -q "PASS client sent a request" /tmp/x11_stub.log; then
-    echo "x11 handshake: PASS (a real X client accepted the reply)"
+# PASS now means the client ran the whole way: every request was answered, none
+# was unimplemented, and xdpyinfo printed a screen. "unknown=0" is the strict
+# part -- a client that limps through on errors is not a working server.
+if grep -q "PASS client accepted the reply and drove" /tmp/x11_stub.log &&
+   grep -q "unknown=0" /tmp/x11_stub.log &&
+   grep -q "dimensions:" /tmp/x11_client.out; then
+    echo "x11 handshake: PASS (a real X client completed against this server)"
     exit 0
 fi
 echo "x11 handshake: FAIL"
