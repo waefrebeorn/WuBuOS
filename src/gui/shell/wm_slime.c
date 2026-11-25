@@ -43,6 +43,8 @@ static int g_down_x, g_down_y;
 /* -- lifecycle ----------------------------------------------------- */
 
 void wm_slime_init(int screen_w, int screen_h) {
+    /* Idempotent, for the same reason as wm_rim_init. */
+    if (g_ready) { wubu_slime_free(&g_slime); g_ready = false; }
     g_screen_w = screen_w;
     g_screen_h = screen_h;
     memset(g_meta, 0, sizeof g_meta);
@@ -116,9 +118,16 @@ void wm_slime_tick(void) {
     wubu_slime_step(&g_slime, &w);
 }
 
+/* OFF by default, for the same reason as the rim: app-coloured beads with dark outlines
+ * hanging off the screen seam read as scribble on the wallpaper, not as chrome. The physics
+ * and the model stay; the decoration is opt-in. */
+static bool g_enabled = false;
+void wm_slime_set_enabled(bool on) { g_enabled = on; }
+bool wm_slime_enabled(void)        { return g_enabled; }
+
 void wm_slime_render(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb;
-    if (!g_ready || g_slime.field.n == 0) return;
+    if (!g_enabled || !g_ready || g_slime.field.n == 0) return;
 
     for (int i = 0; i < g_slime.field.n; i++) {
         const WubuSlimeBlob *b = &g_slime.blobs[i];
@@ -139,7 +148,7 @@ void wm_slime_render(uint32_t *fb, int fb_w, int fb_h) {
 
 bool wm_slime_handle_pointer(int x, int y, int btn, int kind) {
     (void)btn;
-    if (!g_ready || g_slime.field.n == 0) return false;
+    if (!g_enabled || !g_ready || g_slime.field.n == 0) return false;
 
     if (kind == 1) {
         int i = wubu_slime_hit(&g_slime, (float)x, (float)y);

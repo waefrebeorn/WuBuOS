@@ -1668,7 +1668,9 @@ static void test_rim_islands(void) {
     CHECK(x >= 198 && x <= 202 && y >= 148 && y <= 152,
           "island settles on the rim's top-left corner");
 
-    /* Rendering with an island live must draw it, not just not crash. */
+    /* Rendering with an island live must draw it, not just not crash. The beads are opt-in
+     * (see test_rim_beads_are_opt_in), so this test asks for them explicitly. */
+    wm_rim_set_enabled(true);
     vbe_init(1024, 768);
     wm_render(NULL, 1024, 768);
     int painted = 0;
@@ -1691,6 +1693,7 @@ static void test_rim_islands(void) {
     CHECK(wm_rim_handle_pointer(x2, y2, 1, 1), "press on the moved island");
     CHECK(wm_rim_handle_pointer(x2, y2, 1, 2), "release is a click");
 
+    wm_rim_set_enabled(false);
     wm_rim_clear();
     CHECK(wm_rim_count() == 0, "clear empties the rim");
     wm_shutdown();
@@ -1701,6 +1704,8 @@ static void test_rim_islands(void) {
 
 static void test_slime_seam(void) {
     TEST("slime seam: add, settle, store, release, drag, clear");
+    /* The seam's beads are opt-in, like the rim's: this test exercises the seam. */
+    wm_slime_set_enabled(true);
     wm_init(1024, 768);
     wm_slime_clear();
     CHECK(wm_slime_count() == 0, "seam starts empty");
@@ -2008,8 +2013,18 @@ static void test_modern_taskbar(void) {
     vbe_init(1024, 768);
     wm_render(NULL, 1024, 768);
     uint32_t band = vbe_get_pixel(10, sh - 4);
-    uint32_t above = vbe_get_pixel(10, taskbar_top() - 20);
-    CHECK(band == above || band == tc()->desktop_bg,
+    /* Two pixels above the band, not twenty: the backdrop is a vertical gradient, so a
+     * large vertical offset differs by design. A real gap still shows here -- the theme
+     * colour sits ~8 counts away from the wall at this height. */
+    uint32_t above = vbe_get_pixel(10, sh - 6);
+    /* Tolerance, not equality: the default backdrop is now a vertical gradient, so 4px apart
+     * is a few steps different by construction. The INTENT -- the wall continues under the
+     * bar instead of stopping at it -- is a match within a few counts, or the theme colour. */
+    int dr = (int)((band >> 16) & 0xff) - (int)((above >> 16) & 0xff);
+    int dg = (int)((band >> 8) & 0xff) - (int)((above >> 8) & 0xff);
+    int db = (int)(band & 0xff) - (int)(above & 0xff);
+    if (dr < 0) dr = -dr; if (dg < 0) dg = -dg; if (db < 0) db = -db;
+    CHECK((dr <= 4 && dg <= 4 && db <= 4) || band == tc()->desktop_bg,
           "the band around the floating bar is painted, not a raw gap");
     CHECK(!(band == 0 && tc()->desktop_bg != 0),
           "the band is not the unpainted clear colour");
@@ -2562,6 +2577,52 @@ static void test_taskbar_overflow_menu_lists_the_hidden(void) {
     PASS();
 }
 
+
+static void test_rim_beads_are_opt_in(void) {
+    TEST("the rim's beads are OFF by default: no scribble on the focused frame");
+    vbe_init(1024, 768);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    CHECK(!wm_rim_enabled(), "the decoration is off unless asked for");
+
+    DosGuiWindow *w = wm_create(300, 200, 400, 260, "Framed");
+    CHECK(w != NULL, "window created");
+    wm_set_focus(w);
+    /* Not "== 0": the rim already carries islands mirrored from the taskbar pins, so a new
+     * one takes the next index. Asserting index 0 was asserting the pin count. */
+    int rim_rc = wm_rim_add(0.0f, 14.0f, 0xC05050, "rimoptin");
+    CHECK(rim_rc >= 0, "an island exists in the model");
+    for (int k = 0; k < 60; k++) wm_rim_tick();
+
+    /* Count ink on the window's bottom edge with the decoration OFF. */
+    long off = 0;
+    for (int y = w->y + w->h - 26; y < w->y + w->h; y++)
+        for (int x = w->x; x < w->x + w->w; x++) {
+            uint32_t c = vbe_get_pixel(x, y);
+            if (c != 0) off++;
+        }
+    wm_rim_render(NULL, 1024, 768);
+    long still = 0;
+    for (int y = w->y + w->h - 26; y < w->y + w->h; y++)
+        for (int x = w->x; x < w->x + w->w; x++) {
+            uint32_t c = vbe_get_pixel(x, y);
+            if (c != 0) still++;
+        }
+    CHECK(still == off, "rendering with beads off painted nothing");
+
+    /* Turned on, the beads DO paint -- so 'off' is a choice, not a broken renderer. */
+    wm_rim_set_enabled(true);
+    wm_rim_render(NULL, 1024, 768);
+    long on = 0;
+    for (int y = 0; y < 768; y++)
+        for (int x = 0; x < 1024; x++)
+            if (vbe_get_pixel(x, y) != 0) on++;
+    CHECK(on > still, "enabled, the beads paint");
+    wm_rim_set_enabled(false);
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2575,6 +2636,7 @@ int main(void) {
     test_thumb_capture_maps_the_window_rect();
     test_taskbar_hover_tracks_slots();
     test_pointer_path_sees_modifier_state();
+    test_rim_beads_are_opt_in();
     test_taskbar_overflow_menu_lists_the_hidden();
     test_taskbar_overflow_never_reaches_the_tray();
     test_alt_tab_switcher_commits_on_alt_release();

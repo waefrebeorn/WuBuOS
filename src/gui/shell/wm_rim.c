@@ -41,6 +41,9 @@ static int g_down_x, g_down_y;
 /* -- geometry ------------------------------------------------------ */
 
 void wm_rim_init(int screen_w, int screen_h) {
+    /* Idempotent: a second init without a shutdown must not leave g_ready false -- that made
+     * wm_rim_add() refuse every island with no explanation, in any test that re-inited. */
+    if (g_ready) { wubu_rim_free(&g_rim); g_ready = false; }
     g_screen_w = screen_w;
     g_screen_h = screen_h;
     memset(g_meta, 0, sizeof g_meta);
@@ -130,9 +133,19 @@ void wm_rim_tick(void) {
     wubu_rim_step(&g_rim, &w);
 }
 
+/* OFF by default. The islands are app-coloured beads that orbit the focused window's frame;
+ * with more than two pins they overlap into a scribble of red/green loops hanging off the
+ * window's bottom edge -- noise on the desktop, and the thing the user kept calling "the blob
+ * in the way". Windows 11 marks focus with a hairline accent, not with beads. The model, its
+ * physics and its tests stay; the DECORATION is opt-in, so it can be evaluated instead of
+ * endured. */
+static bool g_enabled = false;
+void wm_rim_set_enabled(bool on) { g_enabled = on; }
+bool wm_rim_enabled(void)        { return g_enabled; }
+
 void wm_rim_render(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb;
-    if (!g_ready || g_rim.field.n == 0) return;
+    if (!g_enabled || !g_ready || g_rim.field.n == 0) return;
 
     /* Islands live on a window frame; never paint them over the taskbar. */
     int task_h = taskbar_height_dynamic();
@@ -161,7 +174,9 @@ void wm_rim_render(uint32_t *fb, int fb_w, int fb_h) {
 
 bool wm_rim_handle_pointer(int x, int y, int btn, int kind) {
     (void)btn;
-    if (!g_ready || g_rim.field.n == 0) return false;
+    /* Not painted means not clickable: an invisible bead that swallows a click would be
+     * worse than the decoration it replaced. */
+    if (!g_enabled || !g_ready || g_rim.field.n == 0) return false;
 
     if (kind == 1) {
         int i = wubu_rim_hit(&g_rim, (float)x, (float)y);

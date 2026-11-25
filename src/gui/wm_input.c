@@ -60,7 +60,6 @@ extern DosGuiWindow *control_launch(void) __attribute__((weak));
  * Weak, so a pinned button is inert there rather than a link error. */
 __attribute__((weak)) void launch_app(const char *name);
 #include "wm.h"
-#include "wubu_a11y.h"
 #include "buddy_sprite.h"
 
 #include <string.h>
@@ -225,14 +224,6 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
             if (key == 0x3C) { wm_rename_selected_icon(); return; }  /* F2 */
             if (key == 0x53) { wm_delete_selected_icon(); return; }  /* Delete */
         }
-    }
-
-    /* P0 a11y: when the cluster is enabled and a window is focused, give
-     * the a11y keyboard nav first crack (arrow-cycle focus, Enter/Space
-     * activate). Otherwise arrow keys fall through to normal WM nav. */
-    if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
-        DosGuiWindow *fw = &g_dwm.windows[g_dwm.focused_id];
-        if (fw->alive && wubu_a11y_key(fw, key, mods)) return;
     }
 
     /* Ctrl+Alt+Up/Down: system volume.  Ctrl+Alt+Left/Right: brightness.
@@ -713,13 +704,6 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
      * swallow taskbar clicks (the rotate orb overlapped the clock well at
      * 999,754 and the clock popup could never open).  The taskbar is always
      * the topmost strip, so it keeps priority. */
-    if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
-        DosGuiWindow *fw = &g_dwm.windows[g_dwm.focused_id];
-        if (fw->alive && !(fw->flags & DOSGUI_WIN_MINIMIZED) &&
-            wubu_a11y_mouse(fw, x, y, btn, kind))
-            return;
-    }
-
     /* Desktop mascot (WuBu Buddy): chrome-less element above windows.
      * Checked AFTER the taskbar region so Start button clicks aren't
      * swallowed by the mascot's lower-left bounding box. */

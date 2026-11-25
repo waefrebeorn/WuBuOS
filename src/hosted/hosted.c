@@ -52,7 +52,6 @@
 #include "../gui/wm.h"
 #include "../gui/shell/startmenu.h"
 #include "../gui/wubu_settings.h"
-#include "../gui/wubu_a11y.h"
 
 /* defined below main; launches the live shader companion orb */
 static void wubu_hosted_spawn_buddy(void);
@@ -184,17 +183,6 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
      * skipping this leaves tc()->btn_face / icon_text at zero: a black
      * taskbar, invisible desktop icons and borderless windows. */
     wubu_settings_init();
-
-    /* Bring up the accessibility subsystem when any a11y feature is asked
-     * for. The capture harness enables it unconditionally; the product
-     * honours the settings instead. */
-    {
-        const A11ySettings *a = &wubu_settings_get()->a11y;
-        if (!wubu_a11y_is_enabled() &&
-            (a->high_contrast || a->screen_reader || a->screen_magnifier ||
-             a->sticky_keys || a->slow_keys || a->bounce_keys || a->mouse_keys))
-            wubu_a11y_set_enabled(true);
-    }
 
     /* Cell 400+401+402: DosGui — Fable windowing agent + desktop + start menu */
     wm_init(state->width, state->height);

@@ -46,9 +46,10 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
         int idx = g_dwm.zorder[j];
         DosGuiWindow *w = &g_dwm.windows[idx];
         if (!w->alive || w->desktop != g_dwm.current_desktop) continue;
-        int tw = vbe_text_width(w->title, 1) + WUBU_SPACE_LG;
-        if (tw < WUBU_TASKBAR_BTN_MIN_W) tw = WUBU_TASKBAR_BTN_MIN_W;
-        if (tw > WUBU_TASKBAR_BTN_MAX_W) tw = WUBU_TASKBAR_BTN_MAX_W;
+        /* Uniform tile: Win11 shows ICONS at a fixed size, never titles. Measuring the title
+         * made buttons variable-width, truncated ("Tem...") and text-heavy -- the single
+         * biggest tell that this was not a Win11 taskbar. */
+        int tw = WUBU_TASKBAR_BTN_MIN_W;
         L->slot[L->n_slots].w = tw;
         L->slot[L->n_slots].h = bh;
         L->slot[L->n_slots].is_pin = 0;
@@ -214,9 +215,20 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
         vbe_fill_rect_rounded(s->x, s->y, s->w, s->h,
                               WUBU_METRIC_RADIUS_CONTROL,
                               focused ? tc()->btn_face : tc()->taskbar_bg);
-        vbe_draw_text(s->x + WUBU_SPACE_SM,
-                      s->y + (s->h - WUBU_FONT_CAP_H) / 2, title,
-                      focused ? tc()->btn_text : tc()->icon_text, 1);
+        /* The app mark: a 24px rounded tile in the accent, carrying the initial. It is a
+         * PLACEHOLDER for a real per-app icon, and it is honest about that -- what it is not
+         * is a text label pretending to be a Windows 11 taskbar button. */
+        {
+            int isz = WUBU_TASKBAR_TRAY_ICON + 6;         /* 24px mark */
+            int mx = s->x + (s->w - isz) / 2;
+            int my = s->y + (s->h - isz) / 2 - 2;         /* room for the pill below */
+            char mono[2] = { title && title[0] ? title[0] : '?', 0 };
+            vbe_fill_rect_rounded(mx, my, isz, isz, WUBU_METRIC_RADIUS_CONTROL,
+                                  focused ? tc()->select_bg : tc()->btn_face);
+            vbe_draw_text(mx + (isz - vbe_text_width(mono, 1)) / 2,
+                          my + (isz - WUBU_FONT_CAP_H) / 2, mono,
+                          focused ? tc()->select_text : tc()->btn_text, 1);
+        }
         /* Progress badge: a sliver across the bottom of the tile. Drawn UNDER the running
          * indicator so a focused app still reads as focused. */
         if (!s->is_pin) {
@@ -590,11 +602,15 @@ int taskbar_height(void) { return taskbar_height_dynamic(); }
 /* The Start button's emblem: the classic Win95-style 4-pane flag
  * (red / green / blue / yellow) with a black outline. */
 static void draw_start_flag(int x, int y) {
-    vbe_fill_rect(x,     y,     7, 7, 0xFE0000);   /* brand-art red    */
-    vbe_fill_rect(x + 7, y,     7, 7, 0x00A800);   /* brand-art green  */
-    vbe_fill_rect(x,     y + 7, 7, 7, 0x0000A8);   /* brand-art blue   */
-    vbe_fill_rect(x + 7, y + 7, 7, 7, 0xFFC800);   /* brand-art yellow */
-    vbe_rect(x, y, 14, 14, 0x000000);              /* brand-art outline */
+    /* Windows 11's Start mark is ONE colour (the accent) in four panes. The four-colour
+     * Win95 flag is a different operating system's logo, and it was the loudest "this is
+     * not Windows 11" element on the bar. Panes are separated by a 2px gutter rather than
+     * outlined, which is how the modern mark reads at 14px. */
+    uint32_t accent = tc()->select_bg;
+    vbe_fill_rect(x,     y,     6, 6, accent);
+    vbe_fill_rect(x + 8, y,     6, 6, accent);
+    vbe_fill_rect(x,     y + 8, 6, 6, accent);
+    vbe_fill_rect(x + 8, y + 8, 6, 6, accent);
 }
 
 void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {

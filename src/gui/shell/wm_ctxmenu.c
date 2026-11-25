@@ -12,6 +12,7 @@
  */
 
 #include "../wm_internal.h"
+#include "shell_session.h"   /* desktop_launch_icon: declared, never implicit */
 #include "../wubu_tokens.h"
 #include "../wubu_trash.h"
 

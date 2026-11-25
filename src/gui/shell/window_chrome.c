@@ -292,7 +292,13 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
     int tb_w = win->w - 2 * bw;
     int tb_h = chrome_title_bar_height();
 
+    /* Windows 11 draws the caption on the SAME Mica surface as the body: no strip, no
+     * separator, no gradient. The old dark theme filled the caption with win_title_active
+     * (0x32) over a win_face (0x24) body, which is the single most "not Windows 11" tell in
+     * the chrome after the taskbar labels. */
     uint32_t title_color = active ? tc()->win_title_active : tc()->win_title_inactive;
+    if (wubu_theme_current() == THEME_DARK && !theme()->gradient_title)
+        title_color = tc()->win_face;
     uint32_t title_text_color = active ? tc()->win_title_text : tc()->win_title_text_ina;
 
     if (theme()->gradient_title) {
@@ -546,8 +552,13 @@ void chrome_mask_corners(int x, int y, int w, int h, int rad) {
     /* One background sample per corner: directly outside the corner being cut. */
     uint32_t bg_tl = (y > 0)                 ? vbe_get_pixel(x + rad + 1, y - 1) : tc()->desktop_bg;
     uint32_t bg_tr = (y > 0)                 ? vbe_get_pixel(x + w - rad - 1, y - 1) : tc()->desktop_bg;
-    uint32_t bg_bl = (y + h < g_dwm.screen_h) ? vbe_get_pixel(x - rad - 1, y - 1) : 0; /* replaced below */
-    (void)bg_bl;
+    /* Bottom corners must sample BELOW the window, not the top: on a vertical-gradient
+     * wallpaper the old code blended the bottom arc toward the top colour, which is why the
+     * lower corners never looked rounded. */
+    uint32_t bg_bl = (y + h < g_dwm.screen_h)
+                     ? vbe_get_pixel(x + rad + 1, y + h) : tc()->desktop_bg;
+    uint32_t bg_br = (y + h < g_dwm.screen_h)
+                     ? vbe_get_pixel(x + w - rad - 1, y + h) : tc()->desktop_bg;
     /* Coverage, not a staircase. A binary sqrt() cut gives a blocky arc -- "bad edges"
      * is exactly what a 1-bit mask looks like at 8px. Each pixel in the corner box is
      * blended with the background by how much of it lies outside the arc, which is
@@ -563,8 +574,8 @@ void chrome_mask_corners(int x, int y, int w, int h, int rad) {
             struct { int px, py; uint32_t bg; } pts[4] = {
                 { x + dx,             y + dy,             bg_tl },
                 { x + w - 1 - dx,     y + dy,             bg_tr },
-                { x + dx,             y + h - 1 - dy,     bg_tl },
-                { x + w - 1 - dx,     y + h - 1 - dy,     bg_tr },
+                { x + dx,             y + h - 1 - dy,     bg_bl },
+                { x + w - 1 - dx,     y + h - 1 - dy,     bg_br },
             };
             for (int k = 0; k < 4; k++) {
                 uint32_t src = vbe_get_pixel(pts[k].px, pts[k].py);

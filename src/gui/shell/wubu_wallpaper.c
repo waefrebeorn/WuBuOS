@@ -186,6 +186,40 @@ int wubu_wallpaper_load(const char *path, WubuWallpaper *out) {
     return 0;
 }
 
+/* Procedural dark backdrop: a neutral vertical ramp with ONE soft accent bloom in the
+ * upper left, the way Windows 11's bloom sits behind the desktop. Nothing is borrowed and
+ * nothing is shipped -- the old boot default was Valve's Steam Deck art, whose red/green
+ * doodles read as scribble on our wallpaper and as someone else's identity on ours.
+ * Returns malloc'd pixels (caller owns) or NULL. */
+uint32_t *wubu_wallpaper_generate_dark(int w, int h) {
+    if (w <= 0 || h <= 0) return NULL;
+    uint32_t *px = (uint32_t *)malloc((size_t)w * (size_t)h * sizeof(uint32_t));
+    if (!px) return NULL;
+    const float top[3] = { 0x1B, 0x1B, 0x21 };           /* upper surface */
+    const float bot[3] = { 0x0D, 0x0D, 0x11 };           /* lower surface */
+    float cx = 0.30f * (float)w, cy = 0.20f * (float)h;
+    float rad = 0.70f * (float)(w > h ? w : h);
+    float inv = 1.0f / rad;
+    for (int y = 0; y < h; y++) {
+        float t = (h > 1) ? (float)y / (float)(h - 1) : 0.0f;
+        float br = top[0] + (bot[0] - top[0]) * t;
+        float bg = top[1] + (bot[1] - top[1]) * t;
+        float bb = top[2] + (bot[2] - top[2]) * t;
+        for (int x = 0; x < w; x++) {
+            float dx = ((float)x - cx) * inv, dy = ((float)y - cy) * inv;
+            float d2 = dx * dx + dy * dy;
+            float g = (d2 >= 1.0f) ? 0.0f : (1.0f - d2);
+            g *= g;                                   /* quadratic falloff: no banding */
+            float r = br + g * 0x10, gg = bg + g * 0x22, b = bb + g * 0x36;  /* accent tint */
+            int ir = (int)r, ig = (int)gg, ib = (int)b;
+            if (ir > 255) ir = 255; if (ig > 255) ig = 255; if (ib > 255) ib = 255;
+            if (ir < 0) ir = 0; if (ig < 0) ig = 0; if (ib < 0) ib = 0;
+            px[y * w + x] = ((uint32_t)ir << 16) | ((uint32_t)ig << 8) | (uint32_t)ib;
+        }
+    }
+    return px;
+}
+
 void wubu_wallpaper_free(WubuWallpaper *wp) {
     if (wp && wp->pixels) {
         free(wp->pixels);

@@ -112,6 +112,13 @@ void           wm_move(DosGuiWindow *win, int x, int y);
 void           wm_maximize(DosGuiWindow *win);
 void           wm_minimize(DosGuiWindow *win);
 void           wm_show_desktop(void);   /* Win+D: minimize all / restore */
+/* The rim's app-coloured beads on the focused window frame. OFF by default: overlapping
+ * beads read as a scribble, not as chrome. Opt in to evaluate, not to endure. */
+void wm_rim_set_enabled(bool on);
+bool wm_rim_enabled(void);
+/* The seam's beads (app-coloured blobs on the screen edge). OFF by default, same reason. */
+void wm_slime_set_enabled(bool on);
+bool wm_slime_enabled(void);
 /* Aero edge snap on title-drag release: pointer at a side = half, at the top = maximize.
  * Returns false when the pointer was not near an edge. */
 bool           wm_snap_on_drag_release(DosGuiWindow *win, int px, int py);
@@ -246,7 +253,9 @@ void taskbar_update_clock(time_t now);
  * wubu_tokens.h (WUBU_SPACE_XS..2XL); the desktop inset is its 4u step. */
 #include "wubu_tokens.h"
 #define DOSGUI_ICON_MARGIN    WUBU_SPACE_LG   /* 4u == 16px desktop inset  */
-#define DOSGUI_ICON_TILE      (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8) /* 48 */
+/* Win11's desktop cells are far wider than a Win98 tile: the label needs a whole cell, not
+ * the 36px sliver that forced "My Computer" into "My..." and "Terminal" into "Tem...". */
+#define DOSGUI_ICON_TILE      (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 36) /* 76 */
 #define DOSGUI_ICON_COL_PITCH DOSGUI_ICON_TILE
 #define DOSGUI_ICON_ROW_PITCH DOSGUI_ICON_TILE
 

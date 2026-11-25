@@ -54,6 +54,19 @@ void load_default_wallpaper(void) {
      * style wallpaper decoded into the real framebuffer (crop-to-fill so it
      * covers the desktop edge-to-edge). The classic gradient is a last-resort
      * fallback only when the asset can't be found or decoded. */
+    if (!(s && s->theme.wallpaper_path[0]) && wubu_theme_current() == THEME_DARK) {
+        /* Dark mode owns the boot look: a generated backdrop, not the shipped Steam Deck
+         * image (its red/green doodles are Valve's identity and read as scribble here). */
+        uint32_t *gen = wubu_wallpaper_generate_dark(1920, 1080);
+        if (gen) {
+            g_dwm.wallpaper = gen;
+            g_dwm.wallpaper_w = 1920;
+            g_dwm.wallpaper_h = 1080;
+            g_dwm.wallpaper_mode = WUBU_WP_FILL;
+            return;
+        }
+        /* Allocation failed: fall through to the shipped asset, then the gradient. */
+    }
     if (!(s && s->theme.wallpaper_path[0])) {
         const char *def_path = wubu_wallpaper_default_path();
         WubuWallpaper wp;

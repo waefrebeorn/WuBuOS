@@ -62,6 +62,10 @@ const char *wubu_wallpaper_logo_path(void);
 /* Free a WubuWallpaper produced by wubu_wallpaper_load(). */
 void wubu_wallpaper_free(WubuWallpaper *wp);
 
+/* Procedural dark backdrop (neutral ramp + one accent bloom). Returns malloc'd pixels or
+ * NULL; the caller owns them exactly like a decoded image. */
+uint32_t *wubu_wallpaper_generate_dark(int w, int h);
+
 /*
  * Compute the destination rectangle for a placement mode, matching ReactOS
  * background.c semantics:

@@ -62,6 +62,13 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Use standardized chrome to draw window frame + title bar + buttons.
      * Returns content rect for app to draw within. */
+    /* Elevation shadow first: it is what makes a rounded corner READ as rounded. The module
+     * existed and was tested but nothing ever called it, so every window sat flat on the
+     * wallpaper -- which is most of why the chrome looked boxy. */
+    {
+        extern void wm_shadow_render(const DosGuiWindow *) __attribute__((weak));
+        if (wm_shadow_render) wm_shadow_render(w);
+    }
     ChromeContentRect content = chrome_draw_window(&g_dwm.windows[idx], fb, fb_w, fb_h);
 
     /* Content region: clip and call app's on_draw if present */
@@ -75,11 +82,33 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
      * AFTER the app has drawn, so the window reads as rounded whatever the app did --
      * which is exactly what was happening: every window looked boxy while the theme
      * claimed an 8px radius. */
-    if (wubu_theme_is_fluent() && !(w->flags & DOSGUI_WIN_MAXIMIZED))
-        chrome_mask_corners(w->x, w->y, w->w, w->h, WUBU_METRIC_RADIUS_WINDOW);
+    /* Round when the THEME declares a radius, not when it answers to the name "fluent":
+     * THEME_DARK never did, so no window was ever rounded while the theme claimed an 8px
+     * radius -- "everything is boxy" was literally true. */
+    int radius = WUBU_METRIC_RADIUS_WINDOW;   /* Win11: 8px at 100% scale, always */
+    if (!(w->flags & DOSGUI_WIN_MAXIMIZED) &&
+        (theme_radius() > 0 || wubu_theme_current() == THEME_DARK))
+        chrome_mask_corners(w->x, w->y, w->w, w->h, radius);
 }
 
 /* -- Full-screen render (the single entry point) ------------------- */
+
+
+/* Win11 desktop label: ONE centred line, ellipsised when it does not fit the cell.
+ * The first version wrapped to two lines and, worse, dropped the ellipsis entirely because
+ * it compared the truncated string's width against its own post-truncation length -- so
+ * "My Computer" became "My Comput" with no dots. Fit first, then measure how much to keep. */
+static void wm_fit_label(const char *name, int max_w, char *out, size_t cap) {
+    if (!name) { out[0] = '\0'; return; }
+    if (vbe_text_width(name, 1) <= max_w) { snprintf(out, cap, "%s", name); return; }
+    int dots = vbe_text_width("...", 1);
+    size_t len = strlen(name);
+    if (len >= cap) len = cap - 1;
+    out[len] = '\0';
+    memcpy(out, name, len);
+    while (len > 0 && vbe_text_width(out, 1) > max_w - dots) out[--len] = '\0';
+    if (len + 3 < cap) memcpy(out + len, "...", 4);
+}
 
 void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Advance the desktop companion animation clock (~60 Hz). */
@@ -125,43 +154,20 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         int text_w = vbe_text_width(icon->name, 1);
 
         if (label_y + 8 <= fb_h) {
+            /* Win11 label: CENTRED under the icon, up to two lines, ellipsis only when the
+             * second line still does not fit. The old single left-aligned line in a 36px
+             * sliver turned "My Computer" into "My..." and the column into noise. */
             uint32_t txt_col = icon->selected ? tc()->win_title_text : tc()->icon_text;
-            if (text_w > max_label_w) {
-                char truncated[32];
-                int len = strlen(icon->name);
-                strncpy(truncated, icon->name, len);
-                truncated[len] = '\0';
-                /* Reserve room for the ellipsis BEFORE truncating: appending
-                 * "..." after the cut pushed the label back past max_label_w
-                 * (4 chars + "..." = 56px in a 36px slot), so adjacent
-                 * selection plates overlapped and read as one merged string
-                 * ("COMPUT.DOCUME.RECYCL..."). */
-                int dots_w = vbe_text_width("...", 1);
-                while (len > 0 && vbe_text_width(truncated, 1) > max_label_w - dots_w) {
-                    len--;
-                    truncated[len] = '\0';
-                }
-                if (len > 0) {
-                    strncpy(truncated + len, "...", 3);
-                    truncated[len + 3] = '\0';
-                } else {
-                    strcpy(truncated, "...");
-                }
-                /* Shadow then text; on selection also draw a navy plate behind. */
-                if (icon->selected) {
-                    int sw = vbe_text_width(truncated, 1);
-                    vbe_fill_rect(icon->x - 1, label_y - 1, sw + 2, 10, tc()->select_bg);
-                }
-                vbe_draw_text(icon->x + 1, label_y, truncated, tc()->icon_text_shadow, 1);
-                vbe_draw_text(icon->x, label_y - 1, truncated, txt_col, 1);
-            } else {
-                if (icon->selected) {
-                    int sw = vbe_text_width(icon->name, 1);
-                    vbe_fill_rect(icon->x - 1, label_y - 1, sw + 2, 10, tc()->select_bg);
-                }
-                vbe_draw_text(icon->x + 1, label_y, icon->name, tc()->icon_text_shadow, 1);
-                vbe_draw_text(icon->x, label_y - 1, icon->name, txt_col, 1);
-            }
+            int cx = icon->x + DOSGUI_ICON_SIZE / 2;          /* cell centre */
+            char label[64];
+            wm_fit_label(icon->name, max_label_w, label, sizeof label);
+            int tw2 = vbe_text_width(label, 1);
+            int tx = cx - tw2 / 2;
+            if (icon->selected)
+                vbe_fill_rect(tx - 2, label_y - 1, tw2 + 4, WUBU_FONT_CAP_H + 2,
+                              tc()->select_bg);
+            vbe_draw_text(tx + 1, label_y, label, tc()->icon_text_shadow, 1);
+            vbe_draw_text(tx, label_y - 1, label, txt_col, 1);
         }
     }
 
@@ -201,11 +207,6 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Accessibility cluster: drawn over the focused window (top of z-order),
      * before the taskbar so it never paints under it. Skipped for minimized
      * windows (nothing to grab). */
-    if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
-        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
-        if (w->alive && !(w->flags & DOSGUI_WIN_MINIMIZED))
-            wubu_a11y_draw(w, fb, fb_w, fb_h);
-    }
 
     /* Desktop mascot (Bonzi Buddy): drawn above windows, below taskbar.
      * Balloon Help (System 7 lesson): when the cursor hovers a desktop

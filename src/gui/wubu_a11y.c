@@ -390,6 +390,32 @@ static void draw_orb_shadow(int cx, int cy, int r, uint32_t color, int alpha) {
 /* Soft rounded-rect shadow for the pill (same cast, rounded corners so it
  * hugs the pill silhouette instead of peeking as a rect). */
 
+/* One flat button: theme face, hairline ring, plain glyph. Replaces the GameCube art
+ * (yellow crescent / green A / red B, each with a shadow and a highlight blob) which read as
+ * coloured scribble on the window's corner -- "jank", by the user's own word. The SIZES are
+ * kept because accessibility needs large targets; only the decoration is gone. */
+static void a11y_button(int cx, int cy, int r, uint32_t face, uint32_t ring,
+                        int glyph, int focused, int fb_w, int fb_h) {
+    vbe_fill_circle(cx, cy, r, face);
+    vbe_ellipse(cx, cy, r, r, ring);
+    int g = r / 3;
+    if (g < 4) g = 4;
+    switch (glyph) {
+    case 0:  vbe_fill_rect(cx - g, cy - 1, 2 * g, 2, ring); break;              /* minimize */
+    case 1:  vbe_rect(cx - g, cy - g, 2 * g, 2 * g, ring); break;               /* maximize */
+    case 2:                                                                     /* close */
+        for (int i = -g; i <= g; i++) {
+            vbe_set_pixel(cx + i, cy + i, ring);
+            vbe_set_pixel(cx + i, cy - i, ring);
+        }
+        break;
+    default:                                                                    /* resize grip */
+        for (int i = -g; i <= g; i++) vbe_set_pixel(cx + i, cy + i, ring);
+        break;
+    }
+    if (focused) draw_focus_ring(cx, cy, r, fb_w, fb_h);
+}
+
 void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     if (!win || !win->alive || !g_a11y_enabled) return;
@@ -406,23 +432,14 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
      * a band from 9 o'clock to 12 o'clock: hollow opens DOWN-RIGHT, the
      * band hugs the upper-left arc. Click = minimize, drag = ROTATE. */
     int yx, yy; orb_y_center(win, &yx, &yy);
-    draw_crescent_fade(yx, yy + 2, A11Y_ORB_Y_R, A11Y_PANEL_DARK,
-                       A11Y_PANEL_DARK, 0.707f, 0.707f, 95);  /* shadow */
-    draw_crescent(yx, yy, A11Y_ORB_Y_R, A11Y_YELLOW, A11Y_YELLOW_DARK,
-                  0.707f, 0.707f);
-    /* handle slot along the band's belly (upper-left arc) */
-    vbe_fill_rect_rounded(yx - 10, yy - 7, 10, 4, 2, A11Y_YELLOW_DARK);
-    if (g_focus == WUBU_A11Y_ROTATE)
-        draw_focus_ring(yx, yy, A11Y_ORB_Y_R, fb_w, fb_h);
+    a11y_button(yx, yy, A11Y_ORB_Y_R, tc()->btn_face, tc()->border_light, 0,
+                g_focus == WUBU_A11Y_ROTATE, fb_w, fb_h);
 
     /* GREEN A (top-right): BIGGEST circle (reference r-ratio 2:1 vs red).
      * Click = MAXIMIZE, drag = move. Dark drag-arrows glyph. */
     int ax, ay; orb_a_center(win, &ax, &ay);
-    draw_orb_shadow(ax, ay, A11Y_ORB_A_R, A11Y_PANEL_DARK, 100);
-    draw_orb(ax, ay, A11Y_ORB_A_R, A11Y_GREEN, A11Y_GREEN_DARK);
-    draw_grab_glyph(ax, ay, A11Y_ORB_A_R, A11Y_GLYPH);
-    if (g_focus == WUBU_A11Y_GRAB)
-        draw_focus_ring(ax, ay, A11Y_ORB_A_R, fb_w, fb_h);
+    a11y_button(ax, ay, A11Y_ORB_A_R, tc()->btn_face, tc()->border_light, 1,
+                g_focus == WUBU_A11Y_GRAB, fb_w, fb_h);
 
     /* RED B (bottom-right): smallest circle. Click = end session, FULL drag
      * = purge+close, PARTIAL drag = STIM. */
@@ -432,11 +449,8 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
         draw_orb_shadow(bx, by, ring, 0xFFFFE080, 150);
         g_stim_frames--;
     }
-    draw_orb_shadow(bx, by, A11Y_ORB_B_R, A11Y_PANEL_DARK, 100);
-    draw_orb(bx, by, A11Y_ORB_B_R, A11Y_RED, A11Y_RED_DARK);
-    draw_close_glyph(bx, by, A11Y_ORB_B_R, A11Y_GLYPH);
-    if (g_focus == WUBU_A11Y_CLOSE)
-        draw_focus_ring(bx, by, A11Y_ORB_B_R, fb_w, fb_h);
+    a11y_button(bx, by, A11Y_ORB_B_R, tc()->caption_close_hover, tc()->border_light, 2,
+                g_focus == WUBU_A11Y_CLOSE, fb_w, fb_h);
 
     /* PURPLE Y: round-tip crescents at the WINDOW's bottom-left AND
      * bottom-right corners. Windows-style edge detection: invisible until
@@ -456,16 +470,15 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
                                             (f1 * f1 - f0 * f0);
     }
     if (alpha > 6) {
-        /* both crescents share the same fade; 9->12 bean orientation
-         * (hollow opens down-right, band along the upper-left arc) */
-        draw_crescent_fade(pxx, pyy + 2, A11Y_ORB_P_R, A11Y_PANEL_DARK,
-                           A11Y_PANEL_DARK, 0.707f, 0.707f, alpha / 2);
-        draw_crescent_fade(pxx, pyy, A11Y_ORB_P_R, A11Y_PURPLE, A11Y_PURPLE_DARK,
-                           0.707f, 0.707f, alpha);
-        draw_crescent_fade(pxx2, pyy2 + 2, A11Y_ORB_P_R, A11Y_PANEL_DARK,
-                           A11Y_PANEL_DARK, 0.707f, 0.707f, alpha / 2);
-        draw_crescent_fade(pxx2, pyy2, A11Y_ORB_P_R, A11Y_PURPLE, A11Y_PURPLE_DARK,
-                           0.707f, 0.707f, alpha);
+        /* Resize grips: the same flat button as the rest of the cluster, faded toward the
+         * window face when the pointer is far. Distance already decided visibility, so this
+         * is a tint, not extra art. */
+        uint32_t grip_face = a11y_lerp(tc()->win_face, tc()->btn_face, alpha);
+        uint32_t grip_ring = a11y_lerp(tc()->win_face, tc()->border_light, alpha);
+        a11y_button(pxx, pyy, A11Y_ORB_P_R, grip_face, grip_ring, 3,
+                    g_focus == WUBU_A11Y_RESIZE, fb_w, fb_h);
+        a11y_button(pxx2, pyy2, A11Y_ORB_P_R, grip_face, grip_ring, 3,
+                    g_focus == WUBU_A11Y_RESIZE, fb_w, fb_h);
         /* diagonal grip in each crescent's belly (upper-left arc) */
         uint32_t gcol = a11y_lerp(0xFFFFFF, A11Y_PURPLE_DARK, 255 - alpha);
         draw_resize_glyph(pxx  - 3, pyy  - 3, A11Y_ORB_P_R, gcol);
