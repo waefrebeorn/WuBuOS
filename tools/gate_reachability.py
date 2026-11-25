@@ -80,8 +80,9 @@ def main():
         print("gate_reachability: baseline written as a NAME SET (%d orphans)" % len(orphans))
         return 0
 
-    appeared = sorted(orphans - base_set)
-    fixed = sorted(base_set - orphans)
+    orphan_set = set(orphans)
+    appeared = sorted(orphan_set - base_set)
+    fixed = sorted(base_set - orphan_set)
     if appeared:
         print("gate_reachability: FAIL -- %d NEW orphan(s); a target lost its path from "
               "`make test`:" % len(appeared))
