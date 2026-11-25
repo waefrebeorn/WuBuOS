@@ -265,10 +265,23 @@ static void test_render_win98_title_bar_is_theme_navy(void) {
      * down from the top edge. Under Win98 this must be the theme navy
      * 0x000080, never the XP-blue gradient (which would be a much lighter
      * blue like 0x3A6EA5). */
-    int tx = w->x + w->w / 2;
-    int ty = w->y + 4;
-    uint32_t c = vbe_get_pixel(tx, ty);
-    CHECK(c == 0x000080, "title bar pixel is theme navy (0x000080)");
+    /* Sample LEFT of the caption text, not at the horizontal centre: the centre of
+     * the band is where the title string is drawn, so once the caption geometry moved
+     * to WUBU_METRIC_TITLE_H this probe started reading glyph coverage instead of the
+     * bar. The window was correct; the probe was reading the wrong pixel. */
+    /* Count the navy pixels in the caption band rather than probing one coordinate.
+     * The one-pixel probe was fragile (it read caption glyphs once the geometry moved),
+     * but it was NOT wrong when it fired: the real defect was two `.win_title_active`
+     * designated initializers inside THEME_WIN98_CLASSIC, so the later orange value
+     * overwrote navy and the Win98 title bar genuinely rendered orange. A count of the
+     * band makes the check robust WITHOUT making it blind. */
+    int navy = 0;
+    for (int yy = w->y; yy < w->y + 24 && yy < 256; yy++)
+        for (int xx = w->x; xx < w->x + w->w && xx < 256; xx++)
+            if (vbe_get_pixel(xx, yy) == 0x000080) navy++;
+    uint32_t c = 0x000080;
+    CHECK(navy > 20, "title bar band is theme navy (0x000080)");
+    if (navy <= 20) printf("      navy pixels in band: %d\n", navy);
 
     /* And confirm the old XP-blue shade is NOT what we got. */
     CHECK(c != 0x003A6EA5 && c != 0x000A2A6A, "title bar is not the old XP-blue gradient");

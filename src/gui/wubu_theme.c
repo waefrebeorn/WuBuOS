@@ -24,9 +24,7 @@ static const WubuTheme g_themes[THEME_COUNT] = {
         .desktop_bg        = RGB(0x00,0x80,0x80),   /* Teal */
         .win_face          = RGB(0xC0,0xC0,0xC0),   /* Silver */
         .win_title_active  = RGB(0x00,0x00,0x80),   /* Navy */
-        .win_title_active  = RGB(0xE8,0x6C,0x00),   /* MC orange */
-        /* white on this orange is 3.19:1 (measured); near-black clears AA */
-        .win_title_text    = RGB(0x1A,0x1A,0x1A),
+        .win_title_text    = RGB(0xFF,0xFF,0xFF),   /* white on navy: 15.9:1 */
         .win_title_text_ina= RGB(0xFF,0xFF,0xFF),   /* WCAG AA: white on gray title */
         .border_light      = RGB(0xFF,0xFF,0xFF),   /* White */
         .border_face       = RGB(0xC0,0xC0,0xC0),   /* Silver */
