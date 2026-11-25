@@ -516,6 +516,38 @@ void icon_show_context_menu(int icon_idx, int mx, int my) {
     ctx_menu_show(menu, mx, my);
 }
 
+/* ---- Window system menu (Alt+Space, as every Windows has had) ---------------------
+ * Windows' menu is Restore / Move / Size / Minimize / Maximize / Close. Move and Size are
+ * keyboard modal modes we do not have yet, so they are NOT offered as dead items -- the
+ * menu ships the four that work, which is the difference between a menu and a decoration. */
+static int g_sysmenu_win = -1;
+
+static DosGuiWindow *sysmenu_target(void) {
+    if (g_sysmenu_win < 0 || g_sysmenu_win >= DOSGUI_MAX_WINDOWS) return NULL;
+    DosGuiWindow *w = &g_dwm.windows[g_sysmenu_win];
+    return w->alive ? w : NULL;
+}
+
+static void ctx_action_sys_restore(void)  { DosGuiWindow *w = sysmenu_target(); if (w) wm_restore(w); }
+static void ctx_action_sys_minimize(void) { DosGuiWindow *w = sysmenu_target(); if (w) wm_minimize(w); }
+static void ctx_action_sys_maximize(void) { DosGuiWindow *w = sysmenu_target(); if (w) wm_maximize(w); }
+static void ctx_action_sys_close(void)    { DosGuiWindow *w = sysmenu_target(); if (w) wm_destroy(w); }
+
+void window_show_system_menu(int win_idx, int mx, int my) {
+    g_sysmenu_win = win_idx;
+    DosGuiWindow *w = sysmenu_target();
+    if (!w) return;
+    DosGuiContextMenu *menu = ctx_menu_create(mx, my);
+    if (!menu) return;
+    ctx_menu_add_item(menu, "Restore",  ctx_action_sys_restore);
+    ctx_menu_add_separator(menu);
+    ctx_menu_add_item(menu, "Minimize", ctx_action_sys_minimize);
+    ctx_menu_add_item(menu, "Maximize", ctx_action_sys_maximize);
+    ctx_menu_add_separator(menu);
+    ctx_menu_add_item(menu, "Close   Alt+F4", ctx_action_sys_close);
+    ctx_menu_show(menu, mx, my);
+}
+
 /* ---- Taskbar jump list (Windows: right-click a taskbar button) ------------------
  * Windows shows what you can DO with that app plus what you did with it. We have no
  * per-app recency yet, so this ships the honest half: open/focus, close, pin/unpin. */

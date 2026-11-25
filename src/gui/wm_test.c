@@ -547,6 +547,18 @@ static void test_icon_click_selects_then_opens(void) {
     CHECK(ctx_menu_visible(), "right-click on a taskbar task opens a jump list");
     ctx_menu_hide_all();
 
+    /* Alt+Space opens the window system menu (Windows parity: there was none). */
+    {
+        DosGuiWindow *sw = wm_create(200, 120, 320, 200, "SysMenu");
+        CHECK(sw != NULL, "window created for the system menu");
+        wm_set_focus(sw);
+        ctx_menu_hide_all();
+        wm_handle_key(0x39, MOD_ALT);          /* Alt+Space */
+        CHECK(ctx_menu_visible(), "Alt+Space opens the window system menu");
+        ctx_menu_hide_all();
+        wm_destroy(sw);
+    }
+
     /* Clicking empty desktop clears the selection, as Windows does. */
     wm_handle_mouse(700, 400, 1, 1);
     for (int i = 0; i < wm_get_icon_count(); i++)

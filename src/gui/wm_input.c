@@ -184,6 +184,13 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
+    /* Alt+Space: the window system menu every Windows has. There was none. */
+    if ((mods & MOD_ALT) && key == 0x39 && g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->alive) window_show_system_menu(g_dwm.focused_id, w->x + 8, w->y + 4);
+        return;
+    }
+
     /* Desktop keyboard, the way Windows has it: with the desktop focused and an icon
      * selected, Enter opens it, F2 renames, Delete deletes. Before this, a selected icon
      * could only be acted on with the mouse. */

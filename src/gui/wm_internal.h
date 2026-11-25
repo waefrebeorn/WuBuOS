@@ -258,6 +258,9 @@ void wm_delete_selected_icon(void);
 /* Right-click jump list for a taskbar slot (Windows parity, honest half: no recency). */
 void taskbar_show_jump_list(int task_idx, int mx, int my);
 
+/* Alt+Space system menu for a window (Restore/Minimize/Maximize/Close). */
+void window_show_system_menu(int win_idx, int mx, int my);
+
 /* Strip Freedesktop field codes (%f %U ...) from an Exec line. Shared with desktop.c:
  * the file that WRITES the Exec and the code that RUNS it must agree on its meaning. */
 void strip_field_codes(const char *in, char *out, size_t cap);
