@@ -33,12 +33,17 @@ if [ "${1:-}" = "--nowait" ]; then
     shift
 else
     echo "run_suite: waiting for $LOCK (another suite is running)..."
-    flock -w 3600 9 || { echo "run_suite: lock not obtained in 3600s"; exit 3; }
+    flock -w 600 9 || { echo "run_suite: lock not obtained in 600s"; exit 3; }
 fi
 unset XDG_RUNTIME_DIR
 START=$(date +%s%N)
 LOG=${WUBU_SUITE_LOG:-/tmp/full-suite.log}
-make -k -j24 test >"$LOG" 2>&1
+# 9>&- : the lock fd must NOT be inherited by the suite. When a wrapper was killed
+# (or its shell exited), make and its -j24 children kept fd 9 open, so the lock stayed
+# held by dead work and every later launch queued behind it -- the 3600-second wait
+# that produced "lock not obtained" on a machine with no suite running at all.
+flock -w 60 9 || true
+make -k -j24 test 9>&- >"$LOG" 2>&1
 RC=$?
 END=$(date +%s%N)
 printf "FULL_GATE_EXIT=%d wall=%.1fs errors=" "$RC" "$(echo "($END-$START)/1000000000" | bc -l)"
