@@ -215,10 +215,13 @@ KNOWN_FAIL = {
         "newly added MIR_JNZ (or the frame state around it) is not valid for real "
         "MIPS. Declared, not hidden -- the interpreter agreeing with itself is not "
         "evidence",
-    ("arm64", "loop_1_4"):
-        "register allocation clobbers the accumulator at the loop head: the emitted "
-        "back edge opens with `mov x9,x10; mov x10,x11` which overwrites acc (x9) "
-        "with i, so sum(1..4) yields 5 instead of 10. Every straight-line case passes",
+    # arm64 loop_1_4 USED to be declared here: phys_to_arm64 mapped the pool as
+    # 8+phys, so acc landed in x9 while every arithmetic case copies its operands
+    # into x9/x10 -- the compare clobbered acc with i and the sum came out 5.
+    # Fixed in wubunos (one reserved pool in phys_to_arm64); arm64 now executes
+    # the loop under qemu-aarch64 and returns 10. The entry is gone rather than
+    # kept: a declared failure that is no longer measured is exactly what hides
+    # the next regression.
 }
 
 
