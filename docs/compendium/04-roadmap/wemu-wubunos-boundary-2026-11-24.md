@@ -61,11 +61,27 @@ These are the gates that do not exist yet, in order of value:
    equal WEMU's decoded length. Cheap once a `WemuCpu` with a flat memory image is
    set up (the harness above does exactly that), and it would catch both decoders
    drifting on a prefix/REX/ModRM corner.
-2. **emit -> load -> run** — WuBuNOS emits an ELF (`holyd_emit_elf`), WEMU loads
-   ELFs (`wemu_elf`), and WEMU already runs a static busybox
-   (`test_wemu_busybox`). Nothing connects the two ends: compiling a HolyC
-   program and running the result in WEMU is the full loop and nobody has closed
-   it.
+2. **emit -> load -> run** — CLOSED. `test_holyc_elf_in_wemu` compiles
+   `tools/selfbuild_checksum.hc` (sums "WUBU", returns 323) with WuBuNOS's
+   `holyd_emit_elf`, then executes the resulting ELF in WEMU through
+   `tools/wemu_run_elf` and asserts the exit status is 67:
+
+       test_holyc_elf_in_wemu: PASS (WEMU ran WuBuNOS's ELF; main()=323 -> exit 67)
+
+   It found a real bug on the first run, which is the point:
+
+       holyd_elf.c:  _start trampoline used  mov al, 60      (0xb0 0x3c)
+                     it must use           mov eax, 60      (0xb8 0x3c 00 00 00)
+
+   `mov al` replaces only the low byte, so main's return value stayed in bits
+   8..63 and the syscall number became `(ret & ~0xFF) | 60`. main returning 0
+   gives 60 (exit) and looks perfect; main returning 323 gives 316, which is not
+   a syscall, and the process died with a guest fault. The trampoline grew
+   12 -> 15 bytes and the call displacement is computed from its size, so the
+   layout follows.
+
+   Proven both ways: reverting the trampoline to `mov al,60` makes the gate
+   report `FAIL (exit 125, want 67)`; restoring it returns PASS.
 3. **x87 vs softfloat** — both implement floating point, at different widths, for
    different consumers. A shared corpus of values compared on add/sub/mul/div/cmp
    (allowing for the 80-bit vs f64 difference) would find the cases where one is

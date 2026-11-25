@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -2958,6 +2958,27 @@ test_spd_parity:
 # WEMU and WuBuNOS are two models of the same machine in one tree. Shared concerns
 # are fine; silent divergence is not. This freezes today's overlap and fails on a
 # new one until someone writes down which side owns it.
+# The emit -> load -> run loop between the two halves of this tree:
+#   WuBuNOS compiles HolyC to an ELF (holyd_emit_elf), WEMU executes that ELF
+#   (wemu_um_run_elf). Nothing connected the ends before; doing it found a real
+#   bug in the ELF trampoline (mov al,60 instead of mov eax,60, so any non-zero
+#   return value became a bogus syscall number and the process faulted).
+# checksum.hc sums "WUBU" and returns 323, so the expected exit status is 67.
+build/wemu_run_elf: tools/wemu_run_elf.c $(WEMU_LIB)
+	@$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Ibuild/wemu-user/include -Ibuild/wemu-user/src \
+	   tools/wemu_run_elf.c $(WEMU_LIB) -lm -ldl -o build/wemu_run_elf
+
+test_holyc_elf_in_wemu: $(COMP)/tools/holyd_emit_elf build/wemu_run_elf
+	@mkdir -p build/hc
+	@$(COMP)/tools/holyd_emit_elf $(COMP)/tools/selfbuild_checksum.hc build/hc/checksum.elf >/dev/null
+	@./build/wemu_run_elf build/hc/checksum.elf; rc=$$?; \
+	if [ "$$rc" = "67" ]; then \
+	    echo "test_holyc_elf_in_wemu: PASS (WEMU ran WuBuNOS's ELF; main()=323 -> exit 67)"; \
+	else \
+	    echo "test_holyc_elf_in_wemu: FAIL (exit $$rc, want 67 -- main() is 323, low byte 67)"; \
+	    exit 1; \
+	fi
+
 test_cross_tree_overlap:
 	@python3 tools/cross_tree_overlap.py
 
