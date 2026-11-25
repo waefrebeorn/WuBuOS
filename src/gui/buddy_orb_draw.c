@@ -1,6 +1,6 @@
 /* buddy_orb_draw: the mascot as a shaded metaball, not as a PNG sprite.
  *
- * This lives in its OWN translation unit on purpose. It first went into wubu_bonzi.c,
+ * This lives in its OWN translation unit on purpose. It first went into buddy_sprite.c,
  * which is the sprite blitter -- so every link graph that compiled the sprite suddenly
  * needed the orb unit too, and test_wm broke with five undefined references to
  * wubu_buddy_orb_*(). A draw path and a sprite blitter are two concerns; keeping them

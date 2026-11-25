@@ -16,7 +16,7 @@
 #include "wm.h"
 #include "shell/startmenu.h"
 #include "wubu_theme.h"
-#include "wubu_bonzi.h"
+#include "buddy_sprite.h"
 #include "../hosted/hosted.h"
 #include "../kernel/vbe.h"
 #include <stdbool.h>
@@ -98,7 +98,7 @@ __attribute__((weak)) void startmenu_handle_click(int x, int y) {
     int idx = (y - menu_y - 2) / mh;
     if (idx < 0 || idx >= TSM_N_ITEMS) return;
     if (tsm_items[idx].type == 4) {
-        /* Companion toggle — bonzi lives in its own module + wubu_bonzi.h */
+        /* Companion toggle — bonzi lives in its own module + buddy_sprite.h */
         wubu_bonzi_set_enabled(!wubu_bonzi_is_enabled());
         tsm_open = 0;
     } else if (tsm_items[idx].type == 3) {
@@ -242,9 +242,9 @@ hosted_state_t *wm_get_hosted_state(void) {
     return NULL;
 }
 
-/* Weak bonzi stubs: test binaries that do NOT link wubu_bonzi.c (test_control,
+/* Weak bonzi stubs: test binaries that do NOT link buddy_sprite.c (test_control,
  * desktop_shot, a11y_shot) still resolve the start-menu Companion toggle and
- * the WM render/input calls to the mascot. Targets that DO link wubu_bonzi.c
+ * the WM render/input calls to the mascot. Targets that DO link buddy_sprite.c
  * get the real strong definitions (linker drops the weak copies). */
 __attribute__((weak))
 void wubu_bonzi_set_enabled(bool on) { (void)on; }

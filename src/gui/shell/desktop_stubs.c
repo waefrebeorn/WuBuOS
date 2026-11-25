@@ -17,7 +17,7 @@
 __attribute__((weak)) void desktop_launch_icon(int icon_id) { (void)icon_id; }
 
 /* wm.c (WM render/geometry path) calls wubu_bonzi_place() to park the mascot.
- * The real bonzi lives in gui/wubu_bonzi.c (the full AGI/tasking stack), which
+ * The real bonzi lives in gui/buddy_sprite.c (the full AGI/tasking stack), which
  * massing GUI tests must not drag in. Weak no-op: no placement. */
 __attribute__((weak))
 bool wubu_bonzi_place(int screen_w, int screen_h, int taskbar_h)

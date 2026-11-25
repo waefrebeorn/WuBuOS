@@ -61,7 +61,7 @@ extern DosGuiWindow *control_launch(void) __attribute__((weak));
 __attribute__((weak)) void launch_app(const char *name);
 #include "wm.h"
 #include "wubu_a11y.h"
-#include "wubu_bonzi.h"
+#include "buddy_sprite.h"
 
 #include <string.h>
 #include <stdio.h>

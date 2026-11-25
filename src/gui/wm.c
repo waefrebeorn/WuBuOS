@@ -28,7 +28,7 @@
 #include "shell/wubu_wallpaper.h"
 #include "shell/wm_rim.h"
 #include "shell/wm_slime.h"
-#include "wubu_bonzi.h"
+#include "buddy_sprite.h"
 #include "wubu_mascot.h"
 
 

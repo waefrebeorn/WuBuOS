@@ -1,5 +1,5 @@
 /*
- * wubu_bonzi.c -- WuBuOS WuBu Buddy desktop mascot (AGI gateway).
+ * buddy_sprite.c -- WuBuOS WuBu Buddy desktop mascot (AGI gateway).
  *
  * WuBu-style: a purple companion that sits on the desktop as a chrome-less
  * desktop element (drawn by the WM render loop above windows, like the a11y
@@ -23,10 +23,10 @@
  * Clicking the buddy (or its bubble) opens the AGI HolyC terminal near it --
  * the GUI is the gateway to the AGI.
  *
- * C11, opaque API (wubu_bonzi.h), no god headers. Self-contained drawing.
+ * C11, opaque API (buddy_sprite.h), no god headers. Self-contained drawing.
  */
 
-#include "wubu_bonzi.h"
+#include "buddy_sprite.h"
 #include "wubu_tokens.h"      /* spacing comes from the one scale */
 #include "wubu_mascot.h"
 #include "wubu_buddy_sprite.h"

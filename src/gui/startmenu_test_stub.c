@@ -29,10 +29,10 @@ void wubu_shutdown() { }
 void platform_shutdown(void) { }
 
 /* -- Bonzi stub (startmenu test doesn't need the full mascot) -- */
-#include "wubu_bonzi.h"
+#include "buddy_sprite.h"
 #include "wm.h"  /* for DosGuiWindow type */
-/* wubu_bonzi.h already declares set_enabled/is_enabled; the full
- * implementation is in wubu_bonzi.c (linked in). But the AGI gateway
+/* buddy_sprite.h already declares set_enabled/is_enabled; the full
+ * implementation is in buddy_sprite.c (linked in). But the AGI gateway
  * (wubu_bonzi_open_agi) calls wm_spawn_holyc_term + set_focus,
  * which are not linked here.  Provide a no-op so the symbol resolves. */
 void wm_set_focus(DosGuiWindow *w) { (void)w; }

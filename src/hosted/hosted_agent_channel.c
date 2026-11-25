@@ -9,7 +9,7 @@
  */
 
 #include "hosted_agent_channel.h"
-#include "../gui/wubu_bonzi.h"
+#include "../gui/buddy_sprite.h"
 #include "../apps/wubu_walkthrough.h"
 #include "../audio/wubu_audio.h"
 

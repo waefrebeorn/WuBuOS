@@ -1,5 +1,5 @@
 /*
- * wubu_bonzi.h -- WuBuOS WuBu Buddy desktop mascot (AGI gateway).
+ * buddy_sprite.h -- WuBuOS WuBu Buddy desktop mascot (AGI gateway).
  *
  * A WuBu-style purple companion that sits on the desktop as the friendly face of
  * the AGI. Clicking the buddy opens the HolyC/AGI terminal (the "Live

@@ -21,7 +21,7 @@
 #include "shell/wubu_lock_screen.h"
 #include "../kernel/wubu_gesture.h"
 #include "../gui/wubu_settings.h"
-#include "wubu_bonzi.h"
+#include "buddy_sprite.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

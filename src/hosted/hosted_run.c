@@ -14,7 +14,7 @@
 #include "hosted_fs_persist.h"
 #include "../kernel/wubu_drv_thermal.h"
 #include "../kernel/wubu_evdev.h"
-#include "../gui/wubu_bonzi.h"
+#include "../gui/buddy_sprite.h"
 #include "hosted_agent_channel.h"
 
 #include "../kernel/vbe.h"

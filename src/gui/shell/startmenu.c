@@ -25,7 +25,7 @@
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
 #include "../../gui/wubu_mime.h"
-#include "../../gui/wubu_bonzi.h"
+#include "../../gui/buddy_sprite.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>

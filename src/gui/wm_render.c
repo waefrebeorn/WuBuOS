@@ -25,7 +25,7 @@
 #include "shell/run_dialog.h"
 #include "shell/power_menu.h"
 #include "wubu_a11y.h"
-#include "wubu_bonzi.h"
+#include "buddy_sprite.h"
 #include "../kernel/vbe.h"
 #include "../runtime/wubu_effect.h"   /* the pure effect engine (no deps) */
 #include "../hosted/wubu_vk_effect.h" /* the GPU leg of the same engine */
