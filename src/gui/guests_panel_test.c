@@ -168,7 +168,19 @@ static void test_window_renders_and_click_launches(void) {
           "container handle is live, or the guest exited after a clean launch");
     char root[512];
     CHECK(wubu_guest_import_root(g_guest, root, sizeof(root)) == 0, "root known");
-    CHECK(strcmp(ct->root, root) == 0, "container runs in the imported root");
+    /* `ct` is ALLOWED to be NULL here (line above): a clean launch whose guest already
+     * exited has no live handle to inspect. Dereferencing it anyway was this gate's
+     * intermittent SIGSEGV under load -- the guest finished between the click and the
+     * comparison, so the test crashed in strcmp on a NULL. Say which branch ran instead
+     * of pretending the handle is always there. */
+    if (ct != NULL) {
+        CHECK(strcmp(ct->root, root) == 0, "container runs in the imported root");
+        printf("  [gp] root compared against a LIVE handle\n");
+    } else {
+        CHECK(guests_last_launch_rc() == 0,
+              "guest exited after a clean launch (no live handle to compare)");
+        printf("  [gp] guest had already exited; root comparison not applicable\n");
+    }
     CHECK(wait_guest_exit(g_guest, 10000) == 0, "guest exits cleanly");
 
     /* Second click after exit: relaunch through the same button. */
