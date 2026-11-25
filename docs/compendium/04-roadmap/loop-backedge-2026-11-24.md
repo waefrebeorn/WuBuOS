@@ -94,6 +94,29 @@ instruction with a different register mapping.
 - `wubu_isa_riscv.c`: gained a real `MIR_JNZ` case (`bne`), which exposed the
   forward-patch bug underneath it.
 
+## arm64 MIR_LOAD/MIR_STORE: what is actually missing (measured)
+
+Not two missing switch cases. Three layers, and only the first is obvious:
+
+1. **No encoder primitives.** `warm64` has no `ldr`/`str` helper of any kind
+   (`grep -rn "warm64_ldr\|warm64_str" --include=*.h` is empty). The x86-64
+   backend's LOAD/STORE are built on `mov rsi, rbx` + hand-encoded displacement
+   forms that have no ARM64 analogue yet. So the encoder layer comes first.
+2. **No memory base reaches the code.** `arm64_run` calls
+   `int64_t (*fn)(void)` and discards `arg`, while x86-64 keeps the base in rbx
+   from the prologue. arm64 needs the base in a callee-saved register (x19),
+   which means the run stub must call `fn(int64_t mem)` and the prologue must
+   `mov x19, x0`.
+3. **MIR_ALLOC is a no-op on both backends** (`break; /* home base already
+   emitted as a CONST vr */`), so the address in `in->a` is a **byte offset**
+   into the mem buffer, not a cell index -- no `lsl #3` scaling, same as x86.
+
+Ordering that avoids a red tree: encoders (LDR/STR reg-offset + scaled imm) ->
+exec-gate stub passes mem in x0 -> prologue `mov x19, x0` -> ALLOC no-op ->
+LOAD `ldr x10, [x19, x11]` with x11 = the byte offset -> STORE symmetric.
+The driver's memory case is the acceptance test; the arm64 loop already passes
+under qemu-aarch64 (`test_isa_exec`: 60 executed, 0 failed).
+
 ## Progress against that list
 
 **1. DONE** — every backend's op-switch default now records the op
