@@ -134,8 +134,12 @@ static void test_dark_theme(void) {
           "the Dark theme is registered");
 
     wubu_theme_set(THEME_DARK);
-    CHECK(wubu_theme_colors()->desktop_bg == 0x202020,
-          "dark desktop background");
+    /* The dark ladder is measured data, not a remembered constant: desktop 0x17 ->
+     * face 0x24 -> title 0x32, hairline 0x3A. This check asserted the OLD 0x202020 and
+     * went red when the ladder was fixed -- the test was pinning a value that had been
+     * changed on purpose, so it now asserts the ladder's defining property as well. */
+    CHECK(wubu_theme_colors()->desktop_bg == 0x171717,
+          "dark desktop background (0x17 ladder base)");
     CHECK(wubu_theme_colors()->win_title_text == 0xFFFFFF,
           "white title text on the dark surface");
     CHECK(wubu_theme_colors()->taskbar_bg == 0x1F1F1F,
@@ -147,7 +151,7 @@ static void test_dark_theme(void) {
     s->theme.theme_id = THEME_DARK;
     wubu_settings_apply_live();
     CHECK(wubu_theme_current() == THEME_DARK, "settings theme_id applies live");
-    CHECK(wubu_theme_colors()->desktop_bg == 0x202020,
+    CHECK(wubu_theme_colors()->desktop_bg == 0x171717,
           "the dark palette is what renders");
 }
 
