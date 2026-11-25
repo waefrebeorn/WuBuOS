@@ -170,11 +170,37 @@ int wubu_wine_configure_env(WubuCt *ct, const char *wine_prefix) {
     /* Reduce Wine debug noise */
     if (wubu_ct_add_env(ct, "WINEDEBUG=-all") != 0) return -1;
 
-    /* Ensure X11 display is available */
-    const char *display = getenv("DISPLAY");
-    if (display) {
-        snprintf(buf, sizeof(buf), "DISPLAY=%s", display);
-        wubu_ct_add_env(ct, buf);
+    /* Which display does the guest talk to?
+     *
+     * This used to pass the HOST's DISPLAY straight through, which is the exact
+     * dependency the desktop is supposed to remove: a Wine program then needs an
+     * X server on the Linux host, so the guest's GUI is owned by the other OS
+     * rather than by WuBuOS's compositor.
+     *
+     * The order is now explicit:
+     *   1. WUBU_X11_SOCKET -- a display WuBuOS provides (its own X11 bridge into
+     *      a DosGuiWindow). When set, the guest never sees the host at all.
+     *   2. the host DISPLAY, as a fallback for the hosted leg, announced once on
+     *      stderr so the dependency is never silent.
+     * When neither exists the variable is simply not set: a guest that cannot
+     * open a display should fail in its own process, not inherit a dead one. */
+    const char *wubu_display = getenv("WUBU_X11_SOCKET");
+    if (wubu_display && wubu_display[0]) {
+        snprintf(buf, sizeof(buf), "DISPLAY=%s", wubu_display);
+        if (wubu_ct_add_env(ct, buf) != 0) return -1;
+    } else {
+        const char *display = getenv("DISPLAY");
+        if (display && display[0]) {
+            static int warned;
+            if (!warned) {
+                fprintf(stderr, "[wine] WUBU_X11_SOCKET unset: falling back to the HOST "
+                                "display (%s). The guest's GUI is then owned by the host "
+                                "X server, not by the WuBuOS compositor.\n", display);
+                warned = 1;
+            }
+            snprintf(buf, sizeof(buf), "DISPLAY=%s", display);
+            wubu_ct_add_env(ct, buf);
+        }
     }
 
     return 0;
