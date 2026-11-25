@@ -37,7 +37,16 @@ else
     printf '%s' "$WANT" > "$STAMP"
 fi
 
-python3 - "$FW" "$ESP" <<'PY'
+# QEMU takes an exclusive lock on its drive image. A gate that is killed (a
+# timeout, a Ctrl-C, a wrapper that stops waiting) leaves QEMU running and holding
+# $ESP, and every later run then dies at startup with
+#   "Is another process using the image [...]?" -- which the gate reported as a
+# failed SCANOUT check. Each run boots its own copy.
+ESP_RUN=/tmp/metal-esp-$$-$(date +%N).img
+cp -f "$ESP" "$ESP_RUN" 2>/dev/null || cp -f "$ESP" "$ESP_RUN"
+trap 'rm -f "$ESP_RUN"' EXIT INT TERM
+
+python3 - "$FW" "$ESP_RUN" <<'PY'
 import os, re, select, socket, subprocess, sys, time
 
 fw, esp = sys.argv[1], sys.argv[2]
@@ -138,9 +147,30 @@ if phys is not None and pitch is not None:
         except (BrokenPipeError, OSError):
             return None          # monitor gone: QEMU died (see below)
         drain()
-        if not os.path.exists(f):
-            return None
-        return open(f, 'rb').read()
+        # pmemsave runs in QEMU's main loop, and a guest spinning in TCG can
+        # delay it past the monitor prompt: the file appears LATER than the
+        # prompt does. Checking the path once, immediately after drain(), read
+        # "no dump: qemu rc=0, temp file absent" on every attempt under full
+        # suite load while the guest was perfectly healthy. Wait for the file,
+        # with a deadline, and require it to be complete.
+        for _ in range(120):                      # up to ~60 s
+            if os.path.exists(f) and os.path.getsize(f) >= n:
+                return open(f, 'rb').read()
+            time.sleep(0.5)
+        if os.path.exists(f):
+            return open(f, 'rb').read()            # short: caller reports the size
+        return None
+
+    def qemu_startup_failed():
+        """The guest never came up: say why, from QEMU's own output."""
+        rc = p.poll()
+        if rc is None:
+            return False
+        txt = buf.decode('latin-1', 'replace')
+        print(f'  FAIL: qemu exited at startup (rc={rc})')
+        for l in [x for x in txt.splitlines() if x.strip()][-4:]:
+            print('  | ' + l.strip()[:160])
+        return True
 
     def guest_died():
         """True when QEMU has exited; prints why, with the serial tail."""
