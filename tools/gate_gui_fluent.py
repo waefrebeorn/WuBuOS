@@ -45,6 +45,12 @@ def files():
         if not d.exists():
             continue
         for p in sorted(d.rglob("*.c")):
+            # TESTS ARE EXEMPT ON PURPOSE. A test that verifies "this pixel is theme
+            # navy 0x000080" must contain that exact number; forcing it through a
+            # metric would replace a check of the real value with a check of a constant
+            # that the same edit defines. Product code has no such excuse.
+            if p.name.endswith("_test.c"):
+                continue
             if p in COLOUR_OWNERS:
                 continue
             yield p

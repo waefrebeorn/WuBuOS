@@ -57,21 +57,40 @@ def main():
     for o in orphans[:15]:
         print("  orphan: %s" % o)
     if len(orphans) > 15:
-        print("  ... and %d more (tools/gate_reachability.baseline)" % (len(orphans) - 15))
+        if os.environ.get("WUBU_REACH_ALL"):
+            for o in orphans[15:]:
+                print("  orphan: %s" % o)
+        else:
+            print("  ... and %d more (tools/gate_reachability.baseline)" % (len(orphans) - 15))
 
-    if base is None:
+    # THE RATCHET STORES NAMES, NOT A COUNT. A count can only say "one more orphan
+    # exists somewhere among 412"; it cannot say WHICH target stopped being reachable,
+    # so the gate could not be acted on -- exactly the state it was left in when this
+    # was still a bare number. A set diff names the target in one line.
+    base_set = None
+    if base is not None:
+        with open(BASELINE) as f:
+            lines = [ln.strip() for ln in f if ln.strip()]
+        if lines and not lines[0].isdigit():
+            base_set = set(lines)
+
+    if base_set is None:
         with open(BASELINE, "w") as f:
-            f.write("%d\n" % len(orphans))
-        print("gate_reachability: baseline written (%d)" % len(orphans))
+            f.write("\n".join(sorted(orphans)) + "\n")
+        print("gate_reachability: baseline written as a NAME SET (%d orphans)" % len(orphans))
         return 0
-    if len(orphans) > base:
-        print("gate_reachability: FAIL -- %d orphans, baseline was %d. A new gate was "
-              "added without wiring it into `make test`, or a group lost a member."
-              % (len(orphans), base))
+
+    appeared = sorted(orphans - base_set)
+    fixed = sorted(base_set - orphans)
+    if appeared:
+        print("gate_reachability: FAIL -- %d NEW orphan(s); a target lost its path from "
+              "`make test`:" % len(appeared))
+        for o in appeared[:20]:
+            print("  NEW ORPHAN: %s" % o)
         return 1
-    if len(orphans) < base:
-        print("gate_reachability: %d fewer orphans than the baseline -- lower the ratchet in "
-              "%s to %d" % (base - len(orphans), BASELINE, len(orphans)))
+    if fixed:
+        print("gate_reachability: %d target(s) became reachable -- remove them from %s: %s"
+              % (len(fixed), BASELINE, ", ".join(fixed[:10])))
     return 0
 
 
