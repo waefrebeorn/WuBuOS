@@ -8,6 +8,7 @@
  * No god-header. C11.
  */
 #include "wm.h"
+#include "gui_blit.h"
 #include "../kernel/vbe.h"
 #include "wubu_dos_proc.h"
 
@@ -23,26 +24,8 @@ typedef struct {
     char         styx_path[256];
 } DosWindowCtx;
 
-/* Blit an RGBA framebuffer region into the window at (x,y,w,h), nearest-neighbor
- * scaled to fit the destination rectangle. */
-static void blit_rgba(uint32_t *dst, int dst_w, int dst_h,
-                      const uint8_t *src, int src_w, int src_h,
-                      int dx, int dy, int dw, int dh) {
-    if (!src || src_w <= 0 || src_h <= 0 || dw <= 0 || dh <= 0) return;
-    for (int y = 0; y < dh; y++) {
-        int sy = (y * src_h) / dh;
-        if (sy >= src_h) sy = src_h - 1;
-        for (int x = 0; x < dw; x++) {
-            int sx = (x * src_w) / dw;
-            if (sx >= src_w) sx = src_w - 1;
-            int px = dx + x, py = dy + y;
-            if (px < 0 || py < 0 || px >= dst_w || py >= dst_h) continue;
-            const uint8_t *p = src + (sy * src_w + sx) * 4;
-            dst[py * dst_w + px] = (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
-                                    ((uint32_t)p[2] << 16) | ((uint32_t)255 << 24);
-        }
-    }
-}
+/* The blit lives in gui_blit.c now: the X11 bridge needs the same operation, and a
+ * second nearest-neighbour loop would be a second set of off-by-one bugs. */
 
 static void dos_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     DosWindowCtx *ctx = (DosWindowCtx *)win->user_data;
@@ -86,7 +69,7 @@ static void dos_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     }
 
     if (w > 0 && h > 0)
-        blit_rgba(dst, dst_w, dst_h, ctx->fb, w, h,
+        wubu_blit_rgba(dst, dst_w, dst_h, ctx->fb, w, h,
                   win->x + 2, win->y + DOSGUI_TITLE_H,
                   win->w - 4, win->h - DOSGUI_TITLE_H - 2);
 }

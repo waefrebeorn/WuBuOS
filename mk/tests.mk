@@ -1508,6 +1508,10 @@ test_crc32:
 	$(RT)/wubu_crc32_test
 
 # GUI metric system (Longhorn-derived): one owner for every spacing/type number.
+test_gui_blit:
+	$(CC) -O1 -g -std=c11 -Wall -Wextra -I$(GUI) $(GUI)/gui_blit.c $(GUI)/gui_blit_test.c -o build/gui_blit_test
+	timeout 300 build/gui_blit_test
+
 test_gui_metrics:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude src/gui/wubu_gui_metrics.c  $(RT_ALWAYS) \
 		src/gui/test_wubu_gui_metrics.c -o $(RT)/wubu_gui_metrics_test
@@ -2638,7 +2642,7 @@ test_dos_window: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o 
 		$(RT)/wubu_ns_pkg_fallback.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
 		$(RT)/styxfs_server.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c \
-		$(GUI)/dos_window.c $(GUI)/dos_window_test.c $(GUI)/dos_window_test_stub.c $(RT)/wubu_hc_eval_stub.c \
+		$(GUI)/dos_window.c $(GUI)/gui_blit.c $(GUI)/dos_window_test.c $(GUI)/dos_window_test_stub.c $(RT)/wubu_hc_eval_stub.c \
 		-o $(GUI)/dos_window_test -ldl
 	timeout 300 $(GUI)/dos_window_test
 test_cmd:

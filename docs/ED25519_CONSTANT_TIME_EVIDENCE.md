@@ -1,4 +1,4 @@
-# Ed25519 ladder constant-time evidence (2026-11-24T17:03:50Z)
+# Ed25519 ladder constant-time evidence (2026-11-25T07:01:06Z)
 
 **Status: EMPIRICAL STRUCTURAL EVIDENCE — NOT A FORMAL VERIFICATION PROOF.**
 

@@ -13,7 +13,13 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/wubu-eddsa-ct.XXXXXX") || exit 2
 trap 'rm -rf "$TMP"' EXIT
-DOC="$ROOT/docs/ED25519_CONSTANT_TIME_EVIDENCE.md"
+# The evidence is GENERATED. Writing it straight into docs/ made every suite leave a
+# modified tracked file behind (only the timestamp changed), so `git status` was never
+# clean after a test run -- and a dirty tree silently weakens every gate whose negative
+# control assumes a clean source tree. The artifact lands in build/; publishing it to
+# docs/ is a deliberate act, not a side effect of running the suite.
+DOC="$ROOT/build/ED25519_CONSTANT_TIME_EVIDENCE.md"
+PUBLISHED="$ROOT/docs/ED25519_CONSTANT_TIME_EVIDENCE.md"
 
 if ! MB=$(bash "$ROOT/tools/mbedtls_devroot.sh" 2>/dev/null); then
     echo "[ct] SKIP: mbedTLS dev root unavailable (no fetch). Evidence not regenerated."
@@ -167,3 +173,8 @@ EOF
 echo "[ct] wrote $DOC"
 echo "[ct] SUMMARY: instruction lines=$INSNS conditional branches=$COND swaps/run=$SWAPS"
 echo "[ct] PASS: structural + dynamic evidence artifact regenerated and invariants held"
+
+if [ -f "$DOC" ]; then
+    echo "[ct] evidence written to build/ED25519_CONSTANT_TIME_EVIDENCE.md"
+    echo "[ct] publish it with: cp build/ED25519_CONSTANT_TIME_EVIDENCE.md docs/"
+fi
