@@ -15,6 +15,26 @@
 # Two gates cost 2.6x the suite (995 s vs 378 s measured); this runs both checks
 # against the SAME boot and the same frame.
 set -uo pipefail
+
+# ONE QEMU BOOT AT A TIME.
+#
+# The suite runs this gate alongside test_deskshot and the wemu kernel gates, so
+# several emulators boot and hammer the same cores and the same disk. Under -j24
+# this gate failed with "no dump: qemu rc=0, temp file absent" -- the guest came
+# up but the pmemsave never landed -- and passed immediately when run alone. That
+# is contention, not a display defect, and a hardware gate that depends on how
+# busy the machine is cannot be trusted either way.
+#
+# Same pattern the container gates use (CT_GATE_LOCK): take a shared lock, and if
+# it cannot be taken within the bound, FAIL with that reason instead of booting
+# into a flaky result.
+WUBU_QEMU_LOCK=${WUBU_QEMU_LOCK:-/tmp/wubu-qemu-gates.lock}
+exec 9>"$WUBU_QEMU_LOCK"
+if ! flock -w 900 9; then
+    echo "metal gate: could not take the QEMU lock ($WUBU_QEMU_LOCK) within 900 s"
+    exit 1
+fi
+
 FW=$(cd "$(dirname "$0")/../src/firmware" && pwd)
 ESP=${METAL_ESP:-$FW/build/metal-gate-esp.img}
 KELF=$FW/../../src/kernel/kernel.elf
