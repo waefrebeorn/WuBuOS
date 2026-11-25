@@ -19,6 +19,7 @@
 #define WUBU_ED25519_TIMING_PROBE
 #include "../src/gui/wubu_pkg_ed25519.c"
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -277,6 +278,22 @@ int main(void) {
     struct result agg;
     agg.valid = 1; agg.n = 0;
     for (int k = 0; k < 4; ++k) agg.p[k] = part_init();
+
+    /* AUTO-REAP THE WORKERS.
+     *
+     * Their exit statuses are never used (every waitpid below passes NULL), so the
+     * window between a worker exiting and the parent reaping it buys nothing -- and
+     * it is long, because the parent reads all four results and does its own work
+     * first. During that window a process watcher sees four zombies and reports a
+     * leak that does not exist. SA_NOCLDWAIT makes the kernel reap them immediately;
+     * the waitpid calls then return ECHILD, which is harmless. */
+    {
+        struct sigaction sa;
+        memset(&sa, 0, sizeof sa);
+        sa.sa_handler = SIG_IGN;
+        sa.sa_flags = SA_NOCLDWAIT | SA_RESTART;
+        sigaction(SIGCHLD, &sa, NULL);
+    }
 
     int fd[2];
     int started = 0;
