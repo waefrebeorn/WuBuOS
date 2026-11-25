@@ -200,6 +200,26 @@ void   wubu_snap_layout_rect(int layout, int zone,
 /* Place `w` into zone `zone` of `layout`. Returns false for an unknown index --
  * a bad id must be refused rather than silently placing the window somewhere. */
 bool   wubu_snap_apply_layout_zone(DosGuiWindow *w, int layout, int zone);
+
+/* Keyboard zone picking. Windows 11 makes you use the mouse to choose WHICH region
+ * you land in -- the layout is choosable from the keyboard only in the sense that you
+ * can open the picker. These two answer the question the picker asks, in pure
+ * geometry, so the flyout, the keyboard and the tests all agree:
+ *   wubu_snap_neighbor  -- the zone to move to from `zone` in direction (dx,dy)
+ *   wubu_snap_zone_at   -- the zone containing a point, or -1 outside the layout */
+int    wubu_snap_neighbor(int layout, int zone, int dx, int dy);
+int    wubu_snap_zone_at(int layout, int px, int py, int w, int h);
+
+typedef enum {
+    WUBU_SNAP_KEY_IGNORED = 0,
+    WUBU_SNAP_KEY_MOVED,
+    WUBU_SNAP_KEY_APPLY,
+    WUBU_SNAP_KEY_CLOSE
+} wubu_snap_key_action;
+/* The keyboard's effect on a (layout, zone) SELECTION, with no globals and no window:
+ * pure enough to gate, which is the only reason the flyout can be trusted from the
+ * keyboard. The caller still owns applying to a window. */
+wubu_snap_key_action wubu_snap_key_select(int *layout, int *zone, uint32_t key);
 int  icon_hit_test(int mx, int my);
 int  icon_select_in_rect(int x0, int y0, int x1, int y1);
 DosGuiWindow *wm_spawn_holyc_term(int x, int y, int w, int h);

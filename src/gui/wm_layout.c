@@ -410,6 +410,87 @@ void wubu_snap_layout_rect(int layout, int zone,
     if (nh) *nh = r->h;
 }
 
+/* Which zone is "to the right" of this one?  Windows 11 has no answer at all -- the
+ * picker is mouse-only -- so the rule is ours to state: among zones whose centre lies
+ * strictly in the requested direction, take the nearest by squared centre distance,
+ * and on a tie take the lower index. Deterministic, so a keyboard user learns it once
+ * and a test can pin it. */
+int wubu_snap_neighbor(int layout, int zone, int dx, int dy)
+{
+    if (!wubu_snap_valid(layout, zone)) return -1;
+    if (dx == 0 && dy == 0) return zone;
+
+    float cx, cy, cw, ch;
+    wubu_snap_layout_rect(layout, zone, &cx, &cy, &cw, &ch);
+    float mx = cx + cw * 0.5f, my = cy + ch * 0.5f;
+
+    int best = zone;
+    float best_d = 0.0f;
+    for (int i = 0; i < kSnapLayouts[layout].zones; i++) {
+        if (i == zone) continue;
+        const snap_frac_t *r = &kSnapLayouts[layout].z[i];
+        float ox = r->x + r->w * 0.5f, oy = r->y + r->h * 0.5f;
+        float ax = ox - mx, ay = oy - my;
+        /* Must be in the requested direction: a step right never lands on something
+         * behind you, even when it is geometrically closer. */
+        if (dx > 0 && ax <= 0.0f) continue;
+        if (dx < 0 && ax >= 0.0f) continue;
+        if (dy > 0 && ay <= 0.0f) continue;
+        if (dy < 0 && ay >= 0.0f) continue;
+        float d = ax * ax + ay * ay;
+        if (best_d == 0.0f || d < best_d - 1e-6f) { best_d = d; best = i; }
+    }
+    return best;
+}
+
+wubu_snap_key_action wubu_snap_key_select(int *layout, int *zone, uint32_t key)
+{
+    if (!layout || !zone) return WUBU_SNAP_KEY_IGNORED;
+    int l = *layout, z = *zone;
+    if (l < 0 || l >= WUBU_SNAP_LAYOUTS) l = 0;
+    int zones = wubu_snap_layout_zones(l);
+    if (z < 0 || z >= zones) z = 0;
+
+    if (key >= '1' && key <= (uint32_t)('0' + WUBU_SNAP_LAYOUTS)) {
+        l = (int)(key - '1');
+        zones = wubu_snap_layout_zones(l);
+        /* Clamp instead of pointing at a zone the new layout does not have: a silent
+         * out-of-range selection makes Enter snap into nothing at all. */
+        if (z >= zones) z = zones - 1;
+        *layout = l; *zone = z;
+        return WUBU_SNAP_KEY_MOVED;
+    }
+
+    int dx = 0, dy = 0;
+    if (key == 0x4B || key == 'h') dx = -1;
+    else if (key == 0x4D || key == 'l') dx = +1;
+    else if (key == 0x48 || key == 'k') dy = -1;
+    else if (key == 0x50 || key == 'j') dy = +1;
+    if (dx || dy) {
+        *zone = wubu_snap_neighbor(l, z, dx, dy);
+        *layout = l;
+        return WUBU_SNAP_KEY_MOVED;
+    }
+
+    if (key == '\r' || key == '\n' || key == ' ') return WUBU_SNAP_KEY_APPLY;
+    if (key == 0x1B) return WUBU_SNAP_KEY_CLOSE;
+    return WUBU_SNAP_KEY_IGNORED;
+}
+
+int wubu_snap_zone_at(int layout, int px, int py, int w, int h)
+{
+    if (layout < 0 || layout >= WUBU_SNAP_LAYOUTS || w <= 0 || h <= 0) return -1;
+    if (px < 0 || py < 0 || px >= w || py >= h) return -1;
+    float fx = (float)px / (float)w, fy = (float)py / (float)h;
+    for (int i = 0; i < kSnapLayouts[layout].zones; i++) {
+        const snap_frac_t *r = &kSnapLayouts[layout].z[i];
+        /* Half-open on every edge: a boundary pixel belongs to exactly one zone, so a
+         * click on the seam cannot match two regions and be decided by table order. */
+        if (fx >= r->x && fx < r->x + r->w && fy >= r->y && fy < r->y + r->h) return i;
+    }
+    return -1;
+}
+
 bool wubu_snap_apply_layout_zone(DosGuiWindow *w, int layout, int zone)
 {
     if (!w || !wubu_snap_valid(layout, zone)) return false;

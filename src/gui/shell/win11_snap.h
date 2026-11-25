@@ -23,6 +23,16 @@ void win11_snap_render(uint32_t *fb, int fb_w, int fb_h);
 /* Returns true when the press was consumed by the flyout. */
 bool win11_snap_click(int x, int y);
 
+/* Keyboard selection while the flyout is open. Windows 11 makes you use the mouse to
+ * choose a REGION; here the arrows move the selection (by real geometry, see
+ * wubu_snap_neighbor), 1-6 chooses the layout, Enter applies and Esc closes.
+ * Returns true when the key was consumed. */
+bool win11_snap_key(uint32_t key);
+
+/* The current selection, for rendering and for tests. -1 when closed. */
+int  win11_snap_selected_zone(void);
+int  win11_snap_selected_layout(void);
+
 /* Picker geometry shared with the WM: how many buttons there are and how big each
  * one is.  Exposed so callers positioning or hit-testing around the flyout do not
  * restate these numbers. */

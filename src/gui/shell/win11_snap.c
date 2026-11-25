@@ -163,6 +163,37 @@ static bool snap_hit_test(int x, int y, int fx, int fy, int *layout_out, int *zo
     return false;
 }
 
+/* ---- keyboard selection ------------------------------------------------------ */
+static int g_sel_layout = 0;
+static int g_sel_zone   = 0;
+
+int win11_snap_selected_zone(void)   { return g_open ? g_sel_zone : -1; }
+int win11_snap_selected_layout(void) { return g_open ? g_sel_layout : -1; }
+
+bool win11_snap_key(uint32_t key)
+{
+    if (!g_open) return false;
+
+    /* 1-6 choose the LAYOUT. Choosing a layout that has fewer zones than the current
+     * selection keeps the selection in range -- clamping is a decision, and silently
+     * pointing at a zone that no longer exists is how a keypress snaps into nothing. */
+    switch (wubu_snap_key_select(&g_sel_layout, &g_sel_zone, key)) {
+    case WUBU_SNAP_KEY_MOVED:
+        return true;
+    case WUBU_SNAP_KEY_APPLY:
+        if (g_win_id >= 0 && g_dwm.windows[g_win_id].alive)
+            wubu_snap_apply_layout_zone(&g_dwm.windows[g_win_id], g_sel_layout, g_sel_zone);
+        g_open = false;
+        return true;
+    case WUBU_SNAP_KEY_CLOSE:
+        g_open = false;
+        return true;
+    case WUBU_SNAP_KEY_IGNORED:
+    default:
+        return true;   /* the flyout owns the keyboard while it is open */
+    }
+}
+
 bool win11_snap_click(int x, int y) {
     if (!g_open) return false;
 

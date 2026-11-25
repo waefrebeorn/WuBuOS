@@ -90,9 +90,18 @@ Each step lands with a gate that loads the thing it claims to ship.
   the taskbar) do not exist.
 - Snap **assist** (after snapping, offer the other windows for the free zones)
   does not exist.
-- Drag-to-edge snapping does not exist; only the keyboard and the flyout do.
-- The flyout draws six layouts and applies none of them — wiring it to
-  `wm_snap_half`-style geometry is step 5 above.
+- Drag-to-edge snapping does not exist; only the keyboard and the flyout do. This is
+  the next real gap, and the bar is Win11's behaviour: while dragging, hovering an
+  edge must preview the zone, releasing must apply, and the gap between zones must
+  stay draggable (Win11 gets the last one wrong).
+- ~~The flyout draws six layouts and applies none of them.~~ **CLOSED**: the flyout
+  applies the zone it shows (`wubu_snap_apply_layout_zone`, zones tile the work area
+  exactly — the truncation dead-strip at 1024/3 is pinned by a test). What is left is
+  the *keyboard*, which we now do BETTER than Windows 11: Win11 requires a mouse to
+  choose a REGION, while here the arrows move the selection by real geometry
+  (`wubu_snap_neighbor`), `1`-`6` switch layout, Enter applies, Esc closes. The
+  selection logic is pure (`wubu_snap_key_select`) so it is gated rather than trapped
+  inside the shell.
 - Mica/acrylic translucency is a compositor effect (`/n/effect` stack), not a
   shell property; it is applied to the compositor's buffer, so a `.wet` surface
   gets it for free once the shell path is standardised.

@@ -995,6 +995,55 @@ static void test_snap_layouts(void) {
     CHECK(wubu_snap_layout_zones(4) == 4, "layout 4 = four quadrants");
     CHECK(wubu_snap_layout_zones(5) == 2, "layout 5 = two-thirds + third");
 
+    /* ---- keyboard zone picking (Windows 11 has none: its picker is mouse-only) ---- */
+    CHECK(wubu_snap_neighbor(4, 0, 1, 0) == 1, "quadrants: right from top-left");
+    CHECK(wubu_snap_neighbor(4, 0, 0, 1) == 2, "quadrants: down from top-left");
+    CHECK(wubu_snap_neighbor(4, 3, -1, 0) == 2, "quadrants: left from bottom-right");
+    CHECK(wubu_snap_neighbor(4, 3, 0, -1) == 1, "quadrants: up from bottom-right");
+    CHECK(wubu_snap_neighbor(4, 0, -1, 0) == 0, "quadrants: nothing left of the left edge");
+    CHECK(wubu_snap_neighbor(4, 0, 0, -1) == 0, "quadrants: nothing above the top edge");
+    CHECK(wubu_snap_neighbor(1, 0, 1, 0) == 1, "three columns: right from the first");
+    CHECK(wubu_snap_neighbor(1, 1, -1, 0) == 0, "three columns: left from the middle");
+    CHECK(wubu_snap_neighbor(1, 2, 1, 0) == 2, "three columns: nothing right of the last");
+    CHECK(wubu_snap_neighbor(2, 1, 0, 1) == 2, "split-right: down from the top half");
+    CHECK(wubu_snap_neighbor(2, 2, 0, -1) == 1, "split-right: up from the bottom half");
+    /* the full-height left region is right of nothing and left of two zones that tie on
+     * distance; a tie must resolve the same way every time or the keyboard wanders */
+    CHECK(wubu_snap_neighbor(2, 1, 1, 0) == wubu_snap_neighbor(2, 1, 1, 0),
+          "a tie resolves deterministically");
+    CHECK(wubu_snap_neighbor(0, 0, 0, 1) == 0, "halves have no zone below");
+
+    CHECK(wubu_snap_zone_at(4, 10, 10, 1000, 700) == 0, "hit test: top-left quadrant");
+    CHECK(wubu_snap_zone_at(4, 990, 10, 1000, 700) == 1, "hit test: top-right quadrant");
+    CHECK(wubu_snap_zone_at(4, 10, 690, 1000, 700) == 2, "hit test: bottom-left quadrant");
+    CHECK(wubu_snap_zone_at(4, 990, 690, 1000, 700) == 3, "hit test: bottom-right quadrant");
+    CHECK(wubu_snap_zone_at(4, 500, 10, 1000, 700) == 1, "hit test: the seam belongs to ONE zone (half-open)");
+    CHECK(wubu_snap_zone_at(4, -1, 10, 1000, 700) == -1, "hit test: outside is -1");
+    CHECK(wubu_snap_zone_at(4, 1000, 10, 1000, 700) == -1, "hit test: the right edge is outside");
+
+    /* ---- keyboard selection is PURE: the flyout cannot be trusted otherwise ---- */
+    int kl = 0, kz = 0;
+    CHECK(wubu_snap_key_select(&kl, &kz, '3') == WUBU_SNAP_KEY_MOVED && kl == 2,
+          "digit 3 selects layout 2 (three zones: half + split right)");
+    CHECK(kz == 0, "selecting a layout keeps a valid zone");
+    kl = 4; kz = 3;   /* valid: quadrant 3 of the four-quadrant layout */
+    CHECK(wubu_snap_key_select(&kl, &kz, '1') == WUBU_SNAP_KEY_MOVED && kz == 1,
+          "switching to a 2-zone layout CLAMPS the selection instead of pointing nowhere");
+    kl = 4; kz = 0;
+    CHECK(wubu_snap_key_select(&kl, &kz, 0x4D) == WUBU_SNAP_KEY_MOVED && kz == 1,
+          "Right moves the selection to the right quadrant");
+    CHECK(wubu_snap_key_select(&kl, &kz, 0x50) == WUBU_SNAP_KEY_MOVED && kz == 3,
+          "Down moves it to the quadrant below");
+    CHECK(wubu_snap_key_select(&kl, &kz, '\r') == WUBU_SNAP_KEY_APPLY, "Enter means apply");
+    CHECK(wubu_snap_key_select(&kl, &kz, 0x1B) == WUBU_SNAP_KEY_CLOSE, "Esc means close");
+    CHECK(wubu_snap_key_select(&kl, &kz, 'q') == WUBU_SNAP_KEY_IGNORED, "an unrelated key changes nothing");
+    CHECK(kl == 4 && kz == 3, "...and leaves the selection exactly where it was");
+    kl = -5; kz = 99;
+    CHECK(wubu_snap_key_select(&kl, &kz, 0x4B) == WUBU_SNAP_KEY_MOVED && kl == 0 && kz == 0,
+          "a nonsense selection is repaired rather than propagated");
+
+
+
     /* Halves. */
     CHECK(wubu_snap_apply_layout_zone(w, 0, 0), "apply halves[0]");
     CHECK(w->x == 0 && w->w == 512, "left half occupies the left 512px");

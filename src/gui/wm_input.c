@@ -113,6 +113,8 @@ void wm_gesture_poll(void) {
 
 /* Provided by src/gui/shell/win11_snap.c in the full shell build. */
 extern void win11_snap_toggle(void) __attribute__((weak));
+extern bool win11_snap_is_open(void) __attribute__((weak));
+extern bool win11_snap_key(uint32_t key) __attribute__((weak));
 
 void wm_handle_key(uint32_t key, uint32_t mods) {
     wubu_screensaver_activity();
@@ -213,6 +215,14 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         (key == 'q' || key == 'Q' || key == 's' || key == 'S')) {
         startmenu_open();
         return;
+    }
+
+    /* While the snap-layout flyout is open it owns the keyboard: arrows move the
+     * selection, 1-6 pick the layout, Enter applies. Windows 11 requires a mouse for
+     * the REGION; answering it from the keyboard costs one pure function
+     * (wubu_snap_neighbor) and makes the whole shortcut reachable without pointing. */
+    if (win11_snap_is_open && win11_snap_key && win11_snap_is_open()) {
+        if (win11_snap_key(key)) return;
     }
 
     /* Win+Left / Right / Up / Down: snap, maximize, restore -- the four window
