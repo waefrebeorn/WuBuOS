@@ -56,6 +56,33 @@ while nothing implemented it.
 A WIRED row is not a working feature: it means the code exists. Behaviour is the suite's job,
 and the tool prints that caveat on every run.
 
+## Matrix extended to 70 actions (2026-11-25, later the same day)
+
+The 59-action matrix reached 100 %, then the table grew to 70 to cover the behaviours it did not
+measure -- Alt+Tab previews, taskbar overflow, window animations, toast actions, drag-to-edge
+snap, pin/unpin, quick-settings toggles, Start all-apps, explorer ribbon. Honest result:
+**66 wired, 4 gaps (94 %)**. Growing the table is the point: a percentage on a small table is a
+claim about the table, not about Windows.
+
+Three corrections the growth forced, all recorded because each was a way to be wrong:
+  * "window open/close animation" matched the COMMENT "companion animation clock" -- tightened;
+  * "Alt+Tab stays open while Alt is held" matched `alt_held`, which is only `mods & MOD_ALT`,
+    a modifier test rather than a switcher -- tightened;
+  * toast actions were a false gap: `action_count`, `NotifyActionCallback` and the right-side
+    hit-test all exist; the regex was case-mismatched.
+
+Closed here: **drag-to-edge Aero snap** -- the POINTER is judged at release (left/right = half,
+top = maximize), movement from the drag start is required, and a mid-screen release leaves the
+size alone (negative control in the gate).
+
+Still open, each with its real reason:
+  * **Alt+Tab previews and a modal switcher** -- the input layer delivers key PRESSES only, so a
+    switcher cannot know when Alt is released. That is why Alt+Tab cycles immediately today.
+  * **taskbar overflow** -- buttons past the bar width are not collapsed into an overflow menu;
+    the layout owns the slots, so this is a layout + menu change.
+  * **window open/close animation** -- no animation clock for window rects (the companion sprite
+    has one, which is exactly what the false positive matched).
+
 ## The index
 
 | Win11 surface | Where it lives for us | Evidence / count | Verdict |

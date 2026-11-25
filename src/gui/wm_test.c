@@ -2367,6 +2367,35 @@ static void test_projection_flyout_offers_only_what_works(void) {
     PASS();
 }
 
+
+static void test_drag_to_edge_snaps(void) {
+    TEST("drag a window to the screen edge and release: Aero snap");
+    vbe_init(1024, 768);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    DosGuiWindow *w = wm_create(300, 200, 400, 300, "Draggable");
+    CHECK(w != NULL, "window created");
+    wm_set_focus(w);
+
+    /* Press on the title bar, drag the pointer to the LEFT edge, release there. */
+    wm_handle_mouse(w->x + 40, w->y + 8, 1, 1);
+    wm_handle_mouse(2, w->y + 8, 0, 0);
+    wm_handle_mouse(2, w->y + 8, 0, 2);
+    CHECK(w->w <= 1024 / 2 + 8, "released at the left edge -> left half");
+
+    /* Negative control: a drag that ends in the middle must NOT snap. */
+    DosGuiWindow *v = wm_create(300, 300, 380, 280, "Middle");
+    CHECK(v != NULL, "second window");
+    wm_set_focus(v);
+    int before = v->w;
+    wm_handle_mouse(v->x + 40, v->y + 8, 1, 1);
+    wm_handle_mouse(500, 400, 0, 0);
+    wm_handle_mouse(500, 400, 0, 2);
+    CHECK(v->w == before, "a release away from the edges leaves the size alone");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2380,6 +2409,7 @@ int main(void) {
     test_thumb_capture_maps_the_window_rect();
     test_taskbar_hover_tracks_slots();
     test_pointer_path_sees_modifier_state();
+    test_drag_to_edge_snaps();
     test_projection_flyout_offers_only_what_works();
     test_wheel_over_taskbar_cycles_focus();
     test_win_number_acts_on_taskbar_slot();

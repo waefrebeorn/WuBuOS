@@ -849,6 +849,8 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
 
         if (y < w->y + tbh) {
             g_dwm.drag_id = i;
+            g_dwm.drag_start_x = g_dwm.windows[i].x;
+            g_dwm.drag_start_y = g_dwm.windows[i].y;
             g_dwm.drag_ox = x - w->x;
             g_dwm.drag_oy = y - w->y;
         } else {
@@ -861,8 +863,13 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         if (g_dwm.resize_id >= 0) g_dwm.resize_id = -1;
         if (g_dwm.drag_id >= 0 && g_dwm.windows[g_dwm.drag_id].alive) {
             DosGuiWindow *w = &g_dwm.windows[g_dwm.drag_id];
-            /* Apply GAAD snap on drag end */
-            snap_window_to_gaad(w);
+            /* Aero edge snap FIRST (Windows): drag to a screen edge and release there --
+             * left/right = half, top = maximize. It requires movement from where the drag
+             * started, or clicking the title of a window that already touches an edge would
+             * snap it. If no zone matched, the GAAD grid snap applies as before. */
+            bool moved = (w->x != g_dwm.drag_start_x) || (w->y != g_dwm.drag_start_y);
+            if (!moved || !wm_snap_on_drag_release(w, x, y))
+                snap_window_to_gaad(w);
         }
         g_dwm.drag_id = -1;
         if (g_dwm.drag_icon_id >= 0) {

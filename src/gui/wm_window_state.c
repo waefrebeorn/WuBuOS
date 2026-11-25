@@ -61,6 +61,23 @@ void wm_maximize(DosGuiWindow *win) {
  * user coming from Windows pressed Win+Left first and nothing happened. A snapped
  * window is deliberately NOT flagged maximized: Win+Down on a snapped window must
  * restore it to its floating rect, not un-maximize a half. */
+/* Aero edge snap on drag release. Windows: drag a window so the POINTER touches the top or
+ * a side edge and releasing snaps there. Judged by the pointer, not the window rect, because
+ * that is what the user aimed with.
+ *
+ * Returns false when no zone was taken, so the caller can fall back to the grid snap. */
+bool wm_snap_on_drag_release(DosGuiWindow *win, int px, int py) {
+    if (!win || !win->alive) return false;
+    const int th = WUBU_METRIC_GAP_SM + WUBU_SPACE_XS;   /* "close enough to the edge" */
+    int sw = g_dwm.screen_w;
+    int sh = g_dwm.screen_h - taskbar_height();
+    if (px <= th)            { wm_snap_half(win, -1); return true; }
+    if (px >= sw - th)       { wm_snap_half(win, +1); return true; }
+    if (py <= th && py >= 0) { wm_maximize(win);      return true; }
+    (void)sh;
+    return false;
+}
+
 void wm_snap_half(DosGuiWindow *win, int side) {
     if (!win) return;
     /* A minimized window cannot be seen, so it must come back before it is sized

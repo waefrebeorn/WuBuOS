@@ -53,6 +53,9 @@ typedef struct {
     /* Drag state */
     int             drag_id;
     int             drag_ox, drag_oy;
+    /* Window origin when the title drag began. Aero edge-snap must require MOVEMENT: without
+     * this, clicking the title of a window already at the edge snapped it. */
+    int             drag_start_x, drag_start_y;
 
     /* Resize state (Chicago/Mac edge + corner resize) */
     int             resize_id;

@@ -112,6 +112,9 @@ void           wm_move(DosGuiWindow *win, int x, int y);
 void           wm_maximize(DosGuiWindow *win);
 void           wm_minimize(DosGuiWindow *win);
 void           wm_show_desktop(void);   /* Win+D: minimize all / restore */
+/* Aero edge snap on title-drag release: pointer at a side = half, at the top = maximize.
+ * Returns false when the pointer was not near an edge. */
+bool           wm_snap_on_drag_release(DosGuiWindow *win, int px, int py);
 /* Report task progress on a window's taskbar button: pct 0..100 (0 clears), clamped. */
 void           wm_set_taskbar_progress(DosGuiWindow *win, int pct);
 void           wm_restore(DosGuiWindow *win);
