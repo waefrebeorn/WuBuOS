@@ -120,7 +120,28 @@ LOAD `ldr x10, [x19, x11]` with x11 = the byte offset -> STORE symmetric.
 The driver's memory case is the acceptance test; the arm64 loop already passes
 under qemu-aarch64 (`test_isa_exec`: 60 executed, 0 failed).
 
-## arm64 loop: the back edge resolves FORWARD (measured, not fixed)
+## arm64 loop: FIXED -- the allocator was handing out the operand scratch
+
+(Correction: an earlier version of this section claimed the back edge resolved
+forward because `b 0x40` appeared at 0x38. That reading was WRONG -- 0x38's
+branch is the conditional materialisation `x0 = a>b ? 1 : 0`, which is exactly
+right. Reading a 20-instruction window instead of the whole blob is what
+produced the false diagnosis.)
+
+The real defect, from the full disassembly:
+
+    28: aa0a03e9  mov x9, x10      ; every arithmetic case copies operands to x9/x10
+    2c: aa0b03ea  mov x10, x11     ;   ... so the compare DESTROYED acc (x9) and i (x10)
+    54: 8b0a0120  add x0, x9, x10  ; sum = i + four = 1 + 4 = 5
+
+`phys_to_arm64()` was `8 + phys`, so the vreg pool was x8..x27 -- which contains
+x9 and x10, the fixed operand scratch of every arithmetic op. Reserving them (and
+x19, which holds prog.mem) in ONE pool table fixed it; the alternative, changing
+the scratch register in 30 call sites, is the kind of fix that drifts with every
+new op. arm64 now executes the loop under qemu-aarch64 and returns 10, and its
+declared KNOWN_FAIL entry is deleted rather than left to mask the next one.
+
+## (superseded) the false lead
 
 `qemu-aarch64-static` runs the loop blob and answers 5 where 10 is wanted. The
 disassembly of the emitted loop names two defects, and they are separate:
@@ -137,12 +158,9 @@ disassembly of the emitted loop names two defects, and they are separate:
    30:  5400006c  b.gt 0x3c
    38:  14000002  b    0x40            ; <-- should be `b 0x24`
 
-1. **The label offset is wrong.** `L_loop` sits at 0x24 and the back edge at 0x38
-   emits `b 0x40` (+8). The patch pass itself computes `rel = t - pos` with
-   `imm26 = rel/4` and masks correctly, so the *value* handed to it is wrong:
-   `label_off()` returns 0x40 for a label placed at 0x24. Check the label
-   recording path before touching the patch arithmetic -- the arithmetic is
-   already right, which is exactly why a wrong `t` looks correct in the encoding.
+1. ~~The label offset is wrong~~ -- **withdrawn.** `L_loop` IS at 0x24 and the
+   0x38 branch is the cond materialisation, not the back edge. Nothing in the
+   label or patch path is broken.
 2. **Operands are shifted by one vr.** `MIR_GT(a=i, b=four)` emits `cmp x9, x10`
    (acc,i) instead of `cmp x10, x11` (i,four), and the two entry copies read
    `acc = i; i = four` where the MIR asks for `acc = sum; i = next`. The consts
