@@ -10,7 +10,7 @@
  * composite goes through gui_blit_to_vbe_alpha so the VBE clip holds.
  */
 #include "wm_shadow.h"
-#include "../gfx/gui_gfx.h"
+#include "../gfx/gfx.h"
 #include "../wubu_theme.h"
 #include "wubu_gui_metrics.h"
 

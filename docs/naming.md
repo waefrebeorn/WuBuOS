@@ -84,6 +84,26 @@ written from names alone, and opening the file showed the rename would have made
 relationship false. A queue entry is a question, not an instruction: read the file before
 you rename it, including when you wrote the queue yourself.
 
+## Renamed: the gfx layer (2026-11-25)
+
+`src/gui/gfx/` held `gui_surface.c`, `gui_blend.c`, `gui_shape.c`, `gui_blur.c` -- the layer
+said `gfx`, every file said `gui`, and the public header was `gui_gfx.h` inside a directory
+already called `gfx`. One name per layer:
+
+| was | is |
+|---|---|
+| `gfx/gui_{surface,blend,shape,blur}.c` | `gfx/gfx_{surface,blend,shape,blur}.c` |
+| `gfx/gui_gfx.h` / `gui_gfx_internal.h` | `gfx/gfx.h` / `gfx/gfx_internal.h` |
+| `gfx/gui_gfx_test.c` | `gfx/gfx_test.c` |
+
+`gui_blit.c` stays at `src/gui/` on purpose: it is guest presentation, not a primitive, and
+the layer split is the point of the rename.
+
+Verified: `make hosted` rc=0, `test_gui_gfx` and `test_wm_shadow` rc=0, `test_wm` 0 failed.
+The first verification run named two targets that do not exist (`test_gfx`, `test_shadow`)
+and reported them as failures -- a reminder that a test name invented from a file name is
+not a gate.
+
 ## Rename mechanics (learned by breaking it, 2026-11-25)
 
 A rename is `git mv` + path tokens + **the `.o` names in `mk/`** + build + the tests that

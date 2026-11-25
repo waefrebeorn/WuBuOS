@@ -1,11 +1,11 @@
 /*
- * gui_gfx_internal.h -- shared leaf helpers for the gui/gfx family.
+ * gfx_internal.h -- shared leaf helpers for the gui/gfx family.
  * Not a public API; only gui_gfx sibling modules include this.
  */
 #ifndef GUI_GFX_INTERNAL_H
 #define GUI_GFX_INTERNAL_H
 
-#include "gui_gfx.h"
+#include "gfx.h"
 
 struct GuiSurface {
     uint32_t *px;
@@ -20,7 +20,7 @@ static inline uint32_t gui_div255(uint32_t n)
 }
 
 /* Src-over blend of straight-alpha `src` onto straight-alpha `*dst`.
- * The ONE per-pixel blend owner (gui_blend.c exposes it to siblings). */
+ * The ONE per-pixel blend owner (gfx_blend.c exposes it to siblings). */
 uint32_t gui_blend_pixel_argb(uint32_t dst, uint32_t src);
 
 /* Blend `src` onto surface pixel (x,y), bounds-checked. */

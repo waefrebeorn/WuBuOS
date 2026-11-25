@@ -97,11 +97,11 @@ the kernel/driver build or nowhere in the test recipes).
 - `guest_verdep_a.c`  -- tests: test_wemu_sandbox
 - `guest_verdep_b.c`  -- tests: test_wemu_sandbox
 - `guests_panel.c`  -- tests: test_guests_panel
-- `gui_blend.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
-- `gui_blur.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
+- `gfx_blend.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
+- `gfx_blur.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
 - `gui_dbuf.c`  -- tests: test_dbuf;test_effect;test_apps;test_wet_applet
-- `gui_shape.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
-- `gui_surface.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
+- `gfx_shape.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
+- `gfx_surface.c`  -- tests: test_gui_gfx;test_wm_shadow;test_wm;test_guests_panel
 - `hosted.c`  -- tests: test_hosted
 - `hosted_display.c`  -- tests: test_hosted_display
 - `hosted_fs_persist.c`  -- tests: test_revolver;test_startmenu_files;test_startmenu;test_era_apps

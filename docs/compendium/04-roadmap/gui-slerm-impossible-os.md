@@ -90,7 +90,7 @@ Never judge the default shell from this box's saved settings.
 ## Where slermed code lands (ownership map)
 
 New family `src/gui/gfx/` — the compositing foundation (ARGB surfaces, alpha
-blit, AA shapes, blur). Public `gui_gfx.h`, one concern per `.c`, opaque
+blit, AA shapes, blur). Public `gfx.h`, one concern per `.c`, opaque
 structs, C11. It draws to the screen ONLY through `vbe_set_pixel`/
 `vbe_get_pixel` so clipping and the render/present boundary stay intact.
 New family `src/gui/font/` — glyph rasterizer + atlas cache + text API

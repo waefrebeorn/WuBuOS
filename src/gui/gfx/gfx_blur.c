@@ -1,5 +1,5 @@
 /*
- * gui_blur.c -- separable box blur (one concern: the blur).
+ * gfx_blur.c -- separable box blur (one concern: the blur).
  *
  * Design ref: rizonesoft/impossible-os@be8c286 src/kernel/gfx/gfx_blur.c
  * (GPL-3.0-only). Ground-up WuBuOS C11 implementation; no upstream code
@@ -8,7 +8,7 @@
  * each pass O(w*h) regardless of radius. Three passes approximate a
  * gaussian, the reference's acrylic trick.
  */
-#include "gui_gfx_internal.h"
+#include "gfx_internal.h"
 
 #include <stdlib.h>
 

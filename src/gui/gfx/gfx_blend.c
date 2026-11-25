@@ -1,5 +1,5 @@
 /*
- * gui_blend.c -- alpha compositing (one concern: the blend).
+ * gfx_blend.c -- alpha compositing (one concern: the blend).
  *
  * Design ref: rizonesoft/impossible-os@be8c286 src/kernel/gfx/gfx_blend.c
  * (GPL-3.0-only). Ground-up WuBuOS C11 implementation; no upstream code
@@ -7,7 +7,7 @@
  * premultiplied); the screen side goes through vbe_* so the VBE clip and
  * the render/present boundary are honoured.
  */
-#include "gui_gfx_internal.h"
+#include "gfx_internal.h"
 #include "../../kernel/vbe.h"
 
 uint32_t gui_blend_pixel_argb(uint32_t dst, uint32_t src)

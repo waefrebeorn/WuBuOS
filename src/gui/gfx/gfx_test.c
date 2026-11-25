@@ -1,13 +1,13 @@
 /*
- * gui_gfx_test.c -- behaviour gate for the gui/gfx compositing foundation.
+ * gfx_test.c -- behaviour gate for the gui/gfx compositing foundation.
  *
  * Asserts real behaviour against hand-computed references: exact src-over
  * values, clip honouring, AA coverage symmetry/monotonicity, blur invariants
  * (constant field fixed, interior energy conserved, radius-0 no-op).
  * "It compiled" is not a gate.
  */
-#include "gui_gfx.h"
-#include "gui_gfx_internal.h"
+#include "gfx.h"
+#include "gfx_internal.h"
 #include "../../kernel/vbe.h"
 
 #include <stdio.h>

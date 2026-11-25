@@ -1,5 +1,5 @@
 /*
- * gui_surface.c -- ARGB8888 offscreen surfaces (one concern: storage).
+ * gfx_surface.c -- ARGB8888 offscreen surfaces (one concern: storage).
  *
  * Design ref: rizonesoft/impossible-os@be8c286 src/kernel/gfx/gfx_core.c
  * (GPL-3.0-only). Ground-up WuBuOS C11 implementation; no upstream code
@@ -7,7 +7,7 @@
  * decoder (src/gui/shell/wubu_wallpaper.c); a bare-metal port swaps the
  * allocator, not the logic.
  */
-#include "gui_gfx_internal.h"
+#include "gfx_internal.h"
 
 #include <stdlib.h>
 #include <string.h>

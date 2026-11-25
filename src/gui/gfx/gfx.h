@@ -1,5 +1,5 @@
 /*
- * gui_gfx.h -- WuBuOS GUI compositing foundation (public API).
+ * gfx.h -- WuBuOS GUI compositing foundation (public API).
  *
  * Design ref: rizonesoft/impossible-os@be8c286 src/kernel/gfx/gfx_core.c,
  * gfx_blend.c, gfx_blur.c (GPL-3.0-only). Ground-up WuBuOS C11

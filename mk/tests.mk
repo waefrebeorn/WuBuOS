@@ -1532,9 +1532,9 @@ test_gui_metrics:
 # docs/compendium/04-roadmap/gui-slerm-impossible-os.md)
 test_gui_gfx:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -Iinclude \
-		src/gui/gfx/gui_surface.c src/gui/gfx/gui_blend.c \
-		src/gui/gfx/gui_shape.c src/gui/gfx/gui_blur.c \
-		src/kernel/vbe.c src/kernel/vbe_font.c src/gui/gfx/gui_gfx_test.c \
+		src/gui/gfx/gfx_surface.c src/gui/gfx/gfx_blend.c \
+		src/gui/gfx/gfx_shape.c src/gui/gfx/gfx_blur.c \
+		src/kernel/vbe.c src/kernel/vbe_font.c src/gui/gfx/gfx_test.c \
 		-o $(GUI)/gfx/gui_gfx_test
 	timeout 300 $(GUI)/gfx/gui_gfx_test
 
@@ -1543,8 +1543,8 @@ test_gui_gfx:
 test_wm_shadow:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -Iinclude -I$(GUI) \
 		src/gui/shell/wm_shadow.c src/gui/shell/wm_shadow_test.c \
-		src/gui/gfx/gui_surface.c src/gui/gfx/gui_blend.c \
-		src/gui/gfx/gui_shape.c src/gui/gfx/gui_blur.c \
+		src/gui/gfx/gfx_surface.c src/gui/gfx/gfx_blend.c \
+		src/gui/gfx/gfx_shape.c src/gui/gfx/gfx_blur.c \
 		src/gui/wubu_theme.c $(RT)/wubu_palette.c \
 		src/kernel/vbe.c src/kernel/vbe_font.c -o $(GUI)/shell/wm_shadow_test -lm
 	$(GUI)/shell/wm_shadow_test
@@ -2604,7 +2604,7 @@ $(RT)/wubu_effect.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(GUI)/shell/window_chrome.c \
-		$(GUI)/shell/wm_shadow.c $(GUI)/gfx/gui_surface.c $(GUI)/gfx/gui_blend.c $(GUI)/gfx/gui_shape.c $(GUI)/gfx/gui_blur.c \
+		$(GUI)/shell/wm_shadow.c $(GUI)/gfx/gfx_surface.c $(GUI)/gfx/gfx_blend.c $(GUI)/gfx/gfx_shape.c $(GUI)/gfx/gfx_blur.c \
 		$(GUI)/wm_test.c -o $(GUI)/wm_test -lm
 	$(GUI)/wm_test
 
@@ -3120,7 +3120,7 @@ $(RT)/wubu_effect.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(GUI)/shell/window_chrome.c \
-		$(GUI)/shell/wm_shadow.c $(GUI)/gfx/gui_surface.c $(GUI)/gfx/gui_blend.c $(GUI)/gfx/gui_shape.c $(GUI)/gfx/gui_blur.c \
+		$(GUI)/shell/wm_shadow.c $(GUI)/gfx/gfx_surface.c $(GUI)/gfx/gfx_blend.c $(GUI)/gfx/gfx_shape.c $(GUI)/gfx/gfx_blur.c \
 		$(GUI)/guests_panel.c $(GUI)/guests_panel_test.c $(APPS)/cmd/cmd.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_ns_guests.c $(RT)/wubu_ns_fs.c $(RT)/wubu_guest_import.c \

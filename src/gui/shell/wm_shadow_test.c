@@ -4,7 +4,7 @@
  * (no re-blur on unchanged geometry), theme gating and high-contrast gating.
  */
 #include "wm_shadow.h"
-#include "../gfx/gui_gfx.h"
+#include "../gfx/gfx.h"
 #include "../wubu_theme.h"
 #include "../../kernel/vbe.h"
 

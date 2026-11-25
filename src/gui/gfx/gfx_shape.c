@@ -1,5 +1,5 @@
 /*
- * gui_shape.c -- anti-aliased shapes (one concern: coverage).
+ * gfx_shape.c -- anti-aliased shapes (one concern: coverage).
  *
  * Design ref: rizonesoft/impossible-os@be8c286 src/kernel/gfx/gfx_core.c
  * rounded-rect AA (GPL-3.0-only). Ground-up WuBuOS C11 implementation; no
@@ -7,7 +7,7 @@
  * pixel (16 samples) instead of the reference's 16x fixed-point remainder;
  * same intent (fractional edge coverage), simpler to gate.
  */
-#include "gui_gfx_internal.h"
+#include "gfx_internal.h"
 
 #include <stdbool.h>
 
