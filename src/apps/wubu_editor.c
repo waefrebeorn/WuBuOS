@@ -82,10 +82,10 @@ int wubu_ed_open(WubuEditor *ed, const char *filename) {
 
     WubuEdTab *tab = &ed->tabs[ed->n_tabs];
     memset(tab, 0, sizeof(WubuEdTab));
-    wubu_strlcpy(tab->filename,  filename, sizeof(tab->filename));
+    strncpy(tab->filename, filename, sizeof(tab->filename) - 1);
     const char *base = strrchr(filename, '/');
     base = base ? base + 1 : filename;
-    wubu_strlcpy(tab->title,  base, sizeof(tab->title));
+    strncpy(tab->title, base, sizeof(tab->title) - 1);
     tab->syntax = wubu_ed_detect_syntax(filename);
     tab->tab_size = 4;
     tab->use_spaces = true;
@@ -143,10 +143,10 @@ int wubu_ed_save(WubuEditor *ed) {
 int wubu_ed_save_as(WubuEditor *ed, const char *filename) {
     if (!ed || ed->active_tab < 0 || !filename) return -1;
     WubuEdTab *tab = &ed->tabs[ed->active_tab];
-    wubu_strlcpy(tab->filename,  filename, sizeof(tab->filename));
+    strncpy(tab->filename, filename, sizeof(tab->filename) - 1);
     const char *base = strrchr(filename, '/');
     base = base ? base + 1 : filename;
-    wubu_strlcpy(tab->title,  base, sizeof(tab->title));
+    strncpy(tab->title, base, sizeof(tab->title) - 1);
     tab->syntax = wubu_ed_detect_syntax(filename);
     return wubu_ed_save(ed);
 }
@@ -444,7 +444,7 @@ int wubu_ed_session_load(WubuEditor *ed, const char *path) {
         } else if (current_tab >= 0 && current_tab < WUBU_ED_MAX_TABS) {
             WubuEdTab *tab = &ed->tabs[current_tab];
             if (strncmp(line, "filename=", 9) == 0) {
-                wubu_strlcpy(tab->filename,  line + 9, sizeof(tab->filename));
+                strncpy(tab->filename, line + 9, sizeof(tab->filename) - 1);
             } else if (strncmp(line, "cursor_line=", 12) == 0) {
                 tab->cursor_line = atoi(line + 12);
             } else if (strncmp(line, "cursor_col=", 11) == 0) {

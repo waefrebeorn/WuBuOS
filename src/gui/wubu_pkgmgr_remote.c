@@ -173,13 +173,13 @@ static int pkgmgr_parse_index(const char *json, const char *repo_name) {
             }
 
             #define MATCH_KEY(lit) (klen == strlen(lit) && strncmp(key, lit, klen) == 0)
-            if (MATCH_KEY("id")) wubu_strlcpy(id,  buf, sizeof(id));
-            else if (MATCH_KEY("name")) wubu_strlcpy(name,  buf, sizeof(name));
-            else if (MATCH_KEY("version")) wubu_strlcpy(version,  buf, sizeof(version));
-            else if (MATCH_KEY("arch")) wubu_strlcpy(arch,  buf, sizeof(arch));
-            else if (MATCH_KEY("description")) wubu_strlcpy(desc,  buf, sizeof(desc));
-            else if (MATCH_KEY("download_url")) wubu_strlcpy(durl,  buf, sizeof(durl));
-            else if (MATCH_KEY("sha256")) wubu_strlcpy(sha,  buf, sizeof(sha));
+            if (MATCH_KEY("id")) strncpy(id, buf, sizeof(id) - 1);
+            else if (MATCH_KEY("name")) strncpy(name, buf, sizeof(name) - 1);
+            else if (MATCH_KEY("version")) strncpy(version, buf, sizeof(version) - 1);
+            else if (MATCH_KEY("arch")) strncpy(arch, buf, sizeof(arch) - 1);
+            else if (MATCH_KEY("description")) strncpy(desc, buf, sizeof(desc) - 1);
+            else if (MATCH_KEY("download_url")) strncpy(durl, buf, sizeof(durl) - 1);
+            else if (MATCH_KEY("sha256")) strncpy(sha, buf, sizeof(sha) - 1);
             else if (MATCH_KEY("size")) size = (uint64_t)atoll(buf);
             #undef MATCH_KEY
 
@@ -236,14 +236,14 @@ static int cb_search(void *data, int argc, char **argv, char **col) {
     if (ctx->filled >= ctx->max) return 0; /* buffer full */
     wubu_pkg_repo_entry_t *e = &ctx->out[ctx->filled++];
     memset(e, 0, sizeof(*e));
-    wubu_strlcpy(e->id,           argv[0] ? argv[0] : "", sizeof(e->id));
-    wubu_strlcpy(e->name,         argv[1] ? argv[1] : "", sizeof(e->name));
-    wubu_strlcpy(e->version,      argv[2] ? argv[2] : "", sizeof(e->version));
-    wubu_strlcpy(e->description,  argv[3] ? argv[3] : "", sizeof(e->description));
+    strncpy(e->id,          argv[0] ? argv[0] : "", sizeof(e->id) - 1);
+    strncpy(e->name,        argv[1] ? argv[1] : "", sizeof(e->name) - 1);
+    strncpy(e->version,     argv[2] ? argv[2] : "", sizeof(e->version) - 1);
+    strncpy(e->description, argv[3] ? argv[3] : "", sizeof(e->description) - 1);
     e->download_size = argv[5] ? (uint64_t)atoll(argv[5]) : 0;
     e->installed_size = e->download_size;
-    wubu_strlcpy(e->download_url,  argv[6] ? argv[6] : "", sizeof(e->download_url));
-    wubu_strlcpy(e->sha256,        argv[7] ? argv[7] : "", sizeof(e->sha256));
+    strncpy(e->download_url, argv[6] ? argv[6] : "", sizeof(e->download_url) - 1);
+    strncpy(e->sha256,       argv[7] ? argv[7] : "", sizeof(e->sha256) - 1);
     e->arch = WUBU_PKG_ARCH_X86_64; /* repo index stores arch as TEXT; default */
     return 0;
 }
@@ -290,12 +290,12 @@ static int cb_repo_info(void *data, int argc, char **argv, char **col) {
     if (ctx->found) return 0;
     wubu_pkg_repo_entry_t *e = ctx->out;
     memset(e, 0, sizeof(*e));
-    wubu_strlcpy(e->id,            argv[0] ? argv[0] : "", sizeof(e->id));
-    wubu_strlcpy(e->name,          argv[1] ? argv[1] : "", sizeof(e->name));
-    wubu_strlcpy(e->version,       argv[2] ? argv[2] : "", sizeof(e->version));
-    wubu_strlcpy(e->description,   argv[3] ? argv[3] : "", sizeof(e->description));
-    wubu_strlcpy(e->download_url,  argv[4] ? argv[4] : "", sizeof(e->download_url));
-    wubu_strlcpy(e->sha256,        argv[5] ? argv[5] : "", sizeof(e->sha256));
+    strncpy(e->id,           argv[0] ? argv[0] : "", sizeof(e->id) - 1);
+    strncpy(e->name,         argv[1] ? argv[1] : "", sizeof(e->name) - 1);
+    strncpy(e->version,      argv[2] ? argv[2] : "", sizeof(e->version) - 1);
+    strncpy(e->description,  argv[3] ? argv[3] : "", sizeof(e->description) - 1);
+    strncpy(e->download_url, argv[4] ? argv[4] : "", sizeof(e->download_url) - 1);
+    strncpy(e->sha256,       argv[5] ? argv[5] : "", sizeof(e->sha256) - 1);
     e->download_size = argv[6] ? (uint64_t)atoll(argv[6]) : 0;
     e->installed_size = e->download_size;
     const char *arch = argv[7] ? argv[7] : "";

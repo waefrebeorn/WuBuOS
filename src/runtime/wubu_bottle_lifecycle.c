@@ -51,7 +51,7 @@ WubuBottle *wubu_bottle_create(const char *name, WubuBottleType type) {
 
     strncpy(b->name, name, WUBU_BOTTLE_MAX_NAME - 1);
     b->type = type;
-    wubu_strlcpy(b->arch,  "win64", sizeof(b->arch));
+    strncpy(b->arch, "win64", sizeof(b->arch) - 1);
     b->created = time(NULL);
     b->last_run = 0;
     b->install_size = 0;
@@ -61,25 +61,25 @@ WubuBottle *wubu_bottle_create(const char *name, WubuBottleType type) {
     switch (type) {
         case BOTTLE_TYPE_PROTON:
             b->runner = RUNNER_PROTON_GE;
-            wubu_strlcpy(b->runner_version,  "GE-Proton9-20", sizeof(b->runner_version));
+            strncpy(b->runner_version, "GE-Proton9-20", sizeof(b->runner_version) - 1);
             break;
         case BOTTLE_TYPE_LUTRIS:
             b->runner = RUNNER_LUTRIS_WINE;
-            wubu_strlcpy(b->runner_version,  "wine-ge-9-20", sizeof(b->runner_version));
+            strncpy(b->runner_version, "wine-ge-9-20", sizeof(b->runner_version) - 1);
             break;
         case BOTTLE_TYPE_BOTTLES:
             b->runner = RUNNER_WINE_GE;
-            wubu_strlcpy(b->runner_version,  "wine-ge-9-20", sizeof(b->runner_version));
+            strncpy(b->runner_version, "wine-ge-9-20", sizeof(b->runner_version) - 1);
             break;
         default:
             b->runner = RUNNER_WINE_GE;
-            wubu_strlcpy(b->runner_version,  "wine-ge-9-20", sizeof(b->runner_version));
+            strncpy(b->runner_version, "wine-ge-9-20", sizeof(b->runner_version) - 1);
             break;
     }
 
     b->dxvk.enabled = true;
     b->dxvk.async = true;
-    wubu_strlcpy(b->dxvk.hud,  "off", sizeof(b->dxvk.hud));
+    strncpy(b->dxvk.hud, "off", sizeof(b->dxvk.hud) - 1);
     b->dxvk.frame_rate_limit = 0;
     b->dxvk.nvapi_hack = false;
     b->dxvk.present_mode_mailbox = false;
@@ -88,7 +88,7 @@ WubuBottle *wubu_bottle_create(const char *name, WubuBottleType type) {
     b->gamescope.fsr = false;
     b->gamescope.width = 0;
     b->gamescope.height = 0;
-    wubu_strlcpy(b->gamescope.filter,  "fsr", sizeof(b->gamescope.filter));
+    strncpy(b->gamescope.filter, "fsr", sizeof(b->gamescope.filter) - 1);
     b->gamescope.refresh = 0;
     b->gamescope.hdr = false;
     b->gamescope.fullscreen = false;
@@ -117,25 +117,25 @@ int wubu_bottle_add_dep(WubuBottle *bottle, WubuDependencyType type, const char 
     dep->installed = false;
 
     switch (type) {
-        case DEP_DXVK: wubu_strlcpy(dep->name,  "dxvk", sizeof(dep->name)); break;
-        case DEP_VKD3D: wubu_strlcpy(dep->name,  "vkd3d", sizeof(dep->name)); break;
+        case DEP_DXVK: strncpy(dep->name, "dxvk", sizeof(dep->name) - 1); break;
+        case DEP_VKD3D: strncpy(dep->name, "vkd3d", sizeof(dep->name) - 1); break;
         case DEP_VCRUN:
             if (version) snprintf(dep->name, sizeof(dep->name), "vcrun%s", version);
-            else wubu_strlcpy(dep->name,  "vcrun2019", sizeof(dep->name));
+            else strncpy(dep->name, "vcrun2019", sizeof(dep->name) - 1);
             break;
         case DEP_DOTNET:
             if (version) snprintf(dep->name, sizeof(dep->name), "dotnet%s", version);
-            else wubu_strlcpy(dep->name,  "dotnet48", sizeof(dep->name));
+            else strncpy(dep->name, "dotnet48", sizeof(dep->name) - 1);
             break;
-        case DEP_CORE_FONTS: wubu_strlcpy(dep->name,  "corefonts", sizeof(dep->name)); break;
-        case DEP_D3DCOMPILER: wubu_strlcpy(dep->name,  "d3dcompiler_47", sizeof(dep->name)); break;
-        case DEP_DXVK_NVAPI: wubu_strlcpy(dep->name,  "dxvk-nvapi", sizeof(dep->name)); break;
-        case DEP_GAMEMODE: wubu_strlcpy(dep->name,  "gamemode", sizeof(dep->name)); break;
-        case DEP_MANGOHUD: wubu_strlcpy(dep->name,  "mangohud", sizeof(dep->name)); break;
-        case DEP_PROTONTRICKS: wubu_strlcpy(dep->name,  "protontricks", sizeof(dep->name)); break;
-        default: wubu_strlcpy(dep->name,  "custom", sizeof(dep->name)); break;
+        case DEP_CORE_FONTS: strncpy(dep->name, "corefonts", sizeof(dep->name) - 1); break;
+        case DEP_D3DCOMPILER: strncpy(dep->name, "d3dcompiler_47", sizeof(dep->name) - 1); break;
+        case DEP_DXVK_NVAPI: strncpy(dep->name, "dxvk-nvapi", sizeof(dep->name) - 1); break;
+        case DEP_GAMEMODE: strncpy(dep->name, "gamemode", sizeof(dep->name) - 1); break;
+        case DEP_MANGOHUD: strncpy(dep->name, "mangohud", sizeof(dep->name) - 1); break;
+        case DEP_PROTONTRICKS: strncpy(dep->name, "protontricks", sizeof(dep->name) - 1); break;
+        default: strncpy(dep->name, "custom", sizeof(dep->name) - 1); break;
     }
-    if (version) wubu_strlcpy(dep->version,  version, sizeof(dep->version));
+    if (version) strncpy(dep->version, version, sizeof(dep->version) - 1);
     return 0;
 }
 
@@ -161,7 +161,7 @@ int wubu_bottle_install_deps(WubuBottle *bottle, const char *prefix_path) {
         struct stat st;
         if (stat(prefix_path, &st) != 0 || !S_ISDIR(st.st_mode))
             return -1;
-        wubu_strlcpy(bottle->prefix_path,  prefix_path, sizeof(bottle->prefix_path));
+        strncpy(bottle->prefix_path, prefix_path, sizeof(bottle->prefix_path) - 1);
     } else if (bottle->prefix_path[0]) {
         struct stat st;
         if (stat(bottle->prefix_path, &st) != 0 || !S_ISDIR(st.st_mode))
@@ -209,8 +209,8 @@ bool wubu_bottle_dep_available(WubuRunnerType runner, WubuDependencyType type) {
 int wubu_bottle_add_mount(WubuBottle *bottle, const char *host, const char *guest, bool readonly) {
     if (!bottle || !host || !guest || bottle->mount_count >= WUBU_BOTTLE_MAX_MOUNTS) return -1;
     WubuBottleMount *m = &bottle->mounts[bottle->mount_count++];
-    wubu_strlcpy(m->host_path,  host, sizeof(m->host_path));
-    wubu_strlcpy(m->guest_path,  guest, sizeof(m->guest_path));
+    strncpy(m->host_path, host, sizeof(m->host_path) - 1);
+    strncpy(m->guest_path, guest, sizeof(m->guest_path) - 1);
     m->readonly = readonly;
     m->required = false;
     return 0;
@@ -237,8 +237,8 @@ int wubu_bottle_remove_mount(WubuBottle *bottle, const char *guest_path) {
 int wubu_bottle_set_env(WubuBottle *bottle, const char *key, const char *value) {
     if (!bottle || !key || bottle->env_count >= WUBU_BOTTLE_MAX_ENV) return -1;
     WubuBottleEnv *e = &bottle->env[bottle->env_count++];
-    wubu_strlcpy(e->key,  key, sizeof(e->key));
-    if (value) wubu_strlcpy(e->value,  value, sizeof(e->value));
+    strncpy(e->key, key, sizeof(e->key) - 1);
+    if (value) strncpy(e->value, value, sizeof(e->value) - 1);
     return 0;
 }
 
@@ -277,8 +277,8 @@ int wubu_bottle_install(WubuBottle *bottle, const char *install_dir) {
     if (ret < 0) return ret;
 
     bottle->installed = true;
-    wubu_strlcpy(bottle->prefix_path,  prefix_dir, sizeof(bottle->prefix_path));
-    wubu_strlcpy(bottle->rootfs_path,  tmp.rootfs_path, sizeof(bottle->rootfs_path));
+    strncpy(bottle->prefix_path, prefix_dir, sizeof(bottle->prefix_path) - 1);
+    strncpy(bottle->rootfs_path, tmp.rootfs_path, sizeof(bottle->rootfs_path) - 1);
     return 0;
 }
 

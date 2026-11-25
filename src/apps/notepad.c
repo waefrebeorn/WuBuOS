@@ -104,7 +104,7 @@ bool notepad_save(const char *name) {
     int n = np_flatten(buf, sizeof(buf));
     if (n < 0) return false;
     if (guest_file_write(name, buf, (uint32_t)n) != 0) return false;
-    wubu_strlcpy(g_notepad.filename,  name, sizeof(g_notepad.filename));
+    strncpy(g_notepad.filename, name, sizeof(g_notepad.filename) - 1);
     g_notepad.modified = false;
     return true;
 }
@@ -116,7 +116,7 @@ bool notepad_load(const char *name) {
     if (guest_file_read(name, buf, sizeof(buf), &len) != 0) return false;
     np_reset();
     np_unflatten(buf, len);
-    wubu_strlcpy(g_notepad.filename,  name, sizeof(g_notepad.filename));
+    strncpy(g_notepad.filename, name, sizeof(g_notepad.filename) - 1);
     g_notepad.cursor_line = 0;
     g_notepad.cursor_col = 0;
     g_notepad.scroll_y = 0;
@@ -238,7 +238,8 @@ void notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
             g_notepad.mode = NP_MODE_SAVEAS;
             g_notepad.prompt[0] = '\0';
             if (g_notepad.filename[0])
-                wubu_strlcpy(g_notepad.prompt,  g_notepad.filename, sizeof(g_notepad.prompt));
+                strncpy(g_notepad.prompt, g_notepad.filename,
+                        sizeof(g_notepad.prompt) - 1);
         } else {
             notepad_save(g_notepad.filename);
         }
@@ -246,7 +247,8 @@ void notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     }
     if (ctrl && (key == 'o' || key == 'O')) {
         g_notepad.mode = NP_MODE_OPEN;
-        wubu_strlcpy(g_notepad.prompt,  g_notepad.filename, sizeof(g_notepad.prompt));
+        strncpy(g_notepad.prompt, g_notepad.filename,
+                sizeof(g_notepad.prompt) - 1);
         return;
     }
 
@@ -380,7 +382,7 @@ DosGuiWindow *notepad_open(const char *filename) {
     if (filename && !notepad_load(filename)) {
         /* Not on disk yet: still open under that name so the first Ctrl+S
          * creates it, exactly like Windows does for a new file. */
-        wubu_strlcpy(g_notepad.filename,  filename, sizeof(g_notepad.filename));
+        strncpy(g_notepad.filename, filename, sizeof(g_notepad.filename) - 1);
     }
 
     DosGuiWindow *win = wm_create(100, 80, 500, 400,
