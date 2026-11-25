@@ -201,6 +201,9 @@ void   wubu_snap_layout_rect(int layout, int zone,
  * a bad id must be refused rather than silently placing the window somewhere. */
 bool   wubu_snap_apply_layout_zone(DosGuiWindow *w, int layout, int zone);
 
+/* Cut a window's corners out of whatever was drawn into its rect (see window_chrome.c). */
+void   chrome_mask_corners(int x, int y, int w, int h, int rad);
+
 /* Keyboard zone picking. Windows 11 makes you use the mouse to choose WHICH region
  * you land in -- the layout is choosable from the keyboard only in the sense that you
  * can open the picker. These two answer the question the picker asks, in pure

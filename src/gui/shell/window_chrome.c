@@ -83,6 +83,15 @@ static inline bool chrome_is_active(DosGuiWindow *win) {
 /* Draw 3D raised border (Win98 style) */
 static void chrome_draw_3d_raised(int x, int y, int w, int h, int rad) {
     const WubuThemeColors *c = tc();
+    /* FLUENT HAS NO BEVELS. A raised edge is the single strongest "this is 1995" signal
+     * on the whole desktop, and it was still drawn on every button and list row while
+     * the theme claimed Windows 11. Flat face, control radius, hairline edge. */
+    if (wubu_theme_is_fluent()) {
+        int r = rad > 0 ? rad : WUBU_METRIC_RADIUS_CONTROL;
+        vbe_fill_rect_rounded(x, y, w, h, r, c->btn_face);
+        vbe_rect_rounded(x, y, w, h, r, c->border_face);
+        return;
+    }
     if (rad > 0) {
         vbe_rect_rounded(x, y, w, h, rad, c->border_dark);
         vbe_3d_raised_rounded_colors(x, y, w, h, rad,
@@ -99,6 +108,12 @@ static void chrome_draw_3d_raised(int x, int y, int w, int h, int rad) {
 /* Draw 3D sunken border (for active window or pressed buttons) */
 static void chrome_draw_3d_sunken(int x, int y, int w, int h, int rad) {
     const WubuThemeColors *c = tc();
+    if (wubu_theme_is_fluent()) {   /* pressed/gutter: flat, never an inset well */
+        int r = rad > 0 ? rad : WUBU_METRIC_RADIUS_CONTROL;
+        vbe_fill_rect_rounded(x, y, w, h, r, c->btn_pressed);
+        vbe_rect_rounded(x, y, w, h, r, c->border_face);
+        return;
+    }
     if (rad > 0) {
         vbe_3d_sunken_rounded_colors(x, y, w, h, rad,
                                      c->border_light, c->border_face,
@@ -481,6 +496,35 @@ void chrome_draw_tabs(int x, int y, int w, int h,
             vbe_draw_text(tx + (tab_w - vbe_text_width(labels[i], 1)) / 2,
                           y + (h - WUBU_FONT_CAP_H) / 2,
                           labels[i], c->btn_text, 1);
+        }
+    }
+}
+
+/* Mask a window's corners so an app that fills its whole rect cannot square them off.
+ *
+ * Every app window draws its content into the rect the WM gave it -- the welcome
+ * dialog, the terminal, the DOS box -- so the chrome's 8px radius was being painted
+ * over by the very window it belongs to. That is why the desktop looked boxy while
+ * the theme claimed a radius. The mask samples the pixel just OUTSIDE the window
+ * (the real background, wallpaper included) instead of assuming a colour, so the
+ * corners read as cut-outs rather than as grey paint.
+ *
+ * Runs after everything in the rect has been drawn, per window, back to front. */
+void chrome_mask_corners(int x, int y, int w, int h, int rad) {
+    if (rad <= 0 || w <= 2 * rad || h <= 2 * rad) return;
+    /* One background sample per corner: directly outside the corner being cut. */
+    uint32_t bg_tl = (y > 0)                 ? vbe_get_pixel(x + rad + 1, y - 1) : tc()->desktop_bg;
+    uint32_t bg_tr = (y > 0)                 ? vbe_get_pixel(x + w - rad - 1, y - 1) : tc()->desktop_bg;
+    uint32_t bg_bl = (y + h < g_dwm.screen_h) ? vbe_get_pixel(x - rad - 1, y - 1) : 0; /* replaced below */
+    (void)bg_bl;
+    for (int dy = 0; dy < rad; dy++) {
+        int rem = rad - dy;
+        int cut = rad - (int)(0.5f + __builtin_sqrt((double)(rad * rad - rem * rem)));
+        for (int dx = 0; dx < cut; dx++) {
+            vbe_set_pixel(x + dx,         y + dy,         bg_tl);
+            vbe_set_pixel(x + w - 1 - dx, y + dy,         bg_tr);
+            vbe_set_pixel(x + dx,         y + h - 1 - dy, bg_tl);
+            vbe_set_pixel(x + w - 1 - dx, y + h - 1 - dy, bg_tr);
         }
     }
 }

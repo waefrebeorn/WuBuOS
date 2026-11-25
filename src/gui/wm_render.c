@@ -70,6 +70,13 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
         w->on_draw(w, fb, fb_w, fb_h);
         vbe_reset_clip();
     }
+
+    /* An app that fills its rect squares off the chrome's radius. Cut the corners
+     * AFTER the app has drawn, so the window reads as rounded whatever the app did --
+     * which is exactly what was happening: every window looked boxy while the theme
+     * claimed an 8px radius. */
+    if (wubu_theme_is_fluent() && !(w->flags & DOSGUI_WIN_MAXIMIZED))
+        chrome_mask_corners(w->x, w->y, w->w, w->h, WUBU_METRIC_RADIUS_WINDOW);
 }
 
 /* -- Full-screen render (the single entry point) ------------------- */
