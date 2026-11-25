@@ -6611,3 +6611,11 @@ test_xhci test_account test_app_bundle test_atom test_drv test_ed25519_bignum_va
 .PHONY: check_vendor
 check_vendor:
 	@python3 tools/vendor_drift.py
+
+# Win11 parity, measured. Fails when a user-facing action that used to be wired in product
+# code no longer is. The gap list is allowed to be non-empty -- what must not happen is a
+# documented "have" quietly losing its code, or a gap being claimed closed without it.
+.PHONY: check_parity
+check_parity:
+	@python3 tools/parity_audit.py --json build/logs/parity.json \
+	  --baseline tools/parity_baseline.json | tail -4

@@ -28,7 +28,23 @@ Current: **53 wired, 6 gaps (89 %)**. The gaps are the work list, not an opinion
 | taskbar progress badges | a window reports progress on its button | a `wm_set_taskbar_progress(win, pct)` API and a sliver in the slot renderer |
 | snap assist | after a half snap, the other half offers the remaining windows | `win11_snap.c` already knows zones; needs the post-snap overlay + pick |
 
-Two of these were closed on 2026-11-25 and are now WIRED: **Win+1..9** taskbar slot
+Five of these were closed on 2026-11-25 (thumbnails, progress badges, snap assist,
+Win+1..9 / middle-click / shift-click / wheel were three more) and the two left are honest
+deferrals, not oversights:
+
+- **explorer tabs** need a layout pass: `explorer_render.c` computes its content origin from
+  fixed geometry, so a tab strip must move every pane below it. That is a real change with
+  real pixel gates attached, not a wire.
+- **Win+P** is a display MODE selector. We have one output, so a four-row flyout would ship
+  three dead rows -- and this tree's rule is that menus ship only items that work. It waits
+  for multi-output support; until then the display settings page is the honest path.
+
+`make check_parity` holds the line: it re-measures and FAILS if an action that was wired in
+`tools/parity_baseline.json` is no longer wired, naming it. Proven by feeding it a baseline
+with a non-existent action: `REGRESSION: '...' was wired in the baseline and is not now`,
+exit 1.
+
+Closed on 2026-11-25 and are now WIRED: **Win+1..9** taskbar slot
 (`taskbar_slot_launch`), **middle-click new instance** (`taskbar_new_instance`) and
 **wheel-over-taskbar cycling** (`wm_wheel_cycle`). Shift-click got its OWN marker
 (`taskbar_shift_new_instance`) because borrowing middle-click's marker made it read WIRED

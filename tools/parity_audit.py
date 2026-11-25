@@ -254,6 +254,8 @@ MATRIX = [
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", default="")
+    ap.add_argument("--baseline", default="", help="JSON from an earlier run to hold the line")
+    ap.add_argument("--write-baseline", default="", help="write the current WIRED set here")
     ap.add_argument("--only", default="")
     args = ap.parse_args(argv)
 
@@ -309,6 +311,29 @@ def main(argv):
         with open(args.json, "w") as fh:
             json.dump({"counts": counts, "rows": rows}, fh, indent=2)
         print(f"json -> {args.json}")
+
+    # RATCHET. The gap list may be non-empty; what must never happen is a row that was WIRED
+    # becoming a GAP without someone deciding to. Storing the NAME SET (not a count) is what
+    # lets the failure say which action regressed.
+    wired = {r["action"] for r in rows if r["verdict"] == "WIRED"}
+    if args.write_baseline:
+        with open(args.write_baseline, "w") as fh:
+            json.dump({"wired": sorted(wired)}, fh, indent=2)
+        print(f"baseline -> {args.write_baseline} ({len(wired)} wired actions)")
+    if args.baseline:
+        try:
+            base = json.load(open(args.baseline)).get("wired", [])
+        except (OSError, ValueError) as e:
+            print(f"BASELINE UNREADABLE: {args.baseline}: {e}")
+            return 2
+        lost = [a for a in base if a not in wired]
+        gained = [a for a in wired if a not in base]
+        for a in lost:
+            print(f"  REGRESSION: '{a}' was wired in the baseline and is not now")
+        for a in gained:
+            print(f"  new: '{a}' is now wired (update the baseline)")
+        if lost:
+            return 1
     return 0
 
 
