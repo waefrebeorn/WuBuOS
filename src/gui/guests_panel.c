@@ -105,6 +105,11 @@ static void guests_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
                   tc->border_dark, 1);
 }
 
+/* What the last click DID, so a failing gate can say "launch returned -3" instead of
+ * "no container appeared". A verdict without a cause is a verdict nobody can act on. */
+static int g_last_launch_rc = GUESTS_NO_CLICK;
+int guests_last_launch_rc(void) { return g_last_launch_rc; }
+
 static void guests_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     (void)win;
     /* This handler used to return SILENTLY on four different conditions, so a
@@ -112,6 +117,7 @@ static void guests_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
      * only report "click started a REAL container: false" and had to guess.
      * WUBU_GP_DEBUG=1 says which condition ended the click. */
     int dbg = getenv("WUBU_GP_DEBUG") != NULL;
+    g_last_launch_rc = GUESTS_NO_CLICK;
     if (kind != 1 || btn != 1) return;      /* press only */
     if (!g_content_valid || !wubu_guest_import_count || !wubu_guest_launch) {
         if (dbg) fprintf(stderr, "[gp] no click: content_valid=%d count_fn=%d launch_fn=%d\n",
@@ -133,7 +139,8 @@ static void guests_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
         char name[64];
         if (wubu_guest_import_entry(i, name, sizeof(name), NULL, 0,
                                     NULL, 0) != 0) return;
-        if (wubu_guest_launch(name, NULL) == 0) {
+        g_last_launch_rc = wubu_guest_launch(name, NULL);
+        if (g_last_launch_rc == 0) {
             char body[128];
             snprintf(body, sizeof(body), "%s: /bin/sh started in guest root", name);
             notif_center_add("Guests", "Guest launched", body, 1);
@@ -145,6 +152,7 @@ static void guests_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
         }
         return;
     }
+    g_last_launch_rc = GUESTS_NO_HIT;
 }
 
 DosGuiWindow *launch_guests(void) {
