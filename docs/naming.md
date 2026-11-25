@@ -15,13 +15,18 @@ how a tidy becomes a regression.
 |---|---|---|---:|---|
 | 1 | `controlpanel.c` + `cp_{text,hardware,display,network,theme,sound}.c` | one prefix: `control_panel.c` + `control_panel_*.c` | 181 | medium -- two naming schemes in one subsystem, 7 files |
 | 2 | `gfx/gui_{surface,blend,shape,blur}.c` vs top-level `gui_blit.c` | one layer name for the primitive drawing layer (`gfx_*`), and `gui_blit` joined to it | ~30 | medium -- touches the render path |
-| 3 | `daemon_panel.c` vs `service_mgr.c` | both are the service surface; `service_panel.c` + `service_mgr.c` | ~20 | low |
+| 3 | ~~`daemon_panel.c` -> `service_panel.c`~~ | **REJECTED after reading it**: it bridges *daemons* (archd, holyd) into the tray and a window; `service_mgr.c` manages *services*. `daemon_panel` is honest and `service_panel` would assert a relationship that does not exist | 7 | -- |
 | 4 | `big_picture.c` / `big_picture_games.c` | **undocumented acronym** -- read it, then name it for what it does | ~15 | low, but needs a purpose first |
 | 5 | `dos_window.c` vs `wm_window.c` | `dos_window` is the guest-app window body; `wm_window` is the WM's window object. Two "windows" in one layer | ~40 | high -- core windowing |
 | 6 | `wubu_bonzi.*` (GUI sprite blitter; the buddy is no longer Bonzi) | `buddy_sprite.*` (NOT `wubu_bonzi_study.c`, which is a different thing in the kernel) | 13 | low, but the name collides with a real kernel module |
 
 Rule for #4: a name that needs a comment to explain the acronym is already broken. Read the
 file first, then name it -- do not invent an expansion.
+
+#4 is done: `bpm.*` -> `big_picture.*` (Big Picture Mode). #3 is REJECTED -- the queue was
+written from names alone, and opening the file showed the rename would have made the
+relationship false. A queue entry is a question, not an instruction: read the file before
+you rename it, including when you wrote the queue yourself.
 
 ## Renamed: the two "desktop" files (2026-11-25)
 
