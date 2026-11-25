@@ -214,15 +214,15 @@ static void draw_menu_item(int x, int y, int w, const char *label,
         } else {
             strcpy(truncated, "...");
         }
-        vbe_draw_text(label_x, y + (mh - WUBU_FONT_CAP_H) / 2, truncated, fg, 1);
+        vbe_draw_text(label_x, y + (mh - WUBU_FONT_INK_H) / 2, truncated, fg, 1);
     } else {
-        vbe_draw_text(label_x, y + (mh - WUBU_FONT_CAP_H) / 2, label, fg, 1);
+        vbe_draw_text(label_x, y + (mh - WUBU_FONT_INK_H) / 2, label, fg, 1);
     }
     
     if (has_submenu) {
         /* Arrow indicator */
         int arrow_x = x + w - WUBU_SPACE_LG;
-        int arrow_y = y + (mh - WUBU_FONT_CAP_H) / 2;
+        int arrow_y = y + (mh - WUBU_FONT_INK_H) / 2;
         vbe_draw_text(arrow_x, arrow_y, ">", fg, 1);
     }
 }
@@ -268,7 +268,7 @@ static void draw_submenu(int x, int y, SmSubmenu *sub) {
                                                    tc()->border_light, tc()->border_face,
                                                    tc()->border_dark, tc()->border_darkest);
             }
-            vbe_draw_text(x + WUBU_SPACE_SM, iy + (mh - WUBU_FONT_CAP_H) / 2, item->label, fg, 1);
+            vbe_draw_text(x + WUBU_SPACE_SM, iy + (mh - WUBU_FONT_INK_H) / 2, item->label, fg, 1);
         }
     }
 }
@@ -435,7 +435,7 @@ static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
     vbe_fill_rect_rounded(L.px + WUBU_SPACE_LG, L.foot_y + WUBU_SPACE_XS,
                           av, av, av / 2, c->btn_hover);
     vbe_draw_text(L.px + WUBU_SPACE_LG + av + WUBU_SPACE_SM,
-                  L.foot_y + WUBU_SPACE_XS + (av - WUBU_FONT_CAP_H) / 2,
+                  L.foot_y + WUBU_SPACE_XS + (av - WUBU_FONT_INK_H) / 2,
                   "WuBu User", c->startmenu_text, 1);
     vbe_fill_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h,
                           WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
@@ -540,10 +540,11 @@ void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
         /* Orb: four coloured quadrants (Windows-flag style) inside a 16x16
          * box. The quadrant colours are brand-art, not theme surface. */
         int ox = MENU_X + WUBU_SPACE_SM, oy = menu_y + WUBU_SPACE_SM;
-        vbe_fill_rect(ox,      oy,      7, 7, 0xF24C3E); /* brand-art red TL */
-        vbe_fill_rect(ox + 8,  oy,      7, 7, 0x6FCF3C); /* brand-art green TR */
-        vbe_fill_rect(ox,      oy + 8,  7, 7, 0x39A0EC); /* brand-art blue BL */
-        vbe_fill_rect(ox + 8,  oy + 8,  7, 7, 0xFFC90E); /* brand-art yellow BR */
+        /* Four panes of ONE accent. This was Microsoft's red/green/blue/yellow flag -- a
+         * borrowed OS logo, the same defect as the Win95 flag that used to sit on Start. */
+        for (int pane = 0; pane < 4; pane++) {
+            vbe_fill_rect(ox + (pane & 1) * 8, oy + (pane >> 1) * 8, 7, 7, tc()->select_bg);
+        }
         vbe_draw_text(MENU_X + WUBU_SPACE_SM, menu_y + hdr + WUBU_SPACE_2XS,
                       "WuBuOS", tc()->startmenu_text, 1);
 
@@ -948,14 +949,14 @@ void startmenu_render_search_bar(uint32_t *fb, int fb_w, int fb_h, int menu_x, i
                                   tc()->border_dark, tc()->border_darkest);
     
     vbe_draw_text(menu_x + WUBU_START_SEARCH_PAD_X,
-                  bar_y + (bar_h - WUBU_FONT_CAP_H) / 2,
+                  bar_y + (bar_h - WUBU_FONT_INK_H) / 2,
                   "Search", tc()->icon_text_shadow, 1);
     
     char display[DOSGUI_SEARCH_MAX_LEN + 8];
     snprintf(display, sizeof(display), "%s%c", g_search.query, 
              (g_search.active && (time(NULL) * 2) % 2) ? '_' : ' ');
     vbe_draw_text(menu_x + WUBU_START_SEARCH_QUERY_X,
-                  bar_y + (bar_h - WUBU_FONT_CAP_H) / 2,
+                  bar_y + (bar_h - WUBU_FONT_INK_H) / 2,
                   display, tc()->win_title_text, 1);
 }
 
@@ -975,7 +976,7 @@ void startmenu_render_recent(uint32_t *fb, int fb_w, int fb_h, int x, int y, int
     for (int i = 0; i < count; i++) {
         SmProgramEntry *e = entries[i];
         vbe_fill_rect(x, ty, w, item_h, tc()->startmenu_bg);
-        vbe_draw_text(x + WUBU_SPACE_SM, ty + (item_h - WUBU_FONT_CAP_H) / 2,
+        vbe_draw_text(x + WUBU_SPACE_SM, ty + (item_h - WUBU_FONT_INK_H) / 2,
                       e->name, tc()->startmenu_text, 1);
         ty += item_h;
     }

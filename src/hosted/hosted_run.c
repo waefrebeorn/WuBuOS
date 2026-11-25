@@ -137,6 +137,10 @@ struct timespec last_input;
 
         if (g_wl.surface) {
             hosted_wl_frame_render();
+        } else if (hosted_x11_present_active()) {
+            VBEState *vs = vbe_state();
+            if (vs && vs->fb) hosted_x11_present_frame(vs->fb);
+            if (hosted_x11_present_pump()) state->running = false;
         }
 
         /* If screenshot requested in headless mode, render a couple frames and exit */
@@ -237,6 +241,11 @@ void hosted_shutdown(hosted_state_t *state) {
 
 void hosted_blit(hosted_state_t *state) {
     if (!state) return;
+    if (hosted_x11_present_active()) {
+        VBEState *vs = vbe_state();
+        if (vs && vs->fb) hosted_x11_present_frame(vs->fb);
+        return;
+    }
     hosted_wl_frame_render();
 }
 

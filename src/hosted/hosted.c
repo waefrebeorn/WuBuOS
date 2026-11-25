@@ -31,6 +31,8 @@
 #include "../egojar_net.h"
 #include "hosted.h"
 #include "hosted_internal.h"
+
+static int g_hosted_x11;   /* presenting on the real X11 display */
 #include "wubu_boot_attest_edr.h"   /* the measured boot -> EDR + peers */
 
 #include <stdlib.h>
@@ -54,7 +56,6 @@
 #include "../gui/wubu_settings.h"
 
 /* defined below main; launches the live shader companion orb */
-static void wubu_hosted_spawn_buddy(void);
 #include "wubu_agent.h"
 #include "wubu_agi_play.h"
 #include "wubu_game_launch.h"
@@ -217,7 +218,11 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
                                   NULL, NULL, NULL, NULL, NULL);
     }
 
-    wubu_hosted_spawn_buddy();
+    /* The companion is DRAWN by this OS (src/gui/buddy_orb_draw.c + buddy_sprite.c), not
+     * launched as a host X11 client. Hosted mode used to fork build/wubu-buddy as its own GLX
+     * window -- which is why a "WuBu" thing was running on the Linux desktop at all: it was a
+     * second process using the HOST's GL, outside our compositor, outside our theme, and left
+     * behind on exit. A WuBu surface on a non-WuBu display is not a buddy, it is a leak. */
 
     /* The federation agent card. The OS never mints an AID -- the federation
      * does (JOINING.md) -- so this loads an enrolled card from the home
@@ -283,9 +288,23 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
 
     fprintf(stderr, "WuBuOS: kernel + GUI shell initialized\n");
 
-    /* Only connect to Wayland if not in headless mode */
+    /* ONE screen, the user's. If the host is Wayland we are a Wayland client; if it is X11 we
+     * put the OS on the real X display. There is no nested compositor and no headless-only
+     * mode hiding a different picture from the one on the monitor -- that split is what made
+     * every screenshot I sent disagree with what the screen showed. */
     if (state->mode != HMODE_HEADLESS) {
-        if (hosted_wl_connect(state) != 0) {
+        const char *wl = getenv("WAYLAND_DISPLAY");
+        const char *xd = getenv("DISPLAY");
+        if ((!wl || !*wl) && xd && *xd) {
+            if (hosted_x11_present_open(state->width, state->height, "WuBuOS") == 0) {
+                g_hosted_x11 = 1;
+                fprintf(stderr, "WuBuOS: presenting on the X11 display %s\n", xd);
+            } else {
+                fprintf(stderr, "WuBuOS: X11 display %s unavailable; use -h for headless.\n", xd);
+                free(state->framebuffer);
+                return -1;
+            }
+        } else if (hosted_wl_connect(state) != 0) {
             free(state->framebuffer);
             return -1;
         }
@@ -358,70 +377,6 @@ int hosted_styx_register_wubu(hosted_state_t *state,
 
 void hosted_fs_reset(void) { fs_reset(); }
 
-#ifndef WUBU_HOSTED_TEST
-/* The wubu_buddy orb is a live shader companion, not a bitmap sprite. The
- * desktop launches it as its own GLX window so it can run in real time next to
- * the WM, fed by the same sensors. Absent binary or WUBU_BUDDY=0 -> no-op. */
-static void wubu_hosted_spawn_buddy(void)
-{
-    const char *want = getenv("WUBU_BUDDY");
-    if (want && strcmp(want, "0") == 0) return;
-
-    /* Find the orb without depending on the CWD: WuBuCompositor forks the
-     * client from its own directory, so "./build/wubu-buddy" would miss. */
-    char orb[4096];
-    if (getenv("WUBU_BUDDY_BIN")) {
-        snprintf(orb, sizeof(orb), "%s", getenv("WUBU_BUDDY_BIN"));
-    } else {
-        char self[4096];
-#if defined(__APPLE__)
-        /* macOS has no /proc — the WSL-replacement philosophy needs the
-         * same derivation on both hosts (see wcc_spawn.c). */
-        uint32_t sz = (uint32_t)sizeof(self);
-        if (_NSGetExecutablePath(self, &sz) != 0) return;
-        char real[4096];
-        if (realpath(self, real)) snprintf(self, sizeof(self), "%s", real);
-#else
-        ssize_t n = readlink("/proc/self/exe", self, sizeof(self) - 1);
-        if (n <= 0) return;
-        self[n] = 0;
-#endif
-        /* Walk up from the executable to the repo root and look for build/.
-         * src/hosted/wubu sits two levels below it; the launcher may also copy
-         * or wrap the binary elsewhere. */
-        char dir[4096];
-        snprintf(dir, sizeof(dir), "%s", self);
-        int guard;
-        for (guard = 0; guard < 5 && !*orb; ++guard) {
-            char *slash = strrchr(dir, '/');
-            if (!slash) break;
-            *slash = 0;
-            if (!*dir) break;
-            snprintf(orb, sizeof(orb), "%s/build/wubu-buddy", dir);
-            if (access(orb, X_OK) != 0) orb[0] = 0;
-        }
-        if (!*orb) return;
-    }
-    if (access(orb, X_OK) != 0) return;
-
-    pid_t pid = fork();
-    if (pid != 0) return;                 /* parent keeps running the desktop */
-    setsid();                             /* detach from the desktop's group */
-    int devnull = open("/dev/null", O_RDWR);
-    const char *blog = getenv("WUBU_BUDDY_LOG");
-    if (blog && *blog) {
-        int lf = open(blog, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (lf >= 0) { dup2(lf, 1); dup2(lf, 2); }
-    } else if (devnull >= 0) { dup2(devnull, 0); dup2(devnull, 1); dup2(devnull, 2); }
-    execl(orb, "wubu-buddy", (char *)NULL);
-    _exit(127);
-}
-#else
-/* The capture harness compiles this TU with -DWUBU_HOSTED_TEST and supplies
- * its own main. Keep the unconditional spawn call above linkable without
- * launching a companion window into the capture session. */
-static void wubu_hosted_spawn_buddy(void) {}
-#endif
 
 #ifndef WUBU_HOSTED_TEST
 int main(int argc, char **argv) {

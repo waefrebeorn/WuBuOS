@@ -18,6 +18,7 @@
 #include "../gui/wm_internal.h"
 #include "../../gui/shell/window_chrome.h"   /* centralized chrome (ADR-001) */
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 #include "../framework/wubufx.h"
 #include "../apps/bonzi/bonzi.h"
@@ -279,30 +280,30 @@ int comfy_edge_count(void) { return g_comfy ? g_comfy->n_edges : 0; }
 
 /* -- Drawing ------------------------------------------------------- */
 static void comfy_draw_node(ComfyState *c, ComfyNode *n, int focused) {
-    uint32_t body = focused ? 0x00D0E8FF : 0x00C0C0C0;
-    uint32_t title = 0x008030A0;
+    uint32_t body = focused ? tc()->win_face : tc()->btn_face;
+    uint32_t title = tc()->win_title_active;
     vbe_fill_rect_rounded(n->x, n->y, n->w, n->h, 6, body);
-    vbe_rect_rounded(n->x, n->y, n->w, n->h, 6, 0x00808080);
+    vbe_rect_rounded(n->x, n->y, n->w, n->h, WUBU_METRIC_RADIUS_CONTROL, tc()->border_dark);
     vbe_fill_rect(n->x, n->y, n->w, 16, title);
     char tbuf[48];
     snprintf(tbuf, sizeof(tbuf), "%s", g_type_name[n->type]);
-    vbe_draw_text(n->x + 4, n->y + 4, tbuf, 0x00FFFFFF, 1);
+    vbe_draw_text(n->x + 4, n->y + 4, tbuf, tc()->win_title_text, 1);
     /* body text */
     const char *bt = (n->type == COMFY_TEXT) ? n->sval :
                      (n->type == COMFY_APP || n->type == COMFY_SAY) ? n->label :
                      (n->has_num) ? n->sval : "";
-    vbe_draw_text(n->x + 4, n->y + 22, bt, 0x00000000, 1);
+    vbe_draw_text(n->x + 4, n->y + 22, bt, tc()->btn_text, 1);
 
     /* ports */
     int px, py;
     if (comfy_n_outputs((ComfyNodeType)n->type)) {
         comfy_port_pos(n, 0, 1, &px, &py);
-        vbe_fill_circle(px, py, 5, 0x0000A000);
+        vbe_fill_circle(px, py, 5, WUBU_COLOR_STATUS_OK);
     }
     int nin = comfy_n_inputs((ComfyNodeType)n->type);
     for (int p = 0; p < nin; p++) {
         comfy_port_pos(n, p, 0, &px, &py);
-        vbe_fill_circle(px, py, 5, 0x00A00000);
+        vbe_fill_circle(px, py, 5, WUBU_COLOR_STATUS_ERR);
     }
 }
 
@@ -319,8 +320,8 @@ static void comfy_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int body_h = ch - 2;  /* ch already excludes chrome (ADR-001) */
 
     /* canvas */
-    vbe_fill_rect(cx + 2, body_y + 2, cw - 4, body_h - 70, 0x00F5F5F5);
-    vbe_rect(cx + 2, body_y + 2, cw - 4, body_h - 70, 0x00808080);
+    vbe_fill_rect(cx + 2, body_y + 2, cw - 4, body_h - 70, tc()->win_face);
+    vbe_rect(cx + 2, body_y + 2, cw - 4, body_h - 70, tc()->border_dark);
 
     /* edges */
     for (int e = 0; e < c->n_edges; e++) {
@@ -329,7 +330,7 @@ static void comfy_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
         ComfyNode *tn = &c->nodes[c->edges[e].to_node];
         comfy_port_pos(fn, c->edges[e].from_port, 1, &ax, &ay);
         comfy_port_pos(tn, c->edges[e].to_port, 0, &bx, &by);
-        vbe_line(ax, ay, bx, by, 0x00000080);
+        vbe_line(ax, ay, bx, by, tc()->border_dark);
     }
 
     /* nodes */
@@ -338,13 +339,13 @@ static void comfy_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
     /* output log strip */
     int oy = body_y + body_h - 66;
-    vbe_fill_rect(cx + 2, oy, cw - 4, 64, 0x00202020);
+    vbe_fill_rect(cx + 2, oy, cw - 4, 64, tc()->btn_face);
     for (int i = 0; i < 4 && i < c->out_n; i++) {
         int idx = (c->out_n - 1 - i);
-        vbe_draw_text(cx + 6, oy + 4 + i * 14, c->outlog[idx % 8], 0x0000FF00, 1);
+        vbe_draw_text(cx + 6, oy + 4 + i * 14, c->outlog[idx % 8], WUBU_COLOR_STATUS_OK, 1);
     }
     /* hint */
-    vbe_draw_text(cx + 6, body_y + 4, "Comfy: drag nodes, click ports to wire, Enter=Run", 0x00800000, 1);
+    vbe_draw_text(cx + 6, body_y + 4, "Comfy: drag nodes, click ports to wire, Enter=Run", tc()->win_title_text_ina, 1);
 }
 
 /* -- Input: drag nodes, wire ports, Enter=Run -------------------- */

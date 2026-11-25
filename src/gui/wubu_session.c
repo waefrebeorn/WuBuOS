@@ -10,6 +10,7 @@
 #include "wm.h"
 #include "shell/startmenu.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>
 #include <stdio.h>
@@ -263,7 +264,7 @@ void wubu_session_shutdown_dialog_render(uint32_t *fb, int fb_w, int fb_h) {
             }
         } else {
             if (sel) {
-                vbe_fill_rect(btn_x, by, bw, bh, 0x000080);
+                vbe_fill_rect(btn_x, by, bw, bh, wubu_theme_colors()->select_bg);
                 vbe_3d_sunken_colors(btn_x, by, bw, bh,
                                       tc->border_light, tc->border_face,
                                       tc->border_dark, tc->border_darkest);

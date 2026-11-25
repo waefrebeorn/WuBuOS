@@ -15,6 +15,7 @@
 #include "../gui/wm_internal.h"
 #include "../../gui/shell/window_chrome.h"   /* centralized chrome (ADR-001) */
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>
 #include <stdlib.h>
@@ -205,7 +206,7 @@ static void calc_draw_button(int x, int y, int w, int h, const char *label,
 static void calc_draw_graph(DosGuiWindow *win, int cx, int cy, int cw, int ch, CalcState *c) {
     if (!c || !win) return;
     /* Plot graph_expr as sin/cos/tan/x of the X axis across [x_min,x_max]. */
-    vbe_fill_rect(cx, cy, cw, ch, 0x00FFFFFF);
+    vbe_fill_rect(cx, cy, cw, ch, tc()->win_face);
     vbe_rect(cx, cy, cw, ch, tc()->border_dark);
     /* axes */
     int midy = cy + ch/2;
@@ -251,7 +252,7 @@ static void calc_draw_display(uint32_t *fb, int x, int y, int w, int h, CalcStat
         snprintf(buf, sizeof(buf), "%.6g", c->display_val);
     }
     int tw = vbe_text_width(buf, 1);
-    vbe_draw_text(x + w - tw - 6, y + (h-8)/2, buf, 0x00000000, 1);
+    vbe_draw_text(x + w - tw - 6, y + (h-8)/2, buf, tc()->btn_text, 1);
 }
 
 static void calc_draw_wm(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {

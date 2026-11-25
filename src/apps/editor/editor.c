@@ -22,6 +22,7 @@
 #include "../gui/wm_internal.h"
 #include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 
 #include <stdlib.h>
@@ -163,7 +164,7 @@ void editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h,
     /* Editing surface. */
     int ex = cx, ey = cy + tab_area_h;
     int ew = cw, eh = ch - tab_area_h - ED_STATBAR_H;
-    vbe_fill_rect(ex, ey, ew, eh, 0x00FFFFFF);
+    vbe_fill_rect(ex, ey, ew, eh, tc()->win_face);
     vbe_rect(ex, ey, ew, eh, c->border_dark);
 
     /* Gutter. */
@@ -224,7 +225,7 @@ void editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h,
         if (col >= 0 && col * 8 < ew - ED_GUTTER_W - 8) {
             int cxp = ex + ED_GUTTER_W + 8 + col * 8;
             int cyp = ey + row * ED_LINE_H + 2;
-            vbe_fill_rect(cxp, cyp, ED_CARET_W, ED_LINE_H - 4, 0x00000000);
+            vbe_fill_rect(cxp, cyp, ED_CARET_W, ED_LINE_H - 4, tc()->win_title_text);
         }
     }
 

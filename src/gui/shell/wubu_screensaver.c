@@ -10,6 +10,7 @@
 #include "../wm.h"
 #include "../wm_internal.h"
 #include "../kernel/vbe.h"
+#include "../wubu_tokens.h"
 #include "../wubu_theme.h"
 
 #include <stdio.h>
@@ -55,7 +56,7 @@ void wubu_screensaver_render(uint32_t *fb, int fb_w, int fb_h) {
     if (!g_enabled || !g_active) return;
 
     /* Dim to near-black.  A solid fill keeps this dependency-free. */
-    vbe_fill_rect(0, 0, fb_w, fb_h, 0x0A0A0A);
+    vbe_fill_rect(0, 0, fb_w, fb_h, WUBU_COLOR_TERMINAL_BG);
 
     /* Clock, bottom-right, so the display is still useful. */
     time_t now = time(NULL);

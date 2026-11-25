@@ -10,6 +10,7 @@
 #include "../wm.h"
 #include "../wm_internal.h"
 #include "../kernel/vbe.h"
+#include "../wubu_tokens.h"
 #include "../wubu_theme.h"
 #include "../kernel/input.h"
 
@@ -56,7 +57,7 @@ void wubu_lock_screen_render(uint32_t *fb, int fb_w, int fb_h) {
     char clock[32];
     snprintf(clock, sizeof(clock), "%02d:%02d", tmv.tm_hour, tmv.tm_min);
     int cw = (int)strlen(clock) * 8;
-    vbe_draw_text((fb_w - cw) / 2, fb_h / 2 - 40, clock, 0xFFFFFF, 3);
+    vbe_draw_text((fb_w - cw) / 2, fb_h / 2 - 40, clock, tc()->win_title_text, 3);
 
     /* Prompt. */
     const char *prompt = "Locked -- press Enter to resume";

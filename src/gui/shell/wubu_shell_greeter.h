@@ -23,7 +23,8 @@
  * (24 pad, 8/12 gaps) and the card was 400 -- so every gap was being squeezed to fit and the
  * "margins are bad" report was the arithmetic showing through. 448 leaves real breathing room
  * on every side. */
-#define WUBU_SHELL_GREETER_HEIGHT 412   /* the stack's own height: 24+20+8+10+12+210+12+28+12+32+8+10+24, rounded up to the 4px grid */
+/* The stack's own height: 24+20+8+10+12+210+12+32+12+32+8+10+24 = 414, on the 4px grid. */
+#define WUBU_SHELL_GREETER_HEIGHT 416
 #define WUBU_SHELL_GREETER_ROW_H  30
 
 /* The first-boot experience is a WIZARD, not one dialog: theme, then ACCOUNT,

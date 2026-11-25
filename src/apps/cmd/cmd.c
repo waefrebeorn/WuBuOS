@@ -326,7 +326,7 @@ void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
     ChromeContentRect content = chrome_draw_window(w, fb, fb_w, fb_h);
     int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
 
-    vbe_fill_rect(cx, cy, cw, ch, 0x00000000);
+    vbe_fill_rect(cx, cy, cw, ch, WUBU_COLOR_TERMINAL_BG);
     vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
                           tc->border_light, tc->border_face,
                           tc->border_dark, tc->border_darkest);
@@ -351,14 +351,14 @@ void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
     /* Input line, above the status bar (they used to overlap, which hid the
      * prompt entirely). */
     int input_y = cy + ch - status_h - input_h;
-    vbe_fill_rect(cx, input_y, cw, input_h, 0x00000000);
+    vbe_fill_rect(cx, input_y, cw, input_h, WUBU_COLOR_TERMINAL_BG);
     char prompt[256];
     snprintf(prompt, sizeof(prompt), "wubu@arch:%s$ %s",
              g_cmd.cwd, g_cmd.input_buffer);
-    vbe_draw_text(cx + 4, input_y + 4, prompt, 0x0000FF00, 1);
+    vbe_draw_text(cx + 4, input_y + 4, prompt, WUBU_COLOR_STATUS_OK, 1);
     int cursor_x = cx + 4 + vbe_text_width(prompt, 1);
     if ((g_cmd.cursor_pos / 2) % 2 == 0)
-        vbe_vline(cursor_x, input_y + 4, input_y + 18, 0x0000FF00);
+        vbe_vline(cursor_x, input_y + 4, input_y + 18, WUBU_COLOR_STATUS_OK);
 
     /* Status bar. */
     int sb_y = cy + ch - status_h;
@@ -370,5 +370,5 @@ void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
     snprintf(status, sizeof(status), "CMD Terminal  |  %dx%d  |  PID: %d  |  %s",
              g_cmd.cols, g_cmd.rows, g_cmd.child_pid,
              g_cmd.running ? "Running" : "Stopped");
-    vbe_draw_text(cx + 8, sb_y + 6, status, 0x00000000, 1);
+    vbe_draw_text(cx + 8, sb_y + 6, status, WUBU_COLOR_TERMINAL_BG, 1);
 }

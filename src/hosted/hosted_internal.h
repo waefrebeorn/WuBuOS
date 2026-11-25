@@ -118,6 +118,14 @@ int  hosted_wl_wait_ms(int timeout_ms);
 /* Blit the VBE back-buffer into the current SHM buffer + commit. */
 void hosted_wl_frame_render(void);
 
+/* X11 presenter: the REAL screen when the host runs X11 (no nested compositor, no headless
+ * stand-in). Same framebuffer the renderer fills, blitted zero-copy. */
+int  hosted_x11_present_open(int width, int height, const char *title);
+void hosted_x11_present_frame(const void *fb);
+int  hosted_x11_present_pump(void);
+int  hosted_x11_present_active(void);
+void hosted_x11_present_close(void);
+
 /* ── Sub-module lifecycle hooks (declared so the facade can orchestrate) ── */
 void wl_shm_init(hosted_state_t *state);
 void wl_shm_term(void);

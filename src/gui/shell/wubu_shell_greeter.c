@@ -37,7 +37,7 @@ __attribute__((weak)) DosGuiWindow *launch_terminal(void);
 #define GR_BTN_W      140
 #define GR_BTN_H      WUBU_METRIC_CONTROL_H /* was 34: off the 4px grid */
 #define GR_BTN_X      (WUBU_SHELL_GREETER_WIDTH - GR_PAD - GR_BTN_W)
-#define GR_OFFER_H    28
+#define GR_OFFER_H    WUBU_METRIC_CONTROL_H   /* was 28: a 28px button next to a 32px one reads squashed */
 
 static DosGuiWindow *g_win;
 static int   g_step;                /* which wizard page is showing */
@@ -379,7 +379,7 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
     vbe_fill_rect_rounded(x0 + bx, y0 + by, bw, bh, WUBU_METRIC_RADIUS_CONTROL,
                           tc->select_bg);
     int blw = vbe_text_width(bl, 1);
-    vbe_draw_text(x0 + bx + (bw - blw) / 2, y0 + by + (bh - WUBU_FONT_CAP_H) / 2,
+    vbe_draw_text(x0 + bx + (bw - blw) / 2, y0 + WUBU_TEXT_LABEL_Y(by, bh),
                   bl, tc->select_text, 1);
 
     /* First-run offers: the "where do I start" answers.  These answer "what do
@@ -396,7 +396,7 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         vbe_rect_rounded(x0 + ox, y0 + oy, ow, oh, WUBU_METRIC_RADIUS_CONTROL,
                          tc->border_light);
         int tw = vbe_text_width(offers[i], 1);
-        vbe_draw_text(x0 + ox + (ow - tw) / 2, y0 + oy + (oh - WUBU_FONT_CAP_H) / 2,
+        vbe_draw_text(x0 + ox + (ow - tw) / 2, y0 + WUBU_TEXT_LABEL_Y(oy, oh),
                       offers[i], tc->btn_text, 1);
     }
 

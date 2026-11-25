@@ -15,6 +15,7 @@
 #include "../gui/wm.h"
 #include "../../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 #include "../framework/wubufx.h"
 #include "../apps/apps.h"
@@ -150,8 +151,8 @@ static void bonzi_draw_gorilla(BonziState *b, int x0, int y0, int w, int h) {
     uint32_t fur   = 0x006030A0;   /* purple-ish */
     uint32_t fur_d = 0x00402070;
     uint32_t face  = 0x00E0A060;   /* tan face */
-    uint32_t eye   = 0x00000000;
-    uint32_t white = 0x00FFFFFF;
+    uint32_t eye   = wubu_theme_colors()->btn_text;
+    uint32_t white = wubu_theme_colors()->btn_face;
 
     int cx = x0 + w / 2;
     vbe_fill_rect_rounded(x0 + w*0.18, y0 + h*0.30, w*0.64, h*0.62, 14, fur);
@@ -167,7 +168,7 @@ static void bonzi_draw_gorilla(BonziState *b, int x0, int y0, int w, int h) {
     /* Mouth (animates with blink phase) */
     int my = y0 + h*0.58;
     int mh = 4 + (b->blink % 3);   /* 4..6 px, gentle talk loop */
-    vbe_fill_rect(cx - w*0.10, my, w*0.20, mh, 0x00401010);
+    vbe_fill_rect(cx - w*0.10, my, w*0.20, mh, wubu_theme_colors()->btn_face);
     /* Brow */
     vbe_hline(cx - w*0.14, cx - w*0.04, ey - 10, fur_d);
     vbe_hline(cx + w*0.04, cx + w*0.14, ey - 10, fur_d);
@@ -187,8 +188,8 @@ static void bonzi_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int body_h = ch - 2;
 
     /* Chat panel background */
-    vbe_fill_rect(cx + 2, body_y + 2, cw - 4, body_h - 90, 0x00F0F0F0);
-    vbe_rect(cx + 2, body_y + 2, cw - 4, body_h - 90, 0x00808080);
+    vbe_fill_rect(cx + 2, body_y + 2, cw - 4, body_h - 90, wubu_theme_colors()->win_face);
+    vbe_rect(cx + 2, body_y + 2, cw - 4, body_h - 90, wubu_theme_colors()->border_dark);
 
     /* Scrollback (newest at bottom) */
     int lines = (body_h - 90 - 16) / 14;
@@ -198,7 +199,7 @@ static void bonzi_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     for (int i = 0; i < shown; i++) {
         int idx = (b->log_head + b->log_n - shown + i) % 12;
         const char *s = b->log[idx];
-        int col = (strncmp(s, "You", 3) == 0) ? 0x00000000 : 0x00800000;
+        int col = (strncmp(s, "You", 3) == 0) ? wubu_theme_colors()->btn_text : 0x00800000;
         vbe_draw_text(cx + 6, ty, s, col, 1);
         ty += 14;
     }
@@ -209,11 +210,11 @@ static void bonzi_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Input line */
     int iy = body_y + body_h - 4;
-    vbe_fill_rect(cx + 2, iy - 18, cw - 4, 18, 0x00FFFFFF);
-    vbe_rect(cx + 2, iy - 18, cw - 4, 18, 0x00808080);
+    vbe_fill_rect(cx + 2, iy - 18, cw - 4, 18, wubu_theme_colors()->btn_face);
+    vbe_rect(cx + 2, iy - 18, cw - 4, 18, wubu_theme_colors()->border_dark);
     char buf[160];
     snprintf(buf, sizeof(buf), "> %s", b->input);
-    vbe_draw_text(cx + 6, iy - 16, buf, 0x00000000, 1);
+    vbe_draw_text(cx + 6, iy - 16, buf, wubu_theme_colors()->btn_text, 1);
 
     /* gentle animation tick */
     b->blink++;

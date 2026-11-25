@@ -13,6 +13,7 @@
 #include "../wm.h"
 #include "../wm_internal.h"
 #include "../kernel/vbe.h"
+#include "../wubu_tokens.h"
 #include "../wubu_theme.h"
 
 #include <stdio.h>
@@ -71,7 +72,7 @@ void wm_overview_render(uint32_t *fb, int fb_w, int fb_h) {
     const WubuThemeColors *c = tc();
 
     /* Dim the whole screen so the tiles read as an overlay. */
-    vbe_fill_rect(0, 0, fb_w, fb_h, 0x202020);
+    vbe_fill_rect(0, 0, fb_w, fb_h, tc()->desktop_bg);
 
     for (int d = 0; d < g_dwm.desktop_count; d++) {
         int x, y, w, h;

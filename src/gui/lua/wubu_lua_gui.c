@@ -19,6 +19,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../wubu_tokens.h"
+#include "../wubu_theme.h"
 
 /* The slerm-Lua sources live in the WWW submodule. */
 #define WB_LV_DIR   "../../../lua/www/~WuBu~/src/lv"
@@ -135,10 +137,12 @@ static wb_lv_value gui_button(wb_lv *L, wb_lv_value *a, int n, void *ud) {
     int w = num_arg(&a[2], &ok); if (!ok) return wb_lv_bool(0);
     int h = num_arg(&a[3], &ok); if (!ok) return wb_lv_bool(0);
     const char *label = str_arg(&a[4]);
-    vbe_3d_raised_colors(x, y, w, h, 0xC0C0C0, 0xFFFFFF, 0x808080, 0x000000);
+    /* Flat control, not a four-band Win95 raise: the theme has no bevels. */
+    vbe_fill_rect_rounded(x, y, w, h, WUBU_METRIC_RADIUS_CONTROL, tc()->btn_face);
+    vbe_rect_rounded(x, y, w, h, WUBU_METRIC_RADIUS_CONTROL, tc()->border_light);
     if (label) {
         int tw = vbe_text_width(label, 1);
-        vbe_draw_text(x + (w - tw) / 2, y + h / 2 - 4, label, 0x000000, 1);
+        vbe_draw_text(x + (w - tw) / 2, y + h / 2 - 4, label, tc()->btn_text, 1);
     }
     /* Click state is delivered through on_click(); a button returns true so
      * a script can use `if gui.button(...) then`. */

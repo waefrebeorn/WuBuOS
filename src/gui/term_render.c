@@ -8,6 +8,8 @@
 #include "term_internal.h"
 #include <string.h>
 #include "../kernel/vbe.h"
+#include "wubu_tokens.h"
+#include "wubu_theme.h"   /* palette owner */
 
 void term_tab_bar_layout(TermState *term, int *tab_x, int *tab_w) {
     int available_w = term->w - 4;
@@ -95,7 +97,7 @@ void term_render_tab_bar(uint32_t *fb, int fb_w, int fb_h) {
             int cy = y + (h - 12) / 2;
             vbe_fill_rect(cx, cy, 14, 12, active ? tc()->border_darkest : tc()->btn_face);
             vbe_rect(cx, cy, 14, 12, tc()->border_dark);
-            vbe_draw_text(cx + 5, cy + 2, "x", active ? 0xFFFFFF : 0x808080, 1);
+            vbe_draw_text(cx + 5, cy + 2, "x", active ? tc()->win_title_text : tc()->win_title_text_ina, 1);
         }
     }
 
@@ -175,7 +177,7 @@ void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, int y, in
                     int cr = (r == sel_bot) ? sel_right : cols - 1;
                     if (c >= cl && c <= cr) {
                         vbe_fill_rect(cx, ry, char_w, char_h, g_term.color_selection);
-                        if (ch != ' ') vbe_draw_char(cx, ry, ch, 0xFFFFFF, 1);
+                        if (ch != ' ') vbe_draw_char(cx, ry, ch, tc()->win_title_text, 1);
                     }
                 }
             }

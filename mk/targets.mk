@@ -114,7 +114,7 @@ HOSTED_BIN   = $(HOSTED)/wubu
 HOSTED_SUBSYS = $(HOSTED)/hosted_render.c $(HOSTED)/hosted_run.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_guest_root.c $(RT)/wubu_revolver.c $(HOSTED)/hosted_display.c \
                 $(HOSTED)/hosted_pe.c $(HOSTED)/wubu_display.c $(HOSTED)/hosted_wayland.c \
                 $(HOSTED)/hosted_wayland_input.c $(HOSTED)/hosted_wayland_shm.c \
-                $(HOSTED)/hosted_wayland_surface.c
+                $(HOSTED)/hosted_wayland_surface.c $(HOSTED)/hosted_x11_present.c
 # The closure the shell actually reaches that the shared object lists omit:
 # the hosted hardware sense, the a11y/sound/psych services, the EDR poller,
 # the WET applet framework + its slerm-Lua, and three compiler backends.
@@ -172,7 +172,7 @@ HOSTED_GLUE = src/kernel/vbe.c src/kernel/vbe_font.c $(KERNEL)/wubu_kvfs.c $(KER
               $(BRIDGE)/bridge.c $(RT)/wubu_ns_kv.c $(RT)/wubu_onboarding.c \
               $(HOSTED)/hosted_agent_channel.c
 # Full library link line for the hosted closure.
-HOSTED_LIBS = -no-pie -fopenmp -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lvulkan -lgbm -ldrm -lpulse-simple -lpulse -lasound
+HOSTED_LIBS = -no-pie -fopenmp -lwayland-client -lxkbcommon -lX11 -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lvulkan -lgbm -ldrm -lpulse-simple -lpulse -lasound
 # The two signing leaves are compiled into build/hosted/ with the auto-detected
 # backend flags, so the product links the SAME backend the gates test.  Other
 # targets keep using the plain GUI objects (fail-closed, no new link deps).

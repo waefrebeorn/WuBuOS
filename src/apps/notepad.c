@@ -15,6 +15,7 @@
 #include "../gui/wm_internal.h"
 #include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 #include "guest_file.h"
 #include <string.h>
@@ -153,7 +154,7 @@ static void notepad_draw_content(DosGuiWindow *win, const ChromeContentRect *con
     int ch = content->h;
 
     /* White editing surface. */
-    vbe_fill_rect(cx, cy, cw, ch, 0x00FFFFFF);
+    vbe_fill_rect(cx, cy, cw, ch, tc()->win_face);
     vbe_rect(cx, cy, cw, ch, tc()->border_dark);
 
     int line_h = 16;
@@ -188,7 +189,7 @@ static void notepad_draw_content(DosGuiWindow *win, const ChromeContentRect *con
             for (int yy = 0; yy < 12; yy++) {
                 int py = cyp + yy;
                 if (py < cy + ch - 16 && cxp >= cx && cxp < cx + cw)
-                    vbe_set_pixel(cxp, py, 0x00000000);
+                    vbe_set_pixel(cxp, py, tc()->win_title_text);
             }
             (void)base;
         }

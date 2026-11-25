@@ -18,6 +18,7 @@
 #include "../gui/wm.h"
 #include "../gui/wm_internal.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 #include "../kernel/wubu_psych.h"
 #include "../kernel/wubu_bonzi_study.h"
@@ -94,34 +95,34 @@ static void tandem_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h)
     /* the tandem panel: three bands */
     int y = win->y + 4;
     /* 1. the user model gauge */
-    vbe_draw_text(win->x + 4, y, "USER MODEL", 0xAAAAAA, 1);
+    vbe_draw_text(win->x + 4, y, "USER MODEL", tc()->win_title_text_ina, 1);
     y += 14;
     char line[96];
     snprintf(line, sizeof(line), "skill %u  fatigue %u  mood %u  attention %u",
              s->user.skill_level, s->user.fatigue, s->user.mood, s->user.attention);
-    vbe_draw_text(win->x + 4, y, line, 0xFFFFFF, 1);
+    vbe_draw_text(win->x + 4, y, line, tc()->win_title_text, 1);
     y += 14;
 
     /* 2. the timing loop / control arbitration */
-    vbe_draw_text(win->x + 4, y, "TIMING LOOP", 0xAAAAAA, 1);
+    vbe_draw_text(win->x + 4, y, "TIMING LOOP", tc()->win_title_text_ina, 1);
     y += 14;
-    vbe_draw_text(win->x + 4, y, s->status, 0x88FF88, 1);
+    vbe_draw_text(win->x + 4, y, s->status, WUBU_COLOR_STATUS_OK, 1);
     y += 14;
     snprintf(line, sizeof(line), "events %u  proposals %u  accepted %u",
              s->events, s->proposals_made, s->proposals_accepted);
-    vbe_draw_text(win->x + 4, y, line, 0xCCCCCC, 1);
+    vbe_draw_text(win->x + 4, y, line, tc()->win_title_text_ina, 1);
     y += 14;
 
     /* 3. the companion line (Bonzi's psychology) */
-    vbe_draw_text(win->x + 4, y, "COMPANION", 0xAAAAAA, 1);
+    vbe_draw_text(win->x + 4, y, "COMPANION", tc()->win_title_text_ina, 1);
     y += 14;
-    vbe_draw_text(win->x + 4, y, s->comp, 0xFFCC88, 1);
+    vbe_draw_text(win->x + 4, y, s->comp, WUBU_COLOR_STATUS_WARN, 1);
     y += 14;
 
     /* 4. the proposal bar */
     if (s->attn.pending_proposal) {
-        vbe_fill_rect(win->x + 4, y, win->w - 8, 16, 0x223344);
-        vbe_draw_text(win->x + 8, y + 3, s->prop.title, 0xFFD700, 1);
+        vbe_fill_rect(win->x + 4, y, win->w - 8, 16, tc()->btn_face);
+        vbe_draw_text(win->x + 8, y + 3, s->prop.title, tc()->select_text, 1);
     }
 }
 

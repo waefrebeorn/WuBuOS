@@ -171,13 +171,13 @@ static void walk_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     vbe_rect_rounded(bx_back, by, WALK_BTN_W, WALK_BTN_H, WUBU_METRIC_RADIUS_CONTROL,
                      tc()->border_light);
     vbe_draw_text(bx_back + (WALK_BTN_W - vbe_text_width("Back", 1)) / 2,
-                  by + (WALK_BTN_H - WUBU_FONT_CAP_H) / 2, "Back", tc()->btn_text, 1);
+                  WUBU_TEXT_LABEL_Y(by, WALK_BTN_H), "Back", tc()->btn_text, 1);
 
     /* Primary action: accent fill, accent-contrast text -- Win11's default button. */
     vbe_fill_rect_rounded(bx_next, by, WALK_BTN_W, WALK_BTN_H, WUBU_METRIC_RADIUS_CONTROL,
                           tc()->select_bg);
     vbe_draw_text(bx_next + (WALK_BTN_W - vbe_text_width(next_label, 1)) / 2,
-                  by + (WALK_BTN_H - WUBU_FONT_CAP_H) / 2, next_label, tc()->select_text, 1);
+                  WUBU_TEXT_LABEL_Y(by, WALK_BTN_H), next_label, tc()->select_text, 1);
 }
 
 static void walk_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {

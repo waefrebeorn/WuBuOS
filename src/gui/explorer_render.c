@@ -279,13 +279,13 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
 
             char size_str[32];
             explorer_format_size(entry->size, size_str, sizeof(size_str));
-            vbe_draw_text(cur_x + 60, cur_y + 26, size_str, selected ? tc()->select_text : 0x808080, 1);
+            vbe_draw_text(cur_x + 60, cur_y + 26, size_str, selected ? tc()->select_text : tc()->win_title_text_ina, 1);
 
             char date_str[64];
             explorer_format_time(entry->modified, date_str, sizeof(date_str));
-            vbe_draw_text(cur_x + 60, cur_y + 38, date_str, selected ? tc()->select_text : 0x808080, 1);
+            vbe_draw_text(cur_x + 60, cur_y + 38, date_str, selected ? tc()->select_text : tc()->win_title_text_ina, 1);
 
-            vbe_draw_text(cur_x + 60, cur_y + 50, entry->type_str, selected ? tc()->select_text : 0x808080, 1);
+            vbe_draw_text(cur_x + 60, cur_y + 50, entry->type_str, selected ? tc()->select_text : tc()->win_title_text_ina, 1);
 
             cur_x += tile_w + 10;
             if (cur_x + tile_w > x + w - 10) {
@@ -312,7 +312,7 @@ void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
     int content_h = h - ex_title_h() - 4;
 
     if (ex->preview.type == EX_PREVIEW_NONE) {
-        vbe_draw_text(x + 10, content_y + 10, "Select a file to preview", 0x808080, 1);
+        vbe_draw_text(x + 10, content_y + 10, "Select a file to preview", tc()->win_title_text_ina, 1);
     } else if (ex->preview.type == EX_PREVIEW_TEXT) {
         int line_h = WUBU_METRIC_GAP_MD;
         int lines = content_h / line_h;
@@ -374,33 +374,33 @@ void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
             }
 
             /* Draw border around image */
-            vbe_rect(ox - 1, oy - 1, out_w + 2, out_h + 2, 0x00808080);
+            vbe_rect(ox - 1, oy - 1, out_w + 2, out_h + 2, tc()->border_dark);
 
             char dims[64];
             snprintf(dims, sizeof(dims), "%dx%d (shown %dx%d)", ex->preview.img_w, ex->preview.img_h, out_w, out_h);
-            vbe_draw_text(x + 10, content_y + content_h - 14, dims, 0x808080, 1);
+            vbe_draw_text(x + 10, content_y + content_h - 14, dims, tc()->win_title_text_ina, 1);
         } else {
-            vbe_draw_text(x + 10, content_y + 10, "[Image Preview - No Data]", 0x808080, 1);
+            vbe_draw_text(x + 10, content_y + 10, "[Image Preview - No Data]", tc()->win_title_text_ina, 1);
             char dims[64];
             snprintf(dims, sizeof(dims), "%dx%d pixels", ex->preview.img_w, ex->preview.img_h);
-            vbe_draw_text(x + 10, content_y + 30, dims, 0x808080, 1);
+            vbe_draw_text(x + 10, content_y + 30, dims, tc()->win_title_text_ina, 1);
         }
     } else if (ex->preview.type == EX_PREVIEW_METADATA) {
         char size_str[32];
         explorer_format_size(ex->preview.file_size, size_str, sizeof(size_str));
 
-        vbe_draw_text(x + 10, content_y + 10, "File Size:", 0x808080, 1);
+        vbe_draw_text(x + 10, content_y + 10, "File Size:", tc()->win_title_text_ina, 1);
         vbe_draw_text(x + 100, content_y + 10, size_str, tc()->win_title_text, 1);
 
         char date_str[64];
         explorer_format_time(ex->preview.modified, date_str, sizeof(date_str));
-        vbe_draw_text(x + 10, content_y + 30, "Modified:", 0x808080, 1);
+        vbe_draw_text(x + 10, content_y + 30, "Modified:", tc()->win_title_text_ina, 1);
         vbe_draw_text(x + 100, content_y + 30, date_str, tc()->win_title_text, 1);
 
-        vbe_draw_text(x + 10, content_y + 50, "Type:", 0x808080, 1);
+        vbe_draw_text(x + 10, content_y + 50, "Type:", tc()->win_title_text_ina, 1);
         vbe_draw_text(x + 100, content_y + 50, ex->preview.mime_type, tc()->win_title_text, 1);
     } else if (ex->preview.type == EX_PREVIEW_BINARY) {
-        vbe_draw_text(x + 10, content_y + 10, "[Binary File - No Preview]", 0x808080, 1);
+        vbe_draw_text(x + 10, content_y + 10, "[Binary File - No Preview]", tc()->win_title_text_ina, 1);
     }
 }
 

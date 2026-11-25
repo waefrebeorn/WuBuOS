@@ -22,6 +22,16 @@
 /* WuBu brand blue (used for links, secondary accents) */
 #define WUBU_COLOR_ACCENT_BLUE   0x0066CCFFu
 
+/* Semantic status. Named here so no applet invents its own green and red -- the values are
+ * Windows 11's dark-surface success/error ramp (#6CCB5F / #FF99A4), which clear 4.5:1 on the
+ * dark card the applets draw into. */
+/* Terminal surfaces: HolyC/DOS sessions and the REPL are deliberately near-black regardless
+ * of theme -- the user asked for that reading, so it is a named surface, not a stray literal. */
+#define WUBU_COLOR_TERMINAL_BG   0x00000000u
+#define WUBU_COLOR_STATUS_OK     0x006CCB5Fu
+#define WUBU_COLOR_STATUS_ERR    0x00FF99A4u
+#define WUBU_COLOR_STATUS_WARN   0x00FFD27Fu
+
 /* Neutral grays */
 #define WUBU_COLOR_GRAY_900      0x001A1A1Au
 #define WUBU_COLOR_GRAY_800      0x002A2A2Au
@@ -267,6 +277,17 @@
 /* Type sizes (the VBE draws at a fixed 8px cell; these are cap heights used
  * for vertical centring, not point sizes). */
 #define WUBU_FONT_CAP_H    8
+/* The INK height of scale-1 text as vbe_draw_text actually renders it (cap + descender +
+ * the AA baseline offset). Centring a label with CAP_H alone puts its ink 3px low and, in a
+ * 28px button, clips the bottom row of pixels -- which is exactly how "cutoff text in the
+ * buttons" happened. Centre with this. */
+#define WUBU_FONT_INK_H    14
+/* Measured from the render: for scale-1 text the CAP ink is 9px and it starts 5px below the
+ * em-box top that vbe_draw_text takes. Centring with the em box leaves a label 5px low in a
+ * 32px button, which is what "the buttons look wrong" was. This macro centres the INK. */
+#define WUBU_FONT_CAP_INK_H 9
+#define WUBU_FONT_CAP_TOP   5
+#define WUBU_TEXT_LABEL_Y(y, h) ((y) + (((h) - WUBU_FONT_CAP_INK_H) / 2) - WUBU_FONT_CAP_TOP)
 #define WUBU_FONT_BODY_H   8
 
 /* ---- Legacy banner layout (shared with CLI banner) ---- */

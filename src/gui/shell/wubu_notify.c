@@ -220,7 +220,7 @@ void wubu_notify_render(uint32_t *fb, int fb_w, int fb_h) {
         
         /* Urgency indicator */
         if (n->urgency == NOTIFY_URGENCY_CRITICAL) {
-            vbe_fill_rect(x + NOTIFICATION_WIDTH - 20, y + 10, 8, 8, 0xFF0000);
+            vbe_fill_rect(x + NOTIFICATION_WIDTH - 20, y + 10, 8, 8, WUBU_COLOR_STATUS_ERR);
         }
     }
 }

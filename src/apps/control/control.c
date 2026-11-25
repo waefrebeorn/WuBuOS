@@ -217,34 +217,35 @@ static void control_draw_content(DosGuiWindow *win, const ChromeContentRect *con
     control_layout(c, cx, cy, cw, ch);
 
     /* Right pane background. */
-    vbe_fill_rect(cx, cy, cw, ch, theme()->Luna_start_button ? 0x00F8F8F8 : 0x00C0C0C0);
+    vbe_fill_rect(cx, cy, cw, ch, tc()->win_face);
 
     /* Left rail (XP blue gradient). */
     if (theme()->Luna_start_button)
         vbe_vgradient(c->lx, c->ly, c->lw, c->lh, tc()->startmenu_sidebar,
                       tc()->startmenu_sidebar_grad_end);
     else
-        vbe_fill_rect(c->lx, c->ly, c->lw, c->lh, 0x00C0C0C0);
+        vbe_fill_rect(c->lx, c->ly, c->lw, c->lh, tc()->btn_face);
 
     int ox = cx + 12, oy = cy + 12;
-    vbe_fill_rect(ox,      oy,      7, 7, 0xF24C3E);
-    vbe_fill_rect(ox + 8,  oy,      7, 7, 0x6FCF3C);
-    vbe_fill_rect(ox,      oy + 8,  7, 7, 0x39A0EC);
-    vbe_fill_rect(ox + 8,  oy + 8,  7, 7, 0xFFC90E);
-    vbe_draw_text(cx + 12, cy + 32, "Control Panel", 0x00FFFFFF, 1);
+    /* Four panes of ONE accent, not Microsoft's four-colour flag: this is our OS, and a
+     * borrowed logo is the same defect as the Win95 flag that used to sit on Start. */
+    for (int pane = 0; pane < 4; pane++) {
+        vbe_fill_rect(ox + (pane & 1) * 8, oy + (pane >> 1) * 8, 7, 7, tc()->select_bg);
+    }
+    vbe_draw_text(cx + 12, cy + 32, "Control Panel", tc()->win_title_text, 1);
 
-    vbe_draw_text(cx + 12, cy + 64, "See also", 0x00FFFFFF, 1);
-    vbe_draw_text(cx + 12, cy + 80, "Switch to Classic View", 0x00E0E0FF, 1);
-    vbe_draw_text(cx + 12, cy + 96, "Taskbar and Start Menu", 0x00E0E0FF, 1);
-    vbe_draw_text(cx + 12, cy + 112, "Folder Options", 0x00E0E0FF, 1);
+    vbe_draw_text(cx + 12, cy + 64, "See also", tc()->win_title_text, 1);
+    vbe_draw_text(cx + 12, cy + 80, "Switch to Classic View", tc()->win_title_text_ina, 1);
+    vbe_draw_text(cx + 12, cy + 96, "Taskbar and Start Menu", tc()->win_title_text_ina, 1);
+    vbe_draw_text(cx + 12, cy + 112, "Folder Options", tc()->win_title_text_ina, 1);
 
     /* "Pick a category" grid; the selected category is visibly selected. */
-    vbe_draw_text(cx + c->lw + 14, cy + 10, "Pick a category", 0x00000000, 1);
+    vbe_draw_text(cx + c->lw + 14, cy + 10, "Pick a category", tc()->btn_text, 1);
     for (int i = 0; i < c->cat_n; i++) {
         CpCatRect *r = &c->cats[i];
         if (i == c->active_tab)
             vbe_fill_rect(r->x - 2, r->y - 2, r->w + 4, r->h + 4, tc()->win_title_active);
-        uint32_t label_col = (i == c->active_tab) ? tc()->win_title_text : 0x00000000;
+        uint32_t label_col = (i == c->active_tab) ? tc()->win_title_text : tc()->btn_text;
         wm_draw_icon_glyph(g_cats[i].type, r->x, r->y + 4,
                            tc()->btn_face, tc()->border_light,
                            tc()->border_dark, tc()->win_title_active);
@@ -253,14 +254,14 @@ static void control_draw_content(DosGuiWindow *win, const ChromeContentRect *con
 
     /* Detail pane: what this category can actually do. */
     vbe_fill_rect(c->dx, c->dy, c->dw, c->dh,
-                  theme()->Luna_start_button ? 0x00FFFFFF : 0x00D4D0C8);
+                  tc()->btn_face);
     vbe_fill_rect(c->dx, c->dy, c->dw, 1, tc()->border_dark);
     vbe_draw_text(c->dx + 8, c->dy + 6, g_cats[c->active_tab].name,
                   tc()->win_title_active, 1);
 
     if (c->act_n == 0) {
         const char *note = cp_category_note(c);
-        if (note) vbe_draw_text(c->dx + 8, c->dy + 24, note, 0x00333333, 1);
+        if (note) vbe_draw_text(c->dx + 8, c->dy + 24, note, tc()->btn_text, 1);
     } else {
         for (int i = 0; i < c->act_n; i++) {
             CpActRect *a = &c->acts[i];
@@ -276,7 +277,7 @@ static void control_draw_content(DosGuiWindow *win, const ChromeContentRect *con
             if (m < 0 || m > 4) m = 1;
             char buf[96];
             snprintf(buf, sizeof buf, "Placement now: %s", modes[m]);
-            vbe_draw_text(c->dx + 8, c->acts[c->act_n - 1].y + 30, buf, 0x00333333, 1);
+            vbe_draw_text(c->dx + 8, c->acts[c->act_n - 1].y + 30, buf, tc()->btn_text, 1);
         }
     }
 }

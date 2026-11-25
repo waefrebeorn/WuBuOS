@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "wubu_tokens.h"
+#include "wubu_theme.h"   /* palette owner */
 
 /* -- Injected evaluator (DI) -------------------------------------- */
 
@@ -161,12 +163,12 @@ void holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     for (int i = 0; i < lines && i < 32; i++) {
         int idx = (start + i) % 32;
         if (term->buffer[idx][0])
-            vbe_draw_text(cx + 4, cy + i * line_h, term->buffer[idx], 0xFF00FF00, 1);
+            vbe_draw_text(cx + 4, cy + i * line_h, term->buffer[idx], WUBU_COLOR_STATUS_OK, 1);
     }
 
     char input_line[272];
     snprintf(input_line, sizeof(input_line), "> %s", term->input);
-    vbe_draw_text(cx + 4, cy + lines * line_h - line_h, input_line, 0xFF00FF00, 1);
+    vbe_draw_text(cx + 4, cy + lines * line_h - line_h, input_line, WUBU_COLOR_STATUS_OK, 1);
 }
 
 void holyc_term_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {

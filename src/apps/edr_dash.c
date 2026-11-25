@@ -18,6 +18,7 @@
 #include "../gui/wm_internal.h"
 #include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 #include <stdlib.h>
 #include <string.h>
@@ -101,7 +102,7 @@ static void edr_dash_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, v
     int ch = content.h;
 
     /* Content background. */
-    uint32_t bg = theme()->Luna_start_button ? 0x00F0F0F0 : 0x00C0C0C0;
+    uint32_t bg = tc()->win_face;
     vbe_fill_rect(cx, cy, cw, ch, bg);
 
     /* -- Toolbar (filters + analytics toggle) -- */
@@ -109,21 +110,21 @@ static void edr_dash_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, v
     int bx = cx + 8;
     for (int i = 0; i < FILTER_COUNT; i++) {
         int w = 56, h = 18;
-        uint32_t col = (i == (int)s->filter) ? 0x0039A0EC : (theme()->Luna_start_button ? 0x00FFFFFF : 0x00D0D0D0);
+        uint32_t col = (i == (int)s->filter) ? tc()->select_bg : tc()->btn_face;
         vbe_fill_rect(bx, ty, w, h, col);
-        vbe_draw_text(bx + 6, ty + 4, g_filter_names[i], 0x00000000, 1);
+        vbe_draw_text(bx + 6, ty + 4, g_filter_names[i], tc()->btn_text, 1);
         bx += w + 6;
     }
     /* Analytics giant toggle (right side of toolbar). */
     int toggle_x = cx + cw - 132, toggle_y = ty, tw = 124, th = 18;
     int on = edr_analytics_enabled();
-    vbe_fill_rect(toggle_x, toggle_y, tw, th, on ? 0x002E7D32 : 0x007A1F1F);
+    vbe_fill_rect(toggle_x, toggle_y, tw, th, on ? WUBU_COLOR_STATUS_OK : tc()->btn_face);
     vbe_draw_text(toggle_x + 8, toggle_y + 4, on ? "Analytics: ON" : "Analytics: OFF",
-                  0x00FFFFFF, 1);
+                  tc()->select_text, 1);
 
     /* Divider. */
     int list_y = ty + 24;
-    vbe_fill_rect(cx, list_y - 2, cw, 1, 0x00808080);
+    vbe_fill_rect(cx, list_y - 2, cw, 1, tc()->border_dark);
 
     /* -- Event list (auto-tail: newest at bottom) -- */
     int rows = (ch - (list_y - cy) - 6) / EDR_DASH_ROW_H;
@@ -151,7 +152,7 @@ static void edr_dash_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, v
         else
             snprintf(line, sizeof(line), "%02d:%02d:%02d  [%s] pid=%u  %s",
                      hh, mm, ss, tname, v->pid, v->detail);
-        uint32_t col = (v->type == EDR_EV_AGENT_ACTION) ? 0x000000AA : 0x00000000;
+        uint32_t col = (v->type == EDR_EV_AGENT_ACTION) ? tc()->select_bg : tc()->btn_text;
         vbe_draw_text(cx + 8, ry, line, col, 1);
         ry += EDR_DASH_ROW_H;
     }
@@ -166,11 +167,11 @@ static void edr_dash_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, v
             snprintf(line, sizeof(line), "[%s] %s  pid=%u  %s",
                      alerts[i].severity, alerts[i].rule_name, alerts[i].pid,
                      alerts[i].description);
-            vbe_draw_text(cx + 8, ry, line, 0x00AA0000, 1);
+            vbe_draw_text(cx + 8, ry, line, WUBU_COLOR_STATUS_ERR, 1);
             ry += EDR_DASH_ROW_H;
         }
         if (na == 0)
-            vbe_draw_text(cx + 8, list_y + 2, "No alerts.", 0x00606060, 1);
+            vbe_draw_text(cx + 8, list_y + 2, "No alerts.", tc()->win_title_text_ina, 1);
     }
 
     /* Footer: totals. */
@@ -178,7 +179,7 @@ static void edr_dash_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, v
     snprintf(foot, sizeof(foot), "showing %d events | agent events logged: %llu | toggle=%s",
              s->count, (unsigned long long)edr_agent_events_logged(),
              edr_analytics_enabled() ? "ON" : "OFF");
-    vbe_draw_text(cx + 8, cy + ch - 14, foot, 0x00606060, 1);
+    vbe_draw_text(cx + 8, cy + ch - 14, foot, tc()->win_title_text_ina, 1);
 }
 
 static void edr_dash_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {

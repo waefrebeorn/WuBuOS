@@ -15,6 +15,8 @@
  * time deterministically. A refusal never touches the DB (fail-closed).
  */
 #include "wubu_pkgmgr_sync_panel.h"
+#include "wubu_tokens.h"   /* named semantic colours */
+#include "wubu_theme.h"   /* the palette owner: an applet may not carry its own colours */
 #include "wubu_settings.h"
 #include "wubu_pkgmgr_revoke_sync.h"
 #include "../kernel/vbe.h"
@@ -105,29 +107,42 @@ bool cp_pkg_sync_tls_capable(void) {
 #endif
 }
 
+/* Geometry derived, not dictated. The old table was five hand-typed x/w pairs and a 24px
+ * height -- off Microsoft's 16px surface floor, off the 32px control height, and with widths
+ * that had nothing to do with the labels inside them ("assumptive hardcoded numbers"). */
+int cp_pkg_sync_btn_w(const char *label) {
+    return vbe_text_width(label, 1) + WUBU_SPACE_MD * 2;   /* label + symmetric padding */
+}
+
 void cp_pkg_sync_button_rects(int rects[5][4]) {
-    static const int xr[5] = { 10, 100, 10, 100, 134 };
-    static const int yr[5] = { 76, 76, 110, 110, 110 };
-    static const int wr[5] = { 84, 96, 84, 28, 28 };
     if (!rects) return;
-    for (int i = 0; i < 5; i++) {
-        rects[i][0] = xr[i];
-        rects[i][1] = yr[i];
-        rects[i][2] = wr[i];
-        rects[i][3] = 24;
-    }
+    const int m = WUBU_METRIC_MARGIN_MD;   /* 16: surface edge -> control */
+    const int g = WUBU_SPACE_XS;           /* 8:  control -> control      */
+    const int bh = WUBU_METRIC_CONTROL_H;  /* 32: the control height      */
+
+    int w_save = cp_pkg_sync_btn_w("Save");
+    int w_sync = cp_pkg_sync_btn_w("Sync Now");
+    int w_auto = cp_pkg_sync_btn_w("Auto: off");
+
+    rects[0][0] = m;                 rects[0][1] = 96;  rects[0][2] = w_save; rects[0][3] = bh;
+    rects[1][0] = m + w_save + g;    rects[1][1] = 96;  rects[1][2] = w_sync; rects[1][3] = bh;
+    rects[2][0] = m;                 rects[2][1] = 136; rects[2][2] = w_auto; rects[2][3] = bh;
+    rects[3][0] = m + w_auto + g;    rects[3][1] = 136; rects[3][2] = bh;     rects[3][3] = bh;
+    rects[4][0] = m + w_auto + g + bh + g; rects[4][1] = 136; rects[4][2] = bh; rects[4][3] = bh;
 }
 
 void cp_pkg_sync_url_button_rects(int rects[2][4]) {
-    static const int xr[2] = { 206, 260 };
-    static const int yr[2] = { 76, 76 };
-    static const int wr[2] = { 48, 48 };
     if (!rects) return;
+    const int m = WUBU_METRIC_MARGIN_MD, g = WUBU_SPACE_XS, bh = WUBU_METRIC_CONTROL_H;
+    int w_add = cp_pkg_sync_btn_w("Add");
+    int xr[2] = { m, m + w_add + g };
+    int yr[2] = { 56, 56 };            /* the field row */
+    int wr[2] = { w_add, cp_pkg_sync_btn_w("Del") };
     for (int i = 0; i < 2; i++) {
         rects[i][0] = xr[i];
         rects[i][1] = yr[i];
         rects[i][2] = wr[i];
-        rects[i][3] = 24;
+        rects[i][3] = bh;
     }
 }
 
@@ -405,54 +420,76 @@ static void sync_init(CpApplet *applet) {
     cp_pkg_sync_reload_from_settings();
 }
 
+static void sync_draw_button(int bx, int by, int bw, int bh,
+                              const char *label, uint32_t face, uint32_t text) {
+    vbe_fill_rect_rounded(bx, by, bw, bh, WUBU_METRIC_RADIUS_CONTROL, face);
+    vbe_draw_text(bx + (bw - vbe_text_width(label, 1)) / 2, WUBU_TEXT_LABEL_Y(by, bh),
+                  label, text, 1);
+}
+
 static void sync_render(CpApplet *applet, uint32_t *fb, int fb_w, int fb_h,
                         int x, int y, int w, int h) {
     PkSyncPanelState *s = &g_sync;
-    int rects[5][4];
+    int rects[5][4], ur[2][4];
+    const WubuThemeColors *T = wubu_theme_colors();   /* no private palette in a themed applet */
     (void)applet;
     (void)fb; (void)fb_w; (void)fb_h;  /* draw through vbe_* like the desktop */
 
     cp_pkg_sync_button_rects(rects);
-    vbe_fill_rect(x, y, w, h > 0 ? h : 1, 0xFF101820u);
-    vbe_draw_text(x + 10, y + 8, "Revocation Sync (signed feed)", 0xFFFFFFFFu, 1);
-    vbe_draw_text(x + 10, y + 28, "Trusted URL:", 0xFF9AD0FFu, 1);
-    vbe_fill_rect(x + rects[0][0] - 2, y + 46, w > 200 ? w - 20 : 180, 26, 0xFF1F2A37u);
-    vbe_draw_text(x + 10, y + 52, s->url[0] ? s->url : "(none - type a URL, press Enter)",
-                  0xFFFFFFFFu, 1);
-
-    vbe_fill_rect(x + rects[0][0], y + rects[0][1], rects[0][2], rects[0][3], 0xFF2F6F3Fu);
-    vbe_draw_text(x + rects[0][0] + 8, y + rects[0][1] + 6, "Save", 0xFFFFFFFFu, 1);
-    vbe_fill_rect(x + rects[1][0], y + rects[1][1], rects[1][2], rects[1][3], 0xFF2F4F8Fu);
-    vbe_draw_text(x + rects[1][0] + 6, y + rects[1][1] + 6, "Sync Now", 0xFFFFFFFFu, 1);
-
-    char list_lbl[64];
-    snprintf(list_lbl, sizeof(list_lbl), "URLs:%d", wubu_settings_sync_url_count());
-    vbe_draw_text(x + 206, y + 40, list_lbl, 0xFF9AD0FFu, 1);
-    int ur[2][4];
     cp_pkg_sync_url_button_rects(ur);
-    vbe_fill_rect(x + ur[0][0], y + ur[0][1], ur[0][2], ur[0][3], 0xFF2F6F3Fu);
-    vbe_draw_text(x + ur[0][0] + 12, y + ur[0][1] + 6, "Add", 0xFFFFFFFFu, 1);
-    vbe_fill_rect(x + ur[1][0], y + ur[1][1], ur[1][2], ur[1][3], 0xFF4A4A4Au);
-    vbe_draw_text(x + ur[1][0] + 14, y + ur[1][1] + 6, "Del", 0xFFFFFFFFu, 1);
+    const int M = WUBU_METRIC_MARGIN_MD;   /* 16 */
+    const int G = WUBU_SPACE_XS;           /* 8  */
 
-    vbe_fill_rect(x + rects[2][0], y + rects[2][1], rects[2][2], rects[2][3],
-                  s->auto_enabled ? 0xFF2F6F3Fu : 0xFF4A4A4Au);
+    vbe_fill_rect(x, y, w, h > 0 ? h : 1, T->win_face);
+
+    /* Every position below comes from the same margin/gap/height triple as the hit-test
+     * rects. The old block mixed +10/+28/+46/+52 offsets with a 26px field and buttons whose
+     * labels were nudged +8/+12/+14 inside them -- numbers that agreed with nothing. */
+    vbe_draw_text(x + M, y + 12, "Revocation Sync (signed feed)", T->win_title_text, 1);
+    vbe_draw_text(x + M, y + 40, "Trusted URL:", T->win_title_text_ina, 1);
+
+    int field_x = x + M, field_y = y + 56;
+    int field_w = (w > 2 * M) ? w - 2 * M : 180;
+    vbe_fill_rect_rounded(field_x, field_y, field_w, WUBU_METRIC_CONTROL_H,
+                          WUBU_METRIC_RADIUS_CONTROL, T->btn_face);
+    vbe_draw_text(field_x + G, WUBU_TEXT_LABEL_Y(field_y, WUBU_METRIC_CONTROL_H),
+                  s->url[0] ? s->url : "(none - type a URL, press Enter)", T->win_title_text, 1);
+
+    sync_draw_button(x + rects[0][0], y + rects[0][1], rects[0][2], rects[0][3],
+                     "Save", T->select_bg, T->select_text);
+    sync_draw_button(x + rects[1][0], y + rects[1][1], rects[1][2], rects[1][3],
+                     "Sync Now", T->select_bg, T->select_text);
+    sync_draw_button(x + ur[0][0], y + ur[0][1], ur[0][2], ur[0][3],
+                     "Add", T->btn_face, T->btn_text);
+    sync_draw_button(x + ur[1][0], y + ur[1][1], ur[1][2], ur[1][3],
+                     "Del", T->btn_face, T->btn_text);
+
     char auto_lbl[48];
     snprintf(auto_lbl, sizeof(auto_lbl), "Auto:%s", s->auto_enabled ? "ON" : "OFF");
-    vbe_draw_text(x + rects[2][0] + 6, y + rects[2][1] + 6, auto_lbl, 0xFFFFFFFFu, 1);
+    sync_draw_button(x + rects[2][0], y + rects[2][1], rects[2][2], rects[2][3], auto_lbl,
+                     s->auto_enabled ? T->select_bg : T->btn_face,
+                     s->auto_enabled ? T->select_text : T->btn_text);
+    sync_draw_button(x + rects[3][0], y + rects[3][1], rects[3][2], rects[3][3],
+                     "-", T->btn_face, T->btn_text);
+    sync_draw_button(x + rects[4][0], y + rects[4][1], rects[4][2], rects[4][3],
+                     "+", T->btn_face, T->btn_text);
 
     char int_lbl[48];
     snprintf(int_lbl, sizeof(int_lbl), "Every %ds", s->interval_secs);
-    vbe_draw_text(x + rects[3][0] + 36, y + rects[3][1] + 6, int_lbl, 0xFFFFFFFFu, 1);
-    vbe_fill_rect(x + rects[3][0], y + rects[3][1], rects[3][2], rects[3][3], 0xFF4A4A4Au);
-    vbe_fill_rect(x + rects[4][0], y + rects[4][1], rects[4][2], rects[4][3], 0xFF4A4A4Au);
-    vbe_draw_text(x + rects[3][0] + 9, y + rects[3][1] + 6, "-", 0xFFFFFFFFu, 1);
-    vbe_draw_text(x + rects[4][0] + 9, y + rects[4][1] + 6, "+", 0xFFFFFFFFu, 1);
+    vbe_draw_text(x + rects[4][0] + rects[4][2] + G,
+                  WUBU_TEXT_LABEL_Y(y + rects[4][1], rects[4][3]), int_lbl, T->win_title_text, 1);
+
+    char list_lbl[64];
+    snprintf(list_lbl, sizeof(list_lbl), "URLs:%d", wubu_settings_sync_url_count());
+    int lw = vbe_text_width(list_lbl, 1);
+    vbe_draw_text(x + (w > lw + 2 * M ? w - M - lw : M + lw), y + 40,
+                  list_lbl, T->win_title_text_ina, 1);
 
     char status[192];
     snprintf(status, sizeof(status), "%.160s", s->status);
-    vbe_draw_text(x + 10, y + (h > 148 ? h - 24 : 146), status,
-                  s->last_ok ? 0xFF9BE89Bu : 0xFFFF9B9Bu, 1);
+    int status_y = (h > 176) ? h - M - WUBU_FONT_INK_H : 176;
+    vbe_draw_text(x + M, y + status_y, status,
+                  s->last_ok ? WUBU_COLOR_STATUS_OK : WUBU_COLOR_STATUS_ERR, 1);
 }
 
 static bool sync_in_rect(int px, int py, const int r[4]) {

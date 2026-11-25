@@ -42,8 +42,11 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
 
     /* Measure the button row first so it can be centred. */
     int row_w = 0;
-    for (int j = 0; j < g_dwm.nz && L->n_slots < 48; j++) {
-        int idx = g_dwm.zorder[j];
+    /* STABLE ORDER: creation order, never z-order. Iterating zorder[] meant every focus
+     * change re-sorted the row, so tiles physically jumped under the pointer -- "the taskbar
+     * shuffles". Windows in Windows 11 never reorder on focus; a click changes the indicator,
+     * not the position. */
+    for (int idx = 0; idx < DOSGUI_MAX_WINDOWS && L->n_slots < 48; idx++) {
         DosGuiWindow *w = &g_dwm.windows[idx];
         if (!w->alive || w->desktop != g_dwm.current_desktop) continue;
         /* Uniform tile: Win11 shows ICONS at a fixed size, never titles. Measuring the title
@@ -226,7 +229,7 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
             vbe_fill_rect_rounded(mx, my, isz, isz, WUBU_METRIC_RADIUS_CONTROL,
                                   focused ? tc()->select_bg : tc()->btn_face);
             vbe_draw_text(mx + (isz - vbe_text_width(mono, 1)) / 2,
-                          my + (isz - WUBU_FONT_CAP_H) / 2, mono,
+                          my + (isz - WUBU_FONT_INK_H) / 2, mono,
                           focused ? tc()->select_text : tc()->btn_text, 1);
         }
         /* Progress badge: a sliver across the bottom of the tile. Drawn UNDER the running
@@ -306,7 +309,7 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
     g_dwm.clock_well_w = L.clock_w;
     g_dwm.clock_well_h = L.clock_h;
     vbe_draw_text(L.clock_x + WUBU_SPACE_XS,
-                  L.clock_y + (L.clock_h - WUBU_FONT_CAP_H) / 2, clk,
+                  L.clock_y + (L.clock_h - WUBU_FONT_INK_H) / 2, clk,
                   tc()->icon_text, 1);
 }
 
@@ -662,7 +665,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                              tc()->border_dark, tc()->border_darkest);
         draw_start_flag(WUBU_SPACE_SM, sby + (sbh - WUBU_TASKBAR_FLAG_SIZE) / 2);
         vbe_draw_text(WUBU_SPACE_SM + WUBU_TASKBAR_FLAG_SIZE + WUBU_SPACE_XS,
-                      sby + (sbh - WUBU_FONT_CAP_H) / 2, "Start",
+                      sby + (sbh - WUBU_FONT_INK_H) / 2, "Start",
                       tc()->start_btn_text, 1);
     }
 
@@ -711,7 +714,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             vbe_3d_sunken_colors(bx, bby, bw, bh,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_CAP_H) / 2,
+            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_INK_H) / 2,
                           truncated, tc()->select_text, 1);
         } else if (minimized) {
             /* Sunken + dimmed: clearly "not on screen" but present. */
@@ -719,14 +722,14 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             vbe_3d_sunken_colors(bx, bby, bw, bh,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_CAP_H) / 2,
+            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_INK_H) / 2,
                           truncated, tc()->btn_text, 1);
         } else {
             vbe_fill_rect(bx, bby, bw, bh, tc()->btn_face);
             vbe_3d_raised_colors(bx, bby, bw, bh,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_CAP_H) / 2,
+            vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_INK_H) / 2,
                           truncated, tc()->btn_text, 1);
         }
         bx += bw + WUBU_TASKBAR_CLASSIC_BTN_GAP;
@@ -747,7 +750,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         vbe_3d_raised_colors(bx, bby, WUBU_TASKBAR_CLASSIC_PIN_W, bh,
                              tc()->border_light, tc()->btn_face,
                              tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_CAP_H) / 2,
+        vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_INK_H) / 2,
                       t->title, tc()->btn_text, 1);
         /* A pin marker: a small raised square at the button's right edge. */
         vbe_fill_rect(bx + WUBU_TASKBAR_CLASSIC_PIN_W - 2 * WUBU_TASKBAR_CLASSIC_PIN_MARK,
@@ -790,7 +793,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                          WUBU_TASKBAR_CLASSIC_CLOCK_H,
                          tc()->border_light, tc()->border_face,
                          tc()->border_dark, tc()->border_darkest);
-    vbe_draw_text(clock_x, ty + (th - WUBU_FONT_CAP_H) / 2, clk,
+    vbe_draw_text(clock_x, ty + (th - WUBU_FONT_INK_H) / 2, clk,
                   theme()->Luna_start_button ? tc()->start_btn_text
                                              : tc()->icon_text, 1);
 
@@ -855,7 +858,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                                   WUBU_TASKBAR_CLASSIC_PAGER_H, WUBU_RADIUS_XS,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(lx, ty + (th - WUBU_FONT_CAP_H) / 2, &label,
+            vbe_draw_text(lx, ty + (th - WUBU_FONT_INK_H) / 2, &label,
                           tc()->select_text, 1);
         } else {
             vbe_fill_rect_rounded(dx, dy, WUBU_TASKBAR_CLASSIC_PAGER_W,
@@ -865,7 +868,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                                   WUBU_TASKBAR_CLASSIC_PAGER_H, WUBU_RADIUS_XS,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(lx, ty + (th - WUBU_FONT_CAP_H) / 2, &label,
+            vbe_draw_text(lx, ty + (th - WUBU_FONT_INK_H) / 2, &label,
                           tc()->btn_text, 1);
         }
     }

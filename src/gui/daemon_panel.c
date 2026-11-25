@@ -20,6 +20,7 @@
 #include "wm.h"
 #include "shell/shell_session.h"
 #include "shell/wubu_notify.h"
+#include "wubu_tokens.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include "../runtime/wubu_archd.h"
@@ -151,14 +152,14 @@ static void panel_process_holyd_event(DaemonPanel *panel, const char *line) {
 
 static void container_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w;
-    const WubuThemeColors *tc = wubu_theme_colors();
+    const WubuThemeColors *tcol = wubu_theme_colors();
 
     /* Background */
-    vbe_fill_rect(win->x, win->y, win->w, win->h, tc->startmenu_bg);
+    vbe_fill_rect(win->x, win->y, win->w, win->h, tcol->startmenu_bg);
 
     /* Title bar */
-    vbe_fill_rect(win->x, win->y, win->w, DOSGUI_TITLE_H, tc->win_title_active);
-    vbe_draw_text(win->x + 8, win->y + 4, "Arch Linux Containers", tc->win_title_text, 1);
+    vbe_fill_rect(win->x, win->y, win->w, DOSGUI_TITLE_H, tcol->win_title_active);
+    vbe_draw_text(win->x + 8, win->y + 4, "Arch Linux Containers", tcol->win_title_text, 1);
 
     /* Container list */
     int row_h = 20;
@@ -168,36 +169,36 @@ static void container_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb
         int row_y = list_y + i * row_h;
         if (row_y + row_h > win->y + win->h) break;
 
-        uint32_t bg = (i % 2 == 0) ? tc->startmenu_bg : tc->win_face;
+        uint32_t bg = (i % 2 == 0) ? tcol->startmenu_bg : tcol->win_face;
         vbe_fill_rect(win->x + 2, row_y, win->w - 4, row_h - 1, bg);
 
         /* Status indicator */
-        uint32_t status_color = 0x00AA00; /* green = active */
-        if (strcmp(g_panel.container_states[i], "inactive") == 0) status_color = 0x888888;
-        else if (strcmp(g_panel.container_states[i], "failed") == 0) status_color = 0xCC0000;
-        else if (strcmp(g_panel.container_states[i], "activating") == 0) status_color = 0xCCAA00;
+        uint32_t status_color = WUBU_COLOR_STATUS_OK; /* active */
+        if (strcmp(g_panel.container_states[i], "inactive") == 0) status_color = tcol->win_title_text_ina;
+        else if (strcmp(g_panel.container_states[i], "failed") == 0) status_color = WUBU_COLOR_STATUS_ERR;
+        else if (strcmp(g_panel.container_states[i], "activating") == 0) status_color = WUBU_COLOR_STATUS_WARN;
         vbe_fill_rect(win->x + 6, row_y + 6, 8, 8, status_color);
 
         /* Name */
-        vbe_draw_text(win->x + 20, row_y + 3, g_panel.container_names[i], tc->startmenu_text, 1);
+        vbe_draw_text(win->x + 20, row_y + 3, g_panel.container_names[i], tcol->startmenu_text, 1);
 
         /* State */
-        vbe_draw_text(win->x + 200, row_y + 3, g_panel.container_states[i], tc->border_dark, 1);
+        vbe_draw_text(win->x + 200, row_y + 3, g_panel.container_states[i], tcol->border_dark, 1);
     }
 
     if (g_panel.container_count == 0) {
-        vbe_draw_text(win->x + 8, list_y + 4, "No containers running", tc->border_dark, 1);
+        vbe_draw_text(win->x + 8, list_y + 4, "No containers running", tcol->border_dark, 1);
     }
 
     /* Connection status */
     const char *conn_str = "disconnected";
-    uint32_t conn_color = 0xCC0000;
+    uint32_t conn_color = WUBU_COLOR_STATUS_ERR;
     if (g_panel.archd.state == DAEMON_CONNECTED) {
         conn_str = "connected";
-        conn_color = 0x00AA00;
+        conn_color = WUBU_COLOR_STATUS_OK;
     } else if (g_panel.archd.state == DAEMON_CONNECTING) {
         conn_str = "connecting...";
-        conn_color = 0xCCAA00;
+        conn_color = WUBU_COLOR_STATUS_WARN;
     }
     char status_line[64];
     snprintf(status_line, sizeof(status_line), "ArchD: %s", conn_str);
@@ -208,13 +209,13 @@ static void container_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb
 
 static void holyd_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w;
-    const WubuThemeColors *tc = wubu_theme_colors();
+    const WubuThemeColors *tcol = wubu_theme_colors();
 
-    vbe_fill_rect(win->x, win->y, win->w, win->h, 0x000000); /* HolyC black */
+    vbe_fill_rect(win->x, win->y, win->w, win->h, WUBU_COLOR_TERMINAL_BG); /* HolyC black */
 
     /* Title bar */
-    vbe_fill_rect(win->x, win->y, win->w, DOSGUI_TITLE_H, 0x0000AA);
-    vbe_draw_text(win->x + 8, win->y + 4, "HolyC DOS Sessions", 0xFFFFFF, 1);
+    vbe_fill_rect(win->x, win->y, win->w, DOSGUI_TITLE_H, tcol->win_title_active);
+    vbe_draw_text(win->x + 8, win->y + 4, "HolyC DOS Sessions", tcol->win_title_text, 1);
 
     /* Session list */
     int row_h = 18;
@@ -225,20 +226,20 @@ static void holyd_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) 
         if (row_y + row_h > win->y + win->h) break;
 
         /* HolyC-style green text on black */
-        vbe_draw_text(win->x + 8, row_y, "> ", 0x00FF00, 1);
-        vbe_draw_text(win->x + 24, row_y, g_panel.holyd_sessions[i], 0x00FF00, 1);
+        vbe_draw_text(win->x + 8, row_y, "> ", WUBU_COLOR_STATUS_OK, 1);
+        vbe_draw_text(win->x + 24, row_y, g_panel.holyd_sessions[i], WUBU_COLOR_STATUS_OK, 1);
     }
 
     if (g_panel.holyd_session_count == 0) {
-        vbe_draw_text(win->x + 8, list_y, "No HolyC sessions", 0x008800, 1);
+        vbe_draw_text(win->x + 8, list_y, "No HolyC sessions", WUBU_COLOR_STATUS_OK, 1);
     }
 
     /* Connection status */
     const char *conn_str = "disconnected";
-    uint32_t conn_color = 0x008800;
+    uint32_t conn_color = WUBU_COLOR_STATUS_OK;
     if (g_panel.holyd.state == DAEMON_CONNECTED) {
         conn_str = "connected";
-        conn_color = 0x00FF00;
+        conn_color = WUBU_COLOR_STATUS_OK;
     }
     char status_line[64];
     snprintf(status_line, sizeof(status_line), "HolyD: %s", conn_str);

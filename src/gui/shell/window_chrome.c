@@ -406,7 +406,7 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
 
     /* -- Title text -- */
     int text_x = icon_x + CHROME_ICON_SIZE + CHROME_TEXT_PADDING;
-    int text_y = win->y + bw + (tbh - WUBU_FONT_CAP_H) / 2;
+    int text_y = win->y + bw + (tbh - WUBU_FONT_INK_H) / 2;
     if (win->title[0]) {
         vbe_draw_text(text_x, text_y, win->title,
                       active ? tc()->win_title_text : tc()->win_title_text_ina, 1);
@@ -525,7 +525,7 @@ void chrome_draw_button(int x, int y, int w, int h,
      * the font advances 6px (and honours the global text scale) — labels
      * sat off-centre. */
     vbe_draw_text(x + (w - vbe_text_width(label, 1)) / 2,
-                  y + (h - WUBU_FONT_CAP_H) / 2, label, c->btn_text, 1);
+                  y + (h - WUBU_FONT_INK_H) / 2, label, c->btn_text, 1);
 }
 
 /* -- Text edit field chrome ----------------------------------------- */
@@ -553,10 +553,10 @@ void chrome_draw_statusbar(int x, int y, int w, int h,
     const WubuThemeColors *c = tc();
     vbe_fill_rect(x, y, w, h, c->win_face);
     vbe_rect(x, y, w, h, c->border_dark);
-    if (left_text) vbe_draw_text(x + WUBU_SPACE_XS, y + (h - WUBU_FONT_CAP_H) / 2, left_text, c->btn_text, 1);
+    if (left_text) vbe_draw_text(x + WUBU_SPACE_XS, y + (h - WUBU_FONT_INK_H) / 2, left_text, c->btn_text, 1);
     if (right_text) {
         int rw = vbe_text_width(right_text, 1);
-        vbe_draw_text(x + w - rw - WUBU_SPACE_XS, y + (h - WUBU_FONT_CAP_H) / 2, right_text, c->btn_text, 1);
+        vbe_draw_text(x + w - rw - WUBU_SPACE_XS, y + (h - WUBU_FONT_INK_H) / 2, right_text, c->btn_text, 1);
     }
 }
 
@@ -586,7 +586,7 @@ void chrome_draw_tabs(int x, int y, int w, int h,
                                  c->border_light, c->border_face,
                                  c->border_dark, c->border_darkest);
             vbe_draw_text(tx + (tab_w - vbe_text_width(labels[i], 1)) / 2,
-                          y + (h - WUBU_FONT_CAP_H) / 2,
+                          y + (h - WUBU_FONT_INK_H) / 2,
                           labels[i], c->select_text, 1);
         } else {
             vbe_fill_rect(tx, y, tab_w, h, c->btn_face);
@@ -594,7 +594,7 @@ void chrome_draw_tabs(int x, int y, int w, int h,
                                  c->border_light, c->btn_face,
                                  c->border_dark, c->border_darkest);
             vbe_draw_text(tx + (tab_w - vbe_text_width(labels[i], 1)) / 2,
-                          y + (h - WUBU_FONT_CAP_H) / 2,
+                          y + (h - WUBU_FONT_INK_H) / 2,
                           labels[i], c->btn_text, 1);
         }
     }

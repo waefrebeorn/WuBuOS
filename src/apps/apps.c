@@ -18,6 +18,7 @@
 #include "dos_guest_view.h"
 #include "../gui/wm.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_tokens.h"
 #include "../gui/wubu_theme.h"
 #include "../runtime/wubu_dos_proc.h"
 #include "../runtime/wubu_container.h"
@@ -89,10 +90,10 @@ static void app_placeholder_draw(DosGuiWindow *win, uint32_t *fb,
                                   int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     int x = win->x + 8, y = win->y + 28;
-    vbe_fill_rect(x, y, win->w - 16, win->h - 36, 0x00FFFFFF);
-    vbe_rect(x, y, win->w - 16, win->h - 36, 0x00808080);
-    vbe_draw_text(x + 10, y + 10, win->title, 0x00000000, 1);
-    vbe_draw_text(x + 10, y + 28, "(window ready)", 0x00666666, 1);
+    vbe_fill_rect(x, y, win->w - 16, win->h - 36, wubu_theme_colors()->win_face);
+    vbe_rect(x, y, win->w - 16, win->h - 36, wubu_theme_colors()->border_dark);
+    vbe_draw_text(x + 10, y + 10, win->title, wubu_theme_colors()->btn_text, 1);
+    vbe_draw_text(x + 10, y + 28, "(window ready)", wubu_theme_colors()->win_title_text_ina, 1);
 }
 
 /* -- Launch functions (create window + bind callbacks) ------------ */
