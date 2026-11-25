@@ -53,6 +53,7 @@ __attribute__((weak)) DosGuiWindow *launch_guests(void);
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
+#include "shell/wubu_notify.h"   /* Notification + wubu_notify_send: a dead launch must speak */
 
 /* -- Forward declarations for app callbacks ----------------------- */
 
@@ -267,14 +268,35 @@ DosGuiWindow* launch_getting_started(void) {
 /* launch_vws_designer is weak (VWS is optional at link time).  Taking its
  * address for the registry is fine, but CALLING it when undefined jumps to 0 --
  * so the registry gets this adapter, exactly like launch_wet() below. */
+/* A capability we do not have must SAY SO. Returning NULL from an icon's launch path makes
+ * the click vanish with no feedback -- which is how "VWS Designer" and "WET Applet" sat on the
+ * desktop doing nothing. docs/dead-paths.md records the fix (link the vws + wb_lv stack after
+ * the duplicated wb_lv is unified); until then the user gets a notification, not silence. */
+static void launch_unavailable(const char *what) {
+    if (wubu_notify_send) {
+        Notification n;
+        memset(&n, 0, sizeof n);
+        snprintf(n.app_name, sizeof n.app_name, "WuBuOS");
+        snprintf(n.summary, sizeof n.summary, "%s is not in this build", what);
+        snprintf(n.body, sizeof n.body, "The applet exists but its runtime is not linked yet.");
+        (void)wubu_notify_send(&n);
+        return;
+    }
+    fprintf(stderr, "wubu: %s is not in this build\n", what);
+}
+
 DosGuiWindow* launch_vws_designer_entry(void) {
-    return launch_vws_designer ? launch_vws_designer() : NULL;
+    if (launch_vws_designer) return launch_vws_designer();
+    launch_unavailable("VWS Designer");
+    return NULL;
 }
 
 DosGuiWindow* launch_wet(void) {
-    /* A .wet applet: Lua decides, C lays out.  With no path the launcher opens
-     * the built-in demo, so the menu item works before any script exists. */
-    return launch_wet_applet ? launch_wet_applet(NULL) : NULL;
+    /* A .wet applet: Lua decides, C lays out.  With no path the launcher opens the
+     * built-in demo, so the menu item works before any script exists. */
+    if (launch_wet_applet) return launch_wet_applet(NULL);
+    launch_unavailable("WET Applet");
+    return NULL;
 }
 
 /* L8: the Guests window (imported rootfs list + Launch). Adapter guards
