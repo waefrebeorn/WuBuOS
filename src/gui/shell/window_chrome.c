@@ -193,11 +193,22 @@ static void chrome_icon_blit(int x, int y, int w, int h, const unsigned char *ma
                              int mask_sz, uint32_t fg) {
     if (!mask || mask_sz <= 0 || w <= 0 || h <= 0) return;
     int fr = (int)((fg >> 16) & 0xff), fgn = (int)((fg >> 8) & 0xff), fb = (int)(fg & 0xff);
+    /* AREA AVERAGE, not point sampling. A 24px master drawn into a 10px box by nearest
+     * neighbour drops most of a diagonal, so the close X came out ragged and asymmetric --
+     * "the x close looks off". Averaging the source cell each destination pixel covers keeps
+     * the stroke's weight however far it is scaled down. */
     for (int py = 0; py < h; py++) {
-        int my = py * mask_sz / h;
+        int y0 = py * mask_sz / h, y1 = (py + 1) * mask_sz / h;
+        if (y1 <= y0) y1 = y0 + 1;
+        if (y1 > mask_sz) y1 = mask_sz;
         for (int px = 0; px < w; px++) {
-            int mx = px * mask_sz / w;
-            unsigned a = mask[my * mask_sz + mx];
+            int x0 = px * mask_sz / w, x1 = (px + 1) * mask_sz / w;
+            if (x1 <= x0) x1 = x0 + 1;
+            if (x1 > mask_sz) x1 = mask_sz;
+            unsigned sum = 0, cnt = 0;
+            for (int sy2 = y0; sy2 < y1; sy2++)
+                for (int sx2 = x0; sx2 < x1; sx2++) { sum += mask[sy2 * mask_sz + sx2]; cnt++; }
+            unsigned a = cnt ? sum / cnt : 0;
             if (!a) continue;
             int sx = x + px, sy = y + py;
             uint32_t dst = vbe_get_pixel(sx, sy);
