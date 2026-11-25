@@ -24,11 +24,12 @@
 #include <X11/keysym.h>
 
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
 #include <sys/file.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 
 extern GLXContext glXCreateContextAttribsARB(Display *, GLXFBConfig,
@@ -310,7 +311,7 @@ static void normalize3(float v[3])
     v[0]/=l; v[1]/=l; v[2]/=l;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
     /* ONE orb per session. The desktop forks this binary on start, and it calls
      * setsid() so the orb survives a compositor restart -- which also means every
@@ -352,17 +353,51 @@ int main(void)
                                    vi->visual, AllocNone);
     swa.event_mask = ExposureMask | KeyPressMask | ButtonPressMask |
                      PointerMotionMask;
-    int W = DisplayWidth(dpy, vi->screen);
-    int H = DisplayHeight(dpy, vi->screen);
-    Window win = XCreateWindow(dpy, RootWindow(dpy, vi->screen), 0, 0, W, H, 0,
+
+    /* GEOMETRY. This used to be a window at 0,0 the size of the whole screen, so the
+     * moment it was launched it covered whatever the user was doing -- "the blob is in
+     * the way". A buddy is a small thing that sits in a corner; the full-screen
+     * raymarcher is still available, but it has to be asked for.
+     *
+     *   (no args)         180x180 in the bottom-right, 24 px above the panel edge
+     *   --size N          N x N in the same corner
+     *   --at X,Y          explicit position
+     *   --fullscreen      the old demo: whole screen at 0,0
+     *
+     * Override-redirect by default: no title bar, no WM furniture, and it cannot steal
+     * focus from the window the user is typing in. */
+    int screen_w = DisplayWidth(dpy, vi->screen);
+    int screen_h = DisplayHeight(dpy, vi->screen);
+    int W = 180, H = 180, x = -1, y = -1, fullscreen = 0;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--fullscreen") == 0) fullscreen = 1;
+        else if (strcmp(argv[i], "--size") == 0 && i + 1 < argc) {
+            int n = atoi(argv[++i]);
+            if (n >= 32 && n <= 1024) W = H = n;
+        } else if (strcmp(argv[i], "--at") == 0 && i + 1 < argc) {
+            if (sscanf(argv[++i], "%d,%d", &x, &y) != 2) { x = y = -1; }
+        }
+    }
+    if (fullscreen) { W = screen_w; H = screen_h; x = 0; y = 0; }
+    if (x < 0) x = screen_w - W - 32;
+    if (y < 0) y = screen_h - H - 72;      /* clears a 48 px panel + margin */
+    if (x + W > screen_w) x = screen_w - W;
+    if (y + H > screen_h) y = screen_h - H;
+    if (!fullscreen) swa.override_redirect = True;
+
+    Window win = XCreateWindow(dpy, RootWindow(dpy, vi->screen), x, y,
+                               (unsigned)W, (unsigned)H, 0,
                                vi->depth, InputOutput, vi->visual,
-                               CWColormap | CWEventMask, &swa);
+                               CWColormap | CWEventMask |
+                                   (fullscreen ? 0 : CWOverrideRedirect), &swa);
     XSizeHints hints;
     hints.flags = PPosition | PSize;
-    hints.x = 0; hints.y = 0; hints.width = W; hints.height = H;
-    XSetWMNormalHints(dpy, win, &hints);
+    hints.x = x; hints.y = y; hints.width = W; hints.height = H;
+    if (fullscreen) XSetWMNormalHints(dpy, win, &hints);
     XMapWindow(dpy, win);
-    XMoveResizeWindow(dpy, win, 0, 0, W, H);
+    XMoveResizeWindow(dpy, win, x, y, (unsigned)W, (unsigned)H);
+    fprintf(stderr, "wubu-buddy: %dx%d at %d,%d%s\n", W, H, x, y,
+            fullscreen ? " (fullscreen demo)" : "");
     glXMakeCurrent(dpy, win, ctx);
 
     /* pull every modern entry point we need */
