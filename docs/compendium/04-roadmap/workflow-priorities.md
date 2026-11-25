@@ -57,6 +57,29 @@ The dependency to remove, in order of how much it costs a user:
 4. **macOS/Metal leg.** `src/hosted/wubu_metal_x11.c` exists; it must present into
    the same compositor surface as everything else, never its own window.
 
+## X11 bridge: what exists, and the method that got it there
+
+Exists (tested): the client setup parse (`wubu_x11_parse_setup`, 12 checks) and the
+server Setup reply (`wubu_x11_build_setup_reply`, 45 checks), plus
+`tools/x11_handshake_check.sh`, which runs a real `xdpyinfo` against a stub and
+requires it to get past the handshake and send its first request.
+
+Does NOT exist: the request loop, window/pixmap resources, drawing, and the
+presentation into a `DosGuiWindow`. `WUBU_X11_SOCKET` therefore still points at
+nothing in a real session.
+
+**The lesson worth more than the code.** 43 self-written checks passed while a real
+client refused the reply with one sentence: "unable to open display". The three
+bugs behind it (empty auth is legal, `motion_buffer_size` CARD32, vendor and
+max-request lengths are CARD16) were all invisible to a test written from the same
+understanding as the code. What settled it was reading the reply bytes of the
+host's own Xorg and matching them field by field -- the spec's prose order lists
+`vendor` before `release-number`, which is semantically true and useless for
+encoding.
+
+Rule: **for a wire protocol, the oracle is another implementation's bytes, never
+your own test.** Pick the reference first; write the encoder second.
+
 ## The rule this document exists to enforce
 
 **A guest may bring its programs; it may not bring its display.** Anything that
