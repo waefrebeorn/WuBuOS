@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -2990,6 +2990,13 @@ test_holyc_elf_in_wemu: $(COMP)/tools/holyd_emit_elf build/wemu_run_elf
 # actual output through both and requires the instruction LENGTHS to agree --
 # agreement is not proof for either side, disagreement proves one is wrong about
 # bytes the compiler really emits.
+# Gates are shell scripts that contain Python. `bash -n` cannot see inside a
+# <<'PY' heredoc, and a gate only runs when its own target runs -- so a one-word
+# mistake in a heredoc (a `nonlocal` at module level) is invisible until the gate
+# itself fails inside a seven-minute suite. This parses both layers directly.
+test_gate_scripts:
+	@python3 tools/gate_scripts_check.py
+
 test_x86_decode_parity: build/x86_decode_parity
 	@rm -rf build/isaexec && mkdir -p build/isaexec
 	@WUBU_EXEC_DUMP_DIR=build/isaexec WUBU_EXEC_DUMP=x86-64 $(COMP)/test_isa_driver >/dev/null 2>&1 || true
