@@ -3,6 +3,9 @@
  */
 
 #include "explorer.h"
+#include "../kernel/vbe.h"      /* pixel gate for the tab strip */
+#include "wubu_theme.h"         /* colours come from the theme, not from the test */
+
 #include "explorer_internal.h"   /* shared context-menu geometry */
 #include <stdio.h>
 #include <string.h>
@@ -680,6 +683,64 @@ static void test_ctx_menu_rows(void) {
                 "closed menu refuses all clicks");
 }
 
+
+static void test_tabs(void) {
+    printf("\n=== Test: Tabs (Win11) ===\n");
+
+    explorer_init();
+    TEST_ASSERT(explorer_tab_count() == 1, "one tab exists as soon as the explorer opens");
+
+    explorer_navigate("/tmp");
+    int t1 = explorer_tab_open("/home");
+    TEST_ASSERT(t1 == 1, "a second tab was created");
+    TEST_ASSERT(explorer_tab_count() == 2, "two tabs");
+    TEST_ASSERT(strcmp(explorer_current_path(), "/home") == 0, "the new tab is active at /home");
+
+    /* Switching saves the active tab and restores the target's path -- the whole point. */
+    TEST_ASSERT(explorer_tab_switch(0), "switched to tab 0");
+    TEST_ASSERT(strcmp(explorer_current_path(), "/tmp") == 0, "tab 0 restored /tmp");
+    TEST_ASSERT(strcmp(explorer_tab_path(1), "/home") == 0, "tab 1 remembers /home");
+
+    TEST_ASSERT(explorer_tab_close(1), "closed tab 1");
+    TEST_ASSERT(explorer_tab_count() == 1, "one tab left");
+    TEST_ASSERT(!explorer_tab_close(0), "the last tab is not closable");
+
+    /* Geometry: the strip owns a band, and two cards do not overlap. */
+    int w0 = 0, w1 = 0, x0 = 0, x1 = 0;
+    explorer_tab_open("/tmp");
+    TEST_ASSERT(explorer_tab_rect(0, 1024, &x0, &w0), "tab 0 has a rect");
+    TEST_ASSERT(explorer_tab_rect(1, 1024, &x1, &w1), "tab 1 has a rect");
+    TEST_ASSERT(x1 >= x0 + w0, "tab cards do not overlap");
+    TEST_ASSERT(x1 + w1 <= 1024, "tab cards stay inside the width");
+    int expect_top = ex_breadcrumb_h() +
+                     (g_explorer.toolbar_visible ? ex_toolbar_h() : 0) + ex_tab_h();
+    TEST_ASSERT(ex_content_top() == expect_top,
+                "content starts below breadcrumbs + toolbar + strip");
+
+    /* It has to be VISIBLE: render and count pixels the strip painted in its band.
+     * explorer_render() returns early unless the explorer is OPEN -- every other render
+     * assertion in this file only checks "doesn't crash", which is why none of them would
+     * have noticed a surface that never painted. */
+    /* A real surface, and the strip's own renderer: explorer_render() returns early unless
+     * explorer_is_open(), and that asks the WM for a window this link graph does not carry.
+     * Driving ex_render_tabs() directly measures the drawing rather than the window. */
+    int strip_y = ex_breadcrumb_h() + (g_explorer.toolbar_visible ? ex_toolbar_h() : 0);
+    vbe_init(1024, 768);
+    vbe_reset_clip();     /* a clip left from an earlier test silently discards every fill */
+    wubu_theme_set(THEME_DARK);
+    ex_render_tabs(&g_explorer, 1024, strip_y, ex_tab_h());
+    /* Count across BOTH cards: the active one paints accent, the inactive one paints the
+     * window face, and "non-zero" alone assumed the face was non-black -- with no theme set
+     * it is black, so the first version of this gate measured nothing. */
+    int painted = 0;
+    for (int y = strip_y; y < strip_y + ex_tab_h(); y++)
+        for (int x = x0; x < x1 + w1; x++)
+            if (vbe_get_pixel(x, y) != 0) painted++;
+    TEST_ASSERT(painted > w0 * 2, "the tab strip is painted, not just state");
+
+    explorer_shutdown();
+}
+
 int main(void) {
     printf("╔══════════════════════════════════════════════════════════╗\n");
     printf("║  explorer Test Suite                              ║\n");
@@ -688,6 +749,7 @@ int main(void) {
     test_init_shutdown();
     test_guest_store_visible();
     test_guest_file_ops();
+    test_tabs();
     test_navigation();
     test_view_modes();
     test_sort();

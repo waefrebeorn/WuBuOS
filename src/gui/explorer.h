@@ -43,6 +43,8 @@
 #define EX_TREE_INDENT        WUBU_METRIC_MARGIN_MD
 #define EX_PREVIEW_W          280
 #define EX_BREADCRUMB_H       28
+#define EX_MAX_TABS           8
+#define EX_TAB_H              30      /* the strip itself, always shown (Win11 has no tabless view) */
 #define EX_TOOLBAR_H          36
 #define EX_STATUSBAR_H        22
 
@@ -191,7 +193,22 @@ typedef struct {
 
 /* -- Main Explorer State ----------------------------------------- */
 
+/* One tab's saved view. The ACTIVE tab is the live state in this struct; a tab is only
+ * serialised here when you switch away from it. */
 typedef struct {
+    char                path[EX_MAX_PATH];
+    ExViewMode          view_mode;
+    ExSortColumn        sort_column;
+    bool                sort_ascending;
+    bool                used;
+} ExTab;
+
+typedef struct {
+    /* Tabs (Win11 explorer). tab 0..tab_count-1; tab_active is the live one. */
+    ExTab               tabs[EX_MAX_TABS];
+    int                 tab_count;
+    int                 tab_active;
+
     /* Current directory */
     char                current_path[EX_MAX_PATH];
     char                previous_path[EX_MAX_PATH];  /* For Back button */
@@ -270,6 +287,21 @@ typedef struct {
 /* -- Global Instance ---------------------------------------------- */
 
 extern ExExplorerState g_explorer;
+
+/* -- Tabs -----------------------------------------------------------
+ * Win11's explorer is tabbed. The strip is always present; the active tab's path and view
+ * live in the explorer state, and switching saves them back into the tab first. */
+int  ex_tab_h(void);
+int  ex_content_top(void);        /* breadcrumb + toolbar + strip: the ONE owner of that sum */
+int  explorer_tab_count(void);
+int  explorer_tab_active(void);
+const char *explorer_tab_path(int i);
+int  explorer_tab_open(const char *path);       /* new tab at path, becomes active */
+/* Card i's rect: ONE owner for drawing and hit-testing, so a tab is never drawn in one
+ * place and clicked in another. */
+bool explorer_tab_rect(int i, int fb_w, int *x, int *w);
+bool explorer_tab_switch(int i);                /* save current, load tab i */
+bool explorer_tab_close(int i);                 /* never leaves zero tabs */
 
 /* -- Public API --------------------------------------------------- */
 

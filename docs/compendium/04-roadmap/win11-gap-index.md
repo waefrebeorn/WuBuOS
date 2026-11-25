@@ -17,7 +17,7 @@ actions across mouse, shortcuts, explorer and bars, and prints `file:line` evide
 WIRED row. Verdicts come from PRODUCT code only — `*_test.c` and `*_stub.c` are excluded —
 and a row may carry a path scope, so a taskbar claim must be found in taskbar code.
 
-Current: **53 wired, 6 gaps (89 %)**. The gaps are the work list, not an opinion:
+Current: **58 wired, 1 gap (98 %)**. The gaps are the work list, not an opinion:
 
 | gap | what Windows does | what it needs |
 |---|---|---|
@@ -32,9 +32,10 @@ Five of these were closed on 2026-11-25 (thumbnails, progress badges, snap assis
 Win+1..9 / middle-click / shift-click / wheel were three more) and the two left are honest
 deferrals, not oversights:
 
-- **explorer tabs** need a layout pass: `explorer_render.c` computes its content origin from
-  fixed geometry, so a tab strip must move every pane below it. That is a real change with
-  real pixel gates attached, not a wire.
+- ~~explorer tabs~~ **closed 2026-11-25**: the layout pass happened, and while doing it the two
+  copies of the "breadcrumb + toolbar" sum in `explorer_input.c` collapsed into one owner,
+  `ex_content_top()`, so the strip cannot be in one copy and missing from the other.
+  `explorer_tab_rect()` likewise owns the geometry for both drawing and hit-testing.
 - **Win+P** is a display MODE selector. We have one output, so a four-row flyout would ship
   three dead rows -- and this tree's rule is that menus ship only items that work. It waits
   for multi-output support; until then the display settings page is the honest path.

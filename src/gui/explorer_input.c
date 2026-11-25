@@ -64,9 +64,10 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
                 explorer_toggle_selection(found);
                 /* Scroll to make visible */
                 int row_h = ex_row_h();
-                int list_h = g_explorer.preview_visible ?
-                    (vbe_state()->height - ex_breadcrumb_h() - (g_explorer.toolbar_visible ? ex_toolbar_h() : 0) - ex_statusbar_h()) :
-                    (vbe_state()->height - ex_breadcrumb_h() - (g_explorer.toolbar_visible ? ex_toolbar_h() : 0) - ex_statusbar_h());
+                /* Both branches were the same expression, copied. ex_content_top() owns
+                 * the sum now, so the tab strip cannot be in one copy and missing from the
+                 * other. */
+                int list_h = vbe_state()->height - ex_content_top() - ex_statusbar_h();
                 int visible_rows = list_h / row_h;
                 if (g_explorer.focus_idx < g_explorer.list_scroll_y)
                     g_explorer.list_scroll_y = g_explorer.focus_idx;
@@ -190,6 +191,19 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
             if (ctrl) explorer_paste();
             break;
 
+        /* Tabs (Win11): Ctrl+T opens one at the current folder, Ctrl+W closes the active
+         * one, Ctrl+Tab / Ctrl+Shift+Tab walk them. */
+        case 't':
+        case 'T':
+            if (ctrl) explorer_tab_open(g_explorer.current_path);
+            break;
+
+        case 'w':
+        case 'W':
+            if (ctrl) explorer_tab_close(explorer_tab_active());
+            break;
+
+
         case 0xE053: /* Delete key */
             explorer_delete(false);
             break;
@@ -235,7 +249,14 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
             break;
 
         case 9: /* Tab */
-            /* Switch between tree, breadcrumbs, list, preview */
+            /* Ctrl+Tab / Ctrl+Shift+Tab walk the tabs (Win11). A bare Tab still means
+             * "switch between tree, breadcrumbs, list, preview" -- not implemented yet, so
+             * it deliberately does nothing rather than pretending. */
+            if (ctrl && explorer_tab_count() > 1) {
+                int n = explorer_tab_count();
+                int step = g_shift_pressed ? -1 : 1;
+                explorer_tab_switch((explorer_tab_active() + step + n) % n);
+            }
             break;
 
         default:
@@ -278,6 +299,20 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
         return;
     }
 
+    /* Tab strip: click a tab to switch. Hit-testing goes through explorer_tab_rect(), the
+     * same function that draws it. */
+    int tab_y = ex_breadcrumb_h() + (ex->toolbar_visible ? ex_toolbar_h() : 0);
+    if (y >= tab_y && y < tab_y + ex_tab_h() && ex->tab_count > 0) {
+        if (kind == 1 && btn == 1) {
+            for (int i = 0; i < ex->tab_count; i++) {
+                int tx, tw;
+                if (!explorer_tab_rect(i, vbe_state()->width, &tx, &tw)) continue;
+                if (x >= tx && x < tx + tw) { explorer_tab_switch(i); break; }
+            }
+        }
+        return;
+    }
+
     if (y < ex_breadcrumb_h()) {
         /* Click in breadcrumbs area - handle segment clicks */
         if (kind == 1 && btn == 1) {
@@ -303,7 +338,7 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
     }
 
     int tree_x = 0;
-    int tree_y = ex_breadcrumb_h() + (ex->toolbar_visible ? ex_toolbar_h() : 0);
+    int tree_y = ex_content_top();
     int tree_w = ex->tree_w;
     int list_x = tree_x + tree_w;
     int list_y = tree_y;

@@ -6,6 +6,9 @@
 #include "wubu_gui_metrics.h"
 #include "../egojar.h"
 #include "explorer.h"
+
+/* The tab strip, drawn from explorer_render() and drivable by a test without a WM window. */
+void ex_render_tabs(ExExplorerState *ex, int fb_w, int y, int h);
 #include "wubu_theme.h"
 #include <stdint.h>
 #include <string.h>

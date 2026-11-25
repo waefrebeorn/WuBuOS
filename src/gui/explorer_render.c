@@ -485,12 +485,32 @@ void ex_render_context_menu(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_
 
 /* -- Main render entry point --------------------------------------- */
 
+/* The tab strip. Extraction, not decoration: this is the seam a test can drive without a
+ * WM window (explorer_render returns early unless the explorer is open), and it keeps the
+ * drawing next to the explorer_tab_rect() it hit-tests against. */
+void ex_render_tabs(ExExplorerState *ex, int fb_w, int y, int h) {
+    if (!ex || ex->tab_count <= 0) return;
+    for (int i = 0; i < ex->tab_count; i++) {
+        int tx, tw;
+        if (!explorer_tab_rect(i, fb_w, &tx, &tw)) continue;
+        bool active = (i == ex->tab_active);
+        vbe_fill_rect(tx, y, tw - 2, h, active ? tc()->select_bg : tc()->win_face);
+        vbe_hline(tx, tx + tw - 3, y + h - 1,
+                  active ? tc()->select_bg : tc()->border_dark);
+        const char *p = ex->tabs[i].path;
+        const char *base = strrchr(p, '/');
+        base = (base && base[1]) ? base + 1 : p;
+        vbe_draw_text(tx + 6, y + 8, base, active ? tc()->select_text : tc()->icon_text, 1);
+    }
+}
+
 void explorer_render(uint32_t *fb, int fb_w, int fb_h) {
     ExExplorerState *ex = &g_explorer;
     if (!explorer_is_open()) return;
 
     int tree_x = 0;
-    int tree_y = ex_breadcrumb_h() + (ex->toolbar_visible ? ex_toolbar_h() : 0);
+    int tab_y = ex_breadcrumb_h() + (ex->toolbar_visible ? ex_toolbar_h() : 0);
+    int tree_y = ex_content_top();          /* breadcrumb + toolbar + tab strip, one owner */
     int tree_w = ex->tree_w;
     int list_x = tree_x + tree_w;
     int list_y = tree_y;
@@ -503,6 +523,8 @@ void explorer_render(uint32_t *fb, int fb_w, int fb_h) {
     if (ex->toolbar_visible) {
         ex_render_toolbar(ex, fb, fb_w, fb_h, tree_x, ex_breadcrumb_h(), fb_w, ex_toolbar_h());
     }
+
+    ex_render_tabs(ex, fb_w, tab_y, ex_tab_h());
 
     ex_render_tree(ex, fb, fb_w, fb_h, tree_x, tree_y, tree_w, list_h);
     ex_render_file_list(ex, fb, fb_w, fb_h, list_x, list_y, list_w, list_h);

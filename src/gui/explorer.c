@@ -118,6 +118,13 @@ int explorer_init(void) {
      * guest sandbox (see styxfs_guest_root()), which is the only namespace apps
      * see. */
     strcpy(g_explorer.current_path, "/");
+    /* Every explorer has at least one tab, like Windows 11: the strip is part of the
+     * surface, not something the user has to create. */
+    g_explorer.tab_count = 1;
+    g_explorer.tab_active = 0;
+    g_explorer.tabs[0].used = true;
+    g_explorer.tabs[0].view_mode = g_explorer.view_mode;
+    snprintf(g_explorer.tabs[0].path, sizeof(g_explorer.tabs[0].path), "/");
 
     ex_scan_directory(g_explorer.current_path);
     ex_populate_tree(g_explorer.tree_root, g_explorer.current_path);
@@ -394,6 +401,102 @@ void explorer_show_properties(int idx) {
  * (explorer_handle_key / explorer_handle_mouse). */
 
 /* -- State Accessors ---------------------------------------------- */
+
+/* -- Tabs -------------------------------------------------------------- */
+
+int ex_tab_h(void) { return EX_TAB_H; }
+
+int ex_content_top(void) {
+    return ex_breadcrumb_h() + (g_explorer.toolbar_visible ? ex_toolbar_h() : 0) + ex_tab_h();
+}
+
+bool explorer_tab_rect(int i, int fb_w, int *x, int *w) {
+    int n = g_explorer.tab_count > 0 ? g_explorer.tab_count : 1;
+    if (i < 0 || i >= n) return false;
+    int tw = fb_w / n;
+    if (tw > 220) tw = 220;
+    if (tw < 60)  tw = 60;
+    int x0 = 0;
+    /* Centre the group when the tabs do not fill the width, like the Win11 strip. */
+    if (tw * n < fb_w) x0 = (fb_w - tw * n) / 2;
+    if (x) *x = x0 + i * tw;
+    if (w) *w = tw;
+    return true;
+}
+
+int explorer_tab_count(void) { return g_explorer.tab_count; }
+int explorer_tab_active(void) { return g_explorer.tab_active; }
+
+const char *explorer_tab_path(int i) {
+    if (i < 0 || i >= g_explorer.tab_count) return NULL;
+    return g_explorer.tabs[i].path;
+}
+
+/* The active tab IS the live state; copy it in before switching away or closing. */
+static void ex_tab_save_active(void) {
+    int i = g_explorer.tab_active;
+    if (i < 0 || i >= g_explorer.tab_count) return;
+    ExTab *t = &g_explorer.tabs[i];
+    snprintf(t->path, sizeof(t->path), "%s", g_explorer.current_path);
+    t->view_mode = g_explorer.view_mode;
+    t->sort_column = g_explorer.sort_column;
+    t->sort_ascending = g_explorer.sort_ascending;
+    t->used = true;
+}
+
+int explorer_tab_open(const char *path) {
+    if (g_explorer.tab_count >= EX_MAX_TABS) return -1;
+    if (g_explorer.tab_count == 0) {
+        /* First tab: adopt whatever the explorer is already showing. */
+        g_explorer.tab_active = 0;
+        g_explorer.tab_count = 1;
+        g_explorer.tabs[0].used = true;
+        snprintf(g_explorer.tabs[0].path, sizeof(g_explorer.tabs[0].path), "%s",
+                 g_explorer.current_path[0] ? g_explorer.current_path : (path ? path : "/"));
+    } else {
+        ex_tab_save_active();
+    }
+    int idx = g_explorer.tab_count;
+    ExTab *t = &g_explorer.tabs[idx];
+    memset(t, 0, sizeof(*t));
+    t->used = true;
+    snprintf(t->path, sizeof(t->path), "%s", path && path[0] ? path : g_explorer.current_path);
+    t->view_mode = g_explorer.view_mode;
+    t->sort_column = g_explorer.sort_column;
+    t->sort_ascending = g_explorer.sort_ascending;
+    g_explorer.tab_count++;
+    g_explorer.tab_active = idx;
+    explorer_navigate(t->path);
+    return idx;
+}
+
+bool explorer_tab_switch(int i) {
+    if (i < 0 || i >= g_explorer.tab_count || i == g_explorer.tab_active) return false;
+    ex_tab_save_active();
+    g_explorer.tab_active = i;
+    ExTab *t = &g_explorer.tabs[i];
+    g_explorer.view_mode = t->view_mode;
+    g_explorer.sort_column = t->sort_column;
+    g_explorer.sort_ascending = t->sort_ascending;
+    explorer_navigate(t->path);
+    return true;
+}
+
+/* Closing the last tab does not leave an explorer with no view: it keeps the tab and just
+ * resets it, which is what Windows does when you close the only tab (the window closes; here
+ * the panel stays and the tab remains, because the panel is the product surface). */
+bool explorer_tab_close(int i) {
+    if (i < 0 || i >= g_explorer.tab_count) return false;
+    if (g_explorer.tab_count == 1) return false;
+    for (int k = i; k < g_explorer.tab_count - 1; k++) g_explorer.tabs[k] = g_explorer.tabs[k + 1];
+    g_explorer.tab_count--;
+    if (g_explorer.tab_active >= g_explorer.tab_count)
+        g_explorer.tab_active = g_explorer.tab_count - 1;
+    ExTab *t = &g_explorer.tabs[g_explorer.tab_active];
+    g_explorer.view_mode = t->view_mode;
+    explorer_navigate(t->path);
+    return true;
+}
 
 ExExplorerState *explorer_state(void) {
     return &g_explorer;
