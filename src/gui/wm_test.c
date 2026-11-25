@@ -540,6 +540,13 @@ static void test_icon_click_selects_then_opens(void) {
     wm_handle_key(0x1C, 0);                    /* Enter */
     CHECK(g_open_count == 1, "Enter opens the selected icon");
 
+    /* Right-clicking a taskbar button opens a jump list (Windows parity). The bar used to
+     * ignore the right button entirely. */
+    wubu_taskbar_pin("jumptest", "Jump Test", "wubu-app Calculator");
+    taskbar_show_jump_list(0, 200, 700);
+    CHECK(ctx_menu_visible(), "right-click on a taskbar task opens a jump list");
+    ctx_menu_hide_all();
+
     /* Clicking empty desktop clears the selection, as Windows does. */
     wm_handle_mouse(700, 400, 1, 1);
     for (int i = 0; i < wm_get_icon_count(); i++)

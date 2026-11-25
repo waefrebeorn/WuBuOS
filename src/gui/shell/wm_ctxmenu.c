@@ -21,6 +21,9 @@
 #include "wubu_notify.h"
 #include "window_chrome.h"
 #include "taskbar_tasks.h"   /* Pin to taskbar: the same pin path the taskbar test proves */
+/* WEAK: the WM tests link this file without the desktop unit. A menu that cannot launch
+ * must still be buildable; it simply does nothing at that call site. */
+__attribute__((weak)) void desktop_launch_exec(const char *exec);
 
 /* -- Default Context Menu Actions -- */
 
@@ -510,6 +513,65 @@ void icon_show_context_menu(int icon_idx, int mx, int my) {
     ctx_menu_add_separator(menu);
     ctx_menu_add_item(menu, "Properties", ctx_action_properties);
 
+    ctx_menu_show(menu, mx, my);
+}
+
+/* ---- Taskbar jump list (Windows: right-click a taskbar button) ------------------
+ * Windows shows what you can DO with that app plus what you did with it. We have no
+ * per-app recency yet, so this ships the honest half: open/focus, close, pin/unpin. */
+static int g_jump_task = -1;
+
+static const WubuTask *jump_task(void) {
+    return (g_jump_task >= 0) ? wubu_taskbar_get(g_jump_task) : NULL;
+}
+
+static void ctx_action_jump_open(void) {
+    const WubuTask *t = jump_task();
+    if (!t) return;
+    if (t->win_id >= 0) {
+        for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++)
+            if (g_dwm.windows[i].alive && g_dwm.windows[i].id == t->win_id) {
+                wm_restore(&g_dwm.windows[i]);
+                wm_set_focus(&g_dwm.windows[i]);
+                return;
+            }
+    }
+    const char *x = t->exec[0] ? t->exec : t->title;
+    if (desktop_launch_exec) desktop_launch_exec(x);
+}
+
+static void ctx_action_jump_close(void) {
+    const WubuTask *t = jump_task();
+    if (!t || t->win_id < 0) return;
+    for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++)
+        if (g_dwm.windows[i].alive && g_dwm.windows[i].id == t->win_id) {
+            wm_destroy(&g_dwm.windows[i]);
+            return;
+        }
+}
+
+static void ctx_action_jump_pin(void) {
+    const WubuTask *t = jump_task();
+    if (!t) return;
+    if (t->pinned) wubu_taskbar_unpin(t->key);
+    else           wubu_taskbar_pin(t->key, t->title, t->exec);
+    wubu_notify_simple("Taskbar", t->pinned ? "Unpinned" : "Pinned", t->title, NULL, 1, 1800);
+}
+
+void taskbar_show_jump_list(int task_idx, int mx, int my) {
+    g_jump_task = task_idx;
+    const WubuTask *t = jump_task();
+    if (!t) return;
+    DosGuiContextMenu *menu = ctx_menu_create(mx, my);
+    if (!menu) return;
+    ctx_menu_add_item(menu, t->win_id >= 0 ? "Focus" : "Open", ctx_action_jump_open);
+    if (t->win_id >= 0) {
+        ctx_menu_add_separator(menu);
+        ctx_menu_add_item(menu, "Close window", ctx_action_jump_close);
+    }
+    ctx_menu_add_separator(menu);
+    ctx_menu_add_item(menu, t->pinned ? "Unpin from taskbar" : "Pin to taskbar",
+                      ctx_action_jump_pin);
     ctx_menu_show(menu, mx, my);
 }
 

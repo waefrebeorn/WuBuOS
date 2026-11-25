@@ -312,6 +312,11 @@ void icon_set_position(int grid_x, int grid_y, int new_gx, int new_gy);
 
 /* Context Menu API */
 DosGuiContextMenu *ctx_menu_create(int x, int y);
+
+/* True when a context menu is on screen (used by gates that prove a right-click did
+ * something rather than silently nothing). */
+bool ctx_menu_visible(void);
+void ctx_menu_hide_all(void);
 void ctx_menu_add_item(DosGuiContextMenu *menu, const char *label,
                                void (*action)(void));
 void ctx_menu_add_separator(DosGuiContextMenu *menu);

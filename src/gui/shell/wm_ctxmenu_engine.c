@@ -70,6 +70,15 @@ DosGuiContextMenu *ctx_menu_add_submenu(DosGuiContextMenu *menu, const char *lab
     return submenu;
 }
 
+/* Is a menu on screen? A menu that can be opened but never asked about is untestable,
+ * and "right-click did nothing" is exactly the failure mode this shell keeps finding. */
+bool ctx_menu_visible(void) { return g_ctx_stack != NULL && g_ctx_stack->visible; }
+
+/* Close every menu (test isolation, and window/task destruction). */
+void ctx_menu_hide_all(void) {
+    while (g_ctx_stack) ctx_menu_pop();
+}
+
 void ctx_menu_show(DosGuiContextMenu *menu, int x, int y) {
     if (!menu) return;
     menu->x = x;

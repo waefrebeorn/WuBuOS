@@ -16,6 +16,7 @@
  * it.  Weak, exactly as the taskbar's pinned buttons do it. */
 __attribute__((weak)) void launch_app(const char *name);
 __attribute__((weak)) void desktop_launch_exec(const char *exec);
+__attribute__((weak)) void taskbar_show_jump_list(int task_idx, int mx, int my);
 /* Win+W widgets board lives in its own module; weak for the same reason. */
 __attribute__((weak)) void win11_widgets_toggle(void);
 
@@ -287,6 +288,12 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind) {
         const WmTaskSlot *s = &L.slot[i];
         if (x < s->x || x >= s->x + s->w || y < s->y || y >= s->y + s->h)
             continue;
+        /* Right-click = jump list (Windows). Before this the bar ignored the right
+         * button entirely, so a taskbar button could only be clicked. */
+        if (btn == 2) {
+            if (taskbar_show_jump_list) taskbar_show_jump_list(s->index, x, y);
+            return true;
+        }
         if (s->is_pin) {
             const WubuTask *t = wubu_taskbar_get(s->index);
             /* Pins store "wubu-app <Name>" exactly like our shortcuts do. Resolving it
