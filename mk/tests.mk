@@ -6343,6 +6343,7 @@ test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c $(APPS)/wubu_
 		-I$(APPS) -I$(WET) -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) -I$(COMP) -I$(JIT) \
 		-I$(GUI) -I$(RT)/shell \
 		$(APPS)/first_run_test.c $(APPS)/getting_started.c $(APPS)/wubu_walkthrough.c \
+		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c \
 		$(GUI)/shell/wubu_shell_greeter.c $(RT)/wubu_onboarding.c \
 		$(GUI)/shell/desktop_stubs.c \
 		$(RT)/wubu_pwcrypt.c $(RT)/wubu_account.c \

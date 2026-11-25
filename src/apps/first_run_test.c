@@ -49,10 +49,11 @@ void wubu_bonzi_set_bubble(const char *b) { (void)b; }
 void wubu_bonzi_tick(unsigned long long ms) { (void)ms; }
 void wubu_settings_load(void) {}
 void wubu_settings_save(void) {}
-const char *wubu_wallpaper_default_path(void) { return ""; }
-int  wubu_wallpaper_load(const char *p) { (void)p; return 0; }
-void wubu_wallpaper_rect(int *x, int *y, int *w, int *h) { (void)x;(void)y;(void)w;(void)h; }
-void wubu_wallpaper_render(uint32_t *f, int fw, int fh) { (void)f;(void)fw;(void)fh; }
+/* The wallpaper stubs are GONE: the real wubu_wallpaper.c (and the image loader it
+ * needs) are linked now. They existed only because wm_layout.c started calling
+ * wubu_wallpaper_darken() and this graph had no wallpaper unit -- which is the same
+ * "new unit not named in every link graph" defect, fixed at the link line instead of
+ * by growing the stub list. */
 void wubu_trash_empty(void) {}
 int  wubu_trash_move(const char *p) { (void)p; return 0; }
 void wubu_notify_simple(const char *a, const char *t, const char *m,
