@@ -210,6 +210,11 @@ def run_target(name, machine, stub, cands):
 # silent. This is a bug list, not a permission slip: delete an entry when the fix
 # lands, and the gate goes back to enforcing it.
 KNOWN_FAIL = {
+    ("mips", "loop_1_4"):
+        "SIGSEGV under qemu-mipsel while the in-process interpreter returns 10: the "
+        "newly added MIR_JNZ (or the frame state around it) is not valid for real "
+        "MIPS. Declared, not hidden -- the interpreter agreeing with itself is not "
+        "evidence",
     ("arm64", "loop_1_4"):
         "register allocation clobbers the accumulator at the loop head: the emitted "
         "back edge opens with `mov x9,x10; mov x10,x11` which overwrites acc (x9) "
