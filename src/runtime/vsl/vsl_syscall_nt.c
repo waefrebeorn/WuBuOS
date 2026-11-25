@@ -384,16 +384,18 @@ void vsl_nt_track_child(pid_t pid) {
     g_nt_child_pids[g_nt_child_count++] = pid;
 }
 
-void vsl_nt_child_watch_parent(void) {
-    pid_t parent = getppid();
+void vsl_nt_child_watch_parent(pid_t expected_parent) {
 #ifdef __linux__
     /* Set BEFORE checking: the order matters, or a parent that dies between the check
      * and the prctl leaves exactly the orphan this exists to prevent. */
     (void)prctl(PR_SET_PDEATHSIG, SIGKILL);
-    if (getppid() != parent || parent <= 1) _exit(0);
-#else
-    if (parent <= 1) _exit(0);
 #endif
+    /* Compare against the pid the parent HAD, not against our own getppid(): if the parent
+     * died before this child ran, getppid() already reports the subreaper -- systemd --user,
+     * pid 1315 on this box, not 1 -- so a "!= getppid()" test passes and the child sets
+     * PR_SET_PDEATHSIG on a parent that is already gone, then sleeps forever. That is the
+     * one straggler a -j24 suite run produced after the first version of this fix. */
+    if (expected_parent <= 1 || getppid() != expected_parent) _exit(0);
 }
 
 void vsl_nt_bridge_shutdown(vsl_nt_bridge_ctx_t *ctx) {

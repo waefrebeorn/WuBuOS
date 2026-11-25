@@ -67,6 +67,7 @@ int64_t vsl_nt_create_process(uint64_t a_proc_out, uint64_t b_access,
                                uint64_t e_inherit, uint64_t f_section) {
     (void)b_access; (void)c_objattr; (void)d_parent; (void)e_inherit; (void)f_section;
     if (!a_proc_out) return NT_STATUS_INVALID_PARAMETER;
+    pid_t self_before_fork = getpid();
     pid_t pid = fork();
     if (pid < 0) return vsl_errno_to_nt_status(errno);
     if (pid == 0) {
@@ -75,7 +76,7 @@ int64_t vsl_nt_create_process(uint64_t a_proc_out, uint64_t b_access,
          * pattern — keeps the process object real without reaping risk to us.
          * The watcher makes the idling END when the parent ends: without it every
          * caller that does not call vsl_nt_bridge_shutdown orphans this process. */
-        vsl_nt_child_watch_parent();
+        vsl_nt_child_watch_parent(self_before_fork);
         pause();
         _exit(0);
     }
@@ -102,6 +103,7 @@ int64_t vsl_nt_create_process_ex(uint64_t a_proc_out, uint64_t b_access,
                                  uint64_t e_flags, uint64_t f_section) {
     (void)b_access; (void)c_objattr; (void)e_flags;
     if (!a_proc_out) return NT_STATUS_INVALID_PARAMETER;
+    pid_t self_before_fork = getpid();
     pid_t pid = fork();
     if (pid < 0) return vsl_errno_to_nt_status(errno);
     if (pid == 0) {
@@ -116,7 +118,7 @@ int64_t vsl_nt_create_process_ex(uint64_t a_proc_out, uint64_t b_access,
                 (void)sec_base;
             }
         }
-        vsl_nt_child_watch_parent();
+        vsl_nt_child_watch_parent(self_before_fork);
         pause();
         _exit(0);
     }

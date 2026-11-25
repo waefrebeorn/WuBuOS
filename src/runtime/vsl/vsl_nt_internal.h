@@ -75,12 +75,13 @@ extern pid_t g_nt_child_pids[NT_CHILD_MAX];
 extern int   g_nt_child_count;
 /* Record a forked child pid (called from the parent branch right after fork). */
 void vsl_nt_track_child(pid_t pid);
-/* Call in the CHILD branch immediately after fork(), before pause():
+/* Call in the CHILD branch immediately after fork(), before pause(), passing the pid the
+ * parent had BEFORE the fork (getpid() in the parent branch).
  *  - if the parent already died (or was never there), exit now instead of idling forever;
  *  - otherwise ask the kernel to SIGKILL this child when its parent dies (Linux
  *    PR_SET_PDEATHSIG), so a harness that exits -- or is killed -- never orphans a
  *    process that blocks in pause() for the life of the machine. */
-void vsl_nt_child_watch_parent(void);
+void vsl_nt_child_watch_parent(pid_t expected_parent);
 extern uint64_t g_nt_luid_counter;
 
 /* Token / security subsystem (real privilege enforcement, not a stub).

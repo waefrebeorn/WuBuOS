@@ -50,13 +50,14 @@ int64_t vsl_nt_create_job_object(uint64_t a_out_handle, uint64_t b_name,
     for (int i = 0; i < NT_JOB_MAX; i++) if (!g_nt_jobs[i].used) { slot = i; break; }
     if (slot < 0) return NT_STATUS_NO_MEMORY;
 
+    pid_t self_before_fork = getpid();
     pid_t child = fork();
     if (child < 0) return NT_STATUS_UNSUCCESSFUL;
     if (child == 0) {
         /* Sentinel: lead a fresh process group, then block until killed with
          * the rest of the job. */
         setpgid(0, 0);
-        vsl_nt_child_watch_parent();
+        vsl_nt_child_watch_parent(self_before_fork);
         for (;;) pause();
     }
     vsl_nt_track_child(child);
