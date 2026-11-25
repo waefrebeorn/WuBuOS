@@ -24,6 +24,17 @@ static int g_checks = 0, g_fails = 0;
 #define FB_W 128
 #define FB_H 32
 
+/* Non-background pixels in a cell: the antialiased renderer's equivalent of "a glyph is
+ * here". Exact-bit comparison belongs to the bitmap tables (section 1), not to a frame. */
+static int cell_ink(const uint32_t *fb, int x0, int y0)
+{
+    int n = 0;
+    for (int r = 0; r < 14; r++)
+        for (int c = 0; c < 10; c++)
+            if (x0 + c < FB_W && fb[(y0 + r) * FB_W + (x0 + c)] != 0) n++;
+    return n;
+}
+
 /* Compare one drawn cell against the bitmap we expect it to be. */
 static int cell_matches(const uint32_t *fb, int x0, int y0,
                         const uint8_t *glyph, const char *what)
@@ -69,24 +80,24 @@ int main(void)
              "lower-case letter differs from its upper-case form");
     }
 
-    /* ---- 2. drawing uses the right table -------------------------- */
-    /* "a A": advance is 6px per glyph, so 'a' sits at x=0, the space at 6,
-     * and 'A' at x=12.  The gap keeps the two cells from overwriting each
-     * other (glyphs are 8 wide, advance is 6). */
+    /* ---- 2. drawing puts the right GLYPH at the right PEN ---------- */
+    /* The renderer is antialiased now: a cell no longer equals a bitmap row, so asserting
+     * exact bits would assert the old rasteriser instead of the behaviour. What must stay
+     * true is positional: the lower-case form lands at pen 0, the upper-case form lands
+     * exactly where the pen has advanced to, and the two are not the same picture. */
     memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
     vbe_draw_text(0, 0, "a A", 0x00FFFFFF, 1);
     vbe_swap();
 
-    TEST(cell_matches(fb, 0, 0, vbe_font_lower_8x8['a' - 'a'], "a"),
-          "'a' renders the LOWER-CASE glyph");
-    TEST(cell_matches(fb, 12, 0, vbe_font_8x8['A' - 32], "A"),
-          "'A' renders the UPPER-CASE glyph");
+    int penA = vbe_text_width("a ", 1);        /* advance of 'a' + the space */
 
-    /* A lower-case render must not silently equal the upper-case one. */
+    TEST(cell_ink(fb, 0, 0) > 4, "'a' draws ink at pen 0");
+    TEST(cell_ink(fb, penA, 0) > 4, "'A' draws ink where the pen has advanced to");
+
     int differed = 0;
-    for (int r = 0; r < 8; r++)
-        for (int c = 0; c < 8; c++)
-            if (fb[r * stride + c] != fb[r * stride + 12 + c]) differed = 1;
+    for (int r = 0; r < 12; r++)
+        for (int c = 0; c < 10; c++)
+            if (fb[r * stride + c] != fb[r * stride + penA + c]) differed = 1;
     TEST(differed, "'a' and 'A' are visibly different on screen");
 
     /* ---- 3. everything still legible ------------------------------ */

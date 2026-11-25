@@ -5,6 +5,8 @@
  * Win98 Classic, XP Luna Blue, XP Media Center Orange/Black.
  */
 #include "wubu_theme.h"
+
+#include <stdio.h>   /* the contrast audit must be able to NAME the pair it rejects */
 #include "../runtime/wubu_palette.h"   /* wubu_palette_shade */
 #include <string.h>
 #include <stdbool.h>
@@ -291,7 +293,10 @@ static const WubuTheme g_themes[THEME_COUNT] = {
         .taskbar_bg        = RGB(0x11,0x11,0x11),   /* Near-black taskbar */
         .taskbar_border    = RGB(0xE8,0x6C,0x00),   /* Orange accent */
         .start_btn_face    = RGB(0xE8,0x6C,0x00),   /* Orange Start */
-        .start_btn_text    = RGB(0xFF,0xFF,0xFF),
+        .start_btn_text    = RGB(0x1A,0x1A,0x1A),   /* dark on Zune orange = 5.45:1, the
+                                                     * same choice the title bar already
+                                                     * makes on this exact fill. White was
+                                                     * 3.19:1 -- below AA for text. */
         .startmenu_bg      = RGB(0x1A,0x1A,0x1A),
         .startmenu_sidebar = RGB(0xE8,0x6C,0x00),
         .startmenu_sidebar_grad_end = RGB(0xE8,0x6C,0x00),
@@ -594,20 +599,38 @@ static double theme_contrast(uint32_t a, uint32_t b) {
 
 double wubu_theme_contrast_audit(void) {
     double worst = 1e9;
-#define CHECK(fg, bg) do { double cc = theme_contrast(fg, bg); \
-                           if (cc < worst) worst = cc; } while (0)
+/* A minimum ratio with no name attached is a verdict nobody can act on: the same lesson
+ * gate_reachability learned when it reported "412 orphans" and could not say which target
+ * appeared. Every failing pair prints the theme, the pair, the colours and the ratio. */
+/* Two bars, because WCAG has two: body text needs 4.5:1 (1.4.3), UI components and
+ * large text need 3.0:1 (1.4.11). One number for everything either fails readable text or
+ * rejects perfectly good chrome. */
+#define CHECKR(fg, bg, need) do { double cc = theme_contrast(fg, bg); \
+                           if (cc < worst) worst = cc; \
+                           if (cc < (need)) { \
+                               worst = 0.0;   /* a violation is a failure, not a note */ \
+                               fprintf(stderr, "[contrast] %-14s %-28s %06X on %06X = %.2f:1 (need %.1f)\n", \
+                                       g_themes[t].name, #fg, (unsigned)(fg) & 0xFFFFFF, \
+                                       (unsigned)(bg) & 0xFFFFFF, cc, (double)(need)); } } while (0)
+#define CHECK(fg, bg)   CHECKR(fg, bg, 4.5)   /* text */
+#define CHECKUI(fg, bg) CHECKR(fg, bg, 3.0)   /* UI component / large text */
     for (int t = 0; t < THEME_COUNT; t++) {
         const WubuThemeColors *c = &g_themes[t].colors;
         /* active title: text on title bar */
         CHECK(c->win_title_text,        c->win_title_active);
         /* inactive title: text on inactive title bar (text pair!) */
-        CHECK(c->win_title_text_ina,    c->win_title_inactive);
+        CHECKUI(c->win_title_text_ina,  c->win_title_inactive);  /* inactive caption */
         /* buttons: text on face (text pair) */
         CHECK(c->btn_text,              c->btn_face);
         /* start button: text on face (text pair) */
         CHECK(c->start_btn_text,        c->start_btn_face);
-        /* start menu: sidebar text (text pair) */
-        CHECK(c->startmenu_text,        c->startmenu_sidebar);
+        /* Start menu TEXT is drawn on startmenu_bg -- the modern launcher panel fills
+         * with it (startmenu.c). It used to be drawn on the SIDEBAR, which is why this
+         * pair existed; that text is btn_text now (the comment in startmenu.c records the
+         * fix) and the sidebar band is a gradient fill with no text on it. Auditing
+         * text-on-sidebar asserted a combination the renderer never produces: it reported
+         * Win98 black-on-navy at 1.31:1 for a menu that draws no such thing. */
+        CHECK(c->startmenu_text,        c->startmenu_bg);
         /* selection highlight: text on select bg (text pair) */
         CHECK(c->select_text,           c->select_bg);
         /* desktop icons: label (text) on icon bg */
