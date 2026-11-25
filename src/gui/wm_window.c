@@ -1,12 +1,11 @@
 /*
- * wm_window.c -- WuBuOS DosGui WM: window lifecycle + icons
+ * wm_window.c -- WuBuOS DosGui WM: window lifecycle + virtual desktops
  *
  * Self-contained concern split out of wm.c (the WM facade):
  *   - Window lifecycle: spawn / close / raise / destroy / focus / lookup
  *   - Z-order + focus management
  *   - Virtual-desktop migration (Ctrl+Alt+Left/Right, Win+Shift+arrows)
- *   - Desktop icon registry (icon_add / add_ex / shortcut)
- *   - Icon-layout persistence + wallpaper reload
+ *   - Wallpaper state + reload (the icon registry moved to wm_icon_registry.c)
  *
  * Depends only on the shared WM state (wm_internal.h) and the settings
  * public API. No rendering, no input dispatch, no theme engine wiring.
@@ -208,48 +207,6 @@ DosGuiWindow *wm_spawn(int x, int y, int w, int h,
     return &g_dwm.windows[i];
 }
 
-/* -- Desktop Icons -------------------------------------------------- */
-
-int icon_add(const char *name, int gx, int gy,
-                        void (*on_click)(void)) {
-    if (g_dwm.icon_count >= DOSGUI_MAX_ICONS) return -1;
-    DosGuiIcon *icon = &g_dwm.icons[g_dwm.icon_count];
-    memset(icon, 0, sizeof(*icon));
-    strncpy(icon->name, name, sizeof(icon->name) - 1);
-    icon->grid_x = gx; icon->grid_y = gy;
-    icon->x = 20 + gx * DOSGUI_ICON_COL_PITCH;
-    icon->y = 20 + gy * DOSGUI_ICON_ROW_PITCH;
-    icon->on_click = on_click;
-    icon->type = DESK_ICON_APP;
-    icon->icon_color = 0x0080FF;  /* Default blue */
-    icon->alive = true;           /* Registered icon is live (matches icon_add_ex) */
-    return g_dwm.icon_count++;
-}
-
-int icon_add_ex(const char *name, DeskIconType type,
-                        const char *target, int gx, int gy,
-                        uint32_t icon_color, void (*on_execute)(void)) {
-    if (g_dwm.icon_count >= DOSGUI_MAX_ICONS) return -1;
-    DosGuiIcon *icon = &g_dwm.icons[g_dwm.icon_count];
-    memset(icon, 0, sizeof(*icon));
-    strncpy(icon->name, name, sizeof(icon->name) - 1);
-    icon->grid_x = gx; icon->grid_y = gy;
-    icon->x = 20 + gx * DOSGUI_ICON_COL_PITCH;
-    icon->y = 20 + gy * DOSGUI_ICON_ROW_PITCH;
-    icon->type = type;
-    icon->icon_color = icon_color ? icon_color : 0x0080FF;
-    if (target) strncpy(icon->target, target, sizeof(icon->target) - 1);
-    icon->on_execute = on_execute;
-    icon->alive = true;
-    return g_dwm.icon_count++;
-}
-
-/* Shortcut Creation */
-int shortcut_create(const char *name, const char *target,
-                            const char *description, int grid_x, int grid_y) {
-    return icon_add_ex(name, DESK_ICON_SHORTCUT, target, grid_x, grid_y, 0x00FF00, NULL);
-}
-
 /* -- Icon persistence (Stream 2) & wallpaper reload (Stream 4) ---- */
 
 bool wm_is_initialized(void) { return g_dwm.screen_w > 0; }
@@ -257,45 +214,6 @@ bool wm_is_initialized(void) { return g_dwm.screen_w > 0; }
 int wm_wallpaper_mode(void) { return g_dwm.wallpaper_mode; }
 int wm_wallpaper_w(void)    { return g_dwm.wallpaper_w; }
 int wm_wallpaper_h(void)    { return g_dwm.wallpaper_h; }
-
-/* Persist the current live desktop icon grid into settings
- * (ReactOS-style: store string name + position, not callbacks). */
-void wm_save_icon_layout(void) {
-    WubuSettings *s = wubu_settings_mut();
-    if (!s) return;
-    s->theme.icon_layout_count = 0;
-    for (int i = 0; i < g_dwm.icon_count && s->theme.icon_layout_count < WUBU_ICON_LAYOUT_MAX; i++) {
-        DosGuiIcon *ic = &g_dwm.icons[i];
-        if (!ic->alive) continue;
-        IconLayoutEntry *e = &s->theme.icon_layout[s->theme.icon_layout_count++];
-        strncpy(e->name, ic->name, sizeof(e->name) - 1);
-        e->grid_x = ic->grid_x;
-        e->grid_y = ic->grid_y;
-        e->alive  = true;
-    }
-    wubu_settings_save();
-}
-
-/* Restore live icon grid positions from persisted settings, matching
- * by icon name. Positions survive a desktop restart. */
-void wm_restore_icon_layout(void) {
-    const WubuSettings *s = wubu_settings_get();
-    if (!s || s->theme.icon_layout_count <= 0) return;
-    for (int i = 0; i < g_dwm.icon_count; i++) {
-        DosGuiIcon *ic = &g_dwm.icons[i];
-        if (!ic->alive) continue;
-        for (int j = 0; j < s->theme.icon_layout_count; j++) {
-            const IconLayoutEntry *e = &s->theme.icon_layout[j];
-            if (e->alive && strncmp(e->name, ic->name, sizeof(e->name)) == 0) {
-                ic->grid_x = e->grid_x;
-                ic->grid_y = e->grid_y;
-                ic->x = 20 + e->grid_x * DOSGUI_ICON_COL_PITCH;
-                ic->y = 20 + e->grid_y * DOSGUI_ICON_ROW_PITCH;
-                break;
-            }
-        }
-    }
-}
 
 /* Re-decode the configured wallpaper from settings (Control Panel apply). */
 void wm_reload_wallpaper(void) {
