@@ -25,7 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # One dry run of every build we care about; paths appearing in it are genuinely
 # compiled (or at least invoked) by our makefiles.
-DRYRUN = subprocess.run(["make", "-n", "-C", ROOT, "hosted", "test"],
+DRYRUN = subprocess.run(["make", "-n", "-C", ROOT, "hosted", "test", "vendored", "wubugrep"],
                         capture_output=True, text=True,
                         env={**os.environ, "XDG_RUNTIME_DIR": ""}).stdout
 
@@ -77,7 +77,14 @@ def main():
         # mk defines $(WET) and $(GUI) style variables, so a literal search reported
         # src/gui/wet as "never compiled" while test_wet compiles all of it. The dry
         # run is the only honest answer to "does our build touch these sources".
-        st["in_link_graph"] = sm + "/" in DRYRUN
+        # Two ways a tree can be wired: its path appears in the dry run of the standard
+        # targets, OR make has a target named after the tree (wubugrep builds through
+        # mk/targets.mk under its own name, so its sources never appear in `vendored`).
+        own = subprocess.run(["make", "-n", "-C", ROOT, os.path.basename(sm)],
+                             capture_output=True, text=True,
+                             env={**os.environ, "XDG_RUNTIME_DIR": ""})
+        st["in_link_graph"] = (sm + "/" in DRYRUN) or (
+            own.returncode == 0 and sm + "/" in own.stdout)
         st.update({"branch": branch, "head": head, "dirty_files": len(dirty.splitlines())})
         report[sm] = st
     if as_json:
@@ -96,7 +103,7 @@ def main():
           f"{tot['colour']:7} {tot['strncpy']:8} {tot['libm']:5} {tot['stub']:5}")
     unwired = [s for s, st in report.items() if not st["in_link_graph"]]
     if unwired:
-        print("\nNOT COMPILED BY `make hosted test` -- present in the tree, absent from "
+        print("\nNOT COMPILED BY `make hosted test vendored wubugrep` -- present, absent from "
               "the build (the signature failure this repo keeps finding: a module that "
               "passes its own gate while the product never runs it):")
         for s in unwired:

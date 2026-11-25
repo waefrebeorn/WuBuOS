@@ -35,11 +35,21 @@ comments: **a plausible check that was never run against reality.**
 
 ## What the numbers already say
 
-1. **`src/apps/wubupad` and `src/apps/wubuoffice` are not in our build at all.** Two
-   shipped applications, 81k lines, with no path from any target. Either they are
-   orphaned (and `gate_reachability` cannot see them, because it only knows make
-   targets), or they are built by some other mechanism that does not exist. This is the
-   same defect as `wubu_buddy_orb.c` passing its gate while the desktop drew a PNG.
+1. ~~`src/apps/wubupad` and `src/apps/wubuoffice` are not in our build at all.~~
+   **WRONG, and corrected the same day.** `mk/vendored.mk` defines `WUBUPAD_DIR`,
+   `vendored: wubupad wubuoffice`, and per-project test targets. The audit had only
+   dry-run `make hosted test`, so the vendored target never appeared and a whole
+   directory of real build wiring was invisible to it. `wubugrep` is the same case:
+   `mk/targets.mk` builds it under its own target.
+
+   The lesson survives the correction: **a measurement is only as honest as the command
+   it runs.** Counting a tree as "unbuilt" because the dry run did not include its
+   target is the same error as the WCAG comments -- a plausible claim never checked
+   against reality. The audit now dry-runs `hosted test vendored wubugrep`.
+
+   What survives as a real question: nothing in the suite *exercises* wubupad or
+   wubuoffice. They compile; no gate runs them. `gate_reachability` counts make targets,
+   and these are not in `test`.
 2. **`src/gui/wet`, the framework that is supposed to own shell surfaces, still draws
    with 62 colour literals and 12 `(void)arg;` stubs.** The .WET port of the dock and
    taskbar cannot be judged "done" while the toolkit itself is unthemed and stubbed.
