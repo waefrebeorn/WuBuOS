@@ -1,12 +1,12 @@
 /*
- * cp_text.c -- stride-aware text and fill for Control Panel applets.
+ * control_panel_text.c -- stride-aware text and fill for Control Panel applets.
  *
- * See cp_text.h for why this exists. It draws with the kernel's own 8x8 font
+ * See control_panel_text.h for why this exists. It draws with the kernel's own 8x8 font
  * (vbe_font_8x8 for ASCII 32..95, vbe_font_lower_8x8 for a..z), so an applet
  * looks like the rest of the shell instead of inventing its own glyphs.
  */
 
-#include "cp_text.h"
+#include "control_panel_text.h"
 #include "../kernel/vbe.h"
 
 #include <string.h>

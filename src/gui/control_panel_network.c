@@ -1,5 +1,5 @@
 /*
- * cp_network.c -- the Control Panel Network applet (the
+ * control_panel_network.c -- the Control Panel Network applet (the
  * SteamOS System Settings > Network, in our code).
  *
  * The header declared cp_create_network_applet() for ages;
@@ -14,8 +14,8 @@
  * wubu_world_snapshot; the tests inject a fake).
  * C11.
  */
-#include "controlpanel.h"
-#include "cp_text.h"
+#include "control_panel.h"
+#include "control_panel_text.h"
 #include "wubu_world.h"
 
 #include <stdio.h>

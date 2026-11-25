@@ -292,7 +292,7 @@
 | `src/bridge/wubu_syscall.c` | Provides trampolines for HolyC compiler to call into kernel. |
 | `src/bridge/wubu_syscall_test.c` | Tests the C handler functions directly (not via kernel syscall). |
 | `src/bridge/wubu_syscall_vbe.c` | Declared in wubu_syscall.h; vbe_* in kernel/vbe.h. Minimal includes. |
-| `src/gui/cp_sound.c` | C11. Implements the header-declared cp_create_sound_applet() |
+| `src/gui/control_panel_sound.c` | C11. Implements the header-declared cp_create_sound_applet() |
 | `src/gui/daemon_panel.c` | desktop. Shows daemon status in the system tray, container list in a |
 | `src/gui/daemon_panel_test.c` | We provide weak stubs for all GUI functions the panel calls, |
 | `src/gui/shell/shell_session.c` | ZealOS kernel runs in-process, Fable sauce renders the desktop, |
@@ -352,7 +352,7 @@
 | `src/gui/compositor/gui_dbuf.c` | Minimal 8x8 font: digits 0-9, A-Z, space, colon, dash, period, slash */ |
 | `src/gui/compositor/gui_dbuf_test.c` | Win98 borders, dirty rect tracking, and flip. |
 | `src/gui/standalone_hosted_shim.c` | hosted binary (src/hosted/hosted.o, which carries main() and is therefore |
-| `src/gui/test_cp_sound.c` | extern wubu_sound_t g_sound_engine; |
+| `src/gui/test_control_panel_sound.c` | extern wubu_sound_t g_sound_engine; |
 | `src/gui/test_synth.c` | printf("=== test_synth (WT-A oscillators, WT-B ladder) ===
 "); |
 | `src/gui/test_wubu_sound.c` | printf("=== test_wubu_sound ===

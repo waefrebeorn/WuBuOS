@@ -119,7 +119,7 @@ HOSTED_SUBSYS = $(HOSTED)/hosted_render.c $(HOSTED)/hosted_run.c $(HOSTED)/hoste
 # the hosted hardware sense, the a11y/sound/psych services, the EDR poller,
 # the WET applet framework + its slerm-Lua, and three compiler backends.
 HOSTED_EXTRA = $(COMP)/holyd_semantic.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/jit/wubu_isa_wasm.c \
-               $(GUI)/cp_sound.c $(GUI)/wubu_a11y.c $(GUI)/wubu_sound.c \
+               $(GUI)/control_panel_sound.c $(GUI)/wubu_a11y.c $(GUI)/wubu_sound.c \
                $(RT)/edr/edr_poller.c $(RT)/wubu_gdpr_age.c $(RT)/wubu_wine_env.c $(RT)/wubu_compat_db.c \
                $(RT)/wubu_agent.c $(RT)/wubu_ns_worldspace.c $(RT)/wubu_gamemode.c \
                $(KERNEL)/wubu_evdev.c \

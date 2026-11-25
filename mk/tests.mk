@@ -1881,22 +1881,22 @@ test_effect: $(RT)/wubu_effect.h
 		$(RT)/wubu_effect_test.c -o $(RT)/wubu_effect_test
 	$(RT)/wubu_effect_test
 
-test_cp_applets: $(GUI)/test_cp_applets.c $(GUI)/controlpanel.c $(GUI)/cp_text.c \
-                 $(GUI)/cp_display.c $(GUI)/cp_network.c $(GUI)/cp_theme.c \
-                 $(GUI)/cp_sound.c $(GUI)/cp_hardware.c $(GUI)/wubu_sound.c \
+test_cp_applets: $(GUI)/test_cp_applets.c $(GUI)/control_panel.c $(GUI)/control_panel_text.c \
+                 $(GUI)/control_panel_display.c $(GUI)/control_panel_network.c $(GUI)/control_panel_theme.c \
+                 $(GUI)/control_panel_sound.c $(GUI)/control_panel_hardware.c $(GUI)/wubu_sound.c \
                  $(GUI)/wubu_theme.c $(KERNEL)/vbe_font.c $(KERNEL)/vbe.h \
-                 $(GUI)/controlpanel.h $(GUI)/cp_text.h
+                 $(GUI)/control_panel.h $(GUI)/control_panel_text.h
 	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) -I$(KERNEL) -Iinclude \
-	  $(GUI)/test_cp_applets.c $(GUI)/controlpanel.c $(GUI)/cp_text.c \
-	  $(GUI)/cp_display.c $(GUI)/cp_network.c $(GUI)/cp_theme.c \
-	  $(GUI)/cp_sound.c $(GUI)/cp_hardware.c $(GUI)/wubu_sound.c \
+	  $(GUI)/test_cp_applets.c $(GUI)/control_panel.c $(GUI)/control_panel_text.c \
+	  $(GUI)/control_panel_display.c $(GUI)/control_panel_network.c $(GUI)/control_panel_theme.c \
+	  $(GUI)/control_panel_sound.c $(GUI)/control_panel_hardware.c $(GUI)/wubu_sound.c \
 	  $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
 	  $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c $(RT_ALWAYS) \
 	  -o $(GUI)/test_cp_applets -lm
 	./$(GUI)/test_cp_applets
 
-test_cp_sound: $(GUI)/cp_sound.c $(GUI)/cp_text.c $(KERNEL)/vbe_font.c $(GUI)/wubu_sound.c $(GUI)/controlpanel.h $(GUI)/wubu_sound.h $(GUI)/cp_text.h
-	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) $(GUI)/test_cp_sound.c $(GUI)/cp_sound.c $(GUI)/cp_text.c $(KERNEL)/vbe_font.c $(GUI)/wubu_sound.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c -o $(GUI)/test_cp_sound -lm -lpulse-simple -lpulse -lasound -Iinclude $(RT_ALWAYS) 
+test_cp_sound: $(GUI)/control_panel_sound.c $(GUI)/control_panel_text.c $(KERNEL)/vbe_font.c $(GUI)/wubu_sound.c $(GUI)/control_panel.h $(GUI)/wubu_sound.h $(GUI)/control_panel_text.h
+	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) $(GUI)/test_control_panel_sound.c $(GUI)/control_panel_sound.c $(GUI)/control_panel_text.c $(KERNEL)/vbe_font.c $(GUI)/wubu_sound.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c -o $(GUI)/test_cp_sound -lm -lpulse-simple -lpulse -lasound -Iinclude $(RT_ALWAYS) 
 	./$(GUI)/test_cp_sound
 
 test_apps_gap: $(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c $(APPS)/apps_gap_test_stub.c $(GUI)/wubu_sound.c

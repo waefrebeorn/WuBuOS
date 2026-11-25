@@ -1,5 +1,5 @@
 /*
- * controlpanel.h  --  WuBuOS Control Panel
+ * control_panel.h  --  WuBuOS Control Panel
  *
  * Phase 4.5: Win98/XP style Control Panel with applet system.
  * Applets: Display, Network, Sound, Theme/Personalization

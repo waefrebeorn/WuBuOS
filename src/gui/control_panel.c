@@ -1,5 +1,5 @@
 /*
- * controlpanel.c -- the Control Panel MANAGER (Win98/XP
+ * control_panel.c -- the Control Panel MANAGER (Win98/XP
  * vibes, the applet registry).
  *
  * The header declared g_controlpanel + the applet contract for ages;
@@ -15,7 +15,7 @@
  * The test asserts the applet registry + the switching.
  * C11.
  */
-#include "controlpanel.h"
+#include "control_panel.h"
 
 #include <stdio.h>
 #include <string.h>

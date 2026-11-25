@@ -1,5 +1,5 @@
 /*
- * cp_theme.c -- the Control Panel Theme applet (the SteamOS
+ * control_panel_theme.c -- the Control Panel Theme applet (the SteamOS
  * Personalization, in our code — the Win98/XP display-properties
  * vibes).
  *
@@ -14,8 +14,8 @@
  * full engine; the real path calls wubu_theme_set directly.
  * C11.
  */
-#include "controlpanel.h"
-#include "cp_text.h"
+#include "control_panel.h"
+#include "control_panel_text.h"
 #include "wubu_theme.h"
 
 #include <stdio.h>

@@ -51,11 +51,11 @@ Remaining honest gaps (documented, not claimed):
 
 ## The fills this pass (all gated green)
 
-1. **cp_display.c** — the Display applet (connector/mode/VRAM
+1. **control_panel_display.c** — the Display applet (connector/mode/VRAM
    from the world snapshot). `display: MIPI-DSI 1280x800@60 8192MB vram`
-2. **cp_network.c** — the Network applet (wifi/eth links from
+2. **control_panel_network.c** — the Network applet (wifi/eth links from
    the world). `network: wifi UP (present) eth down`
-3. **cp_theme.c** — the Theme applet (the real theme engine:
+3. **control_panel_theme.c** — the Theme applet (the real theme engine:
    current theme + a click cycles). `theme: Win98 Classic`
 4. **wubu_drv.c BAR glue** — the real-hardware MMIO mapping point
    (wubu_drv_dev_bar + the scan carries bar0/bar1)

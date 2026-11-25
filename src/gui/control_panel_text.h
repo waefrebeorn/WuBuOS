@@ -1,5 +1,5 @@
 /*
- * cp_text.h -- stride-aware text and fill for Control Panel applets.
+ * control_panel_text.h -- stride-aware text and fill for Control Panel applets.
  *
  * ONE owner for applet drawing. Before this each applet either ignored the
  * framebuffer entirely (display/network/theme drew nothing; hardware's

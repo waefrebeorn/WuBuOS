@@ -36,12 +36,12 @@ the kernel/driver build or nowhere in the test recipes).
 - `cmd.c`  -- tests: test_cmd;test_guests_panel;test_apps
 - `cmd_test_stub.c`  -- tests: test_cmd
 - `control.c`  -- tests: test_control;test_apps
-- `controlpanel.c`  -- tests: test_cp_hardware;test_controlpanel;test_cp_dnt
-- `cp_display.c`  -- tests: test_controlpanel;test_cp_dnt
-- `cp_hardware.c`  -- tests: test_cp_hardware;test_controlpanel;test_cp_dnt
-- `cp_network.c`  -- tests: test_controlpanel;test_cp_dnt
-- `cp_sound.c`  -- tests: test_cp_sound;test_cp_hardware;test_controlpanel;test_cp_dnt
-- `cp_theme.c`  -- tests: test_controlpanel;test_cp_dnt
+- `control_panel.c`  -- tests: test_cp_hardware;test_controlpanel;test_cp_dnt
+- `control_panel_display.c`  -- tests: test_controlpanel;test_cp_dnt
+- `control_panel_hardware.c`  -- tests: test_cp_hardware;test_controlpanel;test_cp_dnt
+- `control_panel_network.c`  -- tests: test_controlpanel;test_cp_dnt
+- `control_panel_sound.c`  -- tests: test_cp_sound;test_cp_hardware;test_controlpanel;test_cp_dnt
+- `control_panel_theme.c`  -- tests: test_controlpanel;test_cp_dnt
 - `ct_iso_cgroup.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `ct_iso_ns.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `ct_iso_seccomp.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
@@ -205,7 +205,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `test_archd_n1.c`  -- tests: test_archd_n1
 - `test_arm64_enc.c`  -- tests: test_arm64_enc
 - `test_colonel.c`  -- tests: test_colonel
-- `test_cp_sound.c`  -- tests: test_cp_sound
+- `test_control_panel_sound.c`  -- tests: test_cp_sound
 - `test_dram_hedge.c`  -- tests: test_dram_hedge
 - `test_font_case.c`  -- tests: test_font_case
 - `test_fs_persist.c`  -- tests: test_fs_persist

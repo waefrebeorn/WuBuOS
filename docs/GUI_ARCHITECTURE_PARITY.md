@@ -47,7 +47,7 @@ P1 compositor / P2 WM / P3 bus / P4 panel / P5 theme+xlet) and
 
 ### Shell apps (Win11/Cinnamon app-parity)
 - **File manager:** `explorer*.c` (11 files)
-- **Control panel:** `controlpanel.c` + `cp_{display,hardware,network,sound,theme}.c`
+- **Control panel:** `control_panel.c` + `cp_{display,hardware,network,sound,theme}.c`
 - **Terminal:** `term*.c` (5 files)
 - **Window chrome / wallpaper / notify / trash / clipboard / welcome:**
   `window_chrome.c` `wubu_wallpaper.c` `wubu_notify.c` `wubu_trash.c`

@@ -2426,12 +2426,12 @@
 | `gui/` | `wubu_compositor` | 495 | egojar.h, egojar_net.h, stdio.h, stdlib.h, string.h, styx.h, vulkan.h, wayland-s | wubu_compositor.c  --  WuBuOS Wayland Compositor Implementation Minimal Wayland compositor using lib |
 | `gui/` | `wubu_compositor_standalone` | 412 | egl.h, egojar.h, egojar_net.h, gl2.h, stdio.h, stdlib.h, string.h, wayland-clien | wubu_compositor_standalone.c  --  Standalone Compositor Implementation Implements the standalone com |
 | `gui/` | `wubu_compositor_test` | 135 | stdio.h, stdlib.h, string.h, styx.h, wubu_compositor.h | wubu_compositor_test.c -- Test for WuBuOS Compositor |
-| `gui/` | `controlpanel` | 198 | controlpanel.h, stdio.h, string.h | controlpanel.c -- the Control Panel MANAGER (Win98/XP vibes, the applet registry). The header declar |
-| `gui/` | `cp_display` | 112 | controlpanel.h, stdio.h, stdlib.h, string.h, wubu_world.h | cp_display.c -- the Control Panel Display applet (the SteamOS System Settings > Display, in our code |
-| `gui/` | `cp_hardware` | 149 | controlpanel.h, stdio.h, stdlib.h, string.h | cp_hardware.c -- the Control Panel Hardware applet (the desktop shows the OS's hardware — the driver |
-| `gui/` | `cp_network` | 95 | controlpanel.h, stdio.h, stdlib.h, string.h, wubu_world.h | cp_network.c -- the Control Panel Network applet (the SteamOS System Settings > Network, in our code |
-| `gui/` | `cp_sound` | 147 | controlpanel.h, stdlib.h, string.h, wubu_audio.h, wubu_sound.h | cp_sound.c -- the Control Panel Sound applet (Win98/XP vibes). C11. Implements the header-declared c |
-| `gui/` | `cp_theme` | 96 | controlpanel.h, stdio.h, stdlib.h, string.h, wubu_theme.h | cp_theme.c -- the Control Panel Theme applet (the SteamOS Personalization, in our code — the Win98/X |
+| `gui/` | `controlpanel` | 198 | control_panel.h, stdio.h, string.h | control_panel.c -- the Control Panel MANAGER (Win98/XP vibes, the applet registry). The header declar |
+| `gui/` | `cp_display` | 112 | control_panel.h, stdio.h, stdlib.h, string.h, wubu_world.h | control_panel_display.c -- the Control Panel Display applet (the SteamOS System Settings > Display, in our code |
+| `gui/` | `cp_hardware` | 149 | control_panel.h, stdio.h, stdlib.h, string.h | control_panel_hardware.c -- the Control Panel Hardware applet (the desktop shows the OS's hardware — the driver |
+| `gui/` | `cp_network` | 95 | control_panel.h, stdio.h, stdlib.h, string.h, wubu_world.h | control_panel_network.c -- the Control Panel Network applet (the SteamOS System Settings > Network, in our code |
+| `gui/` | `cp_sound` | 147 | control_panel.h, stdlib.h, string.h, wubu_audio.h, wubu_sound.h | control_panel_sound.c -- the Control Panel Sound applet (Win98/XP vibes). C11. Implements the header-declared c |
+| `gui/` | `cp_theme` | 96 | control_panel.h, stdio.h, stdlib.h, string.h, wubu_theme.h | control_panel_theme.c -- the Control Panel Theme applet (the SteamOS Personalization, in our code — the Win98/X |
 | `gui/` | `daemon_panel` | 402 | daemon_panel.h, desktop.h, stdio.h, stdlib.h, string.h, vbe.h, wm.h, wubu_archd. | daemon_panel.c  --  WuBuOS Desktop Daemon Integration Panel Cell 400-402: Bridges wubu_archd and wub |
 | `gui/` | `daemon_panel_test` | 124 | daemon_panel.h, stdint.h, stdio.h, stdlib.h, string.h | daemon_panel_test.c  --  Daemon Panel Unit Test Suite Tests daemon panel logic with stubbed GUI depe |
 | `gui/` | `dos_window` | 159 | stdint.h, stdio.h, stdlib.h, string.h, vbe.h, wm.h, wubu_dos_proc.h | dos_window.c -- Render a WuBuOS 16-bit DOS process in a desktop window. The window blits the guest's |
@@ -2509,7 +2509,7 @@
 | `gui/` | `term_tabs` | 173 | stdio.h, stdlib.h, string.h, term_internal.h | term_tabs.c -- Terminal tab-management subsystem. Self-contained: tab creation/close/switch/move + a |
 | `gui/` | `term_test` | 274 | ctype.h, egojar.h, pty.h, stdio.h, stdlib.h, string.h, term.h, term_internal.h,  | term_test.c  --  WuBuOS Terminal Test Suite Tests PTY backend, ANSI parser, scrollback, copy/paste,  |
 | `gui/` | `term_test_stub` | 80 | stdio.h, stdlib.h, string.h, term.h, wm.h | term_test_stub.c  --  Stubs for term_test without full dependencies Provides minimal implementations |
-| `gui/` | `test_cp_sound` | 8 | stdio.h | test_cp_sound.c — Control Panel sound applet (stub) |
+| `gui/` | `test_cp_sound` | 8 | stdio.h | test_control_panel_sound.c — Control Panel sound applet (stub) |
 | `gui/` | `test_synth` | 9 | stdio.h | test_synth.c — audio synth self-test (stub) |
 | `gui/` | `test_wubu_gui_metrics` | 79 | stdio.h, stdlib.h, wubu_gui_metrics.h | test_wubu_gui_metrics.c -- the metric invariants, proven. If a surface ever starts inventing its own |
 | `gui/` | `test_wubu_sound` | 9 | stdio.h | test_wubu_sound.c — sound system self-test (stub) |

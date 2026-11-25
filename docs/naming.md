@@ -13,7 +13,7 @@ how a tidy becomes a regression.
 
 | # | Now | Purpose it should announce | Refs | Risk |
 |---|---|---|---:|---|
-| 1 | `controlpanel.c` + `cp_{text,hardware,display,network,theme,sound}.c` | one prefix: `control_panel.c` + `control_panel_*.c` | 181 | medium -- two naming schemes in one subsystem, 7 files |
+| 1 | `control_panel.c` + `cp_{text,hardware,display,network,theme,sound}.c` | one prefix: `control_panel.c` + `control_panel_*.c` | 181 | medium -- two naming schemes in one subsystem, 7 files |
 | 2 | `gfx/gui_{surface,blend,shape,blur}.c` vs top-level `gui_blit.c` | one layer name for the primitive drawing layer (`gfx_*`), and `gui_blit` joined to it | ~30 | medium -- touches the render path |
 | 3 | ~~`daemon_panel.c` -> `service_panel.c`~~ | **REJECTED after reading it**: it bridges *daemons* (archd, holyd) into the tray and a window; `service_mgr.c` manages *services*. `daemon_panel` is honest and `service_panel` would assert a relationship that does not exist | 7 | -- |
 | 4 | `big_picture.c` / `big_picture_games.c` | **undocumented acronym** -- read it, then name it for what it does | ~15 | low, but needs a purpose first |

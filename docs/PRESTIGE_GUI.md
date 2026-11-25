@@ -13,7 +13,7 @@ tall; what the human sees and clicks is thin.
   `wm_icon_glyphs.c`, `wm_systray.c`, `wm_startmenu.c`,
   `wm_ctxmenu*.c`, `wm_clock.c`, `window_chrome.c`,
   `holyc_repl.c`. Plus apps: `explorer*.c`,
-  `controlpanel.c`, `daemon_panel.c`, `era_apps.c`,
+  `control_panel.c`, `daemon_panel.c`, `era_apps.c`,
   `service_mgr.c`, `src/apps/apps.c`.
 - **The authority object-model backbone** — `src/runtime/win32k/wubu_win32k.{c,h}`
   (station / desktop / class / window / GDI surfaces, all cap-backed revocable

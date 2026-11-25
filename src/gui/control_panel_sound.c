@@ -1,13 +1,13 @@
 /*
- * cp_sound.c -- the Control Panel Sound applet (Win98/XP vibes).
+ * control_panel_sound.c -- the Control Panel Sound applet (Win98/XP vibes).
  * C11. Implements the header-declared cp_create_sound_applet()
  * + cp_sound_state() against the wubu_sound synthesis engine --
  * the applet was declared for ages but never built (form-without-
  * function). Real dispatch: the Test buttons PLAY the synthesized
  * Win98/XP events; the volume bar + mute toggle drive the engine.
  */
-#include "controlpanel.h"
-#include "cp_text.h"
+#include "control_panel.h"
+#include "control_panel_text.h"
 
 #include <stdio.h>
 #include "wubu_sound.h"

@@ -74,7 +74,7 @@ chains to the CA in `WUBU_CA_BUNDLE` and its DNS name matches the URL host.
 
 The **Revocation Sync** applet in the Control Panel is the GUI face of this
 leaf (`src/gui/wubu_pkgmgr_sync_panel.c`, registered through
-`controlpanel.c`). It shows the committed trusted URLs (a bounded list of up to 16), lets the user
+`control_panel.c`). It shows the committed trusted URLs (a bounded list of up to 16), lets the user
 type a URL and press Enter (or click **Save**) to replace the list, or click
 **Add**/**Del** to append/remove entries, persists through `wubu_settings_mut()`
 + `wubu_settings_save()`, and runs one bounded signed sync on **Sync Now**

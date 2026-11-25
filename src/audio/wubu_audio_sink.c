@@ -4,7 +4,7 @@
  * Separate from wubu_audio_backend.c on purpose: the backend pulls the
  * ENGINE (a thread calling wubu_audio_process), while the sink is what the
  * SOUND system calls (wubu_sound_play's sink callback). A lean test that
- * links cp_sound.c needs this file and bigmac -- not the whole engine.
+ * links control_panel_sound.c needs this file and bigmac -- not the whole engine.
  *
  * wubu_sound_play() takes a sink and every call site used to pass NULL, so
  * the PCM went into the void. This is the sink that ends that.

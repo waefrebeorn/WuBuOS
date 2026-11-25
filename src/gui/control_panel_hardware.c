@@ -1,5 +1,5 @@
 /*
- * cp_hardware.c -- the Control Panel Hardware applet (the
+ * control_panel_hardware.c -- the Control Panel Hardware applet (the
  * desktop shows the OS's hardware — the driver space, visible).
  *
  * Win98's System Properties showed the machine; this applet shows the
@@ -10,8 +10,8 @@
  *
  * C11.
  */
-#include "controlpanel.h"
-#include "cp_text.h"
+#include "control_panel.h"
+#include "control_panel_text.h"
 
 #include <stdio.h>
 #include <stdlib.h>

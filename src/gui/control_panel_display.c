@@ -1,5 +1,5 @@
 /*
- * cp_display.c -- the Control Panel Display applet (the
+ * control_panel_display.c -- the Control Panel Display applet (the
  * SteamOS System Settings > Display, in our code).
  *
  * The header declared cp_create_display_applet() for ages —
@@ -16,8 +16,8 @@
  * wubu_world_snapshot; the tests inject a fake).
  * C11.
  */
-#include "controlpanel.h"
-#include "cp_text.h"
+#include "control_panel.h"
+#include "control_panel_text.h"
 #include "wubu_world.h"
 
 #include <stdio.h>

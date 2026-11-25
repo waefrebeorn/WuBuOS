@@ -1,4 +1,4 @@
-/* test_cp_sound.c — Control Panel sound applet (stub) */
+/* test_control_panel_sound.c — Control Panel sound applet (stub) */
 #include <stdio.h>
 int main(void) {
     printf("  TEST CP sound applet load                \xE2\x9C\x85\n");

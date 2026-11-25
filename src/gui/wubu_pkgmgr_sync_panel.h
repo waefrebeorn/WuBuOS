@@ -19,7 +19,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "controlpanel.h"
+#include "control_panel.h"
 #include "wubu_settings.h"   /* backoff defaults live in the settings schema */
 
 #define WUBU_SYNC_PANEL_URL_MAX 512
