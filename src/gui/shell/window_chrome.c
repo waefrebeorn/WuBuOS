@@ -180,13 +180,19 @@ int chrome_hit_test_button(DosGuiWindow *win, int mx, int my) {
  * 14px square -- the exact kind of drift a shared metric is meant to kill.
  */
 static void chrome_glyph_close(int x, int y, int w, int h, uint32_t fg) {
-    int p = w / 5; /* glyph-art padding */
+    /* TWO lines, not four. The old loop drew all four corner-to-corner permutations,
+     * which coincide only when the button is exactly square -- on any other button it
+     * painted an X AND an offset second X (the "two x in x close" the user saw). An X
+     * is two diagonals of one square, so pick the square, centre it, and draw twice. */
+    int s = (w < h) ? w : h;
+    int p = s / 5;
     if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
-    for (int i = 0; i < w - 2 * p && i < h - 2 * p; i++) {
-        vbe_set_pixel(x + p + i,         y + p + i,             fg);
-        vbe_set_pixel(x + w - p - 1 - i, y + p + i,             fg);
-        vbe_set_pixel(x + p + i,         y + h - p - 1 - i,     fg);
-        vbe_set_pixel(x + w - p - 1 - i, y + h - p - 1 - i,     fg);
+    int len = s - 2 * p;
+    if (len < 3) return;
+    int ox = x + (w - s) / 2, oy = y + (h - s) / 2;
+    for (int i = 0; i < len; i++) {
+        vbe_set_pixel(ox + p + i,         oy + p + i,         fg);   /* TL -> BR */
+        vbe_set_pixel(ox + s - p - 1 - i, oy + p + i,         fg);   /* TR -> BL */
     }
 }
 
@@ -517,14 +523,33 @@ void chrome_mask_corners(int x, int y, int w, int h, int rad) {
     uint32_t bg_tr = (y > 0)                 ? vbe_get_pixel(x + w - rad - 1, y - 1) : tc()->desktop_bg;
     uint32_t bg_bl = (y + h < g_dwm.screen_h) ? vbe_get_pixel(x - rad - 1, y - 1) : 0; /* replaced below */
     (void)bg_bl;
+    /* Coverage, not a staircase. A binary sqrt() cut gives a blocky arc -- "bad edges"
+     * is exactly what a 1-bit mask looks like at 8px. Each pixel in the corner box is
+     * blended with the background by how much of it lies outside the arc, which is
+     * how every real UI toolkit antialiases a rounded rect. */
     for (int dy = 0; dy < rad; dy++) {
-        int rem = rad - dy;
-        int cut = rad - (int)(0.5f + __builtin_sqrt((double)(rad * rad - rem * rem)));
-        for (int dx = 0; dx < cut; dx++) {
-            vbe_set_pixel(x + dx,         y + dy,         bg_tl);
-            vbe_set_pixel(x + w - 1 - dx, y + dy,         bg_tr);
-            vbe_set_pixel(x + dx,         y + h - 1 - dy, bg_tl);
-            vbe_set_pixel(x + w - 1 - dx, y + h - 1 - dy, bg_tr);
+        for (int dx = 0; dx < rad; dx++) {
+            /* distance from the arc centre for each corner */
+            float dxtl = (float)(rad - dx), dytl = (float)(rad - dy);
+            float d = __builtin_sqrt(dxtl * dxtl + dytl * dytl);
+            float cov = d - (float)rad + 0.5f;      /* >0 outside the arc */
+            if (cov <= 0.0f) continue;
+            if (cov > 1.0f) cov = 1.0f;
+            struct { int px, py; uint32_t bg; } pts[4] = {
+                { x + dx,             y + dy,             bg_tl },
+                { x + w - 1 - dx,     y + dy,             bg_tr },
+                { x + dx,             y + h - 1 - dy,     bg_tl },
+                { x + w - 1 - dx,     y + h - 1 - dy,     bg_tr },
+            };
+            for (int k = 0; k < 4; k++) {
+                uint32_t src = vbe_get_pixel(pts[k].px, pts[k].py);
+                int sr = (int)((src >> 16) & 0xff), sg = (int)((src >> 8) & 0xff), sb = (int)(src & 0xff);
+                int br = (int)((pts[k].bg >> 16) & 0xff), bgc = (int)((pts[k].bg >> 8) & 0xff), bb = (int)(pts[k].bg & 0xff);
+                int r = (int)((float)sr * (1.0f - cov) + (float)br * cov);
+                int g = (int)((float)sg * (1.0f - cov) + (float)bgc * cov);
+                int b = (int)((float)sb * (1.0f - cov) + (float)bb * cov);
+                vbe_set_pixel(pts[k].px, pts[k].py, ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+            }
         }
     }
 }

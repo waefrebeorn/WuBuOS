@@ -325,16 +325,21 @@ static const WubuTheme g_themes[THEME_COUNT] = {
     .id = THEME_DARK,
     .name = "Dark",
     .colors = {
-        .desktop_bg        = RGB(0x20,0x20,0x20),
-        .win_face          = RGB(0x2B,0x2B,0x2B),
-        .win_title_active  = RGB(0x38,0x38,0x38),
-        .win_title_inactive= RGB(0x2B,0x2B,0x2B),
+        /* CONTRAST LADDER, not three greys that happen to be dark. The old values put
+         * the title (0x38) two steps from the face (0x2B) and the border (0x4A) almost
+         * on top of the face, so a window had no readable edge and its controls were
+         * invisible -- "bad edges" was largely this. Face sits between them and the
+         * border is a real hairline that reads on both. */
+        .desktop_bg        = RGB(0x17,0x17,0x17),
+        .win_face          = RGB(0x24,0x24,0x24),
+        .win_title_active  = RGB(0x32,0x32,0x32),
+        .win_title_inactive= RGB(0x27,0x27,0x27),
         .win_title_text    = RGB(0xFF,0xFF,0xFF),
         .win_title_text_ina= RGB(0xC0,0xC0,0xC0),   /* 7.4:1 on 0x2B */
         .border_light      = RGB(0x4A,0x4A,0x4A),
-        .border_face       = RGB(0x2B,0x2B,0x2B),
-        .border_dark       = RGB(0x1A,0x1A,0x1A),
-        .border_darkest    = RGB(0x00,0x00,0x00),
+        .border_face       = RGB(0x3A,0x3A,0x3A),   /* the visible hairline */
+        .border_dark       = RGB(0x3A,0x3A,0x3A),   /* fluent: no bevel pair */
+        .border_darkest    = RGB(0x12,0x12,0x12),
         .btn_face          = RGB(0x33,0x33,0x33),
         .btn_hover         = RGB(0x4C,0xC2,0xFF),   /* accent */
         .btn_pressed       = RGB(0x26,0x6B,0x8F),
