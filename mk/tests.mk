@@ -18,14 +18,14 @@ test_network:
 		-I$(RT) -I$(COMP) -I$(JIT) \
 		$(RT)/wubu_network.c $(RT)/wubu_network_fw.c $(RT)/wubu_network_svc.c $(RT)/wubu_network_cni.c $(RT)/wubu_network_wg.c $(RT)/wubu_network_ts.c $(RT)/wubu_network_dns.c $(RT)/wubu_network_qos.c $(RT)/wubu_network_create.c $(RT)/wubu_netlink.c $(RT)/wubu_spawn.c $(RT)/wubu_network_test.c \
 		-o $(RT)/wubu_network_test -lpthread
-	$(RT)/wubu_network_test
+	timeout 300 $(RT)/wubu_network_test
 
 test_snapshot:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) -I$(COMP) -I$(JIT) \
 		$(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_gc.c $(RT)/wubu_snapshot_xport.c $(RT)/wubu_snapshot_diff.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_snapshot_copy.c $(RT)/wubu_snapshot_tag.c $(RT)/wubu_snapshot_test.c \
 		-o $(RT)/wubu_snapshot_test -lpthread
-	$(RT)/wubu_snapshot_test
+	timeout 300 $(RT)/wubu_snapshot_test
 
 # Opt-in TLS verification gate (needs WUBU_MBEDTLS_ROOT with mbedTLS dev
 # headers/libs; deliberately NOT in the default `make test` tier).
@@ -398,7 +398,7 @@ test_oci:
 		$(RT)/oci/oci_media_types.c $(RT)/oci/oci_descriptor.c \
 		$(RT)/wubu_image.c $(RT)/wubu_image_cache.c $(RT)/wubu_image_parse.c $(RT)/wubu_image_manifest.c $(RT)/wubu_image_ops.c $(RT)/wubu_image_names.c $(RT)/wubu_image_tar.c $(RT)/wubu_spawn.c $(RT)/wubu_container.c $(RT)/wubu_oci_test.c \
 		-o $(RT)/wubu_oci_test -lm
-	$(RT)/wubu_oci_test
+	timeout 300 $(RT)/wubu_oci_test
 
 test_holyd: $(RT)/wubu_holyd_repl.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
@@ -411,7 +411,7 @@ test_holyd: $(RT)/wubu_holyd_repl.o
 		$(GUI)/wm_test_stub.c \
 		-DWUBD_TEST_STUB_WM_NOOPS \
 		-o $(RT)/wubd_holyd_test -lpthread
-	$(RT)/wubd_holyd_test
+	timeout 300 $(RT)/wubd_holyd_test
 
 # the TempleOS "God compiler" connective tissue: a human at the HolyC
 # Terminal and the AGI both author HolyC that compiles + runs LIVE in
@@ -436,7 +436,7 @@ test_spawn:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT)  -Iinclude  $(RT_ALWAYS) \
 		$(RT)/wubu_spawn.c $(RT)/wubu_netlink.c $(RT)/wubu_spawn_test.c \
 		-o $(RT)/wubu_spawn_test
-	$(RT)/wubu_spawn_test
+	timeout 300 $(RT)/wubu_spawn_test
 
 # CRITICAL TIER: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan, decompressors)
 test_ci_boot_assert:
@@ -456,7 +456,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_vsl_ker
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_cp_sound test_cp_applets test_hwdetect test_colonel test_wm test_guests_panel test_lua_gui test_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_first_run test_tutorial test_taskbar_tasks test_dos_window test_startmenu test_explorer test_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_image_ffmpeg test_control test_calc test_regedit test_comfy test_settings test_era_apps test_exec_games test_hosted_pe
+test_high_gui: gui runtime test_wm_snap test_greeter test_synth test_wubu_sound test_cp_sound test_cp_applets test_hwdetect test_colonel test_wm test_guests_panel test_lua_gui test_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_first_run test_tutorial test_taskbar_tasks test_dos_window test_startmenu test_explorer test_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_image_ffmpeg test_control test_calc test_regedit test_comfy test_settings test_era_apps test_exec_games test_hosted_pe
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -596,13 +596,13 @@ test_input:
 test_input_keymap:
 	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/input.c $(KERNEL)/test/input_keymap_test.c  -Iinclude  $(RT_ALWAYS) \
 		-o $(KERNEL)/input_keymap_test
-	$(KERNEL)/input_keymap_test
+	timeout 300 $(KERNEL)/input_keymap_test
 
 test_app_bundle:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) $(RT)/app_bundle.c $(RT)/app_bundle_test.c \
 		-o $(RT)/wubu_app_bundle_test
-	$(RT)/wubu_app_bundle_test
+	timeout 300 $(RT)/wubu_app_bundle_test
 
 test_win32_core:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT)  -Iinclude  $(RT_ALWAYS) \
@@ -613,7 +613,7 @@ test_spellmod:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) $(RT)/wubu_spellmod.c $(RT)/wubu_spellmod_test.c \
 		-o $(RT)/wubu_spellmod_test
-	$(RT)/wubu_spellmod_test
+	timeout 300 $(RT)/wubu_spellmod_test
 
 # Deterministic mutation fuzzer for the .spell module container.  Seed 7, 4000 rounds.
 # Deterministic mutation fuzzer for the JSON reader.  Seed 7, 4000 rounds.
@@ -656,7 +656,7 @@ test_clipboard:
 		-I$(GUI) -I$(RT) -I$(KERNEL) \
 		$(GUI)/wubu_clipboard.c $(GUI)/wubu_clipboard_mime.c $(GUI)/wubu_clipboard_test.c \
 		-o $(GUI)/wubu_clipboard_test
-	$(GUI)/wubu_clipboard_test
+	timeout 300 $(GUI)/wubu_clipboard_test
 
 test_worldsim: $(KERNEL)/wubu_math.o
 	$(CC) -Wall -Wextra -std=c11 -O0 -g -I$(WS) -I$(KERNEL) $(WS)/test_worldsim.c $(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c $(KERNEL)/wubu_math.o -o $(WS)/test_worldsim -Iinclude $(RT_ALWAYS) 
@@ -821,12 +821,12 @@ test_dos_proc: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o $(
 		$(RT)/styxfs_server.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c \
 		$(RT)/wubu_dos_proc_test.c \
 		-o $(RT)/wubu_dos_proc_test -ldl
-	$(RT)/wubu_dos_proc_test
+	timeout 300 $(RT)/wubu_dos_proc_test
 test_container_registry:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT)  -Iinclude  $(RT_ALWAYS) \
 		$(RT)/container/wubucontainer.c $(RT)/container/wubucontainer_registry.c $(RT)/container/wubucontainer_test.c \
 		-o $(RT)/container/wubucontainer_test -ljson-c
-	$(RT)/container/wubucontainer_test
+	timeout 300 $(RT)/container/wubucontainer_test
 
 test_runtime_apps:
 	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
@@ -900,7 +900,7 @@ test_vsl_nt_ext: $(VSL_NT_EXT_OBJS) $(KERNEL)/wubu_modsym.c
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
 		$(VSL_NT_EXT_OBJS) $(KERNEL)/wubu_modsym.c \
 		-o $(RT)/wubu_vsl_nt_ext_test -ldl -lvulkan -lcuda
-	$(RT)/wubu_vsl_nt_ext_test
+	timeout 300 $(RT)/wubu_vsl_nt_ext_test
 # rules so a one-file edit recompiles only that file (seconds, not minutes).
 VSL_OBJS = \
 	$(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_kernel_adapt.o $(RT)/wubu_kernel_xchg.o $(RT)/vsl/vsl_syscall_proc.o \
@@ -916,14 +916,14 @@ test_vsl: $(VSL_OBJS)
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
 		$(VSL_OBJS) \
 		-o $(RT)/wubu_vsl_test -ldl -lvulkan -lcuda
-	$(RT)/wubu_vsl_test
+	timeout 300 $(RT)/wubu_vsl_test
 
 test_vsl_kernel_adapt: $(VSL_OBJS) src/runtime/vsl/vsl_kernel_adapt_test.c
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
 		$(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
 		src/runtime/vsl/vsl_kernel_adapt_test.c \
 		-o src/runtime/vsl/vsl_kernel_adapt_test -ldl -lvulkan -lcuda
-	./src/runtime/vsl/vsl_kernel_adapt_test
+	timeout 300 ./src/runtime/vsl/vsl_kernel_adapt_test
 
 # L14: WEMU user-mode + VSL Linux bridge. REAL static busybox applets
 # (echo/uname/cat/ls/true/false) with exact-output assertions — the
@@ -1449,7 +1449,7 @@ test_vsl_nt: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 	$(CC) -O0 -g -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
 		$(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o \
 		-o $(RT)/wubu_vsl_nt_test -ldl -lvulkan -lcuda
-	$(RT)/wubu_vsl_nt_test
+	timeout 300 $(RT)/wubu_vsl_nt_test
 
 # The NT dispatch registration contract: no module may take another's slot.
 # $(VSL_NT_OBJS) contains vsl_syscall_nt_test.o, whose main would win over this
@@ -1461,7 +1461,7 @@ test_vsl_nt_collision: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 		$(KERNEL)/wubu_modsym.o \
 		src/runtime/vsl/vsl_nt_collision_test.c \
 		-o $(RT)/wubu_vsl_nt_collision_test -ldl -lvulkan -lcuda
-	$(RT)/wubu_vsl_nt_collision_test
+	timeout 300 $(RT)/wubu_vsl_nt_collision_test
 
 test_nt_abi: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 	$(CC) -O0 -g -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
@@ -1478,7 +1478,7 @@ test_vsl_nt_contract: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 		$(KERNEL)/wubu_modsym.o \
 		src/runtime/vsl/vsl_nt_contract_test.c \
 		-o $(RT)/wubu_vsl_nt_contract_test -ldl -lvulkan -lcuda
-	$(RT)/wubu_vsl_nt_contract_test
+	timeout 300 $(RT)/wubu_vsl_nt_contract_test
 
 # Legacy kernel selftest that was never in any target; builds and runs hosted.
 test_kernel_ahciseq:
@@ -1500,7 +1500,7 @@ test_system:
 		$(RT)/wubu_snapshot_diff.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_snapshot_copy.c \
 		$(RT)/wubu_snapshot_tag.c $(RT)/wubu_system.c $(RT)/wubu_system_test.c \
 		-o $(RT)/wubu_system_test -lpthread
-	$(RT)/wubu_system_test
+	timeout 300 $(RT)/wubu_system_test
 
 # CRC-32 single owner: known-answer vectors + chaining equivalence.
 test_crc32:
@@ -1521,7 +1521,7 @@ test_gui_gfx:
 		src/gui/gfx/gui_shape.c src/gui/gfx/gui_blur.c \
 		src/kernel/vbe.c src/kernel/vbe_font.c src/gui/gfx/gui_gfx_test.c \
 		-o $(GUI)/gfx/gui_gfx_test
-	$(GUI)/gfx/gui_gfx_test
+	timeout 300 $(GUI)/gfx/gui_gfx_test
 
 # Elevation shadow cache (slerm of impossible-os elevation.window_active).
 # Standalone leaf gate; the focused/unfocused wiring is gated inside test_wm.
@@ -1539,32 +1539,32 @@ test_kernel_macho:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude \
 		src/kernel/wubu_macho.c src/kernel/wubu_macho_test.c \
 		-o $(KERNEL)/wubu_macho_test
-	$(KERNEL)/wubu_macho_test
+	timeout 300 $(KERNEL)/wubu_macho_test
 
 # macOS layer tests
 test_vsl_macho:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
 		$(RT)/vsl/vsl_macho.c $(RT)/vsl/vsl_macho_test.c \
 		-o $(RT)/vsl/vsl_macho_test
-	$(RT)/vsl/vsl_macho_test
+	timeout 300 $(RT)/vsl/vsl_macho_test
 
 test_vsl_mac:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
 		$(RT)/vsl/vsl_syscall_mac.c $(RT)/vsl/vsl_syscall_mac_bsd.c $(RT)/vsl/vsl_syscall_mac_mach.c $(RT)/vsl/vsl_syscall_mac_test.c \
 		-o $(RT)/vsl/vsl_mac_syscall_test -lpthread
-	$(RT)/vsl/vsl_mac_syscall_test
+	timeout 300 $(RT)/vsl/vsl_mac_syscall_test
 
 test_vsl_cpm:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
 		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_kernel_adapt.c $(RT)/wubu_kernel_xchg.o $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/vsl/vsl_macho.c $(RT)/vsl/vsl_syscall_mac.c $(RT)/vsl/vsl_syscall_mac_bsd.c $(RT)/vsl/vsl_syscall_mac_mach.c $(RT)/vsl/vsl_syscall_cpm.c $(RT)/vsl/vsl_syscall_macclassic.c $(RT)/vsl/vsl_syscall_cpm_test.c \
 		-o $(RT)/vsl/vsl_cpm_test -lpthread -lvulkan
-	$(RT)/vsl/vsl_cpm_test
+	timeout 300 $(RT)/vsl/vsl_cpm_test
 
 test_vsl_macclassic:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT_ALWAYS) \
 		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_kernel_adapt.c $(RT)/wubu_kernel_xchg.o $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/vsl/vsl_macho.c $(RT)/vsl/vsl_syscall_mac.c $(RT)/vsl/vsl_syscall_mac_bsd.c $(RT)/vsl/vsl_syscall_mac_mach.c $(RT)/vsl/vsl_syscall_cpm.c $(RT)/vsl/vsl_syscall_macclassic.c $(RT)/vsl/vsl_syscall_macclassic_test.c \
 		-o $(RT)/vsl/vsl_macclassic_test -lpthread -lvulkan
-	$(RT)/vsl/vsl_macclassic_test
+	timeout 300 $(RT)/vsl/vsl_macclassic_test
 
 test_bridge:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(BRIDGE) -I$(KERNEL) -I$(WS)  -Iinclude  $(RT_ALWAYS) \
@@ -1688,14 +1688,14 @@ test_launch: $(RT)/wubu_container.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dll.o 
 		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_fallback.c \
 		$(RT)/wubu_launch_test.c \
 		-o $(RT)/wubu_launch_test -ldl
-	$(RT)/wubu_launch_test
+	timeout 300 $(RT)/wubu_launch_test
 
 test_compat:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(HOSTED) \
 		$(RT)/wubu_compat_db.c $(RT)/wubu_compat_db_test.c \
 		-o $(RT)/wubu_compat_db_test
-	$(RT)/wubu_compat_db_test
+	timeout 300 $(RT)/wubu_compat_db_test
 
 test_shell: $(SHELL_DIR)/wubu_shell.o $(SHELL_DIR)/wubu_shell_history.o \
             $(SHELL_DIR)/wubu_shell_complete.o $(SHELL_DIR)/wubu_shell_exec.o
@@ -1728,7 +1728,7 @@ test_screenshot:
 				$(TOOLS)/screenshot.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
 		$(TOOLS)/screenshot_test.c \
 		-o $(TOOLS)/screenshot_test
-	$(TOOLS)/screenshot_test
+	timeout 300 $(TOOLS)/screenshot_test
 
 test_gui_screenshot:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_SCREENSHOT_WITH_WM -DWUBU_USE_REAL_ZLIB  -Iinclude  $(RT_ALWAYS) \
@@ -1737,7 +1737,7 @@ test_gui_screenshot:
 		$(GUI)/wubu_screenshot_test.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
 		$(GUI)/wubu_wayland_fallback.c $(APPS)/apps_test_stubs.c \
 		-o $(GUI)/wubu_screenshot_test -no-pie -lz
-	$(GUI)/wubu_screenshot_test
+	timeout 300 $(GUI)/wubu_screenshot_test
 # Clipboard regression: wubu_screenshot.c with its 4 GUI external refs
 # stubbed in the test TU, so we verify real PNG clipboard encode without
 # the full WM/Wayland stack.
@@ -1746,7 +1746,7 @@ test_screenshot_clipboard: $(KERNEL)/wubu_math.c
 		-I$(GUI) -I$(RT) -I$(KERNEL) -I$(TOOLS) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(APPS) -I$(HOSTED) \
 		$(GUI)/wubu_screenshot.c $(GUI)/wubu_screenshot_draw.c $(GUI)/wubu_screenshot_png.c $(GUI)/wubu_screenshot_clipboard_test.c \
 		-o $(GUI)/wubu_screenshot_clipboard_test -lz -lm
-	$(GUI)/wubu_screenshot_clipboard_test
+	timeout 300 $(GUI)/wubu_screenshot_clipboard_test
 
 test_mime:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -1848,7 +1848,7 @@ test_gamelib:
 		$(GUI)/wubu_gamelib.c $(GUI)/wubu_gamelib_startmenu.c $(GUI)/wubu_gamelib_playtime.c $(GUI)/wubu_gamelib_config.c $(GUI)/wubu_gamelib_scan.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_math.c $(GUI)/wubu_proton.c $(RT)/wubu_proton_api.c $(RT)/wubu_proton_dll.c $(GUI)/wubu_proton_util.c $(GUI)/wubu_proton_dxvk.c $(RT)/wubu_dxvk_conf.c $(RT)/wubu_proton_dxvk.o $(GUI)/wubu_proton_exec.c $(GUI)/wubu_proton_config.c $(RT)/wubu_fs_util.c \
 		$(GUI)/wubu_gamelib_test.c \
 		-o $(GUI)/wubu_gamelib_test
-	$(GUI)/wubu_gamelib_test
+	timeout 300 $(GUI)/wubu_gamelib_test
 
 test_txfs:
 	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/txfs.c $(KERNEL)/test/legacy/txfs_test.c -o $(KERNEL)/txfs_test -Iinclude $(RT_ALWAYS) 
@@ -2542,6 +2542,10 @@ bench_dram_hedge: src/kernel/wubu_dram_hedge.c tools/bench/bench_dram_hedge.c
 	$(CC) -O2 -I$(RT) -Isrc/kernel src/kernel/wubu_dram_hedge.c tools/bench/bench_dram_hedge.c -o build/bench_dram_hedge -lm -lpthread -Iinclude $(RT_ALWAYS) 
 	./build/bench_dram_hedge
 
+test_wm_snap: $(GUI)/wm_window_state.c $(GUI)/wm_snap_test.c
+	$(CC) -O1 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -Iinclude $(GUI)/wm_window_state.c $(GUI)/wm_snap_test.c -o build/wm_snap_test
+	timeout 300 build/wm_snap_test
+
 test_wm: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o $(GUI)/shell/window_chrome.o $(CACHE)/wubu_gesture.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED)  -Iinclude  $(RT_ALWAYS) \
 $(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_holyc_term.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/wm_desktop.c $(RT)/wubu_guest_root.c $(GUI)/shell/win11_snap.c $(GUI)/shell/win11_widgets.c $(GUI)/shell/win11_shell.c $(RT)/wubu_hw_sensors_fallback.c \
@@ -2603,12 +2607,12 @@ test_dos_window: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o 
 		$(RT)/styxfs_server.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c \
 		$(GUI)/dos_window.c $(GUI)/dos_window_test.c $(GUI)/dos_window_test_stub.c $(RT)/wubu_hc_eval_stub.c \
 		-o $(GUI)/dos_window_test -ldl
-	$(GUI)/dos_window_test
+	timeout 300 $(GUI)/dos_window_test
 test_cmd:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(APPS)/cmd -I$(KERNEL) -I$(GUI) -I$(RT) -I$(RT)  -Iinclude  $(RT_ALWAYS) \
 		$(APPS)/cmd/cmd.c $(APPS)/cmd/cmd_test.c $(APPS)/cmd/cmd_test_stub.c \
 		-o $(APPS)/cmd/cmd_test -lutil
-	$(APPS)/cmd/cmd_test
+	timeout 300 $(APPS)/cmd/cmd_test
 
 
 test_calc: $(CACHE)/wubu_gesture.o
@@ -2670,7 +2674,7 @@ test_startmenu_files:
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(GUI)/startmenu_files_test.c $(RT)/wubu_ns_pkg_fallback.c \
 		-o $(GUI)/startmenu_files_test -lm -ldl
-	$(GUI)/startmenu_files_test
+	timeout 300 $(GUI)/startmenu_files_test
 
 test_startmenu:
 			$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/shell/startmenu.c $(GUI)/shell/startmenu_db.c $(APPS)/apps_wet.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(GUI)/shell/startmenu_search.c $(GUI)/shell/startmenu_tree.c $(GUI)/shell/startmenu_power.c $(GUI)/era_apps.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(GUI)/startmenu_test_stub.c $(GUI)/startmenu_test.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c  -Iinclude  $(RT_ALWAYS) \
@@ -2777,7 +2781,7 @@ test_compositor:
 		$(GUI)/compositor/wubu_compositor.c $(GUI)/xdg-shell-server-protocol.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
 		$(GUI)/compositor/wubu_compositor_test.c \
 		-o $(GUI)/wubu_compositor_test -lwayland-server -lm
-	$(GUI)/wubu_compositor_test
+	timeout 300 $(GUI)/wubu_compositor_test
 
 test_styxfs:
 	$(CC) $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) -o $(RT)/styxfs_test $(RT)/wubu_guest_root.c  -Iinclude  $(RT_ALWAYS) \
@@ -2874,21 +2878,21 @@ test_pwcrypt:
 		-I$(RT) \
 		$(RT)/wubu_pwcrypt.c $(RT)/wubu_pwcrypt_test.c \
 		-o $(RT)/wubu_pwcrypt_test
-	$(RT)/wubu_pwcrypt_test
+	timeout 300 $(RT)/wubu_pwcrypt_test
 
 test_account:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Wall  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) \
 		$(RT)/wubu_pwcrypt.c $(RT)/wubu_account.c $(RT)/wubu_account_test.c \
 		-o $(RT)/wubu_account_test
-	$(RT)/wubu_account_test
+	timeout 300 $(RT)/wubu_account_test
 
 test_ntsync:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -pthread -Wall  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) \
 		$(RT)/wubu_ntsync.c $(RT)/wubu_ntsync_test.c \
 		-o $(RT)/wubu_ntsync_test
-	$(RT)/wubu_ntsync_test
+	timeout 300 $(RT)/wubu_ntsync_test
 
 test_wubu_edid:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
@@ -3040,7 +3044,7 @@ test_host_exec:
 		$(RT)/wubu_ns_guests.c $(RT)/wubu_ns_fs.c \
 		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_fallback.c \
 		-o $(RT)/wubu_host_exec_test
-	$(RT)/wubu_host_exec_test
+	timeout 300 $(RT)/wubu_host_exec_test
 
 # L8: unified rootfs import -> launch. Real busybox rootfs tar.gz built in
 # the test, imported via wubu_rd_load, executed through the SAME wubu_ct_*
@@ -3053,7 +3057,7 @@ test_guest_import:
 		$(RT)/wubu_ns_guests.c $(RT)/wubu_ns_fs.c $(RT)/wubu_guest_import.c $(RT)/wubu_guest_import_test.c \
 		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_fallback.c \
 		-o $(RT)/wubu_guest_import_test
-	$(RT)/wubu_guest_import_test
+	timeout 300 $(RT)/wubu_guest_import_test
 
 # L8 GUI leg: the Guests window renders through real chrome/VBE and a
 # click on the drawn Launch button starts a real container in the
@@ -3082,7 +3086,7 @@ test_arch:
 	$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_spawn.c $(RT)/wubu_archd_util.c $(RT)/wubu_arch_test.c $(RT)/wubu_guest_root.c \
 		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_fallback.c \
 		-o $(RT)/wubu_arch_test
-	$(RT)/wubu_arch_test
+	timeout 300 $(RT)/wubu_arch_test
 
 # BATTLESHIP N1 (🔴 security): shell injection in wubu_archd is dead.
 # run_argv/run_chroot_argv exec user-controlled strings via execv, never
@@ -3112,14 +3116,14 @@ test_ramdisk:
 		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_fallback.c \
 		$(RT)/wubu_ramdisk_test.c \
 		-o $(RT)/wubu_ramdisk_test
-	$(RT)/wubu_ramdisk_test
+	timeout 300 $(RT)/wubu_ramdisk_test
 
 test_gaad:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
 		-I$(KERNEL) \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/test/legacy/wubu_gaad_test.c \
 		-o $(KERNEL)/wubu_gaad_test
-	$(KERNEL)/wubu_gaad_test
+	timeout 300 $(KERNEL)/wubu_gaad_test
 test_hive:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I$(WUBU_KERNEL_CONTRACT)/include -Iinclude  $(RT_ALWAYS) \
 		$(KERNEL)/wubu_hive.c $(KERNEL)/test/test_hive.c \
@@ -3150,7 +3154,7 @@ test_theme_bridge:
 		$(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_theme_bridge_test.c \
 		$(KERNEL)/memory.c -lm \
 		-o $(GUI)/wubu_theme_bridge_test
-	$(GUI)/wubu_theme_bridge_test
+	timeout 300 $(GUI)/wubu_theme_bridge_test
 
 # ── Aggregate checks (gap F7: one command runs everything) ──────────
 .PHONY: check
@@ -3300,7 +3304,7 @@ test_drv:
 		$(KERNEL)/wubu_pci.c \
 		$(KERNEL)/test/legacy/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
-		$(KERNEL)/wubu_drv_test
+	timeout 300 $(KERNEL)/wubu_drv_test
 
 # Synthetic control: the registry must carry a bridge's PCI bus NUMBER into
 # the capability walkers, not the bus TYPE (which is 0 for every PCI device).
@@ -3368,7 +3372,7 @@ test_machines:
 		$(KERNEL)/wubu_pci.c \
 		$(KERNEL)/test/legacy/wubu_drv_machines_test.c \
 		-o $(KERNEL)/wubu_drv_machines_test
-	$(KERNEL)/wubu_drv_machines_test
+	timeout 300 $(KERNEL)/wubu_drv_machines_test
 
 test_world:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL)  -Iinclude  $(RT_ALWAYS) \
@@ -3386,7 +3390,7 @@ test_world:
 		$(KERNEL)/wubu_world.c \
 		$(KERNEL)/test/legacy/wubu_world_test.c \
 		-o $(KERNEL)/wubu_world_test
-	$(KERNEL)/wubu_world_test
+	timeout 300 $(KERNEL)/wubu_world_test
 
 test_ns_world:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I$(RT)  -Iinclude  $(RT_ALWAYS) \
@@ -3406,7 +3410,7 @@ test_ns_world:
 		$(RT)/wubu_ns_world.c \
 		$(KERNEL)/test/legacy/wubu_ns_world_test.c \
 		-o $(KERNEL)/wubu_ns_world_test
-	$(KERNEL)/wubu_ns_world_test
+	timeout 300 $(KERNEL)/wubu_ns_world_test
 
 # The /n/effect subtree: a program edits the SAME stack the surface applies.
 # Links wubu_ns_fs.o + the module only (never wubu_ns_bridge.o -- the
@@ -3419,13 +3423,13 @@ test_rim:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT)  -Iinclude  $(RT_ALWAYS) \
 		$(RT)/wubu_rim_test.c $(RT)/wubu_rim.c $(RT)/wubu_spring.c \
 		-o $(RT)/wubu_rim_test -lm
-	$(RT)/wubu_rim_test
+	timeout 300 $(RT)/wubu_rim_test
 
 test_slime:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT)  -Iinclude  $(RT_ALWAYS) \
 		$(RT)/wubu_slime_test.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c \
 		-o $(RT)/wubu_slime_test -lm
-	$(RT)/wubu_slime_test
+	timeout 300 $(RT)/wubu_slime_test
 
 test_spring:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT)  -Iinclude  $(RT_ALWAYS) \
@@ -3444,7 +3448,7 @@ test_ns_effect:
 		$(RT)/wubu_effect.c \
 		$(KERNEL)/test/legacy/wubu_ns_effect_test.c \
 		-o $(KERNEL)/wubu_ns_effect_test
-	$(KERNEL)/wubu_ns_effect_test
+	timeout 300 $(KERNEL)/wubu_ns_effect_test
 
 # 8254 watchdog helpers (gap E7): count conversion + mode word
 test_wdt:
@@ -3567,7 +3571,7 @@ test_drm_direct:
 		$(HOSTED)/wubu_display.c $(HOSTED)/wubu_gbm.c \
 		$(HOSTED)/wubu_display_test.c \
 		-o $(HOSTED)/wubu_drm_direct_test
-	$(HOSTED)/wubu_drm_direct_test
+	timeout 300 $(HOSTED)/wubu_drm_direct_test
 
 test_settings:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(RT)/shell  -Iinclude  $(RT_ALWAYS) \
@@ -3575,7 +3579,7 @@ test_settings:
 		$(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
 		$(GUI)/shell/wubu_notify.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c \
 		-o $(GUI)/wubu_settings_test -lm
-	$(GUI)/wubu_settings_test
+	timeout 300 $(GUI)/wubu_settings_test
 
 test_apps2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -3620,7 +3624,7 @@ test_pressure_vessel:
 		$(RT)/wubu_pressure_vessel.c \
 		$(RT)/wubu_pressure_vessel_test.c \
 		-o $(RT)/wubu_pressure_vessel_test
-	$(RT)/wubu_pressure_vessel_test
+	timeout 300 $(RT)/wubu_pressure_vessel_test
 
 test_gamemode:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
@@ -3628,7 +3632,7 @@ test_gamemode:
 		$(RT)/wubu_gamemode.c \
 		$(RT)/wubu_gamemode_test.c \
 		-o $(RT)/wubu_gamemode_test
-	$(RT)/wubu_gamemode_test
+	timeout 300 $(RT)/wubu_gamemode_test
 
 
 # -- wired legacy tests (documented but had no target) -----------------------
@@ -3668,7 +3672,7 @@ test_evdev:
 		$(KERNEL)/input.c \
 		$(KERNEL)/test/wubu_evdev_test.c \
 		-o $(KERNEL)/test/wubu_evdev_test
-	$(KERNEL)/test/wubu_evdev_test
+	timeout 300 $(KERNEL)/test/wubu_evdev_test
 
 test_steaminput:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
@@ -3677,7 +3681,7 @@ test_steaminput:
 		$(RT)/wubu_steaminput.c \
 		$(RT)/wubu_steaminput_test.c \
 		-o $(RT)/wubu_steaminput_test
-	$(RT)/wubu_steaminput_test
+	timeout 300 $(RT)/wubu_steaminput_test
 
 test_ec_control:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
@@ -3686,7 +3690,7 @@ test_ec_control:
 		$(RT)/wubu_ec_control_test.c \
 		-o $(RT)/wubu_ec_control_test
 	$(RT)/wubu_ec_control_test
-	$(RT)/wubu_proton2_test
+	timeout 300 $(RT)/wubu_proton2_test
 
 # REMOVED 2026-11-24: test_metal could not link. Its recipe names the metal
 # display/evdev/vulkan TUs but not the kernel services they call: 19 undefined
@@ -3704,7 +3708,7 @@ test_audio:
 		$(AUDIO)/wubu_audio_engine.c $(AUDIO)/wubu_audio_chips.c $(AUDIO)/wubu_audio_furnace.c $(AUDIO)/wubu_audio_sf2.c $(AUDIO)/wubu_audio_daw.c $(AUDIO)/wubu_audio.c $(KERNEL)/wubu_math.c \
 		$(AUDIO)/wubu_audio_test.c \
 		-o $(AUDIO)/wubu_audio_test -lpthread
-	$(AUDIO)/wubu_audio_test
+	timeout 300 $(AUDIO)/wubu_audio_test
 
 test_glott_speak:
 	BIGMAC_BACKEND=wav $(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
@@ -3722,7 +3726,7 @@ test_glott_artic:
 		$(AUDIO)/glott/wubuglott_artic.c \
 		$(AUDIO)/glott/wubuglott_artic_test.c \
 		-o $(AUDIO)/glott/wubuglott_artic_test -lm
-	$(AUDIO)/glott/wubuglott_artic_test
+	timeout 300 $(AUDIO)/glott/wubuglott_artic_test
 
 test_glott_geom:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -3730,7 +3734,7 @@ test_glott_geom:
 		$(AUDIO)/glott/wubuglott_geom.c \
 		$(AUDIO)/glott/wubuglott_geom_test.c \
 		-o $(AUDIO)/glott/wubuglott_geom_test -lm
-	$(AUDIO)/glott/wubuglott_geom_test
+	timeout 300 $(AUDIO)/glott/wubuglott_geom_test
 
 test_glott_decimator:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -3738,7 +3742,7 @@ test_glott_decimator:
 		$(AUDIO)/glott/wubuglott_decimator.c \
 		$(AUDIO)/glott/wubuglott_decimator_test.c \
 		-o $(AUDIO)/glott/wubuglott_decimator_test -lm
-	$(AUDIO)/glott/wubuglott_decimator_test
+	timeout 300 $(AUDIO)/glott/wubuglott_decimator_test
 
 test_glott_voice:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -3749,7 +3753,7 @@ test_glott_voice:
 		$(AUDIO)/glott/wubuglott_voice.c \
 		$(AUDIO)/glott/wubuglott_voice_test.c \
 		-o $(AUDIO)/glott/wubuglott_voice_test -lm
-	$(AUDIO)/glott/wubuglott_voice_test
+	timeout 300 $(AUDIO)/glott/wubuglott_voice_test
 
 test_glott_network:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -3757,7 +3761,7 @@ test_glott_network:
 		$(AUDIO)/glott/wubuglott_network.c \
 		$(AUDIO)/glott/wubuglott_network_test.c \
 		-o $(AUDIO)/glott/wubuglott_network_test -lm
-	$(AUDIO)/glott/wubuglott_network_test
+	timeout 300 $(AUDIO)/glott/wubuglott_network_test
 
 test_glottis:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -3765,7 +3769,7 @@ test_glottis:
 		$(AUDIO)/glott/wubuglott_glottis.c \
 		$(AUDIO)/glott/wubuglott_glottis_test.c \
 		-o $(AUDIO)/glott/wubuglott_glottis_test -lm
-	$(AUDIO)/glott/wubuglott_glottis_test
+	timeout 300 $(AUDIO)/glott/wubuglott_glottis_test
 
 test_audio_backend:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -3813,14 +3817,14 @@ test_txn:
 		$(RT)/wubu_txn/wubu_txn.c $(RT)/wubu_spawn.c \
 		$(RT)/wubu_txn/wubu_txn_test.c \
 		-o $(RT)/wubu_txn_test
-	$(RT)/wubu_txn_test
+	timeout 300 $(RT)/wubu_txn_test
 
 test_bear_opt:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
 		-I$(BEAR) \
 		$(BEAR)/bear_arena.c $(BEAR)/bear_opt.c $(BEAR)/bear_opt_test.c \
 		-o $(BEAR)/bear_opt_test -lm
-	$(BEAR)/bear_opt_test
+	timeout 300 $(BEAR)/bear_opt_test
 
 # Bear training/eval drivers that had no target.  The core source set excludes
 # the CUDA/cuDNN/Vulkan backends, the *_test mains (they define their own main)
@@ -3857,7 +3861,7 @@ test_apps_weak:
 		-I$(APPS) -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) \
 		$(APPS)/apps_weak_test.c $(APPS)/apps.c $(APPS)/apps_wet.c \
 		-o $(APPS)/apps_weak_test
-	$(APPS)/apps_weak_test
+	timeout 300 $(APPS)/apps_weak_test
 
 test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
@@ -3878,21 +3882,21 @@ test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_wi
 	$(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_desktop.c $(RT)/wubu_guest_root.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/wm_holyc_term.c \
 		$(APPS)/apps_test.c \
 		-o $(APPS)/apps_test -lm -lz $(GUI)/shell/window_chrome.c $(GUI)/shell/desktop_stubs.c
-	$(APPS)/apps_test
+	timeout 300 $(APPS)/apps_test
 
 test_anticheat:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) \
 		$(RT)/wubu_anticheat.c $(RT)/wubu_anticheat_test.c \
 		-o $(RT)/wubu_anticheat_test
-	$(RT)/wubu_anticheat_test
+	timeout 300 $(RT)/wubu_anticheat_test
 
 test_bottles:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) \
 		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c $(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c $(RT)/wubu_bottles_test.c $(RT)/wubu_fs_util.c \
 		-o $(RT)/wubu_bottles_test
-	$(RT)/wubu_bottles_test
+	timeout 300 $(RT)/wubu_bottles_test
 test_ns_bridge:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -Wno-format-truncation -DWUBD_TEST_MAIN  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) \
@@ -3906,7 +3910,7 @@ test_ns_bridge:
 		$(RT)/wubu_spawn.c $(RT)/wubu_gpu_backend.c $(RT)/wubu_ns_bridge_test.c \
 		$(RT)/wubu_hw_fallback.c $(RT)/wubu_hw_sensors_fallback.c \
 		-o $(RT)/wubu_ns_bridge_test
-	$(RT)/wubu_ns_bridge_test
+	timeout 300 $(RT)/wubu_ns_bridge_test
 
 test_ns_9p:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -Wno-format-truncation -DWUBD_TEST_MAIN  -Iinclude  $(RT_ALWAYS) \
@@ -3921,7 +3925,7 @@ test_ns_9p:
 		$(RT)/wubu_spawn.c $(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_copy.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_ns_snap.c $(RT)/wubu_gpu_backend.c $(KERNEL)/memory.c \
 		$(RT)/wubu_hw_fallback.c $(RT)/wubu_hw_sensors_fallback.c \
 		-o $(RT)/wubu_ns_9p_test
-	$(RT)/wubu_ns_9p_test
+	timeout 300 $(RT)/wubu_ns_9p_test
 
 test_ns_snap:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_snap_test.c -o build/wubu_ns_snap_test.o -Iinclude
@@ -3971,7 +3975,7 @@ test_ns_kv: $(RT)/wubu_ns_kv.c $(RT)/wubu_ns_kv_test.c $(RT)/wubu_ns_fs.o $(KERN
 		-I$(RT) -I$(KERNEL) $(RT)/wubu_ns_kv_test.c $(RT)/wubu_ns_kv.c $(RT)/wubu_ns_fs.o \
 		$(KERNEL)/wubu_kvfs.c \
 		-o $(RT)/wubu_ns_kv_test
-	$(RT)/wubu_ns_kv_test
+	timeout 300 $(RT)/wubu_ns_kv_test
 
 test_ns_worldspace: $(RT)/wubu_ns_worldspace.c $(RT)/wubu_ns_worldspace_test.c $(RT)/wubu_ns_fs.o \
 		$(KERNEL)/wubu_world.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_agent.c $(KERNEL)/wubu_sha256.c
@@ -3980,13 +3984,13 @@ test_ns_worldspace: $(RT)/wubu_ns_worldspace.c $(RT)/wubu_ns_worldspace_test.c $
 		$(RT)/wubu_ns_worldspace_test.c $(RT)/wubu_ns_worldspace.c $(RT)/wubu_ns_fs.o \
 		$(KERNEL)/wubu_world.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_agent.c $(KERNEL)/wubu_sha256.c $(KERNEL)/wubu_thermal_read.c \
 		-o $(RT)/wubu_ns_worldspace_test
-	$(RT)/wubu_ns_worldspace_test
+	timeout 300 $(RT)/wubu_ns_worldspace_test
 
 test_agent: $(RT)/wubu_agent.c $(RT)/wubu_agent_test.c $(RT)/wubu_ns_fs.o
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation  -Iinclude  $(RT_ALWAYS) \
 		-I$(RT) -I$(KERNEL) $(RT)/wubu_agent_test.c $(RT)/wubu_agent.c $(RT)/wubu_ns_fs.o $(KERNEL)/wubu_sha256.c \
 		-o $(RT)/wubu_agent_test
-	$(RT)/wubu_agent_test
+	timeout 300 $(RT)/wubu_agent_test
 
 test_ns_kernels:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernels_test.c -o build/wubu_ns_kernels_test.o -Iinclude
