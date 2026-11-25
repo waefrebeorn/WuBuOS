@@ -17,7 +17,7 @@
 #include "./startmenu_internal.h"
 #include "./startmenu.h"
 #include "../era_apps.h"
-#include "./desktop.h"
+#include "./shell_session.h"
 #include "../wm.h"
 #include "../explorer_internal.h"
 #include "../wm_internal.h"

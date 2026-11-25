@@ -2,7 +2,7 @@
  * desktop_stubs.c -- weak glue so WM-bearing tests can link without the shell.
  *
  * wm_input.c dispatches icon clicks to desktop_launch_icon(), which lives in
- * shell/desktop.c together with the whole shell (egojar, session manager, ns
+ * shell/shell_session.c together with the whole shell (egojar, session manager, ns
  * bridge). Tests that compile wm_input.c directly cannot link that, so they get
  * this no-op instead. Same convention as wm_test_stub.c and apps_test_stubs.c.
  *

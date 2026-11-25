@@ -3,6 +3,24 @@
 Purpose: one file that answers "what prefix means what," so a new module isn't
 another `zx`. Verified against the working tree 2026-11-06.
 
+## Renamed: the two "desktop" files (2026-11-25)
+
+`src/gui/shell/desktop.c` and `src/gui/shell/wm_desktop.c` were two different things with
+the same word in the name, so every reader had to open both to know which one to edit:
+
+| was | is | what it actually owns |
+|---|---|---|
+| `desktop.c` / `desktop.h` | `shell_session.c` / `shell_session.h` | shell lifecycle (`desktop_init/_shutdown/_render`) and the ONE app-launch path (`launch_app`, `desktop_launch_program/_exec/_icon`) |
+| `wm_desktop.c` | `desktop_icons.c` | the icon grid: snapping, auto-arrange, sort, refresh, `~/.desktop` shortcut creation |
+
+Rename mechanics that matter (a regex rename corrupted 9 files once): the `git mv` and the
+caller edits landed in ONE change, path tokens only (`wm_desktop.c`, `shell/desktop.h`,
+`shell/desktop.c`, `./desktop.h`, `"desktop.h"`), plus the `.o` names in `mk/`. Verified by
+building and by running the tests that compile those units -- never by grep alone.
+
+Still split-worthy: `shell_session.c` carries both bootstrap and launching. When it next
+grows, `launch_app` + the three `desktop_launch_*` move to `app_launch.c`.
+
 ## The #1 collision: `ns`
 
 Three unrelated things currently share "ns":

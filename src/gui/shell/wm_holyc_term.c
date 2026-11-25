@@ -90,6 +90,46 @@ void holyc_term_eval(HolycTerm *term, const char *cmd) {
         return;
     }
 
+    /* #include "file" -- load a FILE into the eval.
+     * This is what makes a file the unit of development, as it is in TempleOS. Without it
+     * the REPL can only run what fits on a prompt line, which is not how an OS gets
+     * written. The include is a user action, never something a document triggers. */
+    if (strncmp(cmd, "#include", 8) == 0) {
+        const char *p = cmd + 8;
+        while (*p == ' ' || *p == '\t') p++;
+        char path[512];
+        size_t n = 0;
+        if (*p == '"') {
+            p++;
+            while (*p && *p != '"' && n + 1 < sizeof(path)) path[n++] = *p++;
+        } else {
+            while (*p && *p != ' ' && *p != '\t' && n + 1 < sizeof(path)) path[n++] = *p++;
+        }
+        path[n] = '\0';
+        if (!n) {
+            holyc_term_add_line(term, "usage: #include \"path.HC\"");
+            return;
+        }
+        FILE *f = fopen(path, "rb");
+        if (!f) {
+            char line[600];
+            snprintf(line, sizeof(line), "cannot open %s", path);
+            holyc_term_add_line(term, line);
+            return;
+        }
+        static char src[16384];
+        size_t k = fread(src, 1, sizeof(src) - 1, f);
+        fclose(f);
+        src[k] = '\0';
+        char result[1024];
+        int ret = g_eval(src, result, sizeof(result));
+        char line[1280];
+        snprintf(line, sizeof(line), "%s %s (%s, %u bytes)", ret == 0 ? ">>" : "!!",
+                 result, path, (unsigned)k);
+        holyc_term_add_line(term, line);
+        return;
+    }
+
     /* Real compile + execute via the injected evaluator. */
     char result[1024];
     int ret = g_eval(cmd, result, sizeof(result));

@@ -14,7 +14,7 @@
 #include "../../egojar.h"
 #include "./startmenu_internal.h"
 #include "./startmenu.h"
-#include "./desktop.h"
+#include "./shell_session.h"
 #include "../wm.h"
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"

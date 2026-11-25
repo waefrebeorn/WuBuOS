@@ -1,4 +1,4 @@
-/* wm_desktop.c -- Desktop icons subsystem for the WuBuOS WM.
+/* desktop_icons.c -- Desktop icons subsystem for the WuBuOS WM.
  *
  * Self-contained module extracted from wm.c. Owns the icon grid
  * snapping math, auto-arrange / sort / refresh of desktop icons, and real

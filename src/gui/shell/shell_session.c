@@ -10,7 +10,7 @@
 #include "../../egojar.h"
 #include "../../egojar_net.h"
 #include <sys/socket.h>
-#include "./desktop.h"
+#include "./shell_session.h"
 #include "../wm.h"
 #include "../wm_internal.h"
 #include "wubu_mime.h"
