@@ -374,20 +374,57 @@ if phys is not None and pitch is not None:
                   % (len(data), w * h * 4))
         fail += 1
     else:
-        seen = set()
-        for i in range(0, len(data) - 3, 4):
-            px = data[i:i + 3]
-            if px != b'\x00\x00\x00':
-                nz += 1
-                if len(seen) < 8000:
-                    seen.add(px)
-        total = len(data) // 4
-        colours = len(seen)
-        pct = 100.0 * nz / max(total, 1)
-        print(f'  scanout dump: {total} px, non-black {nz} ({pct:.1f}%), colours {colours}')
-        ok = pct >= 90.0 and colours >= 64
+        def frame_stats(buf):
+            seen = set()
+            nz = 0
+            for i in range(0, len(buf) - 3, 4):
+                px = buf[i:i + 3]
+                if px != b'\x00\x00\x00':
+                    nz += 1
+                    if len(seen) < 8000:
+                        seen.add(px)
+            return nz, len(seen), len(buf) // 4
+
+        # TWO CONSECUTIVE SETTLED FULL FRAMES, or it is not sampled finished.
+        #
+        # The top-band probe above answers "is the desktop painting", not "has it
+        # finished": under `make -j24` a full repaint can be mid-flight with the top
+        # band already lit, and one full read then reported 54.1% painted / 3213
+        # colours -- a real partial frame, read as a broken scanout. The gate used to
+        # take exactly one full frame after the probe.
+        #
+        # Deadline, not attempt count: a saturated host makes each 3 MB pmemsave
+        # slow, so what matters is how long we are willing to wait, not how many
+        # tries fit in it.
+        best = None
+        stable = 0
+        deadline = time.time() + 25
+        while True:
+            nz2, c2, tot = frame_stats(data)
+            pct2 = 100.0 * nz2 / max(tot, 1)
+            if pct2 >= 90.0 and c2 >= 64:
+                stable += 1
+                if best is None or pct2 > best[0]:
+                    best = (pct2, c2, tot)
+                if stable >= 2:
+                    break
+            else:
+                stable = 0
+                if best is None or pct2 > best[0]:
+                    best = (pct2, c2, tot)
+            if time.time() >= deadline:
+                break
+            more = read_at(phys, w * h * 4)
+            if more and len(more) >= w * h * 4:
+                data = more
+            time.sleep(0.4)
+
+        pct, colours, total = best[0], best[1], best[2]
+        print(f'  scanout dump: {total} px, non-black {pct:.1f}%, colours {colours}'
+              f' ({"settled x2" if stable >= 2 else "NOT settled before deadline"})')
+        ok = pct >= 90.0 and colours >= 64 and stable >= 2
         print('  SCANOUT:', 'PASS (the desktop is in the live framebuffer)' if ok
-              else 'FAIL (frame empty or flat)')
+              else 'FAIL (frame empty, flat, or still being repainted)')
         if not ok:
             fail += 1
 
