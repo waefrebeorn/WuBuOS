@@ -10,6 +10,7 @@
  */
 #include "wubu_gui_metrics.h"
 #include "wubu_shell_greeter.h"
+#include "window_chrome.h"   /* chrome_caption_metrics: the chrome owns the caption height */
 #include "wm.h"
 #include "wubu_theme.h"
 #include "../wubu_settings.h"
@@ -32,13 +33,10 @@ __attribute__((weak)) DosGuiWindow *launch_terminal(void);
 #define GR_PAD        WUBU_METRIC_MARGIN_LG /* was 20: off the canonical ramp */
 #define GR_TITLE_Y    22
 #define GR_SUB_Y      50
-#define GR_ROWS_Y     92
 #define GR_ROW_H      WUBU_SHELL_GREETER_ROW_H
 #define GR_BTN_W      140
 #define GR_BTN_H      WUBU_METRIC_CONTROL_H /* was 34: off the 4px grid */
 #define GR_BTN_X      (WUBU_SHELL_GREETER_WIDTH - GR_PAD - GR_BTN_W)
-#define GR_BTN_Y      (WUBU_SHELL_GREETER_HEIGHT - GR_PAD - GR_BTN_H)
-#define GR_OFFER_Y    (GR_BTN_Y - 12 - 28)
 #define GR_OFFER_H    28
 
 static DosGuiWindow *g_win;
@@ -129,20 +127,71 @@ static int net_interface_names(char out[][48], int cap)
     return n;
 }
 
+/* -- Layout: one owner for every vertical position ----------------
+ * Element positions were absolute constants (title 22, sub 50, rows 92, hint at H-14), which
+ * is why the panel had margins that were simultaneously too tight at the bottom and too loose
+ * under the subtitle: nothing related to anything else. A cursor from PAD, advanced by the
+ * height of each block plus the gap Microsoft's guidance names, makes the spacing correct by
+ * construction. */
+typedef struct {
+    int title_y, sub_y, rows_y, rows_h, offer_y, btn_y, hint_y;
+} GreeterLayout;
+
+static int greeter_content_h(void) {
+    ChromeCaptionMetrics cm = chrome_caption_metrics();
+    return WUBU_SHELL_GREETER_HEIGHT - cm.bar_h;
+}
+
+static void greeter_layout(GreeterLayout *L) {
+    const int pad = GR_PAD;                      /* 24 */
+    const int content_h = greeter_content_h();
+    int title_h = WUBU_FONT_CAP_H * 2;           /* drawn at scale 2 */
+    int sub_h   = WUBU_FONT_CAP_H;
+    int hint_h  = WUBU_FONT_CAP_H;
+
+    /* TOP-DOWN, all the way to the hint. The bottom-up version left 56px of dead space
+     * between the list and the offers, because the card height was a guess and the gaps were
+     * whatever remained. Now the height IS this stack, so every gap is the number Microsoft
+     * names and the bottom padding is exactly PAD. */
+    int y = pad;
+    L->title_y = y;  y += title_h + WUBU_SPACE_XS;          /* 8: control -> header */
+    L->sub_y   = y;  y += sub_h + WUBU_METRIC_GAP_SM;       /* 12: between content areas */
+    L->rows_y  = y;
+    L->rows_h  = THEME_COUNT * GR_ROW_H;
+    y += L->rows_h + WUBU_METRIC_GAP_SM;                    /* 12: list -> offers */
+    L->offer_y = y;
+    y += GR_OFFER_H + WUBU_METRIC_GAP_SM;                   /* 12: offers -> primary */
+    L->btn_y   = y;
+    y += GR_BTN_H + WUBU_SPACE_XS;                          /* 8: primary -> hint */
+    L->hint_y  = y;
+    /* A stack that does not fit its content rect is a layout bug, not a rendering one: say so
+     * once, loudly, instead of letting the last row be clipped. */
+    if (L->hint_y + WUBU_FONT_CAP_H > content_h) {
+        static int warned;
+        if (!warned) {
+            warned = 1;
+            fprintf(stderr, "[greeter] stack %d exceeds content %d\n",
+                    L->hint_y + WUBU_FONT_CAP_H, content_h);
+        }
+    }
+}
+
 /* -- Geometry (harness-facing) -------------------------------------- */
 
 void wubu_shell_greeter_theme_row(int i, int *x, int *y, int *w, int *h) {
     if (i < 0 || i >= THEME_COUNT) { if (x) *x = 0; if (y) *y = 0;
                                      if (w) *w = 0; if (h) *h = 0; return; }
+    GreeterLayout L; greeter_layout(&L);
     if (x) *x = GR_PAD;
-    if (y) *y = GR_ROWS_Y + i * GR_ROW_H;
+    if (y) *y = L.rows_y + i * GR_ROW_H;
     if (w) *w = WUBU_SHELL_GREETER_WIDTH - GR_PAD * 2;
     if (h) *h = GR_ROW_H;
 }
 
 void wubu_shell_greeter_button_rect(int *x, int *y, int *w, int *h) {
+    GreeterLayout L; greeter_layout(&L);
     if (x) *x = GR_BTN_X;
-    if (y) *y = GR_BTN_Y;
+    if (y) *y = L.btn_y;
     if (w) *w = GR_BTN_W;
     if (h) *h = GR_BTN_H;
 }
@@ -153,8 +202,8 @@ void wubu_shell_greeter_offer_rect(int i, int *x, int *y, int *w, int *h) {
     /* Microsoft: 8epx between buttons. GAP_SM was 12, which read as "slightly too wide". */
     int gap = WUBU_SPACE_XS;
     int w3 = (WUBU_SHELL_GREETER_WIDTH - GR_PAD * 2 - gap * 2) / 3;
+    { GreeterLayout L; greeter_layout(&L); if (y) *y = L.offer_y; }
     if (x) *x = GR_PAD + i * (w3 + gap);
-    if (y) *y = GR_OFFER_Y;
     if (w) *w = w3;
     if (h) *h = GR_OFFER_H;
 }
@@ -191,15 +240,22 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
 
     const WubuThemeColors *tc = wubu_theme_colors();
     int x0 = g_win->x, y0 = g_win->y;
+    GreeterLayout GL; greeter_layout(&GL);
 
-    /* Panel */
-    vbe_fill_rect(x0, y0, g_win->w, g_win->h, tc->win_face);
+    /* CONTENT rect, not the window rect. This is a modal window: the caption/close row is
+     * chrome and the WM already painted the face. Filling the window here painted OVER the
+     * title bar, and laying out from y0 put the step title inside the caption -- which is the
+     * "squashed" panel: every element sat one title-bar higher than the layout believed, and
+     * the bottom row ran into the content edge. */
+    ChromeCaptionMetrics cm = chrome_caption_metrics();
+    y0 += cm.bar_h;
+    (void)tc;
 
     /* Title + subtitle follow the current page. */
-    vbe_draw_text(x0 + GR_PAD, y0 + GR_TITLE_Y, kStepTitle[g_step],
-                  tc->win_title_active, 2);
-    vbe_draw_text(x0 + GR_PAD, y0 + GR_SUB_Y, kStepSub[g_step],
-                  tc->icon_text, 1);
+    vbe_draw_text(x0 + GR_PAD, y0 + GL.title_y, kStepTitle[g_step],
+                  tc->win_title_text, 2);
+    vbe_draw_text(x0 + GR_PAD, y0 + GL.sub_y, kStepSub[g_step],
+                  tc->win_title_text_ina, 1);
 
     /* Progress: "Step N of M" plus one pip per page.  A wizard the user cannot
      * locate themselves in is not a wizard. */
@@ -208,7 +264,7 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         snprintf(prog, sizeof(prog), "Step %d of %d", g_step + 1, GR_STEPS);
         int pw = vbe_text_width(prog, 1);
         vbe_draw_text(x0 + g_win->w - GR_PAD - pw, y0 + GR_TITLE_Y + 6,
-                      prog, tc->icon_text_shadow, 1);
+                      prog, tc->win_title_text_ina, 1);
         for (int i = 0; i < GR_STEPS; i++) {
             int dcx = x0 + g_win->w - GR_PAD - (GR_STEPS - i) * 14;
             int dcy = y0 + GR_TITLE_Y + 22;
@@ -251,7 +307,7 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
          * typing lands even though the password shows only asterisks. */
         static const char *const labels[4] = { "Username", "Password", "Confirm", "Keyboard" };
         for (int i = 0; i < 4; i++) {
-            int ry = GR_ROWS_Y + i * GR_ROW_H;
+            int ry = GL.rows_y + i * GR_ROW_H;
             vbe_draw_text(x0 + GR_PAD, y0 + ry, labels[i], tc->btn_text, 1);
             char shown[65];
             if (i == 3) {
@@ -280,36 +336,36 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         static char names[8][48];
         int n = net_interface_names(names, 8);
         if (n < 0) {
-            vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 6,
+            vbe_draw_text(x0 + GR_PAD, y0 + GL.rows_y + 6,
                           "Could not read /sys/class/net on this machine.",
                           tc->btn_text, 1);
         } else if (n == 0) {
-            vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 6,
+            vbe_draw_text(x0 + GR_PAD, y0 + GL.rows_y + 6,
                           "No network interfaces found.", tc->btn_text, 1);
         } else {
             for (int i = 0; i < n; i++) {
                 char line[72];
                 snprintf(line, sizeof(line), "%s", names[i]);
-                vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + i * 18, line,
+                vbe_draw_text(x0 + GR_PAD, y0 + GL.rows_y + i * 18, line,
                               tc->btn_text, 1);
             }
         }
-        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + THEME_COUNT * GR_ROW_H,
+        vbe_draw_text(x0 + GR_PAD, y0 + GL.rows_y + THEME_COUNT * GR_ROW_H,
                       "Connection setup happens after first boot.",
-                      tc->icon_text_shadow, 1);
+                      tc->win_title_text_ina, 1);
     } else {
         /* Summary page: what was chosen, and what this machine is. */
         const char *tn = wubu_theme_name((WubuThemeId)g_theme);
         char line[96];
         snprintf(line, sizeof(line), "Theme      %s", tn);
-        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 6, line, tc->btn_text, 1);
+        vbe_draw_text(x0 + GR_PAD, y0 + GL.rows_y + 6, line, tc->btn_text, 1);
         snprintf(line, sizeof(line), "System     WuBuOS");
-        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 28, line, tc->btn_text, 1);
+        vbe_draw_text(x0 + GR_PAD, y0 + GL.rows_y + 28, line, tc->btn_text, 1);
         snprintf(line, sizeof(line), "Steps      %d of %d", g_step + 1, GR_STEPS);
-        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 50, line, tc->btn_text, 1);
-        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 78,
+        vbe_draw_text(x0 + GR_PAD, y0 + GL.rows_y + 50, line, tc->btn_text, 1);
+        vbe_draw_text(x0 + GR_PAD, y0 + GL.rows_y + 78,
                       "Your choices are saved when you start.",
-                      tc->icon_text_shadow, 1);
+                      tc->win_title_text_ina, 1);
     }
 
     /* Primary button (Next, or Start on the last page) */
@@ -348,7 +404,7 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
     /* icon_text_shadow is a DROP-SHADOW colour: using it for text put the hint at the lowest
      * contrast in the palette against the card, which is why it read as a smudge. The secondary
      * body colour is the readable choice, and it sits a full margin off the edge. */
-    vbe_draw_text(x0 + GR_PAD, y0 + WUBU_SHELL_GREETER_HEIGHT - GR_PAD + 6,
+    vbe_draw_text(x0 + GR_PAD, y0 + GL.hint_y,
                   kStepHint[g_step], tc->win_title_text_ina, 1);
     (void)fb_w; (void)fb_h;
 }
@@ -517,8 +573,9 @@ void wubu_shell_greeter_click(int x, int y, int kind) {
     }
 
     if (g_step == 1) {
+        GreeterLayout GLt; greeter_layout(&GLt);
         for (int i = 0; i < 4; i++) {
-            int ry = GR_ROWS_Y + i * GR_ROW_H;
+            int ry = GLt.rows_y + i * GR_ROW_H;
             if (x >= GR_FLD_VAL && x < GR_FLD_VAL + GR_FLD_W &&
                 y >= ry && y < ry + GR_ROW_H) { g_field = i; return; }
         }
@@ -587,8 +644,11 @@ void wubu_shell_greeter_open(void) {
     if (dx < 0) dx = 0;
     if (dy < 0) dy = 0;
 
+    /* The window is chrome + content; the layout owns the content. Creating it at the content
+     * height alone is how the bottom row ended up clipped. */
+    int bar_h = chrome_caption_metrics().bar_h;
     DosGuiWindow *w = wm_create_modal(dx, dy, WUBU_SHELL_GREETER_WIDTH,
-                                             WUBU_SHELL_GREETER_HEIGHT,
+                                             WUBU_SHELL_GREETER_HEIGHT + bar_h,
                                              "Welcome to WuBuOS", NULL);
     if (!w) return;
     w->on_draw  = greeter_on_draw;

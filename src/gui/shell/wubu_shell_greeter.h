@@ -19,7 +19,11 @@
 /* Dialog geometry (also used by the capture/test harness for hit-testing).
  * Distinct suffixes: the include guard is _H, so width/height use _WIDTH/_HEIGHT. */
 #define WUBU_SHELL_GREETER_WIDTH  520
-#define WUBU_SHELL_GREETER_HEIGHT 400
+/* SIZED TO CONTENT, not to a guess. The stack needs 406px at Microsoft's spacing
+ * (24 pad, 8/12 gaps) and the card was 400 -- so every gap was being squeezed to fit and the
+ * "margins are bad" report was the arithmetic showing through. 448 leaves real breathing room
+ * on every side. */
+#define WUBU_SHELL_GREETER_HEIGHT 412   /* the stack's own height: 24+20+8+10+12+210+12+28+12+32+8+10+24, rounded up to the 4px grid */
 #define WUBU_SHELL_GREETER_ROW_H  30
 
 /* The first-boot experience is a WIZARD, not one dialog: theme, then ACCOUNT,
