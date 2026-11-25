@@ -229,6 +229,12 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         else                    wubu_bonzi_draw(fb, fb_w, fb_h);
     }
 
+    /* Snap assist sits above the windows and below the bar: it is a choice about windows,
+     * not chrome. Weak so a WM-only link without the shell still renders. */
+    {
+        extern __attribute__((weak)) void win11_snap_assist_render(uint32_t *, int, int);
+        if (win11_snap_assist_render) win11_snap_assist_render(fb, fb_w, fb_h);
+    }
     taskbar_render(fb, fb_w, fb_h);
     notif_center_render(fb, fb_w, fb_h);
 

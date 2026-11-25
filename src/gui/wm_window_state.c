@@ -79,6 +79,13 @@ void wm_snap_half(DosGuiWindow *win, int side) {
     win->h = sh - 2 * gap;
     win->flags &= ~DOSGUI_WIN_MAXIMIZED;
     if (win->on_resize) win->on_resize(win, win->w, win->h);
+
+    /* Snap assist: offer the remaining windows in the half we did NOT fill. Weak, because a
+     * WM-only link carries no shell -- same convention as the snap flyout in wm_input.c. */
+    {
+        extern __attribute__((weak)) void win11_snap_assist_open(int, int);
+        if (win11_snap_assist_open) win11_snap_assist_open(side < 0 ? 1 : 0, win->id);
+    }
 }
 
 void wm_minimize(DosGuiWindow *win) {

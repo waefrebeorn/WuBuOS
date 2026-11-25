@@ -36,6 +36,141 @@
 static bool g_open = false;
 static int  g_win_id = -1;
 
+/* -- Snap assist ---------------------------------------------------- */
+
+#define SNAP_ASSIST_MAX_CARDS 3
+
+static int g_assist_active;
+static int g_assist_zone;
+
+bool win11_snap_assist_active(void) { return g_assist_active != 0; }
+int  win11_snap_assist_zone(void)   { return g_assist_zone; }
+
+void win11_snap_assist_close(void) { g_assist_active = 0; }
+
+void win11_snap_assist_open(int free_zone, int exclude_id) {
+    /* Nothing to offer when there is no other window: showing an empty picker would be a
+     * modal dead end, which is worse than no assist at all. */
+    int ids[SNAP_ASSIST_MAX_CARDS];
+    if (win11_snap_assist_candidates(ids, SNAP_ASSIST_MAX_CARDS, exclude_id) <= 0) {
+        g_assist_active = 0;
+        return;
+    }
+    g_assist_zone = (free_zone == 0) ? 0 : 1;
+    g_assist_active = 1;
+}
+
+/* Z-order is most-recently-focused-first, which is the order Windows shows these in. */
+int win11_snap_assist_candidates(int *ids, int max, int exclude_id) {
+    int n = 0;
+    for (int z = 0; z < g_dwm.nz && n < max; z++) {
+        int id = g_dwm.zorder[z];
+        if (id < 0 || id >= DOSGUI_MAX_WINDOWS) continue;
+        DosGuiWindow *w = &g_dwm.windows[id];
+        if (!w->alive || id == exclude_id) continue;
+        if (w->flags & DOSGUI_WIN_MINIMIZED) continue;
+        if (w->desktop != g_dwm.current_desktop) continue;
+        ids[n++] = id;
+    }
+    return n;
+}
+
+static void assist_cards(int fb_w, int fb_h, int *x0, int *y0, int *cw, int *ch, int *gap) {
+    int task_h = taskbar_height_dynamic();
+    int sh = fb_h - task_h;
+    *gap = WUBU_SPACE_SM;
+    *cw = (fb_w / 2 - 4 * WUBU_SPACE_SM) / SNAP_ASSIST_MAX_CARDS;
+    *ch = *cw * 9 / 16;
+    if (*cw > 220) *cw = 220;
+    *ch = *cw * 9 / 16;
+    int total = SNAP_ASSIST_MAX_CARDS * *cw + (SNAP_ASSIST_MAX_CARDS - 1) * *gap;
+    *x0 = (g_assist_zone == 0) ? (fb_w / 4 - total / 2) : (fb_w * 3 / 4 - total / 2);
+    *y0 = sh / 2 - *ch / 2;
+    if (*y0 < 0) *y0 = 0;
+}
+
+void win11_snap_assist_render(uint32_t *fb, int fb_w, int fb_h) {
+    /* Draws through vbe_* like every other surface in this file: that is the buffer
+     * vbe_get_pixel() reads and the one the hosted pipeline presents. `fb` is only the
+     * SOURCE for the thumbnails, and it is NULL in a headless test -- cards then show their
+     * frame and title, which is enough for a gate to see them. */
+    if (!g_assist_active) return;
+
+    /* Dim the free half so the offer reads as a choice, not as part of the desktop. */
+    int half_x = (g_assist_zone == 0) ? 0 : fb_w / 2;
+    int task_h = taskbar_height_dynamic();
+    for (int y = 0; y < fb_h - task_h; y++) {
+        for (int x = half_x; x < half_x + fb_w / 2 && x < fb_w; x++) {
+            uint32_t c = vbe_get_pixel(x, y);
+            uint32_t r = ((c >> 16) & 0xFF) / 3, gg = ((c >> 8) & 0xFF) / 3, b = (c & 0xFF) / 3;
+            vbe_set_pixel(x, y, (r << 16) | (gg << 8) | b);
+        }
+    }
+
+    int ids[SNAP_ASSIST_MAX_CARDS];
+    int n = win11_snap_assist_candidates(ids, SNAP_ASSIST_MAX_CARDS, -1);
+    int x0, y0, cw, ch, gap;
+    assist_cards(fb_w, fb_h, &x0, &y0, &cw, &ch, &gap);
+    for (int i = 0; i < n; i++) {
+        int cx = x0 + i * (cw + gap);
+        DosGuiWindow *w = &g_dwm.windows[ids[i]];
+        static uint32_t thumb[SNAP_ASSIST_MAX_CARDS][96 * 54];
+        int have_thumb = fb && wm_thumb_capture(fb, fb_w, fb_h, w->x, w->y, w->w, w->h,
+                                                thumb[i], 96, 54);
+        for (int y = 0; y < ch; y++) {
+            int py = y0 + y;
+            if (py < 0 || py >= fb_h) continue;
+            for (int x = 0; x < cw; x++) {
+                int px = cx + x;
+                if (px < 0 || px >= fb_w) continue;
+                int edge = (x == 0 || y == 0 || x == cw - 1 || y == ch - 1);
+                if (edge) { vbe_set_pixel(px, py, wubu_theme_colors()->border_face); continue; }
+                if (!have_thumb) { vbe_set_pixel(px, py, wubu_theme_colors()->win_face); continue; }
+                int tx = (x * 96) / (cw > 0 ? cw : 1), ty = (y * 54) / (ch > 0 ? ch : 1);
+                vbe_set_pixel(px, py, thumb[i][ty * 96 + tx]);
+            }
+        }
+        vbe_draw_text(cx + WUBU_SPACE_XS, y0 + ch - vbe_text_baseline_off(),
+                      wm_window_title_at(ids[i]) ? wm_window_title_at(ids[i]) : "",
+                      wubu_theme_colors()->win_title_text, 1);
+    }
+}
+
+bool win11_snap_assist_card_rect(int i, int *x, int *y, int *w, int *h) {
+    int ids[SNAP_ASSIST_MAX_CARDS];
+    int n = win11_snap_assist_candidates(ids, SNAP_ASSIST_MAX_CARDS, -1);
+    if (i < 0 || i >= n) return false;
+    int x0, y0, cw, ch, gap;
+    assist_cards(g_dwm.screen_w, g_dwm.screen_h, &x0, &y0, &cw, &ch, &gap);
+    if (x) *x = x0 + i * (cw + gap);
+    if (y) *y = y0;
+    if (w) *w = cw;
+    if (h) *h = ch;
+    return true;
+}
+
+/* Click a card: that window takes the free half. A click anywhere else dismisses the offer,
+ * which is what Windows does -- an assist that traps the pointer is worse than none. */
+bool win11_snap_assist_click(int x, int y) {
+    if (!g_assist_active) return false;
+    int ids[SNAP_ASSIST_MAX_CARDS];
+    int n = win11_snap_assist_candidates(ids, SNAP_ASSIST_MAX_CARDS, -1);
+    int x0, y0, cw, ch, gap;
+    assist_cards(g_dwm.screen_w, g_dwm.screen_h, &x0, &y0, &cw, &ch, &gap);
+    for (int i = 0; i < n; i++) {
+        int cx = x0 + i * (cw + gap);
+        if (x >= cx && x < cx + cw && y >= y0 && y < y0 + ch) {
+            DosGuiWindow *w = &g_dwm.windows[ids[i]];
+            wm_snap_half(w, g_assist_zone == 0 ? -1 : +1);
+            wm_set_focus(w);
+            g_assist_active = 0;
+            return true;
+        }
+    }
+    g_assist_active = 0;
+    return true;
+}
+
 void win11_snap_toggle(void) {
     if (!g_open) {
         if (g_dwm.focused_id < 0) return;

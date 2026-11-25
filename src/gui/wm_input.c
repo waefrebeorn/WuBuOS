@@ -444,6 +444,17 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
     g_dwm.mouse_x = x;
     g_dwm.mouse_y = y;
 
+    /* Snap assist claims the whole pointer while it is open: a card click picks a window,
+     * any other click dismisses the offer (Windows behaviour). Weak: a WM-only link has no
+     * shell and therefore no assist. */
+    if (btn && kind == 1) {
+        extern __attribute__((weak)) bool win11_snap_assist_click(int, int);
+        extern __attribute__((weak)) bool win11_snap_assist_active(void);
+        if (win11_snap_assist_active && win11_snap_assist_active() &&
+            win11_snap_assist_click && win11_snap_assist_click(x, y))
+            return;
+    }
+
     /* While locked the pointer is swallowed too. */
     if (wubu_lock_screen_is_locked()) return;
 

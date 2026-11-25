@@ -2274,6 +2274,44 @@ static void test_taskbar_progress_badge(void) {
     PASS();
 }
 
+
+static void test_snap_assist_offers_the_free_half(void) {
+    TEST("snap assist offers the other windows in the free half");
+    vbe_init(1024, 768);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    DosGuiWindow *a = wm_create(40, 40, 300, 200, "Snapped");
+    DosGuiWindow *b = wm_create(200, 120, 300, 200, "Other");
+    CHECK(a && b, "two windows");
+    win11_snap_assist_close();
+
+    wm_set_focus(a);
+    wm_snap_half(a, -1);                      /* left half */
+    CHECK(win11_snap_assist_active(), "assist opens after a half snap");
+    CHECK(win11_snap_assist_zone() == 1, "it offers the RIGHT half -- the free one");
+
+    int ids[3];
+    int n = win11_snap_assist_candidates(ids, 3, a->id);
+    CHECK(n == 1 && ids[0] == b->id, "the snapped window is not offered; the other one is");
+
+    int cx, cy, cw, ch;
+    CHECK(win11_snap_assist_card_rect(0, &cx, &cy, &cw, &ch), "card 0 has a rect");
+
+    /* It has to be VISIBLE, not just state: render and look for the card's frame colour. */
+    wm_render(NULL, 1024, 768);
+    uint32_t frame = wubu_theme_colors()->border_face;
+    int frame_px = 0;
+    for (int y = cy; y < cy + ch; y++)
+        for (int x = cx; x < cx + cw; x++)
+            if (vbe_get_pixel(x, y) == frame) frame_px++;
+    CHECK(frame_px > cw, "the assist card is painted in the free half");
+    CHECK(win11_snap_assist_click(cx + cw / 2, cy + ch / 2), "clicking the card is consumed");
+    CHECK(!win11_snap_assist_active(), "picking closes the assist");
+    CHECK(b->x >= 1024 / 2, "the picked window took the free half");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2282,6 +2320,7 @@ int main(void) {
     test_init();
     test_init_shutdown_no_crash();
     test_hover_preview_composites_a_card();
+    test_snap_assist_offers_the_free_half();
     test_taskbar_progress_badge();
     test_thumb_capture_maps_the_window_rect();
     test_taskbar_hover_tracks_slots();
