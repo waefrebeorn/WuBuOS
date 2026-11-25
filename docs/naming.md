@@ -124,6 +124,48 @@ The first verification run named two targets that do not exist (`test_gfx`, `tes
 and reported them as failures -- a reminder that a test name invented from a file name is
 not a gate.
 
+## Submodules, re-measured with the metric fixed (2026-11-25)
+
+The first survey was unusable: it counted vendored SDKs and test programs as naming defects.
+`bigmac` alone reported 735 "acronym hints" and 8 "collisions" that were all SDL2's
+per-platform files, and `src/wemu/tests` reported 21 "off-prefix" files for names like
+`exec_chain.c` and `fork_clone.c`, which are named for the scenario they exercise. A metric
+that flags correct names teaches people to ignore it.
+
+`tools/tree_names.py` now excludes `third_party/`, `externals/`, `vendor/`, `deps/`,
+`vault/` (an archive of dated snapshots) and any `build*` directory, and it skips OFF-PREFIX
+in `tools/` and any directory with "test" in its name. The honest result, own sources only:
+
+| tree | .c | collisions | off-prefix | note |
+|---|---|---|---|---|
+| `src/compiler` | 208 | 1 | 0 | the collision is `compat/win32/sys/mount.h` vs `compat/win32/linux/mount.h` -- deliberate shim mirrors of platform paths |
+| `src/brain` | 1465 | 1 -> 0 | 21 | its `tools/`/`vault/` "collisions" were the archive; the real one was `include/wubu_kv_runtime.c` |
+| `src/wemu` | 94 | 0 | 0 | clean |
+| `src/apps/wubupad` | 59 | 0 | 0 | its only "collision" was CMake compiler-id files under `build-audit/` and `build-asan/` |
+| `src/apps/wubuoffice` | 534 | 21 | 11 | the largest real block; not yet read |
+| `src/lua/www` | 312 | 0 | 0 | 279 acronym hints are its own `wb_*`/`lv_*` style, not a defect |
+| `src/tools/wubugrep` | 9 | 0 | 1 | 0 |
+| `src/kernel/WuBuKernel` | 11 | 0 | 0 | clean |
+| `src/gui/vws`, `src/gui/wet` | 9, 11 | 0 | 0 | clean; vws now builds against `../wet` |
+| `src/audio/bigmac` | 479 | 1 -> 0 | 0 | its own `wb_*` prefix is uniform |
+
+Three defects found and fixed in the submodules themselves:
+
+- **`src/brain/include/wubu_kv_runtime.c` was 0 bytes** -- a `.c` in a header directory, in no
+  build file, no include, no test. It was the only 0-byte source file in the entire WuBuOS
+  tree, so it was debris, not a placeholder being filled in. Deleted (brain `e94ecbc`).
+- **`src/audio/bigmac/tools/wb_fm_g2.c` shared a name with the build module** and was not the
+  module: 305 lines with its own `main()` and printf timing output, i.e. a standalone
+  benchmark. Renamed `wb_fm_g2_bench.c`; the Makefile only ever built `src/wb_fm_g2.c`
+  (bigmac `e7746cc`).
+- The CMake `build-audit/` and `build-asan/` compiler-id files are build output that the walk
+  was counting as sources.
+
+Still open, measured and not guessed: `wubuoffice` (21 collisions / 11 off-prefix), `brain`
+src/ (21 off-prefix: `lfm2_*`, `quantized_*`, `safetensors_*` against a 96.3% `wubu_`
+dominant prefix in 562 files -- a real style split, and renaming it means renaming inside
+another repo's model families, which needs a behavioural check first, not a sweep).
+
 ## Rename mechanics (learned by breaking it, 2026-11-25)
 
 A rename is `git mv` + path tokens + **the `.o` names in `mk/`** + build + the tests that

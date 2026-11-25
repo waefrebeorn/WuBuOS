@@ -11,7 +11,14 @@ objective, per directory:
               this one does not (controlpanel.c beside cp_*.c).
   ACRONYM     a basename of <=6 chars with no vowel-bearing word shape (bpm.c) -- a hint,
               not a verdict: read the file before renaming.
-  NO-HEADER   a .c with no same-named .h and no header in its directory that mentions it.
+
+Vendored trees (third_party/, externals/, vendor/, deps/) are EXCLUDED. They are not ours to
+rename, and including them drowned the signal: bigmac alone reported 735 "acronym hints" and
+8 "collisions" that were all SDL2's per-platform files.
+
+There is deliberately no NO-HEADER check: a leaf with no header of its own is correct when
+its externs live in a public header (wm_icon_registry.c is declared by wm.h), so the metric
+would flag good structure as a defect.
 
 Usage: python3 tools/tree_names.py [tree ...]     (default: every submodule)
 """
@@ -29,7 +36,9 @@ VOWELS = set("aeiouy")
 def sources(tree):
     out = []
     for base, dirs, files in os.walk(tree):
-        dirs[:] = [d for d in dirs if d not in (".git", "build", "node_modules", "__pycache__")]
+        dirs[:] = [d for d in dirs if not d.startswith("build") and d not in (".git", "node_modules", "__pycache__",
+                                                "third_party", "externals", "vendor", "deps",
+                                                "vault")]
         for f in files:
             if f.endswith((".c", ".h")):
                 out.append(os.path.join(base, f))
@@ -65,6 +74,17 @@ def survey(tree):
 
     off_prefix, acronyms = [], []
     for d, names in by_dir.items():
+        # A test directory is named by SCENARIO (exec_chain, fork_clone, isolate_negctl),
+        # not by layer prefix. Measuring it against a dominant prefix flagged 21 correct
+        # names in src/wemu/tests as defects -- the metric was wrong, not the tree.
+        # tests/ AND tools/ are named by scenario or by what they do (dump_moe_split,
+        # bench, gguf_reader), not by layer prefix. vault/ is an archive (dated snapshots)
+        # and is excluded from the walk entirely below.
+        if os.path.basename(d) in ("tools",) or "test" in os.path.basename(d):
+            for n in names:
+                if is_acronym(prefix_of(n)):
+                    acronyms.append(os.path.join(d, n))
+            continue
         counts = collections.Counter(prefix_of(n) for n in names)
         if len(names) >= 3:
             dom, dom_n = counts.most_common(1)[0]
@@ -76,18 +96,10 @@ def survey(tree):
             if is_acronym(prefix_of(n)):
                 acronyms.append(os.path.join(d, n))
 
-    no_header = []
-    for f in files:
-        if not f.endswith(".c"):
-            continue
-        d = os.path.dirname(f)
-        if not os.path.exists(f[:-2] + ".h"):
-            no_header.append(f)
-
     return {
         "tree": tree, "files": len(files), "c": sum(1 for f in files if f.endswith(".c")),
         "collisions": collisions, "off_prefix": sorted(off_prefix),
-        "acronyms": sorted(acronyms), "no_header": sorted(no_header),
+        "acronyms": sorted(acronyms),
     }
 
 
@@ -119,6 +131,8 @@ def main(argv):
             print("  ACRONYM hint (" + str(len(s["acronyms"])) + "):")
             for f in s["acronyms"][:6]:
                 print("    " + os.path.relpath(f, ROOT))
+        print(f"  --> {len(s['collisions'])} collision(s), {len(s['off_prefix'])} off-prefix, "
+              f"{len(s['acronyms'])} acronym hint(s)   [vendored trees excluded]")
 
 
 if __name__ == "__main__":
