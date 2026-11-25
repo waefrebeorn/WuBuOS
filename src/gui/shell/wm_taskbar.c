@@ -303,15 +303,132 @@ int taskbar_new_instance(int slot_index) {
     return 1;
 }
 
+
+/* -- Hover previews (Win11 taskbar thumbnails) --------------------------
+ *
+ * The bar is composited AFTER the windows into the same frame buffer, so the frame the bar is
+ * handed already contains every window. A thumbnail is therefore a nearest-neighbour sample
+ * of that frame, taken at the window's rect -- no capture plumbing, no allocation, no second
+ * copy of the renderer.
+ *
+ * Two facts are kept: which slot the pointer is over, and since when. A preview appears after
+ * WM_HOVER_MS so brushing across the bar does not flash cards at the user. */
+
+#define WM_THUMB_W 160
+#define WM_THUMB_H 90
+#define WM_HOVER_MS 300
+
+static int      g_hover_slot = -1;
+static long     g_hover_since_ms;
+static int      g_hover_delay_ms = WM_HOVER_MS;
+
+/* Dwell time before a preview appears. 0 in a test so a pixel gate does not sleep. */
+void taskbar_set_hover_delay_ms(int ms) { g_hover_delay_ms = ms < 0 ? 0 : ms; }
+
+static long wm_now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long)ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
+}
+
+/* Sample a rect of the frame into a smaller buffer. Public so a test can drive it with a
+ * known pattern instead of a screen. Returns 1 when at least one pixel was sampled. */
+int wm_thumb_capture(const uint32_t *fb, int fb_w, int fb_h,
+                     int wx, int wy, int ww, int wh,
+                     uint32_t *dst, int dw, int dh) {
+    if (!fb || !dst || ww <= 0 || wh <= 0 || dw <= 0 || dh <= 0) return 0;
+    int got = 0;
+    for (int y = 0; y < dh; y++) {
+        int sy = wy + (y * wh) / dh;
+        for (int x = 0; x < dw; x++) {
+            int sx = wx + (x * ww) / dw;
+            if (sx < 0 || sy < 0 || sx >= fb_w || sy >= fb_h) { dst[y * dw + x] = 0; continue; }
+            dst[y * dw + x] = fb[sy * fb_w + sx];
+            got = 1;
+        }
+    }
+    return got;
+}
+
+/* Which slot the pointer is over (-1 = none). Exposed so a test can drive the hover tracker
+ * with coordinates instead of waiting 300 ms for a card. */
+int taskbar_hover_slot(void) { return g_hover_slot; }
+
+static void draw_hover_preview(uint32_t *fb, int fb_w, int fb_h) {
+    if (g_hover_slot < 0) return;
+    if (wm_now_ms() - g_hover_since_ms < g_hover_delay_ms) return;
+
+    WmTaskLayout L;
+    taskbar_modern_layout(fb_w, fb_h, &L);
+    if (g_hover_slot >= L.n_slots) return;
+    const WmTaskSlot *s = &L.slot[g_hover_slot];
+    int wi = slot_window(s);
+    if (wi < 0) return;                       /* pins with no window have nothing to show */
+
+    DosGuiWindow *w = &g_dwm.windows[wi];
+    static uint32_t thumb[WM_THUMB_W * WM_THUMB_H];
+    if (!wm_thumb_capture(fb, fb_w, fb_h, w->x, w->y, w->w, w->h,
+                          thumb, WM_THUMB_W, WM_THUMB_H))
+        return;
+
+    int pad = WUBU_SPACE_XS;
+    int card_w = WM_THUMB_W + pad * 2;
+    int text_h = vbe_text_baseline_off();   /* the renderer's own baseline, not a guess */
+    int card_h = WM_THUMB_H + pad * 2 + text_h;
+    int cx = s->x + s->w / 2 - card_w / 2;
+    int cy = L.bar_y - card_h - WUBU_SPACE_SM;
+    if (cx < WUBU_SPACE_XS) cx = WUBU_SPACE_XS;
+    if (cx + card_w > fb_w - WUBU_SPACE_XS) cx = fb_w - WUBU_SPACE_XS - card_w;
+    if (cy < WUBU_SPACE_XS) cy = WUBU_SPACE_XS;
+
+    /* Paint into the SAME buffer the thumbnail was sampled from (fb), not through the vbe
+     * global: those are the same surface in production but not in a test, and a preview that
+     * samples one buffer and draws into another is a bug waiting for a second caller. */
+    for (int y = 0; y < card_h; y++) {
+        int py = cy + y;
+        if (py < 0 || py >= fb_h) continue;
+        for (int x = 0; x < card_w; x++) {
+            int px = cx + x;
+            if (px < 0 || px >= fb_w) continue;
+            int edge = (x == 0 || y == 0 || x == card_w - 1 || y == card_h - 1);
+            uint32_t c = edge ? tc()->border_face : tc()->win_face;
+            if (!edge && x >= pad && x < pad + WM_THUMB_W &&
+                y >= pad && y < pad + WM_THUMB_H)
+                c = thumb[(y - pad) * WM_THUMB_W + (x - pad)];
+            fb[py * fb_w + px] = c;
+        }
+    }
+    /* Title via the text renderer (it targets vbe's surface, which IS fb in production).
+     * The card and thumbnail above are painted into fb directly, so the test can count them. */
+    const char *title = wm_window_title_at(wi);
+    vbe_draw_text(cx + pad, cy + pad + WM_THUMB_H + 2, title ? title : "",
+                  tc()->win_title_text, 1);
+}
+
 bool taskbar_modern_handle(int x, int y, int btn, int kind) {
     if (wubu_theme_current() != THEME_DARK) return false;
 
     WmTaskLayout L;
     taskbar_modern_layout(g_dwm.screen_w, g_dwm.screen_h, &L);
     if (x < L.bar_x || x >= L.bar_x + L.bar_w ||
-        y < L.bar_y || y >= L.bar_y + L.bar_h)
+        y < L.bar_y || y >= L.bar_y + L.bar_h) {
+        /* Leaving the bar must clear the hover, and this early return is where a pointer
+         * that left actually arrives -- the hover block below never sees it. */
+        if (kind == 0) g_hover_slot = -1;
         return false;
+    }
 
+    /* Hover tracking for the thumbnail preview (kind 0 = move). A pointer that leaves the
+     * bar entirely clears it; moving between slots restarts the dwell timer. */
+    if (kind == 0) {
+        int hit = -1;
+        for (int i = 0; i < L.n_slots; i++) {
+            const WmTaskSlot *s = &L.slot[i];
+            if (x >= s->x && x < s->x + s->w && y >= s->y && y < s->y + s->h) { hit = i; break; }
+        }
+        if (hit != g_hover_slot) { g_hover_slot = hit; g_hover_since_ms = wm_now_ms(); }
+        return true;                 /* inside the bar: swallow moves too */
+    }
     if (kind != 1) return true;      /* inside the bar: swallow moves too */
 
     if (x >= L.start_x && x < L.start_x + L.start_w &&
@@ -414,6 +531,7 @@ static void draw_start_flag(int x, int y) {
 void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     if (wubu_theme_current() == THEME_DARK) {
         render_modern_taskbar(fb, fb_w, fb_h);
+        draw_hover_preview(fb, fb_w, fb_h);   /* after the slots, over the composed frame */
         return;
     }
     int th = taskbar_height_dynamic();

@@ -2148,6 +2148,79 @@ static void test_pointer_path_sees_modifier_state(void) {
     PASS();
 }
 
+
+static void test_thumb_capture_maps_the_window_rect(void) {
+    TEST("thumbnail sampling maps the window rect, not the whole frame");
+    const int fw = 64, fh = 48;
+    static uint32_t fb[64 * 48];
+    for (int i = 0; i < fw * fh; i++) fb[i] = (uint32_t)(i * 2654435761u);   /* unique-ish */
+    uint32_t dst[8 * 8];
+    memset(dst, 0, sizeof dst);
+
+    int ok = wm_thumb_capture(fb, fw, fh, 8, 8, 32, 24, dst, 8, 8);
+    CHECK(ok == 1, "sampled something");
+    CHECK(dst[0] == fb[8 * fw + 8], "top-left sample is the rect's top-left");
+    int sx = 8 + (7 * 32) / 8, sy = 8 + (7 * 24) / 8;
+    CHECK(dst[7 * 8 + 7] == fb[sy * fw + sx], "last sample is the rect's last row/col");
+
+    /* Outside the frame: no claim, zeros, and ok == 0 rather than garbage. */
+    uint32_t off[4];
+    CHECK(wm_thumb_capture(fb, fw, fh, 1000, 1000, 10, 10, off, 2, 2) == 0,
+          "a rect outside the frame samples nothing");
+    PASS();
+}
+
+static void test_taskbar_hover_tracks_slots(void) {
+    TEST("taskbar hover tracks the slot under the pointer");
+    wm_init(1024, 768);
+    wm_create(20, 20, 200, 150, "Hover");
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    if (L.n_slots < 1) {
+        printf("\n  (skip: no slots)\n");
+        wm_shutdown(); PASS(); return;
+    }
+    const WmTaskSlot *s = &L.slot[0];
+    taskbar_modern_handle(s->x + 2, s->y + 2, 0, 0);        /* move over slot 0 */
+    CHECK(taskbar_hover_slot() == 0, "hover reports slot 0");
+    taskbar_modern_handle(s->x + 2, 2, 0, 0);               /* move to the far top */
+    CHECK(taskbar_hover_slot() == -1, "leaving the bar clears the hover");
+    wm_shutdown();
+    PASS();
+}
+
+
+static void test_hover_preview_composites_a_card(void) {
+    TEST("the hover preview paints a card above the bar");
+    wm_init(1024, 768);
+    wm_create(60, 60, 320, 220, "Preview");
+    static uint32_t fb[1024 * 768];
+    const uint32_t empty = 0x00123456u;
+    for (int i = 0; i < 1024 * 768; i++) fb[i] = empty;
+
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    if (L.n_slots < 1) { printf("\n  (skip: no slots)\n"); wm_shutdown(); PASS(); return; }
+    taskbar_set_hover_delay_ms(0);
+    taskbar_modern_handle(L.slot[0].x + 2, L.slot[0].y + 2, 0, 0);
+
+    taskbar_render(fb, 1024, 768);
+
+    /* The card sits directly above the bar; count pixels the render changed there. */
+    int card_w = 160 + WUBU_SPACE_XS * 2;
+    int card_h = 90 + WUBU_SPACE_XS * 2 + vbe_text_baseline_off();
+    int cy = L.bar_y - card_h - WUBU_SPACE_SM;
+    if (cy < WUBU_SPACE_XS) cy = WUBU_SPACE_XS;
+    int changed = 0;
+    for (int y = cy; y < cy + card_h && y < 768; y++)
+        for (int x = 0; x < 1024; x++)
+            if (fb[y * 1024 + x] != empty) changed++;
+    CHECK(changed > card_w * 4, "a card-shaped area was painted above the bar");
+    taskbar_set_hover_delay_ms(300);
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2155,6 +2228,9 @@ int main(void) {
 
     test_init();
     test_init_shutdown_no_crash();
+    test_hover_preview_composites_a_card();
+    test_thumb_capture_maps_the_window_rect();
+    test_taskbar_hover_tracks_slots();
     test_pointer_path_sees_modifier_state();
     test_wheel_over_taskbar_cycles_focus();
     test_win_number_acts_on_taskbar_slot();

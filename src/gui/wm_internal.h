@@ -178,6 +178,12 @@ uint32_t wm_last_mods(void);
 /* Shift+click on a taskbar button: new instance, like Windows. Returns 0 when the slot is a
  * plain window task or the shift key was not held, so the caller falls through to focus. */
 int  taskbar_shift_new_instance(int slot_index);
+/* Which taskbar slot the pointer is over (-1 none) and the sampling used for its preview. */
+int  taskbar_hover_slot(void);
+void taskbar_set_hover_delay_ms(int ms);   /* 0 in a pixel test: no dwell to wait out */
+int  wm_thumb_capture(const uint32_t *fb, int fb_w, int fb_h,
+                      int wx, int wy, int ww, int wh,
+                      uint32_t *dst, int dw, int dh);
 int  border_width(void);
 int  theme_radius(void);
 void load_default_wallpaper(void);
