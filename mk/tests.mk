@@ -6601,3 +6601,11 @@ test_vkd3d_live_msaa test_vkd3d_live_pipeline test_vkd3d_live_present test_vkd3d
 test_vsl_macho test_w9pc test_wdt test_win32k test_world test_wubu_applaunch test_wubu_bus test_wubu_daemon_client \
 test_wubu_onboarding test_wubu_selfbuild test_wubu_tokenizer test_wubu_zx test_wubu_zx9p test_wubu_zxload test_wubu_zxreg test_xdg_autostart \
 test_xhci test_account test_app_bundle test_atom test_drv test_ed25519_bignum_value_negctl test_ed25519_fixed_ladder test_ed25519_fixed_ladder_multitoolchain_negctl test_ed25519_fixed_ladder_negctl test_ed25519_fixed_ladder_o0_negctl test_ed25519_fixed_timing test_ed25519_fixed_timing_negctl test_ed25519_native test_eddsa_nombedtls test_font_case test_fs_crash_safe test_fs_persist test_fs_persist_fuzz test_hosted_display test_hosted_tls test_input_keymap test_json_fuzz test_kernel_abi test_kernel_bar_v2 test_kernel_cap test_kernel_irq_cap test_linux_product test_mime_contract test_mime_fuzz test_notepad_save test_ns_session test_nt_abi test_ntsync test_oci test_oci_tls test_pkg_ed25519 test_pkg_ed25519_fixed test_pkg_ed25519_legacy test_pkg_ed25519_native test_pkg_key_policy test_pkg_key_revoke test_pkg_revoke_feed test_pkg_revoke_sync test_pty_exec test_pwcrypt test_ramdisk test_revolver test_secmon test_spell_resolve test_spell_scan test_spellmod test_spellmod_fuzz test_startmenu_files test_sync_panel test_thermal_read test_vsl_nt_collision test_vsl_nt_contract test_wemu_app test_wemu_crash test_wemu_fs test_wemu_kbd test_wemu_kernel_deep test_wemu_kernel_virtio test_wemu_kv test_wemu_model test_win32_core test_wubu_firstboot test_wubu_install test_wubu_install_tty
+# --- vendored checkout drift -----------------------------------------------------------
+# A vendored copy must be the same revision as its original. tools/vendor_drift.py pairs
+# nested checkouts by repository and fails when they differ; it exists because vws built
+# against a toolkit one commit older than the one the rest of the OS links, and nothing
+# noticed for months.
+.PHONY: check_vendor
+check_vendor:
+	@python3 tools/vendor_drift.py

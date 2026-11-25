@@ -39,6 +39,7 @@ test_ed25519_ir_ct_negctl
 test_ed25519_native
 test_ed25519_timing
 test_fat2
+test_font_aa
 test_font_case
 test_formal_ct_tool_probe
 test_fs_crash_safe

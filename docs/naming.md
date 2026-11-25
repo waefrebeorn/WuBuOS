@@ -25,9 +25,31 @@ violates the "never leave a second copy" law at the repository scale, and the di
 proves it is not academic: a fix applied in `wet` is invisible to `vws`, and whichever copy
 a component links decides which bugs it has.
 
-Consolidation needs a decision this document cannot make alone -- **which copy is canonical**
--- and that decision must be made by comparing behaviour, not file counts. Until then the
-duplication is recorded here so no one "fixes" one copy and believes the tree is fixed.
+**Resolved by revision, not by rename.** Each copy carries its own git checkout, so the
+divergence had an exact cause and an exact fix:
+
+| checkout | was | now |
+|---|---|---|
+| `src/gui/wet` (original) | `d86dd19` | `d86dd19` |
+| `src/gui/vws/externals/wet` | `a7eff0d` | **`d86dd19`** |
+| `src/gui/wet/externals/wua` | `bf39a26` | `bf39a26` |
+| `src/lua/www/~WuBu~/src/lv` | `bf39a26` | `bf39a26` |
+| `src/gui/vws/externals/wet/externals/wua` | `912f802` | **`bf39a26`** |
+
+vws was a stale fork of its own toolkit: a wet fix was invisible to it, and `bf39a26`'s
+`wb_lv_call_multi` was missing. Bumped in the vws repo (`4d9295d`) and verified by building
+and running `test_vws_designer` against the new checkout -- not by comparing file counts.
+
+`make check_vendor` (`tools/vendor_drift.py`) now holds the line: it pairs every nested
+checkout with its original by repository, reports disagreement as DRIFT, and exits non-zero.
+Two flaws were fixed in it during the first hour of its life, both worth remembering:
+it stopped descending at the first checkout, so it reported "no drift" on a tree with
+exactly the drift it was written to find; and it called unanimous agreement "ambiguous".
+A gate that cannot see its own subject is the most expensive kind of lie.
+
+Still true and not fixed by pinning: three checkouts of one runtime is still three
+checkouts. Making `vws` consume the parent tree's `wet` instead of vendoring it is the
+structural fix, and it needs vws's build rewritten, not a bump.
 
 Two smaller findings from the same survey:
 

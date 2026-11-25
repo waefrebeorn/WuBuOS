@@ -100,7 +100,7 @@ Verified by inspecting `src/gui/` (150 C files):
 | Taskbar / window manager | `dosgui_wm.*`, `dosgui_era_apps.c` | EXISTS — virtual desktops, focus, minimize/max/close |
 | Desktop | `dosgui_desktop.c` | EXISTS — wallpaper + icon grid |
 | Explorer / file manager | `dosgui_explorer*.c` (16 files) | EXISTS — drives, fs ops, format, zip, preview |
-| Control Panel | `dosgui_controlpanel.c`, `dosgui_cp_{display,hardware,network,sound,theme}.c` | EXISTS — HW/DP/sound/net/theme applets |
+| Control Panel | `dosgui_control_panel.c`, `dosgui_cp_{display,hardware,network,sound,theme}.c` | EXISTS — HW/DP/sound/net/theme applets |
 | Service manager | `dosgui_service_mgr.c` | EXISTS |
 | Autostart / session | `wubu_session_autostart.c` | EXISTS — `.desktop`-style parsing, save/restore |
 
@@ -119,7 +119,7 @@ are precisely scoped — see the matrix below.
 | **Admin password** creation | none | ❌ MISSING | No user-account-password bootstrap (the AGI persona login) |
 | **Locale / keyboard layout** | none | ❌ MISSING | No locale picker; no layout selection |
 | **Date / time / timezone** | none | ❌ MISSING | No first-boot timezone picker; no `SysDateTimePick32` |
-| **Theme picker** (Classic/Lautus/…) | `dosgui_cp_theme.c` | ✅ exists | Good parity |
+| **Theme picker** (Classic/Lautus/…) | `dosgui_control_panel_theme.c` | ✅ exists | Good parity |
 | **Hardware driver scan** (page 9) | `wubu_drv_install_report` | ✅✅ **just built** | WuBu's driver self-install + report plugs in here |
 | **Finish → reboot** | none | ❌ MISSING | No first-boot completion → reboot sequence |
 | **Text-mode installer** (`usetup`) | none | ❌ MISSING | No TUI/install media path for headless boots |
