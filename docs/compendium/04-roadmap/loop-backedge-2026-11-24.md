@@ -94,10 +94,24 @@ instruction with a different register mapping.
 - `wubu_isa_riscv.c`: gained a real `MIR_JNZ` case (`bne`), which exposed the
   forward-patch bug underneath it.
 
+## Progress against that list
+
+**1. DONE** — every backend's op-switch default now records the op
+(`WUBU_MIR_UNSUPPORTED`), the driver refuses to run code compiled with a hole,
+and an *undeclared* hole fails the run by name. It exposed arm64 having no
+`MIR_LOAD`/`MIR_STORE` at all and 8051/avr/pic having no `MIR_JMP`.
+
+**Also fixed on the way:** the battery's `if (run == 0) CHECK(...)` shape silently
+dropped backends that could not compile a case; holes are now counted.
+
+**New gate:** `test_gate_scripts` — `bash -n` plus `py_compile` of every embedded
+Python block in `tools/*.sh`. A `nonlocal` in a top-level gate script was a
+SyntaxError that `bash -n` cannot see, and it cost a full suite cycle by
+presenting as a SCANOUT failure.
+
 ## Next, in order of value
 
-1. Make an unhandled MIR op a compile error in every backend (mechanical, kills
-   the whole silent class).
+1. ~~Make an unhandled MIR op a compile error in every backend~~ DONE.
 2. `MIR_JNZ` for 6502, z80, mips, 8086, m68k; `MIR_JZ`/`MIR_JNZ` for 8051/avr/pic.
 3. arm64 register allocation across a back edge — the accumulator must keep its
    home if it is live at the loop head.
