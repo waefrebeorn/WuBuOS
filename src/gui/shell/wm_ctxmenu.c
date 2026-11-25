@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include "wubu_notify.h"
 #include "window_chrome.h"
+#include "taskbar_tasks.h"   /* Pin to taskbar: the same pin path the taskbar test proves */
 
 /* -- Default Context Menu Actions -- */
 
@@ -294,6 +295,41 @@ static void ctx_action_play(void) {
                        NULL, 1, 2500);
 }
 
+/* Windows has "Create shortcut" on any item. Ours writes a real .desktop through the
+ * same path the New > Shortcut wizard uses, with an Exec the resolver now understands
+ * (desktop_exec_app_name handles the "wubu-app <Name>" form). */
+static void ctx_action_create_icon_shortcut(void) {
+    int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx < 0) return;
+    const char *nm = g_dwm.icons[idx].name;
+    char exec[256];
+    snprintf(exec, sizeof exec, "wubu-app %s", nm);
+    if (wm_write_desktop_shortcut(nm, exec) == 0)
+        wubu_notify_simple("Desktop", "Shortcut", "Created on the desktop", NULL, 1, 2000);
+    else
+        wubu_notify_simple("Desktop", "Shortcut", "Could not be created", NULL, 2, 2500);
+}
+
+/* Windows pins an app to the taskbar from its context menu. */
+static void ctx_action_pin_taskbar(void) {
+    int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx < 0) return;
+    const char *nm = g_dwm.icons[idx].name;
+    char exec[256];
+    snprintf(exec, sizeof exec, "wubu-app %s", nm);
+    if (wubu_taskbar_pin(nm, nm, exec) == 0)
+        wubu_notify_simple("Taskbar", "Pinned", nm, NULL, 1, 2000);
+    else
+        wubu_notify_simple("Taskbar", "Pin", "Could not pin", NULL, 2, 2500);
+}
+
+/* Windows' desktop context menu has Refresh, and so must ours: it re-scans ~/Desktop for
+ * .desktop files, which is how a shortcut created outside the shell appears. */
+static void ctx_action_refresh_desktop(void) {
+    wm_refresh_desktop();
+    wubu_notify_simple("Desktop", "Refresh", "Re-scanned shortcuts", NULL, 1, 1500);
+}
+
 static void ctx_action_rename(void) {
     int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
     if (idx >= 0) {
@@ -436,6 +472,9 @@ void icon_show_context_menu(int icon_idx, int mx, int my) {
     ctx_menu_add_item(menu, "Rename", ctx_action_rename);
     ctx_menu_add_item(menu, "Delete", ctx_action_delete);
     ctx_menu_add_separator(menu);
+    ctx_menu_add_item(menu, "Create shortcut", ctx_action_create_icon_shortcut);
+    ctx_menu_add_item(menu, "Pin to taskbar", ctx_action_pin_taskbar);
+    ctx_menu_add_separator(menu);
     ctx_menu_add_item(menu, "Properties", ctx_action_properties);
 
     ctx_menu_show(menu, mx, my);
@@ -454,6 +493,7 @@ void desktop_show_context_menu(int mx, int my) {
 
     ctx_menu_add_separator(menu);
     ctx_menu_add_item(menu, "View", ctx_action_view_desktop);
+    ctx_menu_add_item(menu, "Refresh", ctx_action_refresh_desktop);
 
     DosGuiContextMenu *viewmenu = ctx_menu_add_submenu(menu, "Sort By");
     ctx_menu_add_item(viewmenu, "Name", ctx_action_sort_by_name);

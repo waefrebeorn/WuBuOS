@@ -44,13 +44,23 @@ static void test_font_scale(void) {
     wubu_settings_apply_live();
     CHECK(vbe_text_scale() == 1, "font_scale 1.0 -> text scale 1");
     int native_w = vbe_text_width("abc", 1);
-    CHECK(native_w == 18, "native width of \"abc\" is 18px");
+    /* The old assertion was `== 18` -- 3 characters x the BITMAP 6px advance. The
+     * renderer is proportional now (baked face, per-glyph advances), so a fixed
+     * per-character pitch is no longer the contract. What must hold is: text has width,
+     * width grows with length, and "iii" is narrower than "MMM" -- i.e. it is proportional
+     * and not accidentally a constant. */
+    CHECK(native_w > 0, "native width of \"abc\" is positive");
+    CHECK(vbe_text_width("abcdef", 1) > native_w, "width grows with the string");
+    CHECK(vbe_text_width("iii", 1) < vbe_text_width("MMM", 1),
+          "advances are proportional, not a fixed pitch");
 
     s->a11y.font_scale = 2.0;
     wubu_settings_apply_live();
     CHECK(vbe_text_scale() == 2, "font_scale 2.0 -> text scale 2");
-    CHECK(vbe_text_width("abc", 1) == native_w * 2,
-          "vbe_text_width doubles with the scale (layout stays coherent)");
+    /* Scaling goes through the bitmap path (a coverage mask would blur if stretched), so
+     * the honest assertions are: it grew, and layout that measured it still fits. */
+    CHECK(vbe_text_width("abc", 1) > native_w,
+          "vbe_text_width grows with the scale (layout stays coherent)");
 
     s->a11y.font_scale = 1.0;
     wubu_settings_apply_live();

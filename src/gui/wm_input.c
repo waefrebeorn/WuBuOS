@@ -19,6 +19,28 @@
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
+
+/* Windows double-click interval (SPI_GETDOUBLE CLICKTIME default, 500 ms). Windows
+ * SELECTS on the first click and OPENS on the second; this shell used to launch on the
+ * first, so a single stray click started a program and there was no way to select an icon
+ * for rename/delete at all. */
+#define ICON_DBLCLICK_MS 500
+
+/* The double-click pair: which icon, and when it was last pressed. */
+static int      s_last_icon    = -1;
+static unsigned s_last_icon_ms = 0;
+
+#if defined(__linux__) || defined(_POSIX_C_SOURCE) || defined(WUBU_HOSTED)
+#include <time.h>
+static unsigned wm_now_ms(void) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) return 0;
+    return (unsigned)(ts.tv_sec * 1000u + ts.tv_nsec / 1000000);
+}
+#else
+/* Bare metal: the WM tick is the only clock the input path owns. */
+static unsigned wm_now_ms(void) { return (unsigned)g_dwm.ticks * 16u; }
+#endif
 #include "shell/win11_shell.h"
 #include "shell/window_chrome.h"
 #include "shell/desktop.h"
@@ -640,6 +662,26 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                     icon_show_context_menu(icon_idx, x, y);
                     return;
                 }
+                /* Windows semantics: the FIRST click selects, the SECOND opens.
+                 * Selection is what rename/delete/properties act on, so without it the
+                 * only way to touch an icon was to run it. */
+                unsigned now = wm_now_ms();
+                bool dbl = (icon_idx == s_last_icon &&
+                            now - s_last_icon_ms <= ICON_DBLCLICK_MS);
+                s_last_icon = icon_idx;
+                s_last_icon_ms = now;
+
+                for (int k = 0; k < g_dwm.icon_count; k++)
+                    g_dwm.icons[k].selected = (k == icon_idx);
+
+                if (!dbl) {
+                    /* First click: select and arm the drag, do NOT launch. */
+                    g_dwm.drag_icon_id = icon_idx;
+                    g_dwm.drag_icon_ox = x - g_dwm.icons[icon_idx].x;
+                    g_dwm.drag_icon_oy = y - g_dwm.icons[icon_idx].y;
+                    return;
+                }
+
                 /* Unfocus first: the launch below focuses the new window, so
                  * clearing it afterwards would leave nothing focused and the
                  * new window would never receive the keyboard. */
@@ -656,12 +698,16 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                      * nothing (or launched an app named after the file). */
                     desktop_launch_icon(icon_idx);
                 }
+                s_last_icon = -1;      /* a third click starts a new pair */
                 g_dwm.drag_icon_id = icon_idx;
                 g_dwm.drag_icon_ox = x - g_dwm.icons[icon_idx].x;
                 g_dwm.drag_icon_oy = y - g_dwm.icons[icon_idx].y;
                 return;
             }
             g_dwm.focused_id = -1;
+            /* Windows clears the selection when you click the desktop. */
+            for (int k = 0; k < g_dwm.icon_count; k++) g_dwm.icons[k].selected = false;
+            s_last_icon = -1;
             if (btn == 2) { /* Right click on empty desktop */
                 desktop_show_context_menu(x, y);
                 return;

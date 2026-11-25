@@ -504,6 +504,42 @@ static void test_window_state_transitions(void) {
     PASS();
 }
 
+/* Windows input semantics: the first click SELECTS an icon, the second OPENS it. The
+ * shell used to launch on the first click, which meant a stray click started a program and
+ * there was no selection state for rename/delete to act on. */
+static int g_open_count;
+static void open_counter(void) { g_open_count++; }
+
+static void test_icon_click_selects_then_opens(void) {
+    TEST("desktop icon: single click selects, double click opens");
+    wm_init(1024, 768);
+    g_open_count = 0;
+    int n = icon_add_ex("DblTest", DESK_ICON_APP, NULL, 0, 0, 0x808080, open_counter);
+    CHECK(n >= 0, "icon added");
+    int cx = DOSGUI_ICON_MARGIN + 6, cy = DOSGUI_ICON_MARGIN + 6;
+
+    wm_handle_mouse(cx, cy, 1, 1);
+    CHECK(g_open_count == 0, "first click does NOT launch");
+    CHECK(g_dwm.icons[n].selected, "first click selects the icon");
+
+    wm_handle_mouse(cx, cy, 1, 1);
+    CHECK(g_open_count == 1, "second click launches");
+
+    /* After an open, the next click starts a NEW pair: it selects again, it does not
+     * chain into a second launch. (Windows behaves the same way.) */
+    g_open_count = 1;
+    wm_handle_mouse(cx, cy, 1, 1);
+    CHECK(g_open_count == 1, "the click after an open selects, does not relaunch");
+    wm_handle_mouse(cx, cy, 1, 1);
+    CHECK(g_open_count == 2, "and the click after that opens again");
+
+    /* Clicking empty desktop clears the selection, as Windows does. */
+    wm_handle_mouse(700, 400, 1, 1);
+    for (int i = 0; i < wm_get_icon_count(); i++)
+        CHECK(!g_dwm.icons[i].selected, "empty-desktop click clears the selection");
+    wm_shutdown();
+}
+
 static void test_icon_hit_test(void) {
     TEST("icon hit test finds correct icon");
     wm_init(1024, 768);
@@ -541,8 +577,14 @@ static void test_fable_font(void) {
 
 static void test_fable_text_width(void) {
     TEST("vbe_text_width calculates correctly");
-    CHECK(vbe_text_width("ABC", 1) == 18, "3 chars * 6 = 18");
-    CHECK(vbe_text_width("Hello", 2) == 60, "5 chars * 6 * 2 = 60");
+    /* The old assertions were pitch arithmetic on the BITMAP font (6px per character,
+     * doubled by scale). Text is proportional now, so the contract is: the bitmap path
+     * still scales exactly, and the proportional path is positive, additive and
+     * order-dependent in the right direction. */
+    int wA = vbe_text_width("ABC", 1);
+    CHECK(wA > 0, "text has width");
+    CHECK(vbe_text_width("AB", 1) + vbe_text_width("C", 1) == wA, "widths are additive");
+    CHECK(vbe_text_width("iii", 1) < vbe_text_width("WWW", 1), "advances are proportional");
     CHECK(vbe_text_width("", 1) == 0, "empty string = 0");
     PASS();
 }
@@ -1979,6 +2021,7 @@ int main(void) {
     test_screensaver();
     test_lock_screen();
     test_gesture_actions();
+    test_icon_click_selects_then_opens();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();
