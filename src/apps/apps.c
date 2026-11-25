@@ -360,9 +360,18 @@ DosGuiWindow* launch_holyc_term(void) {
  * path is not a constant we can guess: try the candidates in order and start the first
  * one that exists. A hardcoded path that is wrong is indistinguishable from a broken
  * shortcut -- the click does nothing and nobody knows why. */
+/* WEAK, because apps.c is linked into test graphs that have no shell: a registry test
+ * must be able to assert "this app is registered" without dragging in the compositor.
+ * This is the same pattern wm_input.c already uses for launch_app(). */
+extern void desktop_launch_program(const char *cmd) __attribute__((weak));
+
 static int bin_exists(const char *p) { return p && *p && access(p, X_OK) == 0; }
 
 static void launch_vendored(const char *env_var, const char *const *candidates, size_t n) {
+    if (!desktop_launch_program) {
+        fprintf(stderr, "wubu: no desktop launch path in this build (%s)\n", env_var);
+        return;
+    }
     const char *env = getenv(env_var);
     if (bin_exists(env)) { desktop_launch_program(env); return; }
     for (size_t i = 0; i < n; i++)
