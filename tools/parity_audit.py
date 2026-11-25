@@ -103,7 +103,7 @@ MATRIX = [
      [r"new_instance"]),                  # btn==2 is the jump list; middle click is absent
     ("mouse", "taskbar shift-click new instance",
      "shift+click on a taskbar button opens a new instance",
-     [r"new_instance"]),
+     [r"taskbar_shift_new_instance"]),   # own marker: it must not borrow middle-click's
     ("mouse", "desktop wheel cycles windows",
      "wheel over the taskbar cycles windows (Windows does this)",
      [r"btn\s*==\s*4|btn\s*==\s*5|wheel_cycle"]),

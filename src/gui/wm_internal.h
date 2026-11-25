@@ -165,6 +165,14 @@ typedef struct {
 
 void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L);
 bool taskbar_modern_handle(int x, int y, int btn, int kind);
+/* Win+1..9: act on the n-th task slot (0-based) -- focus/restore the running window, or
+ * launch the pinned app. Returns 1 when there was such a slot. */
+int  taskbar_slot_launch(int n);
+/* Middle click on a taskbar button: open a NEW instance instead of focusing (Windows).
+ * Only pins can do this -- a window task does not record how it was launched. */
+int  taskbar_new_instance(int slot_index);
+/* Wheel over the taskbar / Win+Tab-less window cycling: move focus by delta (+1 next). */
+void wm_wheel_cycle(int delta);
 int  border_width(void);
 int  theme_radius(void);
 void load_default_wallpaper(void);

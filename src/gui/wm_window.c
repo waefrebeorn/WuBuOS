@@ -186,6 +186,19 @@ void wm_set_current_desktop(int desktop) {
 }
 
 /* Move focused window to adjacent desktop (Win+Shift+Left/Right) */
+/* Cycle focus through live windows in z-order. Wheel over the taskbar in Windows walks
+ * the window list; we had no way to move focus without the mouse at all. */
+void wm_wheel_cycle(int delta) {
+    if (g_dwm.nz <= 1) return;
+    int cur = 0;
+    for (int j = 0; j < g_dwm.nz; j++)
+        if (g_dwm.zorder[j] == g_dwm.focused_id) { cur = j; break; }
+    int next = (cur + (delta >= 0 ? 1 : -1) + g_dwm.nz) % g_dwm.nz;
+    int id = g_dwm.zorder[next];
+    if (id >= 0 && id < DOSGUI_MAX_WINDOWS && g_dwm.windows[id].alive)
+        wm_set_focus(&g_dwm.windows[id]);
+}
+
 void wm_move_focused_window(int delta) {
     if (g_dwm.focused_id < 0) return;
     DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];

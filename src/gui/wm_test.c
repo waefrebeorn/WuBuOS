@@ -2094,6 +2094,46 @@ static void test_win_arrow_snaps_with_focus(void) {
     PASS();
 }
 
+
+static void test_wheel_over_taskbar_cycles_focus(void) {
+    TEST("wheel over the taskbar cycles window focus");
+    wm_init(1024, 768);
+    DosGuiWindow *a = wm_create(20, 20, 200, 150, "A");
+    DosGuiWindow *b = wm_create(80, 60, 200, 150, "B");
+    CHECK(a && b, "two windows");
+    wm_set_focus(a);
+    CHECK(wm_get_focused() == a, "A focused first");
+
+    wm_wheel_cycle(+1);
+    CHECK(wm_get_focused() != a, "wheel moved focus away from A");
+    wm_wheel_cycle(-1);
+    CHECK(wm_get_focused() == a, "wheel back returned focus to A");
+    wm_shutdown();
+    PASS();
+}
+
+static void test_win_number_acts_on_taskbar_slot(void) {
+    TEST("Win+number acts on the taskbar slot (restore / minimize toggle)");
+    wm_init(1024, 768);
+    DosGuiWindow *a = wm_create(20, 20, 200, 150, "A");
+    CHECK(a != NULL, "window created");
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    if (L.n_slots < 1) {                      /* no slots on this build: say so, do not pass */
+        printf("\n  (skip: no taskbar slots with one window -- layout has %d)\n", L.n_slots);
+        wm_shutdown();
+        PASS();
+        return;
+    }
+    wm_set_focus(a);
+    taskbar_slot_launch(0);                   /* focused window toggles to minimized */
+    CHECK(wm_window_minimized_at(0), "Win+1 minimized the focused window");
+    taskbar_slot_launch(0);                   /* and back */
+    CHECK(!wm_window_minimized_at(0), "Win+1 restored it");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2101,6 +2141,8 @@ int main(void) {
 
     test_init();
     test_init_shutdown_no_crash();
+    test_wheel_over_taskbar_cycles_focus();
+    test_win_number_acts_on_taskbar_slot();
     test_win_d_show_desktop_with_focus();
     test_win_shift_arrow_moves_window_to_desktop();
     test_win_arrow_snaps_with_focus();

@@ -300,6 +300,13 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         }
     }
 
+    /* Win+1..9: act on that taskbar button (Windows). Windows users press these dozens of
+     * times a day; nothing happened here. Keys arrive as ASCII digits. */
+    if ((mods & MOD_WIN) && !(mods & (MOD_CTRL | MOD_ALT)) &&
+        key >= '1' && key <= '9') {
+        if (taskbar_slot_launch((int)(key - '1'))) return;
+    }
+
     /* Win+A: quick settings panel (Windows 11 parity). */
     if ((mods & MOD_WIN) && (key == 0x1E || key == 'a' || key == 'A')) {
         quick_settings_toggle();

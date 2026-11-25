@@ -238,6 +238,65 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
                   tc()->icon_text, 1);
 }
 
+/* Which window a slot stands for, or -1. */
+static int slot_window(const WmTaskSlot *s) {
+    if (!s || s->is_pin) return -1;
+    if (s->index < 0 || s->index >= DOSGUI_MAX_WINDOWS) return -1;
+    return g_dwm.windows[s->index].alive ? s->index : -1;
+}
+
+/* Launch-or-focus the n-th task slot: Win+1..9 lands here. Windows numbers the BUTTONS the
+ * user sees, so n counts every slot in layout order, pins and windows alike. */
+int taskbar_slot_launch(int n) {
+    WmTaskLayout L;
+    taskbar_modern_layout(g_dwm.screen_w, g_dwm.screen_h, &L);
+    if (n < 0 || n >= L.n_slots) return 0;
+    const WmTaskSlot *s = &L.slot[n];
+    int wi = slot_window(s);
+    if (wi >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[wi];
+        /* Exclusive branches: clearing the flag and then re-setting it in the next
+         * statement meant "restore a minimized window" restored it and re-minimized it in
+         * the same call -- the test caught it, the eye did not. */
+        if (w->flags & DOSGUI_WIN_MINIMIZED) {
+            w->flags &= ~DOSGUI_WIN_MINIMIZED;
+            wm_set_focus(w);
+        } else if (g_dwm.focused_id == wi) {
+            w->flags |= DOSGUI_WIN_MINIMIZED;      /* Windows toggles on the focused one */
+        } else {
+            wm_set_focus(w);
+        }
+        return 1;
+    }
+    if (s->is_pin) {
+        const WubuTask *t = wubu_taskbar_get(s->index);
+        if (t) {
+            const char *x = t->exec[0] ? t->exec : t->title;
+            if (desktop_launch_exec) desktop_launch_exec(x);
+            else if (launch_app)     launch_app(x);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/* Middle click = a NEW instance (Windows). Only a pin knows its command; a window task does
+ * not record how it was started, so a window slot returns 0 and the caller falls through to
+ * the normal focus behaviour. */
+int taskbar_new_instance(int slot_index) {
+    WmTaskLayout L;
+    taskbar_modern_layout(g_dwm.screen_w, g_dwm.screen_h, &L);
+    if (slot_index < 0 || slot_index >= L.n_slots) return 0;
+    const WmTaskSlot *s = &L.slot[slot_index];
+    if (!s->is_pin) return 0;
+    const WubuTask *t = wubu_taskbar_get(s->index);
+    if (!t) return 0;
+    const char *x = t->exec[0] ? t->exec : t->title;
+    if (desktop_launch_exec) desktop_launch_exec(x);
+    else if (launch_app)     launch_app(x);
+    return 1;
+}
+
 bool taskbar_modern_handle(int x, int y, int btn, int kind) {
     if (wubu_theme_current() != THEME_DARK) return false;
 
@@ -288,6 +347,15 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind) {
         const WmTaskSlot *s = &L.slot[i];
         if (x < s->x || x >= s->x + s->w || y < s->y || y >= s->y + s->h)
             continue;
+        /* Wheel over the bar walks the window list; middle click opens a new instance.
+         * Windows does both, and neither existed: the bar only knew left and right. */
+        if ((btn == 4 || btn == 5) && kind == 1) {
+            wm_wheel_cycle(btn == 4 ? -1 : +1);
+            return true;
+        }
+        if (btn == 3 && kind == 1) {
+            if (taskbar_new_instance(i)) return true;
+        }
         /* Right-click = jump list (Windows). Before this the bar ignored the right
          * button entirely, so a taskbar button could only be clicked. */
         if (btn == 2) {
