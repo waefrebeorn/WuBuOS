@@ -635,6 +635,17 @@ static bool vbe_point_in_circle(int x, int y, int cx, int cy, int r) {
     return dx * dx + dy * dy <= r * r;
 }
 
+/* Integer square root. vbe.c is FREESTANDING: __builtin_sqrt compiled to a call to
+ * sqrt(), which the bridge and screenshot gates do not link (-lm absent), so the whole
+ * suite went red on my antialiasing commit. A kernel-side rasteriser has no business
+ * pulling libm in for a corner arc anyway. */
+static uint32_t vbe_isqrt(uint32_t n) {
+    uint32_t x = n, y = (n + 1u) / 2u;
+    if (n == 0) return 0;
+    while (y < x) { x = y; y = (n / y + y) / 2u; }
+    return x;
+}
+
 static void vbe_blend_pixel(int x, int y, uint32_t color, float a) {
     if (x < 0 || y < 0) return;
     uint32_t dst = vbe_get_pixel(x, y);
@@ -668,14 +679,18 @@ static void vbe_fill_rounded_aa_impl(int x, int y, int w, int h, int radius, uin
     vbe_fill_rect(x + w - radius, y + radius, radius, h - 2 * radius, color);
 
     /* Four corner squares, coverage-blended against whatever is already there. */
-    const float r = (float)radius;
+    /* All in HALF-PIXEL units: no floats, no libm. The arc centre is (rad, rad) in
+     * pixels, i.e. (2*rad, 2*rad) here; a pixel centre (dx,dy) is (2dx+1, 2dy+1). */
+    const int r2 = 2 * radius;
     for (int dy = 0; dy < radius; dy++) {
         for (int dx = 0; dx < radius; dx++) {
-            float px = (float)dx + 0.5f, py = (float)dy + 0.5f;
-            float d = __builtin_sqrt((r - px) * (r - px) + (r - py) * (r - py));
-            float cov = r - d + 0.5f;
-            if (cov <= 0.0f) continue;
-            if (cov > 1.0f) cov = 1.0f;
+            int px2 = 2 * dx + 1, py2 = 2 * dy + 1;
+            int ax = r2 - px2, ay = r2 - py2;
+            uint32_t dhalf = vbe_isqrt((uint32_t)(ax * ax + ay * ay));  /* half-pixels */
+            int cov2 = (int)(2 * radius) - (int)dhalf + 1;               /* half-pixel cov */
+            if (cov2 <= 0) continue;
+            if (cov2 > 2) cov2 = 2;
+            float cov = (float)cov2 * 0.5f;
             vbe_blend_pixel(x + dx,             y + dy,             color, cov);
             vbe_blend_pixel(x + w - 1 - dx,     y + dy,             color, cov);
             vbe_blend_pixel(x + dx,             y + h - 1 - dy,     color, cov);
