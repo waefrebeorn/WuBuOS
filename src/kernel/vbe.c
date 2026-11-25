@@ -635,12 +635,56 @@ static bool vbe_point_in_circle(int x, int y, int cx, int cy, int r) {
     return dx * dx + dy * dy <= r * r;
 }
 
-void vbe_fill_rect_rounded(int x, int y, int w, int h, int radius, uint32_t color) {
+static void vbe_blend_pixel(int x, int y, uint32_t color, float a) {
+    if (x < 0 || y < 0) return;
+    uint32_t dst = vbe_get_pixel(x, y);
+    int sr = (int)((color >> 16) & 0xff), sg = (int)((color >> 8) & 0xff), sb = (int)(color & 0xff);
+    int dr = (int)((dst >> 16) & 0xff), dg = (int)((dst >> 8) & 0xff), db = (int)(dst & 0xff);
+    int r = (int)((float)sr * a + (float)dr * (1.0f - a));
+    int g = (int)((float)sg * a + (float)dg * (1.0f - a));
+    int b = (int)((float)sb * a + (float)db * (1.0f - a));
+    vbe_set_pixel(x, y, ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+}
+
+/* ANTIALIASED ROUNDED FILL -- the one owner of "a rounded rectangle".
+ *
+ * The previous version was 1-bit (a staircase at every radius) AND inverted: outside
+ * every corner arc it painted the FILL COLOUR over the background, so a rounded button
+ * carried a coloured square halo. Both defects were inherited by every surface that
+ * used it, which is why the whole desktop looked boxy while individual widgets were
+ * being patched one at a time.
+ *
+ * Coverage blending, per pixel: a pixel is filled in proportion to how much of it lies
+ * inside the arc, and pixels outside contribute nothing at all. Straight edges are
+ * filled by plain rects, so only the four radius boxes pay the per-pixel cost. */
+static void vbe_fill_rounded_aa_impl(int x, int y, int w, int h, int radius, uint32_t color) {
     if (radius <= 0) { vbe_fill_rect(x, y, w, h, color); return; }
     if (radius > w/2) radius = w/2;
     if (radius > h/2) radius = h/2;
 
-    /* Top-left corner */
+    /* Straight interior: centre band + the two side bands, no per-pixel math. */
+    vbe_fill_rect(x + radius, y, w - 2 * radius, h, color);
+    vbe_fill_rect(x, y + radius, radius, h - 2 * radius, color);
+    vbe_fill_rect(x + w - radius, y + radius, radius, h - 2 * radius, color);
+
+    /* Four corner squares, coverage-blended against whatever is already there. */
+    const float r = (float)radius;
+    for (int dy = 0; dy < radius; dy++) {
+        for (int dx = 0; dx < radius; dx++) {
+            float px = (float)dx + 0.5f, py = (float)dy + 0.5f;
+            float d = __builtin_sqrt((r - px) * (r - px) + (r - py) * (r - py));
+            float cov = r - d + 0.5f;
+            if (cov <= 0.0f) continue;
+            if (cov > 1.0f) cov = 1.0f;
+            vbe_blend_pixel(x + dx,             y + dy,             color, cov);
+            vbe_blend_pixel(x + w - 1 - dx,     y + dy,             color, cov);
+            vbe_blend_pixel(x + dx,             y + h - 1 - dy,     color, cov);
+            vbe_blend_pixel(x + w - 1 - dx,     y + h - 1 - dy,     color, cov);
+        }
+    }
+    return;
+
+    /* Top-left corner (legacy path, unreachable) */
     for (int dy = 0; dy < radius; dy++) {
         for (int dx = 0; dx < radius; dx++) {
             if (!vbe_point_in_circle(x + dx, y + dy, x + radius - 1, y + radius - 1, radius))
@@ -825,4 +869,10 @@ void vbe_ellipse(int cx, int cy, int rx, int ry, uint32_t color) {
             p += rx2 - py + px;
         }
     }
+}
+
+/* Public owner, unchanged signature: every caller in the tree gets the antialiased
+ * implementation without being touched. */
+void vbe_fill_rect_rounded(int x, int y, int w, int h, int radius, uint32_t color) {
+    vbe_fill_rounded_aa_impl(x, y, w, h, radius, color);
 }
