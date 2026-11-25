@@ -12,6 +12,16 @@
  */
 
 #include "vbe.h"
+
+/* The baked coverage table is DATA: no libm, no allocator, no host call. Including it
+ * here is what lets one glue point upgrade every text call site. */
+#include "../gui/fonts/wubu_font_text.h"
+
+/* Bitmap glyphs were ~8px tall; the baked face has cap height 9 at 13px with ascent 15.
+ * Drawing the baseline 14px below the old top keeps a title in the same optical band. */
+#define AA_BASELINE_OFF 14
+
+int vbe_text_baseline_off(void) { return AA_BASELINE_OFF; }
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -504,7 +514,64 @@ void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale) {
     }
 }
 
+/* ---- antialiased text from the baked face ----------------------------------------
+ * Every glyph in the product came from a 1-bit bitmap table, which is why text reads
+ * blocky at any size. The coverage table is baked from a real TrueType face by
+ * tools/font_bake.py; this glue upgrades all callers at once instead of asking 300 sites
+ * to opt in. Bytes outside the baked range (or a non-unit text scale) fall back to the
+ * bitmap path: a glyph we cannot draw must never silently vanish. */
+/* Per CHARACTER, not per string: if a line contains one symbol the face cannot draw,
+ * falling back for the whole line would make an otherwise clean title blocky again. The
+ * chars outside the baked range keep the bitmap glyph at the same pen. */
+static int aa_char_ok(unsigned char c) {
+    return g_text_scale == 1 && c >= WUBU_FONT_TEXT_FIRST && c <= WUBU_FONT_TEXT_LAST;
+}
+
+static const WubuGlyphAA *aa_glyph(unsigned char c) {
+    return &g_font_glyphs[c - WUBU_FONT_TEXT_FIRST];
+}
+
+static int aa_advance(const WubuGlyphAA *g) {
+    return (g->w > 0 ? g->w : (WUBU_FONT_TEXT_PX / 4)) + 1;
+}
+
+static int aa_text_width(const char *s) {
+    int w = 0;
+    for (; *s; s++) {
+        unsigned char c = (unsigned char)*s;
+        w += aa_char_ok(c) ? aa_advance(aa_glyph(c)) : GLYPH_ADVANCE * g_text_scale;
+    }
+    return w;
+}
+
+static void aa_draw_text(int x, int y, const char *s, uint32_t color) {
+    /* y is the TOP of a bitmap-font line; the golden cap box starts AA_BASELINE_OFF below
+     * it, so a title drawn the old way keeps its optical position. */
+    const int baseline = y + AA_BASELINE_OFF;
+    for (; *s; s++) {
+        unsigned char c = (unsigned char)*s;
+        if (!aa_char_ok(c)) {          /* one glyph the face lacks: bitmap, same line */
+            vbe_draw_char(x, y, *s, color, 1);
+            x += GLYPH_ADVANCE * g_text_scale;
+            continue;
+        }
+        const WubuGlyphAA *g = aa_glyph(c);
+        if (g->cov) {
+            for (int gy = 0; gy < g->h; gy++) {
+                const unsigned char *row = g->cov + (size_t)gy * (size_t)g->w;
+                for (int gx = 0; gx < g->w; gx++) {
+                    int cov = row[gx];
+                    if (cov) vbe_blend_pixel_cov(x + g->xoff + gx,
+                                                 baseline + g->yoff + gy, color, cov);
+                }
+            }
+        }
+        x += aa_advance(g);
+    }
+}
+
 void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale) {
+    if (scale == 1 && g_text_scale == 1) { aa_draw_text(x, y, s, color); return; }
     int adv = GLYPH_ADVANCE * scale * g_text_scale;
     for (; *s; s++) {
         vbe_draw_char(x, y, *s, color, scale);
@@ -513,6 +580,7 @@ void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale) {
 }
 
 int vbe_text_width(const char *s, int scale) {
+    if (scale == 1 && g_text_scale == 1) return aa_text_width(s);
     int n = 0;
     while (s[n]) n++;
     return n * GLYPH_ADVANCE * scale * g_text_scale;
@@ -644,6 +712,20 @@ static uint32_t vbe_isqrt(uint32_t n) {
     if (n == 0) return 0;
     while (y < x) { x = y; y = (n / y + y) / 2u; }
     return x;
+}
+
+/* Integer coverage blend, public: text and icons carry 0..255 coverage and must not
+ * pull float (or libm) into a freestanding rasteriser. The float path below stays for
+ * the arc rasteriser, which already computes its own coverage. */
+void vbe_blend_pixel_cov(int x, int y, uint32_t color, int cov) {
+    if (cov <= 0) return;
+    if (cov > 255) cov = 255;
+    uint32_t dst = vbe_get_pixel(x, y);
+    int a = cov, ia = 255 - cov;
+    int r = (((color >> 16) & 0xFF) * a + ((dst >> 16) & 0xFF) * ia) / 255;
+    int g = (((color >> 8)  & 0xFF) * a + ((dst >> 8)  & 0xFF) * ia) / 255;
+    int b = (( color        & 0xFF) * a + ( dst        & 0xFF) * ia) / 255;
+    vbe_set_pixel(x, y, ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
 }
 
 static void vbe_blend_pixel(int x, int y, uint32_t color, float a) {

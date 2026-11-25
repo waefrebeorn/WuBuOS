@@ -1516,6 +1516,13 @@ test_gui_blit:
 	$(CC) -O1 -g -std=c11 -Wall -Wextra -I$(GUI) $(GUI)/gui_blit.c $(GUI)/gui_blit_test.c -o build/gui_blit_test
 	timeout 300 build/gui_blit_test
 
+test_font_aa:
+	$(CC) -O1 -g -std=c11 -Wall -Wextra -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L \
+		-Iinclude -I$(GUI) -I$(GUI)/fonts \
+		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/vbe_font_aa_test.c \
+		-o build/font_aa_test -lm
+	timeout 300 build/font_aa_test
+
 test_gui_metrics:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude src/gui/wubu_gui_metrics.c  $(RT_ALWAYS) \
 		src/gui/test_wubu_gui_metrics.c -o $(RT)/wubu_gui_metrics_test

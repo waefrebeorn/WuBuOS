@@ -209,6 +209,14 @@ void vbe_vgradient(int x, int y, int w, int h, uint32_t top, uint32_t bottom);
  * given alpha (0 = unchanged, 255 = fully color). Used for soft drop-shadows. */
 void vbe_blend_rect(int x, int y, int w, int h, uint32_t color, int alpha);
 
+/* Blend `color` over one pixel with 0..255 coverage. Integer only, so a freestanding
+ * rasteriser can antialias text and icons without libm. */
+void vbe_blend_pixel_cov(int x, int y, uint32_t color, int cov);
+
+/* Pixels between the `y` passed to vbe_draw_text() and the text baseline. Exposed so the
+ * placement can be asserted instead of assumed: a title must keep its optical band. */
+int vbe_text_baseline_off(void);
+
 /* Horizontal gradient fill. */
 void vbe_hgradient(int x, int y, int w, int h, uint32_t left, uint32_t right);
 
