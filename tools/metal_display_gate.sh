@@ -282,8 +282,10 @@ if phys is not None and pitch is not None:
             break
         time.sleep(2)
     if not data or len(data) < w * h * 4:
+        rc = p.poll()
         if data is None:
-            print('  SCANOUT: FAIL (monitor closed under load -- QEMU may have died)')
+            print('  SCANOUT: FAIL (no dump: qemu rc=%s, temp file %s)'
+                  % (rc, 'present' if os.path.exists('/tmp/metal-px-%d.bin' % pid) else 'absent'))
         else:
             print('  SCANOUT: FAIL (short dump: %d of %d bytes; wanted the full frame)'
                   % (len(data), w * h * 4))
