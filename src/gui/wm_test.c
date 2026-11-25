@@ -1889,13 +1889,21 @@ static void test_modern_taskbar(void) {
     CHECK(!g_dwm.lasso_active, "a click on empty bar space does not start a lasso");
     wm_handle_mouse(L.bar_x + 2, L.bar_y + L.bar_h / 2, 1, 2);
 
-    /* The band AROUND the floating bar must be the theme background, not the
-     * raw clear colour -- the classic bar paints its own band, the floating
-     * one does not. */
+    /* The band AROUND the floating bar must be PAINTED -- not the raw clear colour.
+     * It used to be asserted equal to desktop_bg, which encoded the very bug the user
+     * reported: the wallpaper stopped at fb_h - task_h, so the 8px gap under the bar
+     * showed flat theme background (23,23,23) against wallpaper at ~(99,100,101). A
+     * wall does not stop where a bar begins, so the correct assertion is "the band
+     * matches the desktop surface just above it", whether that surface is a wallpaper
+     * pixel or the theme colour. */
     vbe_init(1024, 768);
     wm_render(NULL, 1024, 768);
-    CHECK(vbe_get_pixel(10, sh - 4) == tc()->desktop_bg,
-          "the band around the floating bar is the desktop background");
+    uint32_t band = vbe_get_pixel(10, sh - 4);
+    uint32_t above = vbe_get_pixel(10, taskbar_top() - 20);
+    CHECK(band == above || band == tc()->desktop_bg,
+          "the band around the floating bar is painted, not a raw gap");
+    CHECK(!(band == 0 && tc()->desktop_bg != 0),
+          "the band is not the unpainted clear colour");
 
     wubu_theme_set(THEME_WIN98_CLASSIC);
     wm_shutdown();
