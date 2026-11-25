@@ -13,8 +13,8 @@ WubuX11Window *wubu_x11_window_find(WubuX11Windows *t, uint32_t id) {
     return NULL;
 }
 
-int wubu_x11_window_create(WubuX11Windows *t, uint32_t id,
-                           int x, int y, int w, int h) {
+int wubu_x11_window_create_ex(WubuX11Windows *t, uint32_t id, uint32_t parent,
+                              int x, int y, int w, int h) {
     if (!t || id == 0) return -1;
     if (w <= 0 || h <= 0) return -2;
     if ((long)w * (long)h > WUBU_X11_MAX_PIXELS) return -3;   /* bounded pool */
@@ -25,13 +25,18 @@ int wubu_x11_window_create(WubuX11Windows *t, uint32_t id,
         memset(win, 0, sizeof *win);
         win->in_use = 1;
         win->id = id;
-        win->x = x; win->y = y; win->w = w; win->h = h;
+        win->x = x; win->y = y; win->w = w; win->h = h; win->parent = parent;
         wubu_x11_surface_init(&win->surface, win->pixels, w, h);
         wubu_x11_surface_clear(&win->surface, 0, 0, 0);
         t->count++;
         return 0;
     }
     return -5;                                                /* table full */
+}
+
+int wubu_x11_window_create(WubuX11Windows *t, uint32_t id,
+                           int x, int y, int w, int h) {
+    return wubu_x11_window_create_ex(t, id, 0, x, y, w, h);
 }
 
 int wubu_x11_window_destroy(WubuX11Windows *t, uint32_t id) {

@@ -19,6 +19,37 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+
+/* Expose is the packet every X client waits for: a window that is mapped and never
+ * told to draw stays blank forever. xlogo proved this the hard way -- 40 requests,
+ * a mapped window, and then silence, because nothing ever said "redraw now".
+ *
+ * 32-byte core event: type, detail, sequence, window, x, y, w, h, count, pad. */
+static void send_expose(int c, uint16_t seq, int lsb, uint32_t win,
+                        int x, int y, int w, int h) {
+    uint8_t e[32];
+    memset(e, 0, sizeof e);
+    e[0] = 12;                    /* Expose */
+    e[1] = 0;                     /* detail: none */
+    if (lsb) { e[2] = (uint8_t)(seq & 0xff); e[3] = (uint8_t)(seq >> 8); }
+    else     { e[2] = (uint8_t)(seq >> 8);   e[3] = (uint8_t)(seq & 0xff); }
+#define PUT16(off, val) do { if (lsb) { e[off] = (uint8_t)((val) & 0xff); e[(off)+1] = (uint8_t)(((val) >> 8) & 0xff); } \
+                            else { e[off] = (uint8_t)(((val) >> 8) & 0xff); e[(off)+1] = (uint8_t)((val) & 0xff); } } while (0)
+#define PUT32(off, val) do { if (lsb) { e[off] = (uint8_t)((val) & 0xff); e[(off)+1] = (uint8_t)(((val) >> 8) & 0xff); \
+                                     e[(off)+2] = (uint8_t)(((val) >> 16) & 0xff); e[(off)+3] = (uint8_t)(((val) >> 24) & 0xff); } \
+                            else { e[off] = (uint8_t)(((val) >> 24) & 0xff); e[(off)+1] = (uint8_t)(((val) >> 16) & 0xff); \
+                                   e[(off)+2] = (uint8_t)(((val) >> 8) & 0xff); e[(off)+3] = (uint8_t)((val) & 0xff); } } while (0)
+    PUT32(4, win); PUT16(8, x); PUT16(10, y); PUT16(12, w); PUT16(14, h); PUT16(16, 0);
+#undef PUT16
+#undef PUT32
+    size_t off = 0;
+    while (off < sizeof e) {
+        ssize_t r = write(c, e + off, sizeof e - off);
+        if (r <= 0) return;
+        off += (size_t)r;
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) { fprintf(stderr, "usage: %s /path/to/socket\n", argv[0]); return 2; }
     setvbuf(stdout, NULL, _IONBF, 0);   /* a crash must not hide the last line */
@@ -78,6 +109,11 @@ int main(int argc, char **argv) {
     static WubuX11Windows table;
     wubu_x11_windows_init(&table);
 
+    /* Graphics contexts: a fill is only a colour if the GC says which colour. The
+     * table is small and fixed for the same reason the windows are. */
+    struct { int in_use; uint32_t id; uint32_t fg; } gc[64];
+    memset(gc, 0, sizeof gc);
+
     int handled = 0, unknown = 0;
     uint16_t seq = 0;
     for (;;) {
@@ -118,26 +154,98 @@ int main(int argc, char **argv) {
             n = wubu_x11_reply_geometry(rep, sizeof rep, seq, cfg.root_window,
                                         0, 0, cfg.width, cfg.height, 0, s.lsb_first);
             break;
+        case 2: {   /* ChangeWindowAttributes: wid(4) value-mask(4) values... */
+            uint32_t wid, vmask;
+            if (s.lsb_first) {
+                wid   = (uint32_t)(body[0] | (body[1]<<8) | (body[2]<<16) | ((uint32_t)body[3]<<24));
+                vmask = (uint32_t)(body[4] | (body[5]<<8) | (body[6]<<16) | ((uint32_t)body[7]<<24));
+            } else {
+                wid   = (uint32_t)(((uint32_t)body[0]<<24) | (body[1]<<16) | (body[2]<<8) | body[3]);
+                vmask = (uint32_t)(((uint32_t)body[4]<<24) | (body[5]<<16) | (body[6]<<8) | body[7]);
+            }
+            /* CWEventMask is bit 11. Values follow the mask in bit order, and each
+             * attribute has its own width, so the offset is the sum of the widths of
+             * the set bits below it -- assuming one does is how a client's window
+             * ends up with a nonsense mask. */
+            static const int w_[15] = {4,4,4,4,1,1,1,4,4,1,1,4,4,4,4};
+            int off2 = 0;
+            for (int b = 0; b < 11; b++) if (vmask & (1u << b)) off2 += w_[b];
+            if (vmask & (1u << 11)) {
+                uint32_t em;
+                if (s.lsb_first) em = (uint32_t)(body[8+off2] | (body[9+off2]<<8) | (body[10+off2]<<16) | ((uint32_t)body[11+off2]<<24));
+                else em = (uint32_t)(((uint32_t)body[8+off2]<<24) | (body[9+off2]<<16) | (body[10+off2]<<8) | body[11+off2]);
+                WubuX11Window *wn = wubu_x11_window_find(&table, wid);
+                if (wn) wn->event_mask = em;
+                printf("CHANGEATTR id=%#x event-mask=%#x\n", wid, em);
+                /* A client that selects ExposureMask on an already-mapped window
+                 * expects Expose straight away -- that is the contract Xt relies on,
+                 * and waiting for a map that already happened means waiting forever. */
+                if (wn && wn->mapped && (em & (1u << 15))) {
+                    send_expose(c, seq, s.lsb_first, wid, 0, 0, wn->w, wn->h);
+                    printf("EXPOSE id=%#x %dx%d (on select)\n", wid, wn->w, wn->h);
+                }
+            }
+            handled++; continue;
+        }
         case WUBU_X11_OP_CREATE_WINDOW: {
             /* wid(4) parent(4) x(2) y(2) w(2) h(2) border(2) class(2) visual(4) ... */
-            uint32_t wid; int x, y, w, h;
+            uint32_t wid, parent; int x, y, w, h;
             if (s.lsb_first) {
                 wid = (uint32_t)(body[0] | (body[1]<<8) | (body[2]<<16) | ((uint32_t)body[3]<<24));
+                parent = (uint32_t)(body[4] | (body[5]<<8) | (body[6]<<16) | ((uint32_t)body[7]<<24));
                 x = (int16_t)(body[8] | (body[9]<<8));
                 y = (int16_t)(body[10] | (body[11]<<8));
                 w = (int16_t)(body[12] | (body[13]<<8));
                 h = (int16_t)(body[14] | (body[15]<<8));
             } else {
                 wid = (uint32_t)(((uint32_t)body[0]<<24) | (body[1]<<16) | (body[2]<<8) | body[3]);
+                parent = (uint32_t)(((uint32_t)body[4]<<24) | (body[5]<<16) | (body[6]<<8) | body[7]);
                 x = (int16_t)((body[8]<<8) | body[9]);
                 y = (int16_t)((body[10]<<8) | body[11]);
                 w = (int16_t)((body[12]<<8) | body[13]);
                 h = (int16_t)((body[14]<<8) | body[15]);
             }
-            if (wubu_x11_window_create(&table, wid, x, y, w, h) != 0)
+            /* The value list after the visual is where Xt puts CWEventMask (bit 11),
+             * and it is why a client that "sets no attributes" still expects Expose.
+             * Values follow the mask in bit order with their own widths. */
+            uint32_t emask = 0;
+            if (have >= 28) {
+                uint32_t vmask;
+                if (s.lsb_first) vmask = (uint32_t)(body[24] | (body[25]<<8) | (body[26]<<16) | ((uint32_t)body[27]<<24));
+                else vmask = (uint32_t)(((uint32_t)body[24]<<24) | (body[25]<<16) | (body[26]<<8) | body[27]);
+                static const int vw_[15] = {4,4,4,4,1,1,1,4,4,1,1,4,4,4,4};
+                int voff = 0;
+                for (int b = 0; b < 11; b++) if (vmask & (1u << b)) voff += vw_[b];
+                if ((vmask & (1u << 11)) && have >= (size_t)(28 + voff + 4)) {
+                    const uint8_t *q = body + 28 + voff;
+                    if (s.lsb_first) emask = (uint32_t)(q[0] | (q[1]<<8) | (q[2]<<16) | ((uint32_t)q[3]<<24));
+                    else emask = (uint32_t)(((uint32_t)q[0]<<24) | (q[1]<<16) | (q[2]<<8) | q[3]);
+                }
+            }
+            if (wubu_x11_window_create_ex(&table, wid, parent, x, y, w, h) != 0)
                 printf("CREATE refused id=%#x %dx%d\n", wid, w, h);
             else
-                printf("CREATE id=%#x %dx%d\n", wid, w, h);
+            {
+                WubuX11Window *wn = wubu_x11_window_find(&table, wid);
+                if (wn) wn->event_mask = emask;
+                (void)0;
+            }
+            handled++; continue;
+        }
+        case 9: {   /* MapSubwindows: parentage matters -- mapping the parent is not
+                     * mapping its children, and a child that selected ExposureMask
+                     * will wait forever if nobody ever maps it. */
+            uint32_t wid;
+            if (s.lsb_first) wid = (uint32_t)(body[0] | (body[1]<<8) | (body[2]<<16) | ((uint32_t)body[3]<<24));
+            else wid = (uint32_t)(((uint32_t)body[0]<<24) | (body[1]<<16) | (body[2]<<8) | body[3]);
+            int mapped = 0;
+            for (int i = 0; i < WUBU_X11_MAX_WINDOWS; i++) {
+                WubuX11Window *wn = &table.win[i];
+                if (!wn->in_use || wn->parent != wid) continue;
+                wn->mapped = 1; mapped++;
+                if (wn->event_mask & (1u << 15)) { send_expose(c, seq, s.lsb_first, wn->id, 0, 0, wn->w, wn->h); printf("EXPOSE id=%#x (subwindow)\n", wn->id); }
+            }
+            printf("MAPSUBWIN parent=%#x children=%d\n", wid, mapped);
             handled++; continue;
         }
         case WUBU_X11_OP_MAP_WINDOW: {
@@ -146,6 +254,104 @@ int main(int argc, char **argv) {
             else wid = (uint32_t)(((uint32_t)body[0]<<24) | (body[1]<<16) | (body[2]<<8) | body[3]);
             wubu_x11_window_map(&table, wid, 1);
             printf("MAP id=%#x\n", wid);
+            {
+                WubuX11Window *wn = wubu_x11_window_find(&table, wid);
+                if (wn && (wn->event_mask & (1u << 15))) {   /* ExposureMask */
+                    send_expose(c, seq, s.lsb_first, wid, 0, 0, wn->w, wn->h);
+                    printf("EXPOSE id=%#x %dx%d\n", wid, wn->w, wn->h);
+                }
+            }
+            handled++; continue;
+        }
+        case 55: {  /* CreateGC: gcid(4) drawable(4) mask(4) values... */
+            uint32_t gid, mask;
+            if (s.lsb_first) {
+                gid  = (uint32_t)(body[0] | (body[1]<<8) | (body[2]<<16) | ((uint32_t)body[3]<<24));
+                mask = (uint32_t)(body[8] | (body[9]<<8) | (body[10]<<16) | ((uint32_t)body[11]<<24));
+            } else {
+                gid  = (uint32_t)(((uint32_t)body[0]<<24) | (body[1]<<16) | (body[2]<<8) | body[3]);
+                mask = (uint32_t)(((uint32_t)body[8]<<24) | (body[9]<<16) | (body[10]<<8) | body[11]);
+            }
+            int slot = -1;
+            for (int i = 0; i < 64; i++) if (!gc[i].in_use) { slot = i; break; }
+            if (slot < 0) { printf("CREATEGC refused (table full)\n"); handled++; continue; }
+            gc[slot].in_use = 1; gc[slot].id = gid; gc[slot].fg = 0x000000;
+            /* GCForeground is bit 2; values follow the mask in bit order. */
+            static const int gw[23] = {4,4,4,4,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,4};
+            int off3 = 0;
+            for (int b = 0; b < 2; b++) if (mask & (1u << b)) off3 += gw[b];
+            if (mask & (1u << 2)) {
+                const uint8_t *q = body + 12 + off3;
+                if (s.lsb_first) gc[slot].fg = (uint32_t)(q[0] | (q[1]<<8) | (q[2]<<16) | ((uint32_t)q[3]<<24));
+                else gc[slot].fg = (uint32_t)(((uint32_t)q[0]<<24) | (q[1]<<16) | (q[2]<<8) | q[3]);
+            }
+            printf("CREATEGC id=%#x fg=%#06x\n", gid, gc[slot].fg);
+            handled++; continue;
+        }
+        case 56: {  /* ChangeGC: gcid(4) mask(4) values... */
+            uint32_t gid, mask;
+            if (s.lsb_first) {
+                gid  = (uint32_t)(body[0] | (body[1]<<8) | (body[2]<<16) | ((uint32_t)body[3]<<24));
+                mask = (uint32_t)(body[4] | (body[5]<<8) | (body[6]<<16) | ((uint32_t)body[7]<<24));
+            } else {
+                gid  = (uint32_t)(((uint32_t)body[0]<<24) | (body[1]<<16) | (body[2]<<8) | body[3]);
+                mask = (uint32_t)(((uint32_t)body[4]<<24) | (body[5]<<16) | (body[6]<<8) | body[7]);
+            }
+            for (int i = 0; i < 64; i++) if (gc[i].in_use && gc[i].id == gid) {
+                static const int gw[23] = {4,4,4,4,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,4};
+                int off3 = 0;
+                for (int b = 0; b < 2; b++) if (mask & (1u << b)) off3 += gw[b];
+                if (mask & (1u << 2)) {
+                    const uint8_t *q = body + 8 + off3;
+                    if (s.lsb_first) gc[i].fg = (uint32_t)(q[0] | (q[1]<<8) | (q[2]<<16) | ((uint32_t)q[3]<<24));
+                    else gc[i].fg = (uint32_t)(((uint32_t)q[0]<<24) | (q[1]<<16) | (q[2]<<8) | q[3]);
+                }
+                printf("CHANGEGC id=%#x fg=%#06x\n", gid, gc[i].fg);
+            }
+            handled++; continue;
+        }
+        case 60: {  /* FreeGC */
+            uint32_t gid;
+            if (s.lsb_first) gid = (uint32_t)(body[0] | (body[1]<<8) | (body[2]<<16) | ((uint32_t)body[3]<<24));
+            else gid = (uint32_t)(((uint32_t)body[0]<<24) | (body[1]<<16) | (body[2]<<8) | body[3]);
+            for (int i = 0; i < 64; i++) if (gc[i].in_use && gc[i].id == gid) gc[i].in_use = 0;
+            handled++; continue;
+        }
+        case 69: {  /* PolyFillRectangle: drawable(4) gc(4) then x,y,w,h (2 each) */
+            uint32_t dw, gid, fg = 0;
+            if (s.lsb_first) {
+                dw  = (uint32_t)(body[0] | (body[1]<<8) | (body[2]<<16) | ((uint32_t)body[3]<<24));
+                gid = (uint32_t)(body[4] | (body[5]<<8) | (body[6]<<16) | ((uint32_t)body[7]<<24));
+            } else {
+                dw  = (uint32_t)(((uint32_t)body[0]<<24) | (body[1]<<16) | (body[2]<<8) | body[3]);
+                gid = (uint32_t)(((uint32_t)body[4]<<24) | (body[5]<<16) | (body[6]<<8) | body[7]);
+            }
+            for (int i = 0; i < 64; i++) if (gc[i].in_use && gc[i].id == gid) fg = gc[i].fg;
+            WubuX11Window *wn = wubu_x11_window_find(&table, dw);
+            if (!wn) { printf("FILLRECT unknown drawable %#x\n", dw); handled++; continue; }
+            int drew = 0;
+            for (size_t o = 8; o + 8 <= have; o += 8) {
+                int rx, ry, rw, rh;
+                if (s.lsb_first) { rx = (int16_t)(body[o]|(body[o+1]<<8)); ry = (int16_t)(body[o+2]|(body[o+3]<<8));
+                                   rw = (int16_t)(body[o+4]|(body[o+5]<<8)); rh = (int16_t)(body[o+6]|(body[o+7]<<8)); }
+                else { rx = (int16_t)((body[o]<<8)|body[o+1]); ry = (int16_t)((body[o+2]<<8)|body[o+3]);
+                       rw = (int16_t)((body[o+4]<<8)|body[o+5]); rh = (int16_t)((body[o+6]<<8)|body[o+7]); }
+                if (rw <= 0 || rh <= 0) continue;
+                for (int yy = ry; yy < ry + rh; yy++) {
+                    if (yy < 0 || yy >= wn->h) continue;
+                    uint8_t *row = wn->pixels + ((size_t)yy * wn->w) * 4u;
+                    for (int xx = rx; xx < rx + rw; xx++) {
+                        if (xx < 0 || xx >= wn->w) continue;
+                        row[xx*4+0] = (uint8_t)((fg >> 16) & 0xff);
+                        row[xx*4+1] = (uint8_t)((fg >> 8) & 0xff);
+                        row[xx*4+2] = (uint8_t)(fg & 0xff);
+                        row[xx*4+3] = 255;
+                    }
+                }
+                printf("    rect %d,%d %dx%d\n", rx, ry, rw, rh);
+                drew++;
+            }
+            printf("FILLRECT id=%#x fg=%#06x rects=%d\n", dw, fg, drew);
             handled++; continue;
         }
         case 72: {   /* PutImage: wid(4) gc(4) w(2) h(2) dx(2) dy(2) pad(1) depth(1) pad(2) data */
@@ -223,12 +429,18 @@ out:
     /* Dump the largest mapped window so the pixels can be checked from outside:
      * a framebuffer nobody can look at is not evidence of anything. */
     {
-        int best = -1, best_area = 0;
-        for (int i = 0; i < WUBU_X11_MAX_WINDOWS; i++)
-            if (table.win[i].in_use && table.win[i].mapped) {
-                int a = table.win[i].w * table.win[i].h;
-                if (a > best_area) { best_area = a; best = i; }
-            }
+        /* Pick the window that was actually DRAWN INTO, not the biggest one: an
+         * outer shell that never received a fill is a black rectangle, and dumping
+         * it looks exactly like "drawing does not work". */
+        int best = -1, best_painted = -1;
+        for (int i = 0; i < WUBU_X11_MAX_WINDOWS; i++) {
+            WubuX11Window *w = &table.win[i];
+            if (!w->in_use || !w->mapped) continue;
+            int painted = 0;
+            for (int p = 0; p < w->w * w->h; p++)
+                if (w->pixels[p*4] || w->pixels[p*4+1] || w->pixels[p*4+2]) painted++;
+            if (painted > best_painted) { best_painted = painted; best = i; }
+        }
         if (best >= 0) {
             FILE *f = fopen("/tmp/x11_stub_frame.ppm", "wb");
             if (f) {

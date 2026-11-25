@@ -26,6 +26,8 @@ typedef struct WubuX11Window {
     int      in_use;
     int      mapped;
     int      x, y, w, h;
+    uint32_t event_mask;   /* what this client asked to be told about */
+    uint32_t parent;       /* MapSubwindows is parentage, not a broadcast */
     WubuX11Surface surface;
     uint8_t  pixels[WUBU_X11_MAX_PIXELS * 4];
 } WubuX11Window;
@@ -41,6 +43,9 @@ void wubu_x11_windows_init(WubuX11Windows *t);
  * impossible, or the table/pool is full. A refusal is reported, never rounded. */
 int wubu_x11_window_create(WubuX11Windows *t, uint32_t id,
                            int x, int y, int w, int h);
+/* With a parent: MapSubwindows must know which children belong to whom. */
+int wubu_x11_window_create_ex(WubuX11Windows *t, uint32_t id, uint32_t parent,
+                              int x, int y, int w, int h);
 int wubu_x11_window_destroy(WubuX11Windows *t, uint32_t id);
 int wubu_x11_window_map(WubuX11Windows *t, uint32_t id, int mapped);
 WubuX11Window *wubu_x11_window_find(WubuX11Windows *t, uint32_t id);
