@@ -28,7 +28,7 @@ instead of rediscovering each item after a user reports it.
 | Wallpapers | `wubu_wallpaper.c` | **1** bundled image; harvest holds **20** at 3840×2400 | thin |
 | Cursors | 55 `cursor_theme|XCURSOR|xcb_cursor` hits | themed, not Windows-sized (harvest: 206 cursors, 24 px) | have |
 | Fonts | `src/gui/fonts/wubu_font_text.h` (baked Segoe UI Variable 13 px) | 94 glyphs, 5,681 coverage bytes; AA through `vbe_draw_text()` | have (one size) |
-| Taskbar jump lists | 0 `jump_list|recent_docs` hits | Win11 right-click on a pinned app lists recent files/tasks | **GAP** |
+| Taskbar jump lists | `taskbar_show_jump_list()` in `wm_ctxmenu.c` | Focus/Open, Close window, Pin/Unpin | partial (no recency) |
 | Visual styles (.msstyles) | 0 hits | deliberate: our theme is `wubu_theme.c` | n/a |
 
 ## The two real gaps
@@ -46,16 +46,17 @@ subtitle and title. One baked size means one text size on screen. Each role need
 bake (`--out src/gui/fonts/wubu_font_ui.h`, etc.) -- scaling a coverage mask reintroduces
 the blockiness the bake exists to remove.
 
-### 2. Jump lists: absent
+### 2. Jump lists: the menu exists, the recency does not
 
-Right-clicking a pinned taskbar button in Win11 shows recent documents for that app. We
-have `taskbar_tasks.c` with `exec` and title, and no notion of per-app recency. This is
-the one place where Windows' behaviour is a genuine feature and not chrome: it is how a
-user reopens what they were doing.
+Right-clicking a taskbar button now opens a real menu (`taskbar_show_jump_list`):
+Focus/Open, Close window, Pin/Unpin. What is still missing is the part that makes it a
+*jump* list: Win11 lists the recent documents for that app. `taskbar_tasks.c` stores
+`exec` and title only, and nothing records "these files were opened by this app".
 
-It needs no new architecture: the task registry already stores `exec`, and `wubu_launch_*`
-already records launches. A recency ring per exec plus a submenu in `wm_ctxmenu.c` is the
-whole feature.
+The architecture is already there: `wubu_launch_*` sees every launch, and the task
+registry is keyed by app. A bounded recency ring per exec (app key -> last N paths) plus a
+"Recent" section in the menu is the whole feature -- and it needs a rule about privacy
+before it ships, because a desktop that lists what you opened is a desktop that remembers.
 
 ## What the harvest gives that we have not consumed yet
 
