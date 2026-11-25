@@ -1,0 +1,9 @@
+# The harvested IMAGES stay on this machine (~500 MiB of fonts, theme bitmaps, hives).
+# What belongs in the repository is the EVIDENCE: reports, manifests and extraction
+# scripts, so any number in wubu_gui_metrics.h traces back to a real file in a real ISO.
+*
+!.gitignore
+!**/REPORT.md
+!**/MANIFEST.tsv
+!**/*.py
+!**/*.sh
