@@ -3,6 +3,40 @@
 Purpose: one file that answers "what prefix means what," so a new module isn't
 another `zx`. Verified against the working tree 2026-11-06.
 
+## Submodules: the duplicate-source problem (measured 2026-11-25)
+
+`tools/tree_names.py` surveys every submodule for the failures that are objective:
+basename collisions across directories, files that break their directory's dominant prefix,
+acronym-only names, and sources with no matching header. Run: `python3 tools/tree_names.py`
+(no arguments = every submodule).
+
+What it found, and the reason it matters more than any rename:
+
+**The same language runtime exists THREE times, and the copies have drifted.**
+
+| copy | .c files | state |
+|---|---:|---|
+| `src/gui/wet/externals/wua/src` | 9 | newest of the two vendored copies |
+| `src/gui/vws/externals/wet/externals/wua/src` | 9 | **stale**: 7 files byte-identical, `wb_lv_eval.c` 8 lines behind, `wb_lv_host.c` 16 lines behind |
+| `src/lua/www/~WuBu~/src/lv` | 12 | richest variant (`string`, `stdlib`, `value` files the others lack) |
+
+That is `vws` vendoring `wet` which vendors `wua`, plus a third checkout in `lua/www`. It
+violates the "never leave a second copy" law at the repository scale, and the divergence
+proves it is not academic: a fix applied in `wet` is invisible to `vws`, and whichever copy
+a component links decides which bugs it has.
+
+Consolidation needs a decision this document cannot make alone -- **which copy is canonical**
+-- and that decision must be made by comparing behaviour, not file counts. Until then the
+duplication is recorded here so no one "fixes" one copy and believes the tree is fixed.
+
+Two smaller findings from the same survey:
+
+- `src/brain/tools/` and `src/brain/vault/tools/` carry duplicated tools (`compare_weights_two_paths.c`,
+  `dump_gate_raw.c`, `dump_moe_split.c`, `ssm_layer0_dump.c`, plus a dated `vault/tools/20260518_233049/`).
+  A `vault/` of archived copies inside a live tree is a second copy with a date on it.
+- `src/audio/bigmac` and `src/apps/wubupad` collisions are `third_party/` and CMake build
+  artefacts -- vendored code and generated files, correctly excluded from renaming.
+
 ## Reorganization queue (measured 2026-11-25)
 
 Ordered by confusion caused per unit of risk. A batch lands only with: `git mv`, path
