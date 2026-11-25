@@ -111,10 +111,10 @@ else:
 
 if phys is not None and pitch is not None:
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    s.settimeout(10)
+    s.settimeout(60)          # a saturated host can delay the monitor for tens of seconds
     s.connect(mon)
 
-    def drain(tmo=8.0, until=b'(qemu)'):
+    def drain(tmo=25.0, until=b'(qemu)'):
         out = b''
         end = time.time() + tmo
         while time.time() < end:
@@ -243,7 +243,7 @@ if phys is not None and pitch is not None:
     # QEMU boot + pmemsave can take twice as long -- the failure mode was
     # "SCANOUT: FAIL (frame not readable)" while the same build passed twice in
     # a row standalone. A deadline is a duration, so give it the real one.
-    while time.time() - started < 60:
+    while time.time() - started < 150:
         if p.poll() is not None:
             break
         if window_painted() >= 90.0 and window_colours() >= 16:
@@ -269,15 +269,24 @@ if phys is not None and pitch is not None:
             if score == 0:
                 break
         time.sleep(0.4)
-    for _attempt in range(3):          # a busy monitor can drop one dump
+    # A saturated host (this gate runs inside `make -j24`) can delay the QEMU
+    # monitor past its socket timeout, or answer a pmemsave with a short read.
+    # Both are the harness losing a race, not a broken scanout, so retry longer
+    # and say WHICH one happened -- "frame not readable" alone cost an
+    # investigation the first time.
+    for _attempt in range(8):
         if data and len(data) >= w * h * 4:
             break
         data = read_at(phys, w * h * 4)
         if data and len(data) >= w * h * 4:
             break
-        time.sleep(1)
+        time.sleep(2)
     if not data or len(data) < w * h * 4:
-        print('  SCANOUT: FAIL (frame not readable)')
+        if data is None:
+            print('  SCANOUT: FAIL (monitor closed under load -- QEMU may have died)')
+        else:
+            print('  SCANOUT: FAIL (short dump: %d of %d bytes; wanted the full frame)'
+                  % (len(data), w * h * 4))
         fail += 1
     else:
         seen = set()
