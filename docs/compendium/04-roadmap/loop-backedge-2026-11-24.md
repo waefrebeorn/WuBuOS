@@ -98,10 +98,13 @@ instruction with a different register mapping.
 
 Not two missing switch cases. Three layers, and only the first is obvious:
 
-1. **No encoder primitives.** `warm64` has no `ldr`/`str` helper of any kind
-   (`grep -rn "warm64_ldr\|warm64_str" --include=*.h` is empty). The x86-64
-   backend's LOAD/STORE are built on `mov rsi, rbx` + hand-encoded displacement
-   forms that have no ARM64 analogue yet. So the encoder layer comes first.
+1. **Encoder primitives exist after all -- and the first claim here was WRONG.**
+   `warm64_ldr_reg`/`warm64_str_reg`/`warm64_ldr_imm`/`warm64_str_imm` are
+   declared at wubu_arm64.h:109-112 with an `int sf` size flag. The grep that
+   "proved" they were missing was run from `wubunos`, where `src/jit` is a
+   SYMLINK: `grep -r` does not follow symlinks, so it reported an empty result
+   for a header full of LDR/STR helpers. Lesson: a negative grep result across a
+   symlinked path is not evidence -- add `-L` or run it in the real tree.
 2. **No memory base reaches the code.** `arm64_run` calls
    `int64_t (*fn)(void)` and discards `arg`, while x86-64 keeps the base in rbx
    from the prologue. arm64 needs the base in a callee-saved register (x19),
