@@ -84,6 +84,29 @@ written from names alone, and opening the file showed the rename would have made
 relationship false. A queue entry is a question, not an instruction: read the file before
 you rename it, including when you wrote the queue yourself.
 
+## Rename mechanics (learned by breaking it, 2026-11-25)
+
+A rename is `git mv` + path tokens + **the `.o` names in `mk/`** + build + the tests that
+compile those units. Every omission below produced a real failure on this tree:
+
+- **A sweep must be bounded to a LAYER, not a token.** `wubu_bonzi.h` existed in
+  `src/gui`, `src/kernel` and `src/brain` (a submodule). A global replace crossed all
+  three; `make hosted` still returned 0 because none of them are in the hosted build, so
+  the damage was latent -- it would have surfaced as a broken kernel build much later.
+- **A substring does not know where a name begins.** Replacing `bpm.` renamed the
+  identifier `g_bpm.`; replacing `cp_sound.c` rewrote the recipe's
+  `test_cp_sound.c` into `test_control_panel_sound.c` while the file kept its old name --
+  one red from the build and one from the docs gate (the file no longer appeared in any
+  target). Before a sweep, count the occurrences of `<name>.` that are NOT `.c/.h/.o`
+  paths; if any exist, the sweep needs path-qualified patterns.
+- **When a sweep touches `X.c`, look for `test_X.c`, `X_test.c` and anything ending in
+  `X.c`** before calling the batch done. Finish the rename rather than reverting one side:
+  a half-renamed pair is exactly what produces two reds.
+- **File names and symbol names move in separate changes.** `holyc_eval.c` still exports
+  `wubu_holyc_eval`; that is deliberate, not an oversight.
+- **Verify by building and running, never by grep.** Each of the failures above passed
+  grep and only the compiler or the gate caught it.
+
 ## Renamed: the two "desktop" files (2026-11-25)
 
 `src/gui/shell/desktop.c` and `src/gui/shell/wm_desktop.c` were two different things with
