@@ -20,8 +20,12 @@ int wubu_x11_parse_setup(const uint8_t *buf, size_t n, WubuX11Setup *out) {
     out->auth_data_len = RD16(8);
     #undef RD16
 
-    /* An X11 client that cannot name its auth protocol is not a client. */
-    if (out->auth_name_len == 0 || out->auth_name_len >= WUBU_X11_AUTH_NAME_MAX)
+    /* NO AUTH IS NORMAL. A client with no Xauthority sends an empty auth name and
+     * an empty auth data block, so refusing a zero length here rejected every
+     * unauthenticated client -- xdpyinfo among them. Only an absurd length is
+     * malformed. (Found by pointing a real client at the handshake stub; the unit
+     * test had agreed with the bug because it asserted the wrong rule.) */
+    if (out->auth_name_len >= WUBU_X11_AUTH_NAME_MAX)
         return -2;
 
     /* BOTH the name and the data are padded to four bytes. Forgetting the name's

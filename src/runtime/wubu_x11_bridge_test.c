@@ -65,9 +65,13 @@ int main(void) {
     uint8_t bad[16]; memset(bad, 0, sizeof bad); bad[0] = 'q';
     CHECK(wubu_x11_parse_setup(bad, sizeof bad, &s) < 0, "bad byte order refused");
 
-    /* 5. empty auth name: not a client */
+    /* 5. no auth at all: a client without Xauthority sends an EMPTY name and
+     *    empty data, and that is a legal connection setup -- refusing it rejected
+     *    every unauthenticated client. */
     n = build(buf, 1, 11, 0, "", NULL, 0);
-    CHECK(wubu_x11_parse_setup(buf, n > 12 ? n : 12, &s) < 0, "empty auth name refused");
+    memset(&s, 0, sizeof s);
+    CHECK(wubu_x11_parse_setup(buf, n, &s) == 0, "empty auth name accepted (no Xauthority)");
+    CHECK(s.auth_name[0] == '\0', "auth name is the empty string");
 
     printf("x11 bridge: %s (%d failure(s))\n", failures ? "FAIL" : "PASS", failures);
     return failures ? 1 : 0;
