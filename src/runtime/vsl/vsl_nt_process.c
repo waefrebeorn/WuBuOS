@@ -72,7 +72,10 @@ int64_t vsl_nt_create_process(uint64_t a_proc_out, uint64_t b_access,
     if (pid == 0) {
         /* Child: a live placeholder process. It idles until the parent
          * terminates it via NtTerminateProcess, exactly like the job-sentinel
-         * pattern — keeps the process object real without reaping risk to us. */
+         * pattern — keeps the process object real without reaping risk to us.
+         * The watcher makes the idling END when the parent ends: without it every
+         * caller that does not call vsl_nt_bridge_shutdown orphans this process. */
+        vsl_nt_child_watch_parent();
         pause();
         _exit(0);
     }
@@ -113,6 +116,7 @@ int64_t vsl_nt_create_process_ex(uint64_t a_proc_out, uint64_t b_access,
                 (void)sec_base;
             }
         }
+        vsl_nt_child_watch_parent();
         pause();
         _exit(0);
     }

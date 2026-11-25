@@ -18,6 +18,11 @@
 #include "vsl_nt_bridge.h"
 #include "vsl_syscall_internal.h"
 #include "vsl_nt_internal.h"
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+#include <unistd.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -363,9 +368,32 @@ int vsl_nt_bridge_init(vsl_nt_bridge_ctx_t *ctx) {
 pid_t g_nt_child_pids[NT_CHILD_MAX];
 int   g_nt_child_count = 0;
 
+/* Kill every tracked child when THIS process exits by any normal path. The bridge's
+ * vsl_nt_bridge_shutdown does this for the two tests that call it; every other caller --
+ * including wubu_vsl_nt_contract_test, which probes each syscall slot -- leaked a paused
+ * child per run. Measured on 2026-11-25: 74 sleeping children, one 24 hours old. */
+static void vsl_nt_kill_tracked_at_exit(void) {
+    for (int i = 0; i < g_nt_child_count; i++)
+        if (g_nt_child_pids[i] > 0) kill(g_nt_child_pids[i], SIGKILL);
+    g_nt_child_count = 0;
+}
+
 void vsl_nt_track_child(pid_t pid) {
     if (pid <= 0 || g_nt_child_count >= NT_CHILD_MAX) return;
+    if (g_nt_child_count == 0) atexit(vsl_nt_kill_tracked_at_exit);
     g_nt_child_pids[g_nt_child_count++] = pid;
+}
+
+void vsl_nt_child_watch_parent(void) {
+    pid_t parent = getppid();
+#ifdef __linux__
+    /* Set BEFORE checking: the order matters, or a parent that dies between the check
+     * and the prctl leaves exactly the orphan this exists to prevent. */
+    (void)prctl(PR_SET_PDEATHSIG, SIGKILL);
+    if (getppid() != parent || parent <= 1) _exit(0);
+#else
+    if (parent <= 1) _exit(0);
+#endif
 }
 
 void vsl_nt_bridge_shutdown(vsl_nt_bridge_ctx_t *ctx) {

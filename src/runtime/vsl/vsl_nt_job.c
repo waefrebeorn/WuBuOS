@@ -56,6 +56,7 @@ int64_t vsl_nt_create_job_object(uint64_t a_out_handle, uint64_t b_name,
         /* Sentinel: lead a fresh process group, then block until killed with
          * the rest of the job. */
         setpgid(0, 0);
+        vsl_nt_child_watch_parent();
         for (;;) pause();
     }
     vsl_nt_track_child(child);
