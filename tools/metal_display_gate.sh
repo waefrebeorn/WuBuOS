@@ -138,6 +138,20 @@ if phys is not None and pitch is not None:
                 break
         return out
 
+    def reconnect_monitor():
+        """A monitor socket can wedge (a half-read reply, a dropped prompt) while
+        the guest stays perfectly healthy. Reopening it costs a connect() and is
+        the difference between 'no dump' and a frame."""
+        nonlocal s
+        try:
+            s.close()
+        except OSError:
+            pass
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(60)
+        s.connect(mon)
+        drain()
+
     def read_at(off, n):
         f = f'/tmp/metal-px-{pid}.bin'
         if os.path.exists(f):
@@ -146,7 +160,9 @@ if phys is not None and pitch is not None:
             s.sendall(f'pmemsave {off} {n} "{f}"\n'.encode())
         except (BrokenPipeError, OSError):
             return None          # monitor gone: QEMU died (see below)
-        drain()
+        resp = drain()
+        if os.environ.get('METAL_DEBUG_MON'):
+            print('    [mon] %r' % resp[-200:])
         # pmemsave runs in QEMU's main loop, and a guest spinning in TCG can
         # delay it past the monitor prompt: the file appears LATER than the
         # prompt does. Checking the path once, immediately after drain(), read
@@ -159,6 +175,17 @@ if phys is not None and pitch is not None:
             time.sleep(0.5)
         if os.path.exists(f):
             return open(f, 'rb').read()            # short: caller reports the size
+        print('    [mon] no file for %d bytes; last reply %r -- reconnecting' % (n, resp[-160:]))
+        try:
+            reconnect_monitor()
+            s.sendall(f'pmemsave {off} {n} "{f}"\n'.encode())
+            drain()
+            for _ in range(60):
+                if os.path.exists(f) and os.path.getsize(f) >= n:
+                    return open(f, 'rb').read()
+                time.sleep(0.5)
+        except OSError:
+            pass
         return None
 
     def qemu_startup_failed():
@@ -289,22 +316,28 @@ if phys is not None and pitch is not None:
     # 97.9% against the true ~100%).
     time.sleep(0.8)
     data = None
-    for _ in range(5):
-        cand = read_at(phys, w * h * 4)
-        if cand and len(cand) >= w * h * 4:
-            zeros = sum(1 for i in range(0, len(cand), 4000) if cand[i:i + 3] == b'\x00\x00\x00')
-            score = zeros
-            if data is None or score < best_score:
-                data, best_score = cand, score
-            if score == 0:
+    # Poll on a SMALL window, then take ONE full frame.
+    #
+    # This used to take up to five 3 MB pmemsaves to decide whether the frame was
+    # finished, and then up to eight more. Under `make -j24` that is ~40 MB of
+    # monitor traffic competing with 24 compilers, and a single starved command
+    # left no dump at all ("qemu rc=0, temp file absent" on a healthy guest).
+    # The top band is enough to tell "still black" from "painted", and it costs
+    # 64 KB instead of 3 MB.
+    band = min(65536, w * h * 4)
+    for _ in range(60):
+        probe = read_at(phys, band)
+        if probe and len(probe) >= band:
+            lit = sum(1 for i in range(0, len(probe), 3 * 64) if probe[i:i + 3] != b'\x00\x00\x00')
+            if lit * 100 >= (len(probe) // (3 * 64)) * 40:      # top of the desktop
                 break
-        time.sleep(0.4)
+        time.sleep(0.5)
     # A saturated host (this gate runs inside `make -j24`) can delay the QEMU
     # monitor past its socket timeout, or answer a pmemsave with a short read.
     # Both are the harness losing a race, not a broken scanout, so retry longer
     # and say WHICH one happened -- "frame not readable" alone cost an
     # investigation the first time.
-    for _attempt in range(8):
+    for _attempt in range(4):
         if data and len(data) >= w * h * 4:
             break
         data = read_at(phys, w * h * 4)

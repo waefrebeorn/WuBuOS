@@ -982,11 +982,11 @@ test_deskshot: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 # the desktop is really in the frame the display scans out.
 test_metal_display: $(WEMU_KERNEL_ELF)
 	@mkdir -p build/logs
-	@bash tools/metal_display_gate.sh >build/logs/metal_display.log.1 2>&1 || { \
+	@bash tools/metal_display_gate.sh >build/logs/metal_display.log 2>&1 || { \
+	  cp build/logs/metal_display.log build/logs/metal_display.log.1; \
 	  echo "  (metal gate failed; first attempt said:)"; \
 	  tail -25 build/logs/metal_display.log.1; \
-	  cp build/logs/metal_display.log.1 build/logs/metal_display.log; \
-	  echo "  (hardware gate failed under load; retrying once)"; \
+	  echo "  (retrying once)"; \
 	  bash tools/metal_display_gate.sh >build/logs/metal_display.log 2>&1 || { \
 	    echo "  (retry also failed:)"; tail -25 build/logs/metal_display.log; exit 1; }; }
 	@tail -1 build/logs/metal_display.log
