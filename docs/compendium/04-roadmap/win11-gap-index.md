@@ -9,6 +9,34 @@ The purpose is not "be Windows". It is: Windows 11 spent a decade deciding which
 surfaces a desktop needs. That decision is a checklist we can measure ourselves against
 instead of rediscovering each item after a user reports it.
 
+
+## Measured parity matrix (2026-11-25)
+
+Surfaces were listed by hand above. `tools/parity_audit.py` now measures 59 user-facing
+actions across mouse, shortcuts, explorer and bars, and prints `file:line` evidence for each
+WIRED row. Verdicts come from PRODUCT code only — `*_test.c` and `*_stub.c` are excluded —
+and a row may carry a path scope, so a taskbar claim must be found in taskbar code.
+
+Current: **53 wired, 6 gaps (89 %)**. The gaps are the work list, not an opinion:
+
+| gap | what Windows does | what it needs |
+|---|---|---|
+| taskbar hover thumbnails | hovering a button previews the window | render a scaled snapshot per window; we have `wubu_screenshot` + `gui_blit`, so the missing piece is a per-window capture cached on the bar |
+| shift-click new instance | shift+click a button opens another instance | the pointer path carries no modifiers today: `taskbar_modern_handle(x,y,btn,kind)` has no `mods` and `WubuUiEvent` has no mods field. Plumb modifiers through `wubu_ui` → `wm_handle_mouse` → taskbar, then reuse `taskbar_new_instance` |
+| Win+P projection | display/projection selector | a display-mode flyout; `control_panel_display.c` owns the settings, so the work is a shell surface over it |
+| explorer tabs | tabbed folders | `explorer.c` is single-pane; tabs need a per-tab path + view state |
+| taskbar progress badges | a window reports progress on its button | a `wm_set_taskbar_progress(win, pct)` API and a sliver in the slot renderer |
+| snap assist | after a half snap, the other half offers the remaining windows | `win11_snap.c` already knows zones; needs the post-snap overlay + pick |
+
+Two of these were closed on 2026-11-25 and are now WIRED: **Win+1..9** taskbar slot
+(`taskbar_slot_launch`), **middle-click new instance** (`taskbar_new_instance`) and
+**wheel-over-taskbar cycling** (`wm_wheel_cycle`). Shift-click got its OWN marker
+(`taskbar_shift_new_instance`) because borrowing middle-click's marker made it read WIRED
+while nothing implemented it.
+
+A WIRED row is not a working feature: it means the code exists. Behaviour is the suite's job,
+and the tool prints that caveat on every run.
+
 ## The index
 
 | Win11 surface | Where it lives for us | Evidence / count | Verdict |
