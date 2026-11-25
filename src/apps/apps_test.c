@@ -45,7 +45,6 @@ void explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 int wubu_ct_start_bwrap(void* ct) { (void)ct; return 0; }
 void wubu_ct_destroy(void* ct) { (void)ct; }
 
-
 /* Link-only stubs for the launcher graph the registry table references.
  * The test only asserts the table is COMPLETE (names resolve to
  * non-NULL launchers); the real launchers are proven by the runtime
@@ -61,7 +60,6 @@ void startmenu_toggle(void) {}
 int startmenu_is_open(void) { return 0; }
 struct hosted_state_t *wm_get_hosted_state(void) { return NULL; }
 DosGuiWindow* edr_dash_launch(void) { return NULL; }
-
 
 void app_explorer_draw(DosGuiWindow *w, uint32_t *f, int fw, int fh) { (void)w;(void)f;(void)fw;(void)fh; }
 void app_explorer_key(DosGuiWindow *w, uint32_t k, uint32_t m) { (void)w;(void)k;(void)m; }
@@ -141,10 +139,7 @@ void wubu_settings_save(void) {}
 void wubu_trash_empty(void) {}
 int wubu_trash_move(const char *p) { (void)p; return 0; }
 void wubu_vdso_update(void) {}
-const char *wubu_wallpaper_default_path(void) { return ""; }
-int wubu_wallpaper_load(const char *p) { (void)p; return 0; }
-void wubu_wallpaper_rect(int *x, int *y, int *w, int *h) { (void)x;(void)y;(void)w;(void)h; }
-void wubu_wallpaper_render(uint32_t *f, int fw, int fh) { (void)f;(void)fw;(void)fh; }
+
 static int g_pass = 0, g_fail = 0, g_total = 0;
 #define TEST(name) printf("  TEST: %-60s", name); g_total++
 #define PASS() do { printf("✅\n"); g_pass++; } while(0)
@@ -617,7 +612,6 @@ static void test_editor_mouse_positions_caret(void) {
  * Main Test Runner
  * ================================================================ */
 
-
 /* ================================================================
  * The registry completeness + the new apps (Notes/Todo/Music)
  * ================================================================ */
@@ -769,7 +763,6 @@ static void test_music_real(void) {
     PASS();
 }
 
-
 int main(void) {
     printf("\n=== WuBuOS DosGui Apps Test Suite ===\n\n");
     
@@ -863,7 +856,6 @@ __attribute__((weak)) void run_dialog_render(uint32_t *fb, int fb_w, int fb_h) {
 /* Weak: the taskbar's Search tile opens the Start menu.  Targets that link
  * the real startmenu.c get the strong definition. */
 __attribute__((weak)) void startmenu_open(void) { }
-
 
 /* Weak: the WM routes Win+X to the power-user menu.  Targets that link the
  * real power_menu.c get the strong definitions. */

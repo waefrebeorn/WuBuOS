@@ -85,7 +85,7 @@ uint32_t wubu_notify_simple(const char *app_name, const char *summary,
 }
 
 /* -- Wallpaper ------------------------------------------------------- */
-const char *wubu_wallpaper_default_path(void) { return NULL; }
+
 int wubu_wallpaper_load(const char *path, WubuWallpaper *out) {
     (void)path; (void)out; return -1;
 }

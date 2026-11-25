@@ -71,10 +71,6 @@ void wubu_bonzi_set_bubble(const char *b) { (void)b; }
 void wubu_bonzi_tick(unsigned long long ms) { (void)ms; }
 void wubu_settings_load(void) {}
 void wubu_settings_save(void) {}
-const char *wubu_wallpaper_default_path(void) { return ""; }
-int  wubu_wallpaper_load(const char *p) { (void)p; return 0; }
-void wubu_wallpaper_rect(int *x, int *y, int *w, int *h) { (void)x;(void)y;(void)w;(void)h; }
-void wubu_wallpaper_render(uint32_t *f, int fw, int fh) { (void)f;(void)fw;(void)fh; }
 
 static int g_checks, g_fails;
 #define CHECK(cond, msg) do { \
@@ -358,7 +354,6 @@ __attribute__((weak)) void run_dialog_render(uint32_t *fb, int fb_w, int fb_h) {
 /* Weak: the taskbar's Search tile opens the Start menu.  Targets that link
  * the real startmenu.c get the strong definition. */
 __attribute__((weak)) void startmenu_open(void) { }
-
 
 /* Weak: the WM routes Win+X to the power-user menu.  Targets that link the
  * real power_menu.c get the strong definitions. */
