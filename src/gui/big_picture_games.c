@@ -1,5 +1,5 @@
 /*
- * bpm_games.c -- Big Picture Mode's GAMES grid (the real
+ * big_picture_games.c -- Big Picture Mode's GAMES grid (the real
  * games, not just the era apps).
  *
  * The BPM grid is the era-apps registry; this adds the REAL game
@@ -13,7 +13,7 @@
  */
 #include "../egojar.h"
 #include "../egojar_net.h"
-#include "bpm.h"
+#include "big_picture.h"
 #include "wubu_game_launch.h"
 #include "../runtime/wubu_gamemode.h"
 #include "../gui/wm.h"

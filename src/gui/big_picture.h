@@ -1,5 +1,5 @@
 /*
- * bpm.h -- Big Picture Mode (the gamepad-first fullscreen
+ * big_picture.h -- Big Picture Mode (the gamepad-first fullscreen
  * shell over the era apps).
  */
 #ifndef WUBU_DOSGUI_BPM_H

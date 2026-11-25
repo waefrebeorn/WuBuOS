@@ -27,8 +27,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `bear_train.c`  -- tests: test_bear_opt
 - `bear_vulkan_soft.c`  -- tests: test_bear_opt
 - `bigmac_out.c`  -- tests: test_cp_sound;test_cp_hardware;test_controlpanel;test_glott_speak
-- `bpm.c`  -- tests: test_bpm
-- `bpm_games.c`  -- tests: test_bpm_games
+- `big_picture.c`  -- tests: test_bpm
+- `big_picture_games.c`  -- tests: test_bpm_games
 - `bridge.c`  -- tests: test_bridge_flip
 - `cab_extract.c`  -- tests: test_cab_extract
 - `calc.c`  -- tests: test_calc;test_apps

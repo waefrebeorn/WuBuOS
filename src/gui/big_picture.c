@@ -1,5 +1,5 @@
 /*
- * bpm.c -- BIG PICTURE MODE (the SteamOS Big Picture shell,
+ * big_picture.c -- BIG PICTURE MODE (the SteamOS Big Picture shell,
  * in our code).
  *
  * SteamOS's Big Picture Mode is the fullscreen gamepad-first shell:

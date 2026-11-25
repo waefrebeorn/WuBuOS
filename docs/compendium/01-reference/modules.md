@@ -2419,8 +2419,8 @@
 | `framework/` | `wubufx_apps` | 182 | apps.h, bonzi.h, comfy.h, stdio.h, stdlib.h, string.h, tandem.h, wm.h, wubu_edr. | wubufx_apps.c -- WuBuFX application registry (real engines, no placeholders) Phase C binding: the de |
 | `framework/` | `wubufx_apps_test` | 60 | stdio.h, string.h, wm.h, wubufx.h, wubufx_apps.h | wubufx_apps_test.c -- WuBuFX real-app binding regression tests Proves Phase C: every registered app  |
 | `framework/` | `wubufx_test` | 99 | stdint.h, stdio.h, string.h, wubu_edr.h, wubufx.h | wubufx_test.c -- WuBuFX framework regression tests Verifies the namespace-first contract end to end: |
-| `gui/` | `bpm` | 129 | era_apps.h, stdio.h, stdlib.h, string.h | bpm.c -- BIG PICTURE MODE (the SteamOS Big Picture shell, in our code). SteamOS's Big Picture Mode i |
-| `gui/` | `bpm_games` | 150 | bpm.h, dirent.h, egojar.h, egojar_net.h, stdio.h, stdlib.h, string.h, vbe.h, wm. | bpm_games.c -- Big Picture Mode's GAMES grid (the real games, not just the era apps). The BPM grid i |
+| `gui/` | `bpm` | 129 | era_apps.h, stdio.h, stdlib.h, string.h | big_picture.c -- BIG PICTURE MODE (the SteamOS Big Picture shell, in our code). SteamOS's Big Picture Mode i |
+| `gui/` | `bpm_games` | 150 | big_picture.h, dirent.h, egojar.h, egojar_net.h, stdio.h, stdlib.h, string.h, vbe.h, wm. | big_picture_games.c -- Big Picture Mode's GAMES grid (the real games, not just the era apps). The BPM grid i |
 | `gui/` | `gui_dbuf` | 292 | gui_dbuf.h, stdlib.h, string.h | gui_dbuf.c  --  WuBuOS Double-Buffered GUI Renderer Implementation Cell 101: Flicker-free rendering  |
 | `gui/` | `gui_dbuf_test` | 343 | gui_dbuf.h, stdio.h, string.h | gui_dbuf_test.c  --  Test Suite for Double-Buffered GUI Renderer Cell 101: Tests double buffering, d |
 | `gui/` | `wubu_compositor` | 495 | egojar.h, egojar_net.h, stdio.h, stdlib.h, string.h, styx.h, vulkan.h, wayland-s | wubu_compositor.c  --  WuBuOS Wayland Compositor Implementation Minimal Wayland compositor using lib |

@@ -1,5 +1,5 @@
 /*
- * bpm_games.h -- Big Picture Mode's games grid (the real
+ * big_picture_games.h -- Big Picture Mode's games grid (the real
  * games through the kernel routing).
  */
 #ifndef WUBU_DOSGUI_BPM_GAMES_H
