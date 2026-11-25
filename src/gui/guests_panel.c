@@ -107,9 +107,18 @@ static void guests_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
 static void guests_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     (void)win;
+    /* This handler used to return SILENTLY on four different conditions, so a
+     * click that never launched anything left no evidence at all: the gate could
+     * only report "click started a REAL container: false" and had to guess.
+     * WUBU_GP_DEBUG=1 says which condition ended the click. */
+    int dbg = getenv("WUBU_GP_DEBUG") != NULL;
     if (kind != 1 || btn != 1) return;      /* press only */
-    if (!g_content_valid || !wubu_guest_import_count || !wubu_guest_launch)
+    if (!g_content_valid || !wubu_guest_import_count || !wubu_guest_launch) {
+        if (dbg) fprintf(stderr, "[gp] no click: content_valid=%d count_fn=%d launch_fn=%d\n",
+                         g_content_valid, wubu_guest_import_count != NULL,
+                         wubu_guest_launch != NULL);
         return;
+    }
     /* window-relative -> absolute (the rects are absolute) */
     int ax = win->x + x, ay = win->y + y;
     int n = wubu_guest_import_count();
@@ -118,6 +127,8 @@ static void guests_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     for (int i = 0; i < n && i < maxrows; i++) {
         int bx, by, bw, bh;
         guests_btn_rect(&g_content, i, &bx, &by, &bw, &bh);
+        if (dbg && i == 0) fprintf(stderr, "[gp] click (%d,%d) row0 rect %d,%d %dx%d\n",
+                                  ax, ay, bx, by, bw, bh);
         if (ax < bx || ax >= bx + bw || ay < by || ay >= by + bh) continue;
         char name[64];
         if (wubu_guest_import_entry(i, name, sizeof(name), NULL, 0,
@@ -128,6 +139,7 @@ static void guests_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
             notif_center_add("Guests", "Guest launched", body, 1);
         } else {
             char body[128];
+            if (dbg) fprintf(stderr, "[gp] wubu_guest_launch(\"%s\") != 0\n", name);
             snprintf(body, sizeof(body), "%s: launch refused (running?)", name);
             notif_center_add("Guests", "Launch refused", body, 2);
         }
