@@ -370,15 +370,6 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
-    /* Then dispatch ordinary keys to the focused window. */
-    if (g_dwm.focused_id >= 0) {
-        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
-        if (w->alive && w->on_key) {
-            w->on_key(w, key, mods);
-            return;
-        }
-    }
-
     /* Win+D: show the desktop (minimize all, or restore when all are down).
      * Ctrl must be absent, or Win+Ctrl+D (create desktop) would be swallowed. */
     if ((mods & MOD_WIN) && !(mods & MOD_CTRL) &&
@@ -414,6 +405,22 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         }
     }
 
+    /* LAST: dispatch ordinary keys to the focused window.
+     *
+     * This used to sit ABOVE Win+D, Win+Shift+arrows and the 0xE0xx arrow path, and it
+     * returns unconditionally when a window has focus -- so those three shell combos could
+     * never fire in the one situation they exist for: an app window on screen. Windows
+     * gives the shell first refusal on its own reserved combos and only then lets the app
+     * see the key; this is that order.
+     *
+     * Anything added below this line is dead code for a focused window. New shell
+     * shortcuts belong ABOVE it. */
+    if (g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->alive && w->on_key) {
+            w->on_key(w, key, mods);
+        }
+    }
 }
 
 void wm_handle_mouse(int x, int y, int btn, int kind) {

@@ -2008,6 +2008,92 @@ static void test_modern_taskbar(void) {
     PASS();
 }
 
+
+/* -- Shell combos must reach the shell while an APP window has focus ----------
+ *
+ * wm_handle_key dispatched to the focused window and returned BEFORE Win+D,
+ * Win+Shift+arrows and the 0xE0xx arrow path, so none of them could ever fire in the one
+ * situation they exist for: an app window on screen. Each of these three tests fails on the
+ * old ordering and passes on the corrected one -- they are the regression guard, not a
+ * demonstration that the functions exist. */
+
+static int count_alive_windows(void) { return wm_window_count(); }
+
+/* An app window WITH a key handler is the condition under test: the old dispatch block
+ * returned as soon as on_key was non-NULL, so a window without one let control fall through
+ * to the shell combos and hid the bug. This stub makes the window look like a real app. */
+static int g_app_key_calls;
+static void app_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    (void)win; (void)key; (void)mods;
+    g_app_key_calls++;
+}
+
+static void test_win_d_show_desktop_with_focus(void) {
+    TEST("Win+D minimizes every window while one has focus");
+    wm_init(1024, 768);
+    DosGuiWindow *a = wm_create(20, 20, 200, 150, "A");
+    DosGuiWindow *b = wm_create(60, 80, 200, 150, "B");
+    CHECK(a != NULL && b != NULL, "two windows created");
+    a->on_key = app_on_key; b->on_key = app_on_key;
+    wm_set_focus(a);
+    int alive = count_alive_windows();
+    CHECK(alive == 2, "two alive before");
+
+    wm_handle_key('d', MOD_WIN);
+
+    int minimized = 0;
+    for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++)
+        if (wm_window_minimized_at(i)) minimized++;
+    CHECK(minimized == alive, "Win+D minimized all windows even though an app had focus");
+
+    wm_handle_key('d', MOD_WIN);        /* second press restores */
+    int still_minimized = 0;
+    for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++)
+        if (wm_window_minimized_at(i)) still_minimized++;
+    CHECK(still_minimized == 0,
+          "Win+D restores when everything is already minimized");
+    wm_shutdown();
+    PASS();
+}
+
+static void test_win_shift_arrow_moves_window_to_desktop(void) {
+    TEST("Win+Shift+Right moves the focused window to the next desktop");
+    wm_init(1024, 768);
+    wm_add_desktop();                   /* two desktops to move between */
+    DosGuiWindow *w = wm_create(20, 20, 200, 150, "Mover");
+    CHECK(w != NULL, "window created");
+    w->on_key = app_on_key;
+    wm_set_focus(w);
+    int before = w->desktop;
+
+    wm_handle_key(0xE04D, MOD_WIN | MOD_SHIFT);
+
+    CHECK(w->desktop == before + 1,
+          "the window changed desktop although it had focus (dead-code regression)");
+    wm_shutdown();
+    PASS();
+}
+
+static void test_win_arrow_snaps_with_focus(void) {
+    TEST("Win+Left snaps the focused window (0xE0xx scancode path)");
+    wm_init(1024, 768);
+    /* 900, not 400: a 400 px window is already narrower than half of 1024, so the old
+     * assertion passed without the shortcut doing anything at all -- a gate that cannot
+     * fail is not a gate. */
+    DosGuiWindow *w = wm_create(100, 100, 900, 300, "Snap");
+    CHECK(w != NULL, "window created");
+    w->on_key = app_on_key;
+    wm_set_focus(w);
+    int width_before = w->w;
+
+    wm_handle_key(0xE04B, MOD_WIN);
+
+    CHECK(w->w < width_before && w->w <= 1024 / 2 + 16,
+          "window shrank to the left half after Win+Left (the 0xE0xx block used to be unreachable)");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2015,6 +2101,9 @@ int main(void) {
 
     test_init();
     test_init_shutdown_no_crash();
+    test_win_d_show_desktop_with_focus();
+    test_win_shift_arrow_moves_window_to_desktop();
+    test_win_arrow_snaps_with_focus();
     test_create_window();
     test_create_multiple();
     test_window_count();
