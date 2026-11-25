@@ -119,7 +119,7 @@ terminal.
 surface, `src/gui/wubu_buddy_states.h` (80.7k lines of baked buddy states):
 never hand-edit it, regenerate it.
 
-**Enter here:** `src/gui/wm.c` (the window manager), `src/gui/shell/desktop.c`
+**Enter here:** `src/gui/wm.c` (the window manager), `src/gui/shell/shell_session.c`
 (the desktop), `src/gui/shell/startmenu.c`, `src/gui/shell/taskbar_tasks.c`.
 
 **The surfaces:** classic Win98 theme, a modern dark theme, and the newer

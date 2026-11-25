@@ -42,7 +42,7 @@
 #  endif
 #endif
 #include "../gui/wm.h"
-#include "shell/wm_holyc_term.h"
+#include "shell/holyc_repl.h"
 
 #include <string.h>
 #include <stdio.h>

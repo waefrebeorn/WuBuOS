@@ -1,5 +1,5 @@
 /*
- * wm_holyc_term.h -- HolyC Terminal subsystem (public API).
+ * holyc_repl.h -- HolyC Terminal subsystem (public API).
  *
  * Self-contained: declares only what other GUI modules need to spawn/use the
  * terminal. The terminal evaluates HolyC through an injected evaluator

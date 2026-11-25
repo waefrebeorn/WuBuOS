@@ -10,7 +10,7 @@
 #include "src/kernel/memory.h"
 #include "src/kernel/input.h"
 #include "src/gui/wm.h"
-#include "../gui/shell/desktop.h"
+#include "../gui/shell/shell_session.h"
 #include "src/gui/wubu_theme.h"
 #include "src/tools/screenshot.h"
 #include <stdlib.h>

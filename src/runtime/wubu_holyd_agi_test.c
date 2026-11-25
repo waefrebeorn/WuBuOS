@@ -7,7 +7,7 @@
  * separate build step -- source in, native x86-64 out, executed in place.
  */
 
-#include "wubu_holyd_agi.h"
+#include "holyc_eval.h"
 #include "wubu_edr.h"
 #include "wubu_holyd.h"
 #include "wubu_gdpr_age.h"

@@ -20,8 +20,8 @@ human eval and an agent eval cannot drift apart.
 
 | Piece | Evidence |
 |---|---|
-| In-OS HolyC REPL that compiles and runs | `src/gui/shell/wm_holyc_term.c` includes `compiler/holyd_codegen.h` and calls `hd_eval` |
-| A single eval entry used by the shell | `wubu_holyc_eval()` in `src/runtime/wubu_holyd_agi.c`, wired at `hosted.c:204` via `holyc_term_set_eval()` |
+| In-OS HolyC REPL that compiles and runs | `src/gui/shell/holyc_repl.c` includes `compiler/holyd_codegen.h` and calls `hd_eval` |
+| A single eval entry used by the shell | `wubu_holyc_eval()` in `src/runtime/holyc_eval.c`, wired at `hosted.c:204` via `holyc_term_set_eval()` |
 | An agent-facing eval with disclosure | `wubu_holyc_agent_eval()`, logs `edr_log_agent_action(..., "holyc: <src>")` |
 | Compiler in-tree | `src/comp/` (`holyd_lexer/parse/codegen/runtime`) — the same compiler the kernel's terminal uses |
 | Editor window | `src/apps/editor/editor.c` (285 lines) |
@@ -35,7 +35,7 @@ without leaving the OS. That is the difference between a REPL and a development
 environment.
 
 **No file-backed eval.** The terminal has no `#include "file.HC"` / `run file` path: the
-only `#include` lines in `wm_holyc_term.c` are C preprocessor includes. A program larger
+only `#include` lines in `holyc_repl.c` are C preprocessor includes. A program larger
 than a comfortable one-liner cannot be loaded into the eval at all.
 
 **No hot module replacement.** `grep -rIlE "jit_load|self_host" src --include=*.c` returns

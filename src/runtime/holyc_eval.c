@@ -1,12 +1,12 @@
 /*
- * wubu_holyd_agi.c -- Live ring-0 compiler AGI layer (TempleOS "God compiler")
+ * holyc_eval.c -- Live ring-0 compiler AGI layer (TempleOS "God compiler")
  *
- * See wubu_holyd_agi.h. Owns an in-process holyd daemon + persistent
+ * See holyc_eval.h. Owns an in-process holyd daemon + persistent
  * "default" session; bridges the HolyC Terminal and the AGI to the real
  * HolyC JIT compiler. Every AGI eval is disclosed to EDR.
  */
 
-#include "wubu_holyd_agi.h"
+#include "holyc_eval.h"
 #include "wubu_holyd.h"
 #include "wubu_edr.h"
 #include <stdlib.h>

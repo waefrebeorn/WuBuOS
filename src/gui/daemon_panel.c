@@ -18,7 +18,7 @@
 
 #include "daemon_panel.h"
 #include "wm.h"
-#include "shell/desktop.h"
+#include "shell/shell_session.h"
 #include "shell/wubu_notify.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"

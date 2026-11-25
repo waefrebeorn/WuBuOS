@@ -1,5 +1,5 @@
 /*
- * wm_holyc_term.c  --  HolyC Terminal subsystem for wm
+ * holyc_repl.c  --  HolyC Terminal subsystem for wm
  *
  * Provides a REPL terminal window for HolyC script evaluation.
  * Extracted from wm.c for modularity.
@@ -7,7 +7,7 @@
  * NOTE: g_holyc_terms[] is defined as a static global in wm.c.
  * This module provides the helper functions that operate on it.
  *
- * Evaluation is dependency-injected (see ./wm_holyc_term.h). The default
+ * Evaluation is dependency-injected (see ./holyc_repl.h). The default
  * evaluator is a direct, self-contained JIT compile+run via the public HolyC
  * compiler API. The hosted binary injects the richer wubu_holyd_agi path
  * (holyd daemon + EDR disclosure) at the composition root, so this module
@@ -15,7 +15,7 @@
  */
 
 #include "../wm_internal.h"
-#include "./wm_holyc_term.h"
+#include "./holyc_repl.h"
 
 #include "../../compiler/holyd_codegen.h"   /* public compiler API: hd_eval */
 

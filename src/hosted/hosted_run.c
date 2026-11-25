@@ -20,7 +20,7 @@
 #include "../kernel/vbe.h"
 #include "../gui/wm.h"
 #include "../runtime/wubu_agi_play.h"
-#include "../gui/shell/desktop.h"
+#include "../gui/shell/shell_session.h"
 #include "../gui/shell/startmenu.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/wubu_clipboard.h"

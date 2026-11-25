@@ -290,8 +290,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `wm_clock.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wm_ctxmenu.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wm_ctxmenu_engine.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_desktop.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
-- `wm_holyc_term.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `desktop_icons.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
+- `holyc_repl.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wm_icon_glyphs.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wm_icons.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
 - `wm_input.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
@@ -549,7 +549,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_hive.c`  -- tests: test_runtime;test_hive
 - `wubu_holyd.c`  -- tests: test_holyd;test_holyd_agi
 - `wubu_holyd_9p.c`  -- tests: test_holyd;test_holyd_agi
-- `wubu_holyd_agi.c`  -- tests: test_holyd_agi
+- `holyc_eval.c`  -- tests: test_holyd_agi
 - `wubu_holyd_event.c`  -- tests: test_holyd;test_holyd_agi
 - `wubu_holyd_exec.c`  -- tests: test_holyd;test_holyd_agi
 - `wubu_holyd_input.c`  -- tests: test_holyd;test_holyd_agi

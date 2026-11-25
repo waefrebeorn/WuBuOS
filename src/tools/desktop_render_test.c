@@ -4,7 +4,7 @@
 #define VBE_HOSTED
 #define WUBU_NO_LIBM
 #include "../kernel/vbe.h"
-#include "../gui/shell/desktop.h"
+#include "../gui/shell/shell_session.h"
 #include "../gui/wm.h"
 #include "../gui/wubu_theme.h"
 #include "screenshot.h"

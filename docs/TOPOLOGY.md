@@ -295,7 +295,7 @@
 | `src/gui/cp_sound.c` | C11. Implements the header-declared cp_create_sound_applet() |
 | `src/gui/daemon_panel.c` | desktop. Shows daemon status in the system tray, container list in a |
 | `src/gui/daemon_panel_test.c` | We provide weak stubs for all GUI functions the panel calls, |
-| `src/gui/shell/desktop.c` | ZealOS kernel runs in-process, Fable sauce renders the desktop, |
+| `src/gui/shell/shell_session.c` | ZealOS kernel runs in-process, Fable sauce renders the desktop, |
 | `src/gui/dos_window.c` | window. The window blits the guest's captured VGA framebuffer (RGBA from |
 | `src/gui/dos_window_test.c` | 1. launch a real 16-bit .COM via wubu_dos_proc_launch (in-process 8086), |
 | `src/gui/dos_window_test_stub.c` | DOS Box window test. We are testing the DOS-window glue, not the WM |
@@ -336,8 +336,8 @@
 | `src/gui/shell/wm_clock.c` | clock update + string formatting. Depends only on the shared WM state |
 | `src/gui/shell/wm_ctxmenu.c` | to the desktop + icon domains. Owns the default context actions (Open/Play/ |
 | `src/gui/shell/wm_ctxmenu_engine.c` | context-menu stack, lifecycle (create/add/show/hide), mouse dispatch, |
-| `src/gui/shell/wm_desktop.c` | snapping math, auto-arrange / sort / refresh of desktop icons, and real |
-| `src/gui/shell/wm_holyc_term.c` | Extracted from wm.c for modularity. |
+| `src/gui/shell/desktop_icons.c` | snapping math, auto-arrange / sort / refresh of desktop icons, and real |
+| `src/gui/shell/holyc_repl.c` | Extracted from wm.c for modularity. |
 | `src/gui/shell/wm_icon_glyphs.c` | recognizable shape. That is the "mess": a desktop full of identical |
 | `src/gui/shell/wm_icons.c` | URL-shortcut creation, hit-testing, and icon lookup. Uses g_dwm (extern in |
 | `src/gui/wm_input.c` | - wm_handle_key(): Alt+Tab cycling, Win-key hotkeys, theme |

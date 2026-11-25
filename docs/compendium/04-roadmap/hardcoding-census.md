@@ -39,7 +39,7 @@ checkout with its OWN gates — never across the submodule boundary.
   must-reject regression. Gates: test_kernel_macho ALL PASS, test_vsl_macho
   24/24.
 - **DESK_ICON_COUNT 8 vs 9** — `src/apps/apps.h` (registry owner) said 8
-  while `src/gui/shell/desktop.h` re-defined the enum with DOOM=8, COUNT=9:
+  while `src/gui/shell/shell_session.h` re-defined the enum with DOOM=8, COUNT=9:
   dynamic icons collided with DOOM. apps.h now owns DOOM + COUNT 9;
   desktop.h includes it. The `DESK_ICON_EXPLORTER` typo was killed (renamed
   both sides to EXPLORER). Gate: test_apps 34/34, test_wm 55/55.

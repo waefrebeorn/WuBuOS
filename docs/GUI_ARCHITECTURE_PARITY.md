@@ -32,7 +32,7 @@ P1 compositor / P2 WM / P3 bus / P4 panel / P5 theme+xlet) and
   `wm_window_state.c` `wm_render.c` `window_chrome.c`
   `wm.h` `wm_internal.h` `wm.h`
 - **SHADOW retained line (the parity target):** `wubu_compositor.c`
-  `wubu_compositor_standalone.c` + `wubu_wm.c` `wubu_wm_render.c` `wubu_wm_desktop.c`
+  `wubu_compositor_standalone.c` + `wubu_wm.c` `wubu_wm_render.c` `wubu_desktop_icons.c`
   `wubu_wm_input.c` + `gui_dbuf.c` (double-buffer)
 
 ### Shell (the Cinnamon/LayoutManager analog)
@@ -40,8 +40,8 @@ P1 compositor / P2 WM / P3 bus / P4 panel / P5 theme+xlet) and
 - **Taskbar / panel:** `wm_taskbar.c` `wm_systray.c`
   `wm_tray_world.c` `wm_clock.c` + `daemon_panel.c`
   `service_mgr.c`
-- **Desktop:** `wm_desktop.c` `wm_icons.c` `wm_icon_glyphs.c`
-  `wm_ctxmenu.c` `wm_ctxmenu_engine.c` `wm_holyc_term.c`
+- **Desktop:** `desktop_icons.c` `wm_icons.c` `wm_icon_glyphs.c`
+  `wm_ctxmenu.c` `wm_ctxmenu_engine.c` `holyc_repl.c`
   `desktop.c`
 - **Context menus:** `wm_ctxmenu.c` `wm_ctxmenu_engine.c`
 
@@ -74,7 +74,7 @@ Full per-file layer tagging was generated from the tree at:
 |-------|-----------|-----------|-----------------|
 | Compositor (owns the frame) | `wubu_comp_*` | `wm_render.c` (blit loop → frame owner) | `wubu_compositor.c` |
 | Window manager (stack/focus/move) | `wubu_wm_*` | `wm.c` `wm_window.c` `wm_input.c` | `wubu_wm*.c` |
-| Shell / chrome | `wubu_shell_*` | `window_chrome.c` `wm_taskbar.c` `wm_desktop.c` … | — |
+| Shell / chrome | `wubu_shell_*` | `window_chrome.c` `wm_taskbar.c` `desktop_icons.c` … | — |
 | Theme | `wubu_theme_*` (already `wubu_theme_`) | — | — |
 
 > **Decision gate (awaiting the architect):** prefix scheme breadth (`wubu_comp_*`/`wubu_wm_*`,

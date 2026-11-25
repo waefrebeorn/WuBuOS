@@ -4460,7 +4460,7 @@
 - `wubu_lua_gui_draw(WubuLuaGui *g, int fb_w, int fb_h)`
 - `wubu_lua_gui_key(WubuLuaGui *g, const char *key, uint32_t mods)`
 
-## `src/gui/shell/desktop.h`
+## `src/gui/shell/shell_session.h`
 
 - `desktop_launch_icon(int icon_id)`
 
@@ -4524,7 +4524,7 @@
 - `chrome_caption_metrics(void)`
 - `chrome_is_win11(void)`
 
-## `src/gui/shell/wm_holyc_term.h`
+## `src/gui/shell/holyc_repl.h`
 
 - `holyc_term_set_eval(holyc_term_eval_fn fn)`
 
@@ -6459,7 +6459,7 @@
 - `wubu_holyd_shutdown(WubuHoly *d)`
 - `wubu_holyd_set_pointer_handler(wubu_holyd_pointer_fn fn)`
 
-## `src/runtime/wubu_holyd_agi.h`
+## `src/runtime/holyc_eval.h`
 
 - `wubu_holyd_agi_init(void)`
 - `wubu_holyc_eval(const char *src, char *out, size_t out_size)`

@@ -175,9 +175,9 @@ build spec.
 - **Stealable → WuBu**: the **retained-mode composition tree** (each `dosgui` window is an
   offscreen surface; the compositor owns ordering + repaint) — this directly replaces the
   removed dirty-region/full-redraw path; **Snap layouts + Snap groups + virtual-desktop
-  layouts** (virtual-desktop switching already exists in `wm_desktop.c` — promote it
+  layouts** (virtual-desktop switching already exists in `desktop_icons.c` — promote it
   to  per-desktop window sets + snap groups) — note: virtual-desktop switching lives in
-  `src/gui/wubu_wm_desktop.c` (switch/next/prev/move); `wm_desktop.c` is the desktop-icon
+  `src/gui/wubu_desktop_icons.c` (switch/next/prev/move); `desktop_icons.c` is the desktop-icon
   grid subsystem.
 - **Steal FOURTH** — it is the *target WM*, but it sits ON the win32k backbone (2.3). Order
   matters: backbone before chrome.

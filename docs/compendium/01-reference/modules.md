@@ -2480,8 +2480,8 @@
 | `gui/` | `wm_clock` | 131 | stdio.h, string.h, time.h, wm_internal.h | wm_clock.c -- WuBuOS DosGui WM: taskbar clock + clock menu Self-contained concern split out of wm_ct |
 | `gui/` | `wm_ctxmenu` | 480 | stdio.h, stdlib.h, string.h, wm_internal.h, wubu_notify.h, wubu_trash.h | wm_ctxmenu.c  --  WuBuOS DosGui WM: context-menu action wiring Facade that binds the generic context |
 | `gui/` | `wm_ctxmenu_engine` | 196 | wm_internal.h | wm_ctxmenu_engine.c -- WuBuOS DosGui WM: context-menu engine Self-contained concern split out of wm_ |
-| `gui/` | `wm_desktop` | 381 | dirent.h, egojar.h, errno.h, fcntl.h, stdlib.h, strings.h, wm_internal.h, wubu_g | wm_desktop.c -- Desktop icons subsystem for the WuBuOS WM. Self-contained module extracted from wm.c |
-| `gui/` | `wm_holyc_term` | 187 | holyd_codegen.h, stdio.h, stdlib.h, string.h, wm_holyc_term.h, wm_internal.h | wm_holyc_term.c  --  HolyC Terminal subsystem for wm Provides a REPL terminal window for HolyC scrip |
+| `gui/` | `wm_desktop` | 381 | dirent.h, egojar.h, errno.h, fcntl.h, stdlib.h, strings.h, wm_internal.h, wubu_g | desktop_icons.c -- Desktop icons subsystem for the WuBuOS WM. Self-contained module extracted from wm.c |
+| `gui/` | `wm_holyc_term` | 187 | holyd_codegen.h, stdio.h, stdlib.h, string.h, holyc_repl.h, wm_internal.h | holyc_repl.c  --  HolyC Terminal subsystem for wm Provides a REPL terminal window for HolyC scrip |
 | `gui/` | `wm_icon_glyphs` | 135 | stdint.h, string.h, wm.h, wm_internal.h | wm_icon_glyphs.c -- Desktop icon glyph rendering (Chicago -> XP). The old desktop drew every icon as |
 | `gui/` | `wm_icons` | 96 | wm_internal.h | wm_icons.c -- Desktop icon subsystem for the window manager. Self-contained: desktop icon grid manag |
 | `gui/` | `wm_overview` | 101 | stdio.h, vbe.h, wm.h, wm_internal.h, wubu_theme.h | wm_overview.c -- Win+Tab desktop overview grid Virtual desktops existed with no way to see them: you |
@@ -2579,7 +2579,7 @@
 | `gui/` | `wm_window_state` | 117 | string.h, wm_internal.h | wm_window_state.c -- WuBuOS DosGui WM: window state + modal dialogs Self-contained concern split out |
 | `gui/` | `wubu_a11y` | 633 | math.h, stdlib.h, string.h, vbe.h, wm_internal.h, wubu_a11y.h, wubu_theme.h, wub | wubu_a11y.c  --  WuBuOS Accessibility Control Cluster The "GameCube face-button" psychology layout,  |
 | `gui/` | `wubu_a11y_test` | 166 | assert.h, stdio.h, wm.h, wubu_a11y.h, wubu_theme.h, wubu_trash.h | wubu_a11y_test.c -- Regression tests for the accessibility cluster. Verifies the four GameCube-face  |
-| `gui/` | `wubu_bonzi` | 435 | stdio.h, string.h, vbe.h, wm.h, wm_holyc_term.h, wubu_bonzi.h, wubu_buddy_sprite | wubu_bonzi.c -- WuBuOS WuBu Buddy desktop mascot (AGI gateway). WuBu-style: a purple companion that  |
+| `gui/` | `wubu_bonzi` | 435 | stdio.h, string.h, vbe.h, wm.h, holyc_repl.h, wubu_bonzi.h, wubu_buddy_sprite | wubu_bonzi.c -- WuBuOS WuBu Buddy desktop mascot (AGI gateway). WuBu-style: a purple companion that  |
 | `gui/` | `wubu_clipboard` | 381 | egojar.h, egojar_net.h, hosted.h, primary-selection-client.header, stdio.h, stdl | wubu_clipboard.c  --  WuBuOS Clipboard Manager Implementation Phase 2: Wayland data device + primary |
 | `gui/` | `wubu_clipboard_mime` | 61 | wubu_clipboard_internal.h | wubu_clipboard_mime.c -- Clipboard MIME-entry helpers (self-contained). Pure helpers for the X/prima |
 | `gui/` | `wubu_clipboard_test` | 410 | assert.h, stdio.h, stdlib.h, string.h, wubu_clipboard.h, wubu_clipboard_internal | wubu_clipboard_test.c -- WuBuOS Clipboard Manager Test (logic only) Tests internal clipboard logic w |
@@ -3703,8 +3703,8 @@
 | `runtime/` | `wubu_hc_eval_stub` | 13 | stdint.h | wubu_hc_eval_stub.c -- Minimal definition of hd_eval for runtime test binaries that link wubu_exec.c |
 | `runtime/` | `wubu_holyd` | 162 | wubu_holyd_internal.h | wubu_holyd.c  --  WuBuOS TempleOS HolyC DOS Daemon (Facade) Manages HolyC DOS sessions: REPL, compil |
 | `runtime/` | `wubu_holyd_9p` | 63 | wubu_holyd_internal.h | wubu_holyd_9p.c  --  WuBuOS HolyC DOS Daemon: 9P |
-| `runtime/` | `wubu_holyd_agi` | 76 | stdio.h, stdlib.h, string.h, wubu_edr.h, wubu_holyd.h, wubu_holyd_agi.h | wubu_holyd_agi.c -- Live ring-0 compiler AGI layer (TempleOS "God compiler") See wubu_holyd_agi.h. O |
-| `runtime/` | `wubu_holyd_agi_test` | 76 | stdio.h, string.h, wubu_edr.h, wubu_gdpr_age.h, wubu_holyd.h, wubu_holyd_agi.h | test_holyd_agi.c -- Live ring-0 compiler AGI layer test. Proves the TempleOS "God compiler" is now C |
+| `runtime/` | `wubu_holyd_agi` | 76 | stdio.h, stdlib.h, string.h, wubu_edr.h, wubu_holyd.h, holyc_eval.h | holyc_eval.c -- Live ring-0 compiler AGI layer (TempleOS "God compiler") See holyc_eval.h. O |
+| `runtime/` | `wubu_holyd_agi_test` | 76 | stdio.h, string.h, wubu_edr.h, wubu_gdpr_age.h, wubu_holyd.h, holyc_eval.h | test_holyd_agi.c -- Live ring-0 compiler AGI layer test. Proves the TempleOS "God compiler" is now C |
 | `runtime/` | `wubu_holyd_event` | 24 | wubu_holyd_internal.h | wubu_holyd_event.c  --  WuBuOS HolyC DOS Daemon: Event |
 | `runtime/` | `wubu_holyd_exec` | 229 | ctype.h, stdbool.h, wubu_holyd_internal.h | gives the REPL its persistent state. */ |
 | `runtime/` | `wubu_holyd_input` | 102 | wubu_holyd_internal.h | wubu_holyd_input.c  --  WuBuOS HolyC DOS Daemon: Input |

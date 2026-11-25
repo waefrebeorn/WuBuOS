@@ -8,11 +8,11 @@ tall; what the human sees and clicks is thin.
 ## What already exists (foundation — do NOT rebuild)
 
 - **The WM/desktop render stack** — `src/gui/*`: `wm.c`,
-  `wm_desktop.c`, `wm_render.c`, `wm_window.c`,
+  `desktop_icons.c`, `wm_render.c`, `wm_window.c`,
   `wm_input.c`, `wm_taskbar.c`, `wm_icons.c`,
   `wm_icon_glyphs.c`, `wm_systray.c`, `wm_startmenu.c`,
   `wm_ctxmenu*.c`, `wm_clock.c`, `window_chrome.c`,
-  `wm_holyc_term.c`. Plus apps: `explorer*.c`,
+  `holyc_repl.c`. Plus apps: `explorer*.c`,
   `controlpanel.c`, `daemon_panel.c`, `era_apps.c`,
   `service_mgr.c`, `src/apps/apps.c`.
 - **The authority object-model backbone** — `src/runtime/win32k/wubu_win32k.{c,h}`

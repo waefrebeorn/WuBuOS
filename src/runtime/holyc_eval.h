@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_agi.h -- Live ring-0 compiler AGI layer (TempleOS "God compiler")
+ * holyc_eval.h -- Live ring-0 compiler AGI layer (TempleOS "God compiler")
  *
  * WuBuOS already has a working HolyC -> x86-64 JIT compiler (src/compiler) and
  * a persistent-repl daemon (wubu_holyd). What was missing was the CONNECTIVE

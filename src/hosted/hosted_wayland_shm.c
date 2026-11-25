@@ -5,7 +5,7 @@
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"
 #include "../gui/wm.h"
-#include "../gui/shell/desktop.h"
+#include "../gui/shell/shell_session.h"
 #include "../gui/shell/startmenu.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/wubu_theme.h"

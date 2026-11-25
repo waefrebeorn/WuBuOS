@@ -202,7 +202,7 @@ __attribute__((weak)) void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
 
 /* Stub for launch app (weak: the real registry in apps.c wins when
  * a target links it, so a menu click actually opens an app). */
-/* Real implementation lives in shell/desktop.c, which the WM test does
+/* Real implementation lives in shell/shell_session.c, which the WM test does
  * not link (it would drag in the whole shell). Same weak-glue convention as
  * launch_app below. */
 __attribute__((weak)) void desktop_launch_icon(int icon_id) { (void)icon_id; }

@@ -43,7 +43,7 @@ static unsigned wm_now_ms(void) { return (unsigned)g_dwm.ticks * 16u; }
 #endif
 #include "shell/win11_shell.h"
 #include "shell/window_chrome.h"
-#include "shell/desktop.h"
+#include "shell/shell_session.h"
 #include "shell/run_dialog.h"
 #include "shell/power_menu.h"
 #include "../kernel/wubu_gesture.h"

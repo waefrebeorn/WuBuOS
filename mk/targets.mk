@@ -141,7 +141,7 @@ HOSTED_INC  = -I$(HOSTED) -I$(LUAWWW) -Isrc/gui/vws/externals/wet \
 # hosted binary at all.  Incremental builds only worked because stale .o files
 # from an earlier configuration were still on disk.
 HOSTED_LINK_ONLY = $(COMP)/wubu_tgemm_avx512.o $(APPS)/edr_dash.o \
-                   $(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd_lifecycle.o \
+                   $(RT)/holyc_eval.o $(RT)/wubu_holyd_lifecycle.o \
                    $(AUDIO_OBJS) \
                    $(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o \
                    $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o \
@@ -190,7 +190,7 @@ hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_EXTRA) $(HOSTED_GLUE) $(HOS
 	/tmp/hosted_main.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) $(HOSTED_GLUE) \
 	$(HOSTED_PRIVATE_OBJS) \
 	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
-	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd_lifecycle.o \
+	$(RT)/holyc_eval.o $(RT)/wubu_holyd_lifecycle.o \
 	$(HOSTED_GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
 	$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
 	-o $(HOSTED_BIN) $(HOSTED_LIBS) $(HOSTED_TLS_LIBS) $(WUBU_EDDSA_HOSTED_LIBS)
