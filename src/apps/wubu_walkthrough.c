@@ -13,6 +13,7 @@
  */
 #include "../gui/wm.h"
 #include "../gui/shell/window_chrome.h"
+#include "../gui/wm_internal.h"      /* tc(): the palette owner, never a literal here */
 #include "../kernel/vbe.h"
 #include "wubu_walkthrough_art.h"
 
@@ -23,7 +24,12 @@
 #define WALK_BODY_MAX     6
 #define WALK_BTN_W        84
 #define WALK_BTN_H        24
-#define WALK_PAD          14
+/* Win11 card geometry: 24px inner padding, 12px gaps, 32px buttons. The old 14/24/6 values
+ * put text against the card edge and left 6px under the button row -- "bad margins". */
+#define WALK_PAD          24
+#define WALK_GAP          12
+#define WALK_BTN_W        96
+#define WALK_BTN_H        32
 
 typedef struct {
     const char *title;
@@ -93,11 +99,11 @@ static void walk_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int y = c.y + WALK_PAD;
 
     /* Title. */
-    vbe_draw_text(c.x + WALK_PAD, y, s->title, 0x000080, 2);
+    vbe_draw_text(c.x + WALK_PAD, y, s->title, tc()->win_title_text, 2);
     y += WALK_STEP_TITLE_H;
 
     /* Rule under the title. */
-    vbe_fill_rect(c.x + WALK_PAD, y, c.w - WALK_PAD * 2, 1, 0x808080);
+    vbe_fill_rect(c.x + WALK_PAD, y, c.w - WALK_PAD * 2, 1, tc()->border_dark);
     y += 6;
 
     /* The pose, on the left; the body wraps beside it. */
@@ -137,36 +143,41 @@ static void walk_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ty = y;
     for (int i = 0; i < WALK_BODY_MAX && s->body[i]; i++) {
         if (s->body[i][0] == '\0') { ty += 6; continue; }
-        vbe_draw_text(tx, ty, s->body[i], 0x000000, 1);
+        vbe_draw_text(tx, ty, s->body[i], tc()->win_title_text, 1);
         ty += 14;
     }
 
     /* Step indicator dots. */
     int dots_w = WALK_STEPS * 14;
     int dx0 = c.x + (c.w - dots_w) / 2;
-    int dy0 = c.y + c.h - WALK_BTN_H - 18;
+    int dy0 = c.y + c.h - WALK_BTN_H - WALK_PAD - 18;
     for (int i = 0; i < WALK_STEPS; i++) {
-        uint32_t col = (i == g_step) ? 0x000080 : 0xC0C0C0;
+        uint32_t col = (i == g_step) ? tc()->select_bg : tc()->border_dark;
         vbe_fill_rect(dx0 + i * 14, dy0, 8, 8, col);
     }
 
     /* Buttons. */
-    int by = c.y + c.h - WALK_BTN_H - 6;
+    int by = c.y + c.h - WALK_BTN_H - WALK_PAD;
     int bx_next = c.x + c.w - WALK_PAD - WALK_BTN_W;
-    int bx_back = bx_next - WALK_BTN_W - 8;
+    int bx_back = bx_next - WALK_BTN_W - WALK_GAP;
 
     bool last = (g_step == WALK_STEPS - 1);
     const char *next_label = last ? "Finish" : "Next";
 
-    /* Back */
-    vbe_fill_rect(bx_back, by, WALK_BTN_W, WALK_BTN_H, 0xC0C0C0);
-    vbe_rect_rounded(bx_back, by, WALK_BTN_W, WALK_BTN_H, 3, 0x404040);
-    vbe_draw_text(bx_back + 18, by + 7, "Back", 0x000000, 1);
+    /* Secondary button: theme surface + hairline, label measured and centred (the old code
+     * hardcoded +18, +20 and +14 offsets, so labels sat off-centre by different amounts). */
+    vbe_fill_rect_rounded(bx_back, by, WALK_BTN_W, WALK_BTN_H, WUBU_METRIC_RADIUS_CONTROL,
+                          tc()->btn_face);
+    vbe_rect_rounded(bx_back, by, WALK_BTN_W, WALK_BTN_H, WUBU_METRIC_RADIUS_CONTROL,
+                     tc()->border_light);
+    vbe_draw_text(bx_back + (WALK_BTN_W - vbe_text_width("Back", 1)) / 2,
+                  by + (WALK_BTN_H - WUBU_FONT_CAP_H) / 2, "Back", tc()->btn_text, 1);
 
-    /* Next / Finish -- the default action gets the bright face. */
-    vbe_fill_rect(bx_next, by, WALK_BTN_W, WALK_BTN_H, last ? 0x007000 : 0x000080);
-    vbe_rect_rounded(bx_next, by, WALK_BTN_W, WALK_BTN_H, 3, 0x404040);
-    vbe_draw_text(bx_next + (last ? 14 : 20), by + 7, next_label, 0xFFFFFF, 1);
+    /* Primary action: accent fill, accent-contrast text -- Win11's default button. */
+    vbe_fill_rect_rounded(bx_next, by, WALK_BTN_W, WALK_BTN_H, WUBU_METRIC_RADIUS_CONTROL,
+                          tc()->select_bg);
+    vbe_draw_text(bx_next + (WALK_BTN_W - vbe_text_width(next_label, 1)) / 2,
+                  by + (WALK_BTN_H - WUBU_FONT_CAP_H) / 2, next_label, tc()->select_text, 1);
 }
 
 static void walk_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
@@ -189,9 +200,9 @@ static void walk_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
 static void walk_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     if (kind != 1) return;
     ChromeContentRect c = g_rect;
-    int by = c.y + c.h - WALK_BTN_H - 6;
+    int by = c.y + c.h - WALK_BTN_H - WALK_PAD;
     int bx_next = c.x + c.w - WALK_PAD - WALK_BTN_W;
-    int bx_back = bx_next - WALK_BTN_W - 8;
+    int bx_back = bx_next - WALK_BTN_W - WALK_GAP;
 
     if (y < by || y > by + WALK_BTN_H) return;
 
