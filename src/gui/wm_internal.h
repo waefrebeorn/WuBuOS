@@ -167,6 +167,11 @@ typedef struct {
     /* Overflow: slots that did not fit are HIDDEN here, never laid out past tray_x.
      * 0 means everything fits and the button is not drawn. */
     int overflow_x, overflow_y, overflow_w, overflow_h, overflow_n;
+    /* Identity of the hidden slots, in task order. The menu lists exactly these -- a count
+     * alone would tell the user how many windows they cannot see, not which. */
+    int hidden_id[48];
+    int hidden_is_pin[48];
+    int hidden_n;
 } WmTaskLayout;
 
 void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L);

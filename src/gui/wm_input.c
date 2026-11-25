@@ -155,6 +155,11 @@ void wm_handle_key_up(uint32_t key, uint32_t mods) {
 }
 
 void wm_handle_key(uint32_t key, uint32_t mods) {
+    {
+        extern __attribute__((weak)) bool taskbar_overflow_key(uint32_t);
+        if (taskbar_overflow_key && taskbar_overflow_key(key)) return;
+    }
+
     g_last_mods = mods;
     wubu_screensaver_activity();
 
@@ -483,6 +488,13 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         if (win11_snap_assist_active && win11_snap_assist_active() &&
             win11_snap_assist_click && win11_snap_assist_click(x, y))
             return;
+    }
+
+    if (btn && kind == 1) {
+        extern __attribute__((weak)) bool taskbar_overflow_is_open(void);
+        extern __attribute__((weak)) bool taskbar_overflow_click(int, int);
+        if (taskbar_overflow_is_open && taskbar_overflow_is_open() &&
+            taskbar_overflow_click && taskbar_overflow_click(x, y)) return;
     }
 
     if (btn && kind == 1) {

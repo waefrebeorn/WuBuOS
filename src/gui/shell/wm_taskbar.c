@@ -109,6 +109,7 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
      * tray_x -- drawn OVER the systray and the clock, with click geometry to match. Windows
      * collapses the excess behind an overflow button, so the last slots move behind one. */
     L->overflow_n = 0;
+    L->hidden_n = 0;
     L->overflow_x = L->overflow_y = L->overflow_w = L->overflow_h = 0;
     int shown = L->n_slots;
     int use = row_w;
@@ -118,6 +119,15 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
             shown--;
             use -= L->slot[shown].w + gap;
             L->overflow_n++;
+            L->hidden_id[L->hidden_n] = L->slot[shown].index;
+            L->hidden_is_pin[L->hidden_n] = L->slot[shown].is_pin;
+            L->hidden_n++;
+        }
+        /* The loop strips from the end, so reverse into task order. */
+        for (int i = 0, j = L->hidden_n - 1; i < j; i++, j--) {
+            int a = L->hidden_id[i]; L->hidden_id[i] = L->hidden_id[j]; L->hidden_id[j] = a;
+            int b = L->hidden_is_pin[i]; L->hidden_is_pin[i] = L->hidden_is_pin[j];
+            L->hidden_is_pin[j] = b;
         }
         if (L->overflow_n) {
             L->n_slots = shown;
@@ -482,9 +492,11 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind) {
 
     if (L.overflow_n > 0 && x >= L.overflow_x && x < L.overflow_x + L.overflow_w &&
         y >= L.overflow_y && y < L.overflow_y + L.overflow_h) {
-        /* Reachable, not a dead chip: task view shows every window, including the hidden
-         * ones. A dedicated overflow menu is still a gap (it is a surface of its own). */
-        wm_overview_toggle();
+        /* The chip lists the hidden windows. Weak so a build without the menu still has a
+         * reachable path: task view shows every window, hidden ones included. */
+        extern __attribute__((weak)) void taskbar_overflow_open(void);
+        if (taskbar_overflow_open) taskbar_overflow_open();
+        else wm_overview_toggle();
         return true;
     }
 

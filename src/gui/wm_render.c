@@ -230,6 +230,10 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     }
 
     {
+        extern __attribute__((weak)) void taskbar_overflow_render(uint32_t *, int, int);
+        if (taskbar_overflow_render) taskbar_overflow_render(fb, fb_w, fb_h);
+    }
+    {
         extern __attribute__((weak)) void alt_tab_render(uint32_t *, int, int);
         if (alt_tab_render) alt_tab_render(fb, fb_w, fb_h);
     }

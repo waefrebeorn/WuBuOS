@@ -9,6 +9,7 @@
 #include "wm.h"
 #include "shell/projection_flyout.h"
 #include "shell/alt_tab_switcher.h"
+#include "shell/taskbar_overflow_menu.h"
 #include "wm_internal.h"
 #include "wubu_trash.h"
 #include "wubu_theme.h"
@@ -2511,6 +2512,56 @@ static void test_taskbar_overflow_never_reaches_the_tray(void) {
     PASS();
 }
 
+
+static void test_taskbar_overflow_menu_lists_the_hidden(void) {
+    TEST("the +N chip opens a list of exactly the hidden windows");
+    vbe_init(1024, 768);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    for (int i = 0; i < 26; i++) {
+        char title[32];
+        snprintf(title, sizeof title, "Hidden %d", i);
+        wm_create(20 + (i % 5) * 12, 20 + (i % 7) * 10, 220, 150, title);
+    }
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    CHECK(L.hidden_n > 0, "the layout withheld some windows");
+
+    taskbar_overflow_open();
+    CHECK(taskbar_overflow_is_open(), "the chip opened a list");
+    CHECK(taskbar_overflow_rows() == L.hidden_n, "it lists every hidden window");
+    CHECK(taskbar_overflow_window_at(0) == L.hidden_id[0],
+          "row 0 IS the first hidden window -- identity, not a count");
+
+    /* Picking a row focuses that window and closes the list. */
+    int want = taskbar_overflow_window_at(1);
+    int rx, ry, rw, rh;
+    CHECK(taskbar_overflow_row_rect(1, 1024, 768, &rx, &ry, &rw, &rh), "row 1 has a rect");
+    taskbar_overflow_click(rx + 4, ry + 4);
+    CHECK(!taskbar_overflow_is_open(), "picking closed the list");
+    CHECK(wm_get_focused() && wm_get_focused()->id == want, "the picked window is focused");
+
+    /* Esc closes it without focusing anything. */
+    taskbar_overflow_open();
+    CHECK(taskbar_overflow_is_open(), "reopened");
+    CHECK(taskbar_overflow_key(0x01), "Esc is consumed by the list");
+    CHECK(!taskbar_overflow_is_open(), "Esc closed it");
+
+    /* And it paints a card above the bar. */
+    taskbar_overflow_open();
+    int card_x, card_y, card_w, card_h;
+    taskbar_overflow_row_rect(0, 1024, 768, &card_x, &card_y, &card_w, &card_h);
+    taskbar_overflow_render(NULL, 1024, 768);
+    int lit = 0;
+    for (int y = card_y; y < card_y + card_h; y++)
+        for (int x = card_x; x < card_x + card_w; x++)
+            if (vbe_get_pixel(x, y) != 0) lit++;
+    CHECK(lit > 100, "the list card has pixels");
+    taskbar_overflow_close();
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2524,6 +2575,7 @@ int main(void) {
     test_thumb_capture_maps_the_window_rect();
     test_taskbar_hover_tracks_slots();
     test_pointer_path_sees_modifier_state();
+    test_taskbar_overflow_menu_lists_the_hidden();
     test_taskbar_overflow_never_reaches_the_tray();
     test_alt_tab_switcher_commits_on_alt_release();
     test_drag_to_edge_snaps();
