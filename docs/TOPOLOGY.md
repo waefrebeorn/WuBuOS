@@ -296,9 +296,9 @@
 | `src/gui/daemon_panel.c` | desktop. Shows daemon status in the system tray, container list in a |
 | `src/gui/daemon_panel_test.c` | We provide weak stubs for all GUI functions the panel calls, |
 | `src/gui/shell/shell_session.c` | ZealOS kernel runs in-process, Fable sauce renders the desktop, |
-| `src/gui/dos_window.c` | window. The window blits the guest's captured VGA framebuffer (RGBA from |
-| `src/gui/dos_window_test.c` | 1. launch a real 16-bit .COM via wubu_dos_proc_launch (in-process 8086), |
-| `src/gui/dos_window_test_stub.c` | DOS Box window test. We are testing the DOS-window glue, not the WM |
+| `src/gui/dos_guest_view.c` | window. The window blits the guest's captured VGA framebuffer (RGBA from |
+| `src/gui/dos_guest_view_test.c` | 1. launch a real 16-bit .COM via wubu_dos_proc_launch (in-process 8086), |
+| `src/gui/dos_guest_view_test_stub.c` | DOS Box window test. We are testing the DOS-window glue, not the WM |
 | `src/gui/era_apps.c` | each tagged with the VSL syscall personality it exercises so the WuBuOS |
 | `src/gui/era_apps_test.c` | registry + launcher. Asserts that each RUNNABLE era app actually executes |
 | `src/gui/explorer.c` | - Tree view sidebar (folder hierarchy, expand/collapse) |

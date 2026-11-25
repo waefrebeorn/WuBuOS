@@ -1,7 +1,7 @@
 /*
- * dos_window.h -- desktop window that hosts a WuBuOS 16-bit DOS
+ * dos_guest_view.h -- desktop window that hosts a WuBuOS 16-bit DOS
  * process (see wubu_dos_proc.h). Renders the guest framebuffer and forwards
- * input. Self-contained; pairs with dos_window.c.
+ * input. Self-contained; pairs with dos_guest_view.c.
  */
 #ifndef WUBU_DOSGUI_DOS_WINDOW_H
 #define WUBU_DOSGUI_DOS_WINDOW_H

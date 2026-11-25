@@ -46,8 +46,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `ct_iso_ns.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `ct_iso_seccomp.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `desktop_stubs.c`  -- tests: test_apps;test_wet_applet;test_first_run;test_tutorial
-- `dos_window.c`  -- tests: test_dos_window
-- `dos_window_test_stub.c`  -- tests: test_dos_window
+- `dos_guest_view.c`  -- tests: test_dos_guest_view
+- `dos_guest_view_test_stub.c`  -- tests: test_dos_guest_view
 - `editor.c`  -- tests: test_apps
 - `edr_core.c`  -- tests: test_holyd_agi;test_era_apps
 - `edr_fanotify.c`  -- tests: test_holyd_agi;test_era_apps
@@ -189,7 +189,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `styxfs_host.c`  -- tests: test_exec_games;test_host_exec;test_guest_import;test_guests_panel
 - `styxfs_path.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styxfs_posix.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
-- `styxfs_server.c`  -- tests: test_dos_proc;test_dos_window
+- `styxfs_server.c`  -- tests: test_dos_proc;test_dos_guest_view
 - `styxfs_util.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `styxfs_vfs.c`  -- tests: test_wubu;test_dos_proc;test_syscall;test_launch
 - `taskbar_tasks.c`  -- tests: test_wm;test_ui;test_a11y;test_calc
@@ -542,7 +542,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_gvfs.c`  -- tests: test_wubu_gvfs
 - `wubu_gvfs_mount.c`  -- tests: test_wubu_gvfs_mount
 - `wubu_gvfs_path.c`  -- tests: test_wubu_gvfs_path;test_wubu_gvfs_mount
-- `wubu_hc_eval_stub.c`  -- tests: test_dos_window
+- `wubu_hc_eval_stub.c`  -- tests: test_dos_guest_view
 - `wubu_hdr.c`  -- tests: test_hw_hdr
 - `wubu_hid.c`  -- tests: test_hw_hid
 - `wubu_hidadv.c`  -- tests: test_hw_hidadv
@@ -656,7 +656,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_ns_kernel.c`  -- tests: test_ns_kernel
 - `wubu_ns_kernels.c`  -- tests: test_ns_kernels
 - `wubu_ns_kv.c`  -- tests: test_agi_play;test_ns_kv
-- `wubu_ns_pkg_fallback.c`  -- tests: test_dos_proc;test_dos_window;test_startmenu_files;test_startmenu
+- `wubu_ns_pkg_fallback.c`  -- tests: test_dos_proc;test_dos_guest_view;test_startmenu_files;test_startmenu
 - `wubu_ns_session.c`  -- tests: test_ns_session
 - `wubu_ns_snap.c`  -- tests: test_ns_9p
 - `wubu_ns_steaminput.c`  -- tests: test_ns_steaminput

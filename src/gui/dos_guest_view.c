@@ -1,5 +1,5 @@
 /*
- * dos_window.c -- Render a WuBuOS 16-bit DOS process in a desktop
+ * dos_guest_view.c -- Render a WuBuOS 16-bit DOS process in a desktop
  * window. The window blits the guest's captured VGA framebuffer (RGBA from
  * wubu_dos_proc_frame_capture) and forwards keyboard/mouse input back into the
  * guest via the proc's control channel.

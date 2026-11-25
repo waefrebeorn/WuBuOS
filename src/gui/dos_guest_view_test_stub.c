@@ -1,5 +1,5 @@
 /*
- * dos_window_test_stub.c -- Minimal WM window primitive stubs for the
+ * dos_guest_view_test_stub.c -- Minimal WM window primitive stubs for the
  * DOS Box window test. We are testing the DOS-window glue, not the WM
  * compositor, so the window is a plain heap struct with no real rendering.
  */

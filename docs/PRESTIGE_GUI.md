@@ -28,7 +28,7 @@ tall; what the human sees and clicks is thin.
 
 1. **Many GUI tests are STUBS, not behavior.** `wm_test_stub.c`,
    `apps_test_stubs.c`, `startmenu_test_stub.c`,
-   `wm_systray_test_stub.c`, `dos_window_test_stub.c`,
+   `wm_systray_test_stub.c`, `dos_guest_view_test_stub.c`,
    `era_apps_test_stub.c`, `explorer_test_stub.c` — wired into the
    high-tier gate but asserting nothing a user cares about. The desktop renders
    and the object model is cap-solid, but the click-through — launcher opens a
@@ -51,7 +51,7 @@ Then sweep the other stubs in the same pattern, in order:
 - `wm_systray_test_stub.c` -> real: clock mounts a systray icon, taskbar
   reflects windows.
 - `explorer_test_stub.c` -> real: explorer lists `/n/` entries.
-- `dos_window_test_stub.c` / `wm_test_stub.c` -> real window
+- `dos_guest_view_test_stub.c` / `wm_test_stub.c` -> real window
   move/resize/minimize assertions through `desktop_shot`-style PPM capture.
 - `apps_test_stubs.c` / `era_apps_test_stub.c` -> real app engines.
 

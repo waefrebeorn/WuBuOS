@@ -8,7 +8,7 @@
 |------|--------|------:|------------|---------|
 | `apps/` | `app_canvas` | 383 | apps.h, stdio.h, stdlib.h, string.h, vbe.h, window_chrome.h, wm.h, wubu_canvas.h | app_canvas.c  --  WuBu Canvas: in-shell image editor binding Binds the real layered wubu_canvas engi |
 | `apps/` | `app_explorer` | 84 | apps.h, explorer.h, stdlib.h, string.h, vbe.h, wm.h, wubu_theme.h | app_explorer.c  --  WuBuOS File Manager: in-shell Explorer binding Binds the real, Win98/XP-class ex |
-| `apps/` | `apps` | 429 | apps.h, bonzi.h, calc.h, cmd.h, comfy.h, control.h, dirent.h, dos_window.h, edit | apps.c  --  Single App Registry Implementation ONE data-driven table (g_app_defs[]) is the source of |
+| `apps/` | `apps` | 429 | apps.h, bonzi.h, calc.h, cmd.h, comfy.h, control.h, dirent.h, dos_guest_view.h, edit | apps.c  --  Single App Registry Implementation ONE data-driven table (g_app_defs[]) is the source of |
 | `apps/` | `apps_gap_test` | 87 | egojar.h, music.h, notes.h, stdio.h, stdlib.h, string.h, todo.h | apps_gap_test.c -- the completed desktop apps test (Notes / Todo / Music). These three apps were col |
 | `apps/` | `apps_gap_test_stub` | 27 | stdlib.h, wm.h | apps_gap_test_stub.c -- the WM stubs for the apps-gap test. notes.c/todo.c/music.c bind DosGuiWindow |
 | `apps/` | `apps_test` | 885 | apps.h, calc.h, control.h, editor.h, egojar.h, egojar_net.h, music.h, notepad.h, | apps_test.c  --  WuBuOS DosGui Apps Test Suite Tests for built-in Win98-style apps: - Task Manager ( |
@@ -2434,9 +2434,9 @@
 | `gui/` | `cp_theme` | 96 | control_panel.h, stdio.h, stdlib.h, string.h, wubu_theme.h | control_panel_theme.c -- the Control Panel Theme applet (the SteamOS Personalization, in our code — the Win98/X |
 | `gui/` | `daemon_panel` | 402 | daemon_panel.h, desktop.h, stdio.h, stdlib.h, string.h, vbe.h, wm.h, wubu_archd. | daemon_panel.c  --  WuBuOS Desktop Daemon Integration Panel Cell 400-402: Bridges wubu_archd and wub |
 | `gui/` | `daemon_panel_test` | 124 | daemon_panel.h, stdint.h, stdio.h, stdlib.h, string.h | daemon_panel_test.c  --  Daemon Panel Unit Test Suite Tests daemon panel logic with stubbed GUI depe |
-| `gui/` | `dos_window` | 159 | stdint.h, stdio.h, stdlib.h, string.h, vbe.h, wm.h, wubu_dos_proc.h | dos_window.c -- Render a WuBuOS 16-bit DOS process in a desktop window. The window blits the guest's |
-| `gui/` | `dos_window_test` | 106 | dos_window.h, stdint.h, stdio.h, stdlib.h, string.h, wubu_container.h, wubu_dos_ | dos_window_test.c -- Real end-to-end test for the DOS Box window. Exercises the genuine engine path: |
-| `gui/` | `dos_window_test_stub` | 24 | stdlib.h, string.h, wm.h | dos_window_test_stub.c -- Minimal WM window primitive stubs for the DOS Box window test. We are test |
+| `gui/` | `dos_window` | 159 | stdint.h, stdio.h, stdlib.h, string.h, vbe.h, wm.h, wubu_dos_proc.h | dos_guest_view.c -- Render a WuBuOS 16-bit DOS process in a desktop window. The window blits the guest's |
+| `gui/` | `dos_guest_view_test` | 106 | dos_guest_view.h, stdint.h, stdio.h, stdlib.h, string.h, wubu_container.h, wubu_dos_ | dos_guest_view_test.c -- Real end-to-end test for the DOS Box window. Exercises the genuine engine path: |
+| `gui/` | `dos_guest_view_test_stub` | 24 | stdlib.h, string.h, wm.h | dos_guest_view_test_stub.c -- Minimal WM window primitive stubs for the DOS Box window test. We are test |
 | `gui/` | `era_apps` | 289 | era_apps.h, guest_file.h, startmenu.h, startmenu_internal.h, stdio.h, stdlib.h,  | era_apps.c -- One representative application per computing era, each tagged with the VSL syscall per |
 | `gui/` | `era_apps_test` | 110 | egojar.h, era_apps.h, startmenu.h, stdio.h, stdlib.h, string.h | era_apps_test.c -- regression test for the "one app per era" registry + launcher. Asserts that each  |
 | `gui/` | `era_apps_test_stub` | 75 | era_apps.h, string.h | era_apps_test_stub.c -- the era-apps STUB for the BPM test. The real era_apps.c pulls the whole VSL  |

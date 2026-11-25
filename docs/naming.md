@@ -73,7 +73,7 @@ how a tidy becomes a regression.
 | 2 | `gfx/gui_{surface,blend,shape,blur}.c` vs top-level `gui_blit.c` | one layer name for the primitive drawing layer (`gfx_*`), and `gui_blit` joined to it | ~30 | medium -- touches the render path |
 | 3 | ~~`daemon_panel.c` -> `service_panel.c`~~ | **REJECTED after reading it**: it bridges *daemons* (archd, holyd) into the tray and a window; `service_mgr.c` manages *services*. `daemon_panel` is honest and `service_panel` would assert a relationship that does not exist | 7 | -- |
 | 4 | `big_picture.c` / `big_picture_games.c` | **undocumented acronym** -- read it, then name it for what it does | ~15 | low, but needs a purpose first |
-| 5 | `dos_window.c` vs `wm_window.c` | `dos_window` is the guest-app window body; `wm_window` is the WM's window object. Two "windows" in one layer | ~40 | high -- core windowing |
+| 5 | `dos_guest_view.c` vs `wm_window.c` | `dos_window` is the guest-app window body; `wm_window` is the WM's window object. Two "windows" in one layer | ~40 | high -- core windowing |
 | 6 | **TWO files named `wubu_bonzi.{c,h}`** -- `src/gui/` is the buddy sprite blitter, `src/kernel/` is a different module; includes use the SAME token `wubu_bonzi.h` in both layers | `src/gui/buddy_sprite.*` for the blitter. **Renaming needs path-qualified edits only** (`$(GUI)/wubu_bonzi.c`, `../wubu_bonzi.h` vs the kernel's plain include), because a bare-token sweep cannot tell the two files apart | 13 | **medium** -- a plain sweep would cross the layers silently |
 
 Rule for #4: a name that needs a comment to explain the acronym is already broken. Read the
@@ -95,6 +95,26 @@ already called `gfx`. One name per layer:
 | `gfx/gui_{surface,blend,shape,blur}.c` | `gfx/gfx_{surface,blend,shape,blur}.c` |
 | `gfx/gui_gfx.h` / `gui_gfx_internal.h` | `gfx/gfx.h` / `gfx/gfx_internal.h` |
 | `gfx/gui_gfx_test.c` | `gfx/gfx_test.c` |
+
+## Renamed: dos_window is a guest view (2026-11-25)
+
+`src/gui/dos_window.c` sat beside `src/gui/wm_window.c` and read as another kind of window.
+It is not: it blits a 16-bit DOS process's captured VGA framebuffer and forwards
+keyboard/mouse into the guest through its control channel. `wm_window.c` is window lifecycle,
+z-order, focus and virtual desktops. One word was doing two jobs.
+
+| was | is |
+|---|---|
+| `dos_window.c` / `dos_window.h` | `dos_guest_view.c` / `dos_guest_view.h` |
+| `dos_window_test.c` / `_stub.c` | `dos_guest_view_test.c` / `_stub.c` |
+| target `test_dos_window` | `test_dos_guest_view` |
+
+The function symbols (`dos_window_close`) are unchanged on purpose: a file rename and a
+symbol rename are separate changes, and the symbol is still accurate.
+
+The test files were caught by the rule written after the `test_cp_sound` failure -- when
+renaming `X.c`, look for `X_test.c` -- which is why this batch needed one sweep instead of
+two. Verified: `make hosted` rc=0, `test_dos_guest_view` ALL PASSED.
 
 `gui_blit.c` stays at `src/gui/` on purpose: it is guest presentation, not a primitive, and
 the layer split is the point of the rename.

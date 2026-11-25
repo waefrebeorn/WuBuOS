@@ -52,7 +52,7 @@ P1 compositor / P2 WM / P3 bus / P4 panel / P5 theme+xlet) and
 - **Window chrome / wallpaper / notify / trash / clipboard / welcome:**
   `window_chrome.c` `wubu_wallpaper.c` `wubu_notify.c` `wubu_trash.c`
   `wubu_clipboard*.c` `wubu_welcome.c`
-- **DOS compat window:** `dos_window.c`
+- **DOS compat window:** `dos_guest_view.c`
 
 ### Theme & a11y & ui-automation
 - `wubu_theme.c` (+ `wubu_theme.h`) · `wubu_a11y.c` · `wubu_ui.c`

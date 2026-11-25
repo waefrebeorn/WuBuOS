@@ -6,7 +6,7 @@
  * (vbe, taskbar, notifications). The world-state tray only needs
  * add/update_color/color — this stub provides a tiny registry so the
  * tray logic is tested in isolation. (Precedent:
- * dos_window_test_stub.c.)
+ * dos_guest_view_test_stub.c.)
  * C11.
  */
 #include "wm.h"

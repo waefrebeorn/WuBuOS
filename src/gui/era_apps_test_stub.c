@@ -8,7 +8,7 @@
  * launch + exit logic is tested against a controlled grid. The real
  * era-apps launch has its own integration tests elsewhere.
  *
- * (Precedent: dos_window_test_stub.c.)
+ * (Precedent: dos_guest_view_test_stub.c.)
  * C11.
  */
 #include "era_apps.h"

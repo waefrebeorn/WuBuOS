@@ -1,5 +1,5 @@
 /*
- * dos_window_test.c -- Real end-to-end test for the DOS Box window.
+ * dos_guest_view_test.c -- Real end-to-end test for the DOS Box window.
  *
  * Exercises the genuine engine path:
  *   1. launch a real 16-bit .COM via wubu_dos_proc_launch (in-process 8086),
@@ -12,7 +12,7 @@
  * faked (we are testing the DOS window glue, not the WM compositor).
  */
 
-#include "dos_window.h"
+#include "dos_guest_view.h"
 #include "wubu_dos_proc.h"
 #include "wubu_container.h"   /* WUBU_PAYLOAD_DOS_COM */
 
@@ -28,7 +28,7 @@ static int g_fail = 0;
     else { printf("  [FAIL] %s\n", msg); g_fail++; } \
 } while (0)
 
-/* ---- WM stubs (provided by dos_window_test_stub.c) -------- */
+/* ---- WM stubs (provided by dos_guest_view_test_stub.c) -------- */
 DosGuiWindow *wm_create(int x, int y, int w, int h, const char *title);
 void          wm_destroy(DosGuiWindow *win);
 

@@ -4268,7 +4268,7 @@
 - `daemon_panel_container_count(void)`
 - `daemon_panel_holyd_session_count(void)`
 
-## `src/gui/dos_window.h`
+## `src/gui/dos_guest_view.h`
 
 - `dos_window_close(DosGuiWindow *win)`
 
