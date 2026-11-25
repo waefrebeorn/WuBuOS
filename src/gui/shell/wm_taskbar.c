@@ -104,6 +104,30 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     int row_x = shell_x0 + shell_row_w + gap;
     int avail = L->tray_x - gap - row_x;
     if (row_w < avail) row_x += (avail - row_w) / 2;
+
+    /* Cap the row at the space that exists. Before this, extra slots were laid out past
+     * tray_x -- drawn OVER the systray and the clock, with click geometry to match. Windows
+     * collapses the excess behind an overflow button, so the last slots move behind one. */
+    L->overflow_n = 0;
+    L->overflow_x = L->overflow_y = L->overflow_w = L->overflow_h = 0;
+    int shown = L->n_slots;
+    int use = row_w;
+    if (use > avail) {
+        int btn_w = WUBU_TASKBAR_BTN_MIN_W;
+        while (shown > 0 && use + gap + btn_w > avail) {
+            shown--;
+            use -= L->slot[shown].w + gap;
+            L->overflow_n++;
+        }
+        if (L->overflow_n) {
+            L->n_slots = shown;
+            L->overflow_w = btn_w;
+            L->overflow_h = bh;
+            L->overflow_x = row_x + (shown ? use + gap : 0);
+            L->overflow_y = bar_y + WUBU_SPACE_XS;
+        }
+    }
+
     for (int i = 0; i < L->n_slots; i++) {
         L->slot[i].x = row_x;
         L->slot[i].y = bar_y + WUBU_SPACE_XS;
@@ -206,6 +230,19 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
                                   focused ? tc()->select_bg
                                           : WUBU_TASKBAR_INDICATOR_IDLE);
         }
+    }
+
+    /* Overflow chip: only when slots did not fit. It is reachable (opens task view), so it
+     * is a control rather than a decoration -- and its count is the truth about what is
+     * hidden, taken straight from the layout. */
+    if (L.overflow_n > 0) {
+        vbe_fill_rect_rounded(L.overflow_x, L.overflow_y, L.overflow_w, L.overflow_h,
+                              WUBU_METRIC_RADIUS_CONTROL, tc()->btn_face);
+        char chip[8];
+        snprintf(chip, sizeof chip, "+%d", L.overflow_n);
+        int tw = vbe_text_width(chip, 1);
+        vbe_draw_text(L.overflow_x + (L.overflow_w - tw) / 2,
+                      L.overflow_y + L.overflow_h / 2 - 7, chip, tc()->btn_text, 1);
     }
 
     int tx = L.tray_x;
@@ -442,6 +479,14 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind) {
         return true;                 /* inside the bar: swallow moves too */
     }
     if (kind != 1) return true;      /* inside the bar: swallow moves too */
+
+    if (L.overflow_n > 0 && x >= L.overflow_x && x < L.overflow_x + L.overflow_w &&
+        y >= L.overflow_y && y < L.overflow_y + L.overflow_h) {
+        /* Reachable, not a dead chip: task view shows every window, including the hidden
+         * ones. A dedicated overflow menu is still a gap (it is a surface of its own). */
+        wm_overview_toggle();
+        return true;
+    }
 
     if (x >= L.start_x && x < L.start_x + L.start_w &&
         y >= L.start_y && y < L.start_y + L.start_h) {

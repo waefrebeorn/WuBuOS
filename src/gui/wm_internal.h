@@ -164,6 +164,9 @@ typedef struct {
     int tray_x, tray_y, tray_w;   /* systray strip, left of the clock */
     int n_slots;
     WmTaskSlot slot[48];
+    /* Overflow: slots that did not fit are HIDDEN here, never laid out past tray_x.
+     * 0 means everything fits and the button is not drawn. */
+    int overflow_x, overflow_y, overflow_w, overflow_h, overflow_n;
 } WmTaskLayout;
 
 void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L);

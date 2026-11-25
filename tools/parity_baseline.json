@@ -61,6 +61,7 @@
     "system tray + overflow",
     "tabs",
     "taskbar click launches / focuses",
+    "taskbar collapses extra windows into an overflow chip",
     "taskbar hover thumbnail preview",
     "taskbar middle-click new instance",
     "taskbar progress / badges",

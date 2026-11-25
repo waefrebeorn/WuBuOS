@@ -2468,6 +2468,49 @@ static void test_alt_tab_switcher_commits_on_alt_release(void) {
     PASS();
 }
 
+
+static void test_taskbar_overflow_never_reaches_the_tray(void) {
+    TEST("taskbar overflow: extra windows collapse into a chip, never over the clock");
+    vbe_init(1024, 768);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+
+    int made = 0;
+    for (int i = 0; i < 26; i++) {
+        char title[32];
+        snprintf(title, sizeof title, "Window %d", i);
+        if (wm_create(20 + (i % 5) * 12, 20 + (i % 7) * 10, 220, 150, title)) made++;
+    }
+    CHECK(made >= 20, "enough windows to overflow the bar");
+
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    CHECK(L.overflow_n > 0, "the layout hid the windows that did not fit");
+    CHECK(L.n_slots + L.overflow_n > 0, "the hidden ones are counted, not lost");
+
+    /* THE defect this gate exists for: before the cap, slots ran past tray_x and were drawn
+     * over the systray and clock. */
+    for (int i = 0; i < L.n_slots; i++)
+        CHECK(L.slot[i].x + L.slot[i].w <= L.tray_x, "no slot reaches the tray");
+    CHECK(L.overflow_x + L.overflow_w <= L.tray_x, "the chip sits inside the row, left of the tray");
+    CHECK(L.overflow_x >= L.bar_x && L.overflow_x + L.overflow_w <= L.bar_x + L.bar_w,
+          "the chip is on the bar");
+
+    /* And it paints: a chip that renders nothing would be a phantom control. */
+    {
+        extern void taskbar_render(uint32_t *, int, int);
+        taskbar_render(NULL, 1024, 768);   /* the public entry; render_modern_taskbar is static */
+    }
+    int lit = 0;
+    for (int y = L.overflow_y; y < L.overflow_y + L.overflow_h; y++)
+        for (int x = L.overflow_x; x < L.overflow_x + L.overflow_w; x++)
+            if (vbe_get_pixel(x, y) != 0) lit++;
+    CHECK(lit > 50, "the overflow chip has pixels");
+
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2481,6 +2524,7 @@ int main(void) {
     test_thumb_capture_maps_the_window_rect();
     test_taskbar_hover_tracks_slots();
     test_pointer_path_sees_modifier_state();
+    test_taskbar_overflow_never_reaches_the_tray();
     test_alt_tab_switcher_commits_on_alt_release();
     test_drag_to_edge_snaps();
     test_projection_flyout_offers_only_what_works();
