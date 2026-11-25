@@ -173,10 +173,12 @@ static void wallpaper_compose(int fb_w, int fb_h, int task_h) {
      * and a centered image smaller than the screen would otherwise expose the
      * raw vbe_clear() black instead of the theme bg.
      *
-     * The fill must reach the bottom edge, not stop at fb_h - task_h: the
-     * classic bar paints over its own band, but the floating modern bar does
-     * not, and the band around it would otherwise show the raw clear colour
-     * (observed: a full-width black stripe under the dark theme's bar). */
+     * The fill must reach the bottom edge, and so must the WALLPAPER. The wallpaper
+     * used to stop at fb_h - task_h, which was right for a classic bar that paints its
+     * own full-width band and wrong for the floating modern bar: the 8px gap under it
+     * exposed the flat desktop colour (0x17) against wallpaper at ~0x62, which is the
+     * "random black bar at the bottom" the user reported. A wall does not stop where a
+     * bar begins; the bar floats OVER the wall. */
     vbe_fill_rect(0, 0, fb_w, fb_h, tc()->desktop_bg);
 
     if (!g_dwm.wallpaper) {
@@ -187,17 +189,17 @@ static void wallpaper_compose(int fb_w, int fb_h, int task_h) {
     if (mode == 0) {
         /* CENTER: native size, centered, no scaling. Leave theme bg outside. */
         int x = (fb_w - g_dwm.wallpaper_w) / 2;
-        int y = (fb_h - task_h - g_dwm.wallpaper_h) / 2;
+        int y = (fb_h - g_dwm.wallpaper_h) / 2;
         if (x < 0) x = 0;
         if (y < 0) y = 0;
-        for (int dy = 0; dy < g_dwm.wallpaper_h && y + dy < fb_h - task_h; dy++) {
+        for (int dy = 0; dy < g_dwm.wallpaper_h && y + dy < fb_h; dy++) {
             for (int dx = 0; dx < g_dwm.wallpaper_w && x + dx < fb_w; dx++) {
                 vbe_set_pixel(x + dx, y + dy, g_dwm.wallpaper[dy * g_dwm.wallpaper_w + dx]);
             }
         }
     } else if (mode == 1) {
         /* TILE: repeat native-size image. */
-        for (int y = 0; y < fb_h - task_h; y++) {
+        for (int y = 0; y < fb_h; y++) {
             for (int x = 0; x < fb_w; x++) {
                 int sx = x % g_dwm.wallpaper_w;
                 int sy = y % g_dwm.wallpaper_h;
@@ -207,11 +209,15 @@ static void wallpaper_compose(int fb_w, int fb_h, int task_h) {
     } else {
         /* STRETCH / FIT / FILL: sample decoded image across dest rect. */
         int dx0, dy0, dw, dh;
+        /* task_h = 0: the wallpaper is composed against the WHOLE screen. Passing the
+         * bar height made every mode reserve a band at the bottom, which the floating
+         * modern bar does not paint over -- the band then showed the flat desktop colour
+         * (the "random black bar"). The bar is drawn after this and floats over it. */
         wubu_wallpaper_rect((WubuWallpaperMode)mode,
                             g_dwm.wallpaper_w, g_dwm.wallpaper_h,
-                            fb_w, fb_h, task_h,
+                            fb_w, fb_h, 0,
                             &dx0, &dy0, &dw, &dh);
-        for (int y = dy0; y < dy0 + dh && y < fb_h - task_h; y++) {
+        for (int y = dy0; y < dy0 + dh && y < fb_h; y++) {
             for (int x = dx0; x < dx0 + dw && x < fb_w; x++) {
                 int sx = (x - dx0) * g_dwm.wallpaper_w / dw;
                 int sy = (y - dy0) * g_dwm.wallpaper_h / dh;
