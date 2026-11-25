@@ -33,6 +33,28 @@ Two things it exercises that nothing else did: a **backward** label patch, and a
 | arm64 | **5** (want 10) | register allocation clobbers the accumulator at the loop head |
 | ptx | COMPILE FAIL | cannot compile the case at all |
 
+## The bigger finding: the battery only tested backends that could compile
+
+Every case in this file is shaped
+
+```c
+if (run_with_driver(d, &prog, &result) == 0) { CHECK(...); }
+```
+
+so a backend that could **not compile** a case was skipped from the tally entirely
+and the run still said ALL TESTS PASSED. That is why arm64 "passed" the memory
+selftest: it has **no `MIR_LOAD` case at all**, the store wrote nothing, the value
+stayed in a register, and the register was compared against itself.
+
+Now a hole is counted and must be declared:
+
+    arm64: COMPILE FAIL -- MIR op 37 (MIR_LOAD) has no case
+      GAP  arm64 does not implement MIR_LOAD: no load at all -- the memory
+           selftest 'passed' because the store wrote nothing
+    8051: GAP  the 8051 pseudo-VM has no jump at all   (same for avr, pic)
+
+and any hole *not* in that declared list fails the run by name.
+
 ## The systemic finding: an unhandled MIR op is silent
 
 `MIR_JNZ` is implemented by 4 of 13 backends (x86-64, arm64, ptx, spirv). In the
