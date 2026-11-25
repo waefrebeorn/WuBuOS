@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- 24-grid master. Two 2px diagonals. A 1px X reads as a hairline and vanishes at
+       16px; 2px at 24 is the Fluent/Segoe glyph weight. -->
+  <polygon fill="#ffffff" points="6.29,7.71 16.29,17.71 17.71,16.29 7.71,6.29"/>
+  <polygon fill="#ffffff" points="17.71,7.71 7.71,17.71 6.29,16.29 16.29,6.29"/>
+</svg>
