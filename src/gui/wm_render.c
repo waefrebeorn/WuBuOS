@@ -222,7 +222,11 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
             wubu_bonzi_set_bubble("Hi! I'm WuBu Buddy!",
                                   "Click me for the AGI!");
         }
-        wubu_bonzi_draw(fb, fb_w, fb_h);
+        /* The shader orb, not the PNG sprite: the sprite is what the desktop kept
+         * drawing after the metaball renderer was built. */
+        extern void wubu_bonzi_draw_orb(uint32_t *, int, int) __attribute__((weak));
+        if (wubu_bonzi_draw_orb) wubu_bonzi_draw_orb(fb, fb_w, fb_h);
+        else                    wubu_bonzi_draw(fb, fb_w, fb_h);
     }
 
     taskbar_render(fb, fb_w, fb_h);

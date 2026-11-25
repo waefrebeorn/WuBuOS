@@ -110,3 +110,29 @@ So the ranking stands, but with a correction:
   bytes in value order sends blue.
 - **The dump must be chosen by painted pixels, not by window area.** The largest
   window is the shell, and it is black — which looks exactly like "drawing is broken".
+
+## GUI defect map (2026-11-25, from pixel probes, not impressions)
+
+1. **"Random black bar" at the bottom** = the 9-row strip below the floating modern
+   taskbar. The bar is drawn floating `MODERN_GAP_V` above the bottom
+   (`bar_y = taskbar_top() - MODERN_GAP_V`, `bar_h = th`), and nothing paints under
+   it: the pixels there are `desktop_bg` 0x17 (23,23,23) while the wallpaper above is
+   0x62-ish. It is not a black bar, it is the *desktop colour* showing through a gap
+   where the wallpaper should continue. Fix belongs in the wallpaper/desktop-bg pass
+   (paint full height; the bar floats over it), not in the taskbar.
+   NOTE: `taskbar_render()` has TWO paths — THEME_DARK returns early into
+   `render_modern_taskbar()`, so any fix applied to the classic path is dead code.
+
+2. **"Boxy/blocky everywhere"** = the primitives are 1-bit. `vbe_fill_rect` and
+   `vbe_fill_rect_rounded` do not antialias; only the corner mask and the orb do.
+   The systemic fix is antialiased primitives in the `vbe`/`gui_shape` owner so every
+   widget inherits it. Per-widget patching cannot fix this class.
+
+3. **"PNG buddy back"** = `wm_render` still called `wubu_bonzi_draw()`; the metaball
+   orb was only ever called by its own test. Now `wubu_bonzi_draw_orb()` is preferred
+   and `wubu_buddy_orb.o` is in GUI_OBJS. Lesson: a module that passes its gate and is
+   in no render path is not shipped.
+
+4. **Dock and taskbar styling** = hand-drawn C that predates the theme system, so it
+   ignores the palette (rainbow icons, truncated labels, 24px icons in a 48px bar).
+   Per the standard these are `.WET`/WUA surfaces; porting them is the fix.

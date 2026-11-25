@@ -327,7 +327,14 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     int th = taskbar_height_dynamic();
     int ty = taskbar_top();
 
-    vbe_fill_rect(0, ty, fb_w, th, tc()->taskbar_bg);
+    /* THE BAR OWNS THE BOTTOM EDGE. The bar was painted for exactly `th` rows from
+     * taskbar_top(), but taskbar_top() is derived from g_dwm.screen_h while the frames
+     * being rendered can be shorter -- 1024x768 frames with a 719..758 bar left NINE
+     * rows of untouched (black) framebuffer underneath it. Whatever the arithmetic
+     * says, fill from ty to the real bottom, so there is no unpainted strip. */
+    if (ty < 0) ty = 0;
+    if (ty > fb_h) ty = fb_h;
+    vbe_fill_rect(0, ty, fb_w, fb_h - ty, tc()->taskbar_bg);
     vbe_hline(0, fb_w - 1, ty, tc()->taskbar_border);
     int by = ty + (th - WUBU_TASKBAR_CLASSIC_BTN_H) / 2;
     int start_w = theme()->Luna_start_button ? WUBU_TASKBAR_CLASSIC_START_W_LUNA
