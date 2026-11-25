@@ -3,6 +3,26 @@
 Purpose: one file that answers "what prefix means what," so a new module isn't
 another `zx`. Verified against the working tree 2026-11-06.
 
+## Reorganization queue (measured 2026-11-25)
+
+Ordered by confusion caused per unit of risk. A batch lands only with: `git mv`, path
+tokens rewritten, **`.o` names in `mk/` rewritten** (a `.c` sweep misses them and the build
+says `No rule to make target`), build, and the tests that compile those units. File renames
+and SYMBOL renames are separate changes -- dragging symbol names through every caller is
+how a tidy becomes a regression.
+
+| # | Now | Purpose it should announce | Refs | Risk |
+|---|---|---|---:|---|
+| 1 | `controlpanel.c` + `cp_{text,hardware,display,network,theme,sound}.c` | one prefix: `control_panel.c` + `control_panel_*.c` | 181 | medium -- two naming schemes in one subsystem, 7 files |
+| 2 | `gfx/gui_{surface,blend,shape,blur}.c` vs top-level `gui_blit.c` | one layer name for the primitive drawing layer (`gfx_*`), and `gui_blit` joined to it | ~30 | medium -- touches the render path |
+| 3 | `daemon_panel.c` vs `service_mgr.c` | both are the service surface; `service_panel.c` + `service_mgr.c` | ~20 | low |
+| 4 | `bpm.c` / `bpm_games.c` | **undocumented acronym** -- read it, then name it for what it does | ~15 | low, but needs a purpose first |
+| 5 | `dos_window.c` vs `wm_window.c` | `dos_window` is the guest-app window body; `wm_window` is the WM's window object. Two "windows" in one layer | ~40 | high -- core windowing |
+| 6 | `wubu_bonzi.*` (GUI sprite blitter; the buddy is no longer Bonzi) | `buddy_sprite.*` (NOT `wubu_bonzi_study.c`, which is a different thing in the kernel) | 13 | low, but the name collides with a real kernel module |
+
+Rule for #4: a name that needs a comment to explain the acronym is already broken. Read the
+file first, then name it -- do not invent an expansion.
+
 ## Renamed: the two "desktop" files (2026-11-25)
 
 `src/gui/shell/desktop.c` and `src/gui/shell/wm_desktop.c` were two different things with
