@@ -129,13 +129,13 @@ HOSTED_EXTRA = $(COMP)/holyd_semantic.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/jit/
                $(AUDIO)/glott/wubuglott_voice.c \
                $(KERNEL)/memory.c $(KERNEL)/wubu_bonzi_study.c $(KERNEL)/wubu_psych.c $(KERNEL)/wubu_sha256.c \
                $(FRAMEWORK)/wubufx_apps.c $(FRAMEWORK)/wubufx.c \
-               src/gui/vws/externals/wet/wet_app.c src/gui/vws/externals/wet/wet_backend_vbe.c \
-               src/gui/vws/externals/wet/wet_controls.c src/gui/vws/externals/wet/wet_input.c \
-               src/gui/vws/externals/wet/wet_layout.c src/gui/vws/externals/wet/wet_lua.c \
-               src/gui/vws/externals/wet/wet_render.c src/gui/vws/externals/wet/wet_widget.c \
+               src/gui/wet/wet_app.c src/gui/wet/wet_backend_vbe.c \
+               src/gui/wet/wet_controls.c src/gui/wet/wet_input.c \
+               src/gui/wet/wet_layout.c src/gui/wet/wet_lua.c \
+               src/gui/wet/wet_render.c src/gui/wet/wet_widget.c \
                $(LUAGUI_LV_SRCS) src/brain/src/wubu_uuid.c
-HOSTED_INC  = -I$(HOSTED) -I$(LUAWWW) -Isrc/gui/vws/externals/wet \
-              -Isrc/gui/vws/externals/wet/externals/wua/src
+HOSTED_INC  = -I$(HOSTED) -I$(LUAWWW) -Isrc/gui/wet \
+              -Isrc/gui/wet/externals/wua/src
 # These four were previously named ONLY in the link recipe below, never as
 # prerequisites, so make never built them -- a clean tree could not link the
 # hosted binary at all.  Incremental builds only worked because stale .o files

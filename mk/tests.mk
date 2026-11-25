@@ -6290,7 +6290,9 @@ LUAGUI_LV_SRCS := $(LUAWWW)/wb_lv_arena.c $(LUAWWW)/wb_lv_coro.c \
 		$(LUAWWW)/wb_lv_stdlib.c $(LUAWWW)/wb_lv_string.c
 
 VWS      := $(GUI)/vws
-VWSWUA   := $(VWS)/externals/wet/externals/wua/src
+# Self-contained: $(WET) is defined a line BELOW this, and := expands immediately, so
+# using $(WET) here silently produced "/externals/wua/src" and a cc1 "No such file".
+VWSWUA   := $(GUI)/wet/externals/wua/src
 WET      := $(GUI)/wet
 WET_SRCS := $(WET)/wet_widget.c $(WET)/wet_layout.c $(WET)/wet_render.c \
 		$(WET)/wet_backend_vbe.c $(WET)/wet_controls.c $(WET)/wet_app.c \
@@ -6377,7 +6379,7 @@ test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c $(APPS)/wubu_
 
 test_tutorial: $(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
-		-I$(APPS) -I$(WET) -I$(VWS) -I$(VWS)/externals/wet -I$(KERNEL) -I$(GUI) -I$(RT) \
+		-I$(APPS) -I$(WET) -I$(VWS) -I$(WET) -I$(KERNEL) -I$(GUI) -I$(RT) \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(VWSWUA) \
 		$(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c \
 		$(VWS)/vws_form.c $(VWS)/vws_emit.c $(VWS)/vws_load.c \
@@ -6412,7 +6414,7 @@ test_tutorial: $(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c
 
 test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws_lua.c
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
-		-I$(APPS) -I$(WET) -I$(VWS) -I$(VWS)/externals/wet -I$(KERNEL) -I$(GUI) -I$(RT) \
+		-I$(APPS) -I$(WET) -I$(VWS) -I$(WET) -I$(KERNEL) -I$(GUI) -I$(RT) \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(VWSWUA) \
 		$(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws_lua.c \
 		$(VWS)/vws_form.c $(VWS)/vws_emit.c $(VWS)/vws_load.c \
