@@ -111,6 +111,9 @@ void           wm_minimize(DosGuiWindow *win);
 void           wm_show_desktop(void);   /* Win+D: minimize all / restore */
 void           wm_restore(DosGuiWindow *win);
 bool           wm_is_maximized(DosGuiWindow *win);
+/* Win+Left / Win+Right: snap to the left (side<0) or right half of the work
+ * area. Win+Up is wm_maximize(), Win+Down is wm_restore()/wm_minimize(). */
+void           wm_snap_half(DosGuiWindow *win, int side);
 bool           wm_is_minimized(DosGuiWindow *win);
 
 /* Modal dialog support */

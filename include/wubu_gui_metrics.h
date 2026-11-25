@@ -42,6 +42,15 @@
 #define WUBU_METRIC_RADIUS_CONTROL 4
 #define WUBU_METRIC_RADIUS_WINDOW  8
 
+/* Motion and pointer thresholds. These are Win11's numbers, not preferences:
+ * a click that has not moved DRAG_THRESHOLD px is still a click (SM_CXDRAG),
+ * and a snapped window leaves SNAP_GAP px to its neighbour so two halves read
+ * as two windows instead of one seam. Before this, the WM had no threshold at
+ * all -- every 1 px tremor during a press started a drag, which is why windows
+ * "jumped" when the user only meant to click. */
+#define WUBU_METRIC_DRAG_THRESHOLD 4
+#define WUBU_METRIC_SNAP_GAP       8
+
 #include <stdint.h>
 
 typedef struct WubuGuiMetrics {

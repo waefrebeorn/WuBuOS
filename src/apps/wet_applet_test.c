@@ -232,6 +232,31 @@ static void test_template_calculator_computes(void) {
     remove(path);
 }
 
+/* The Win11 shell surface, loaded from the REPO -- not from a /tmp fixture.
+ *
+ * A shell panel is a .wet applet from here on (see
+ * docs/compendium/04-roadmap/win11-desktop-standard.md), so the framework has to
+ * be able to open the shipped file: if this one does not parse, every shell
+ * surface built the same way is broken and nothing else would say so. The path
+ * is relative to the repo root, which is where `make` runs the gates. */
+static void test_win11_taskbar_applet_loads(void) {
+    const char *path = "src/apps/applets/win11_taskbar.wet";
+    DosGuiWindow *win = wet_applet_open(path, "Taskbar", 0, 0, 1024, 48);
+    CHECK(win != NULL, "shipped win11_taskbar.wet opens through the applet host");
+    WetApp *app = win ? wet_applet_app() : NULL;
+    CHECK(app != NULL, "taskbar applet reachable");
+    if (app) {
+        /* The five app buttons are the bar's content; a tree that parsed but
+         * built nothing would still have a root, so count children. */
+        WetWidget *root = wet_app_root_get(app);
+        CHECK(root != NULL, "taskbar applet built a root widget");
+        if (root) {
+            CHECK(wet_widget_nchildren(root) > 0, "taskbar applet has children");
+            printf("    taskbar root has %d child(ren)\n", wet_widget_nchildren(root));
+        }
+    }
+}
+
 /* A PROGRAM template that drives the OS: the Theme Studio emits a real applet
  * whose buttons restyle the whole desktop.  Asserts the GLOBAL theme actually
  * changes, not just that the handler ran. */
@@ -294,6 +319,7 @@ int main(void) {
     test_click_reaches_script();
     test_bad_path_is_reported();
     test_script_effect_processes_surface();
+    test_win11_taskbar_applet_loads();
     test_template_calculator_computes();
     test_template_theme_studio_restyles();
     printf("=== wet_applet: %d checks, %d failed ===\n", g_checks, g_fails);

@@ -111,6 +111,9 @@ void wm_gesture_poll(void) {
     wm_gesture_dispatch();
 }
 
+/* Provided by src/gui/shell/win11_snap.c in the full shell build. */
+extern void win11_snap_toggle(void) __attribute__((weak));
+
 void wm_handle_key(uint32_t key, uint32_t mods) {
     wubu_screensaver_activity();
 
@@ -210,6 +213,38 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         (key == 'q' || key == 'Q' || key == 's' || key == 'S')) {
         startmenu_open();
         return;
+    }
+
+    /* Win+Left / Right / Up / Down: snap, maximize, restore -- the four window
+     * shortcuts a Windows user reaches for before anything else. Arrows carry no
+     * text, so they arrive as Set-1 scancodes (see input_scancode_to_key): Left
+     * 0x4B, Right 0x4D, Up 0x48, Down 0x50.
+     *
+     * Win+Down on a maximized window restores it; on a floating one it minimizes,
+     * which is exactly what Windows 11 does. Extra modifiers are required to be
+     * ABSENT so these cannot swallow a combo. */
+    if ((mods & MOD_WIN) && !(mods & (MOD_CTRL | MOD_SHIFT | MOD_ALT))) {
+        DosGuiWindow *fw = wm_get_focused();
+        if (fw) {
+            if (key == 0x4B) { wm_snap_half(fw, -1); return; }
+            if (key == 0x4D) { wm_snap_half(fw, +1); return; }
+            if (key == 0x48) { wm_maximize(fw); return; }
+            if (key == 0x50) {
+                if (wm_is_maximized(fw)) wm_restore(fw);
+                else                      wm_minimize(fw);
+                return;
+            }
+            /* Win+Z: the snap LAYOUTS flyout, which until now was reachable only
+             * from the maximize button's hover affordance. */
+            if (key == 'z' || key == 'Z' || key == 0x2C) {
+                /* Weak + NULL check: the snap flyout lives in the shell, and a
+                 * GUI-only link (the applet and window tests) does not carry it.
+                 * Same convention as startmenu_db's applet accessors -- strong
+                 * in the shell, absent in a narrow link, never a link error. */
+                if (win11_snap_toggle) win11_snap_toggle();
+                return;
+            }
+        }
     }
 
     /* Win+A: quick settings panel (Windows 11 parity). */

@@ -1,0 +1,36 @@
+-- win11_taskbar.wet -- the Win11 taskbar as a .WET surface.
+--
+-- This file is the TEMPLATE for every shell surface from here on: a shell
+-- panel is a .wet applet, not a hand-drawn C rectangle. The framework owns the
+-- measure/arrange pass, so the bar reflows at any width; the C side owns only
+-- the compositor and the WM, which is the split spelled out in
+-- docs/compendium/04-roadmap/win11-desktop-standard.md.
+--
+-- Win11 facts this reproduces (not guessed -- they are the reason the bar looks
+-- like this):
+--   * 48 px bar, icons CENTRED (Win10 left-aligned; the change is the point);
+--   * 32 px icon targets with 8 px between them, so hover has room;
+--   * Start sits to the LEFT of the app cluster, search/clock to the RIGHT edge;
+--   * the clock is text, not an icon.
+local apps = { 'Start', 'Files', 'Terminal', 'Editor', 'Settings' }
+
+local row = { spacing = 8, orient = 'horizontal', children = {} }
+for i = 1, #apps do
+  row.children[#row.children + 1] = wet.button {
+    text = apps[i],
+    onclick = function(self)
+      wet.messagebox(self.text .. ' clicked', 'Taskbar')
+    end,
+  }
+end
+
+wet.applet {
+  title = 'Taskbar',
+  width = 1024, height = 48,
+  content = wet.dock { children = {
+    wet.stack { dock = 5, children = row },          -- 5 = fill the bar
+    wet.stack { dock = 3, orient = 'horizontal', children = {
+      wet.label { text = '21:42' },                   -- tray clock, right edge
+    } },
+  } },
+}

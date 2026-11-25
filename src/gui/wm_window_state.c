@@ -52,6 +52,35 @@ void wm_maximize(DosGuiWindow *win) {
     }
 }
 
+/* Windows 11 snap, as the KEYBOARD does it: Win+Left / Win+Right put the window
+ * in a half of the WORK AREA -- the screen minus the taskbar -- and Win+Up /
+ * Win+Down maximize and restore.
+ *
+ * The shell already had a snap-layout FLYOUT (src/gui/shell/win11_snap.c) that
+ * draws six layouts and applies none of them, and no keyboard snap at all, so a
+ * user coming from Windows pressed Win+Left first and nothing happened. A snapped
+ * window is deliberately NOT flagged maximized: Win+Down on a snapped window must
+ * restore it to its floating rect, not un-maximize a half. */
+void wm_snap_half(DosGuiWindow *win, int side) {
+    if (!win) return;
+    /* A minimized window cannot be seen, so it must come back before it is sized
+     * -- restoring also clears MAXIMIZED and returns the floating rect, which is
+     * what `min_x/min_y/min_w/min_h` exist to remember. */
+    if (win->flags & (DOSGUI_WIN_MINIMIZED | DOSGUI_WIN_MAXIMIZED)) wm_restore(win);
+
+    const int gap = WUBU_METRIC_GAP_SM;
+    int sw = g_dwm.screen_w;
+    int sh = g_dwm.screen_h - taskbar_height();
+    int w = (sw - 3 * gap) / 2;
+
+    win->x = (side < 0) ? gap : (sw - gap - w);
+    win->y = gap;
+    win->w = w;
+    win->h = sh - 2 * gap;
+    win->flags &= ~DOSGUI_WIN_MAXIMIZED;
+    if (win->on_resize) win->on_resize(win, win->w, win->h);
+}
+
 void wm_minimize(DosGuiWindow *win) {
     if (!win) return;
     win->flags |= DOSGUI_WIN_MINIMIZED;
