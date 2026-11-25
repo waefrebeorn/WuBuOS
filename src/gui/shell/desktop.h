@@ -38,6 +38,11 @@ void desktop_launch_icon(int icon_id);
 /* Launch by name (for start menu) */
 void launch_app(const char *name);
 
+/* Start a real program (fork/exec, reaped at shutdown). Used by the app registry so a
+ * desktop shortcut can open a vendored application through the SAME launch path the
+ * shell already uses -- one owner for spawning, not a second one per app. */
+void desktop_launch_program(const char *cmd);
+
 /* System shutdown (triggers hosted exit) */
 void wubu_shutdown();
 

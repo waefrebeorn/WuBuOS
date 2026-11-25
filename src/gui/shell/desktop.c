@@ -219,6 +219,10 @@ static void launch_host_app(const char *cmd) {
     }
 }
 
+/* Public entry so the app registry can start a real program without duplicating the
+ * fork/reap bookkeeping here: one launch path, one owner. */
+void desktop_launch_program(const char *cmd) { launch_host_app(cmd); }
+
 void launch_app(const char *name) {
     /* Daemon panel windows */
     if (strcmp(name, "Container Manager") == 0) {

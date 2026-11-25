@@ -351,6 +351,42 @@ DosGuiWindow* launch_holyc_term(void) {
     return NULL;
 }
 
+/* WubuPad / WubuOffice: our own applications, built from their own repositories
+ * (mk/vendored.mk) and started through the desktop's single spawn path. They are not
+ * .WET applets yet, so there is no in-process window to return; the launch still has to
+ * be REAL, which is why it execs the built binary rather than opening an empty window
+ * and calling it wired. WUBUPAD_BIN / WUBUOFFICE_BIN override the paths. */
+/* The vendored apps build with their own CMake into their own trees, so the binary
+ * path is not a constant we can guess: try the candidates in order and start the first
+ * one that exists. A hardcoded path that is wrong is indistinguishable from a broken
+ * shortcut -- the click does nothing and nobody knows why. */
+static int bin_exists(const char *p) { return p && *p && access(p, X_OK) == 0; }
+
+static void launch_vendored(const char *env_var, const char *const *candidates, size_t n) {
+    const char *env = getenv(env_var);
+    if (bin_exists(env)) { desktop_launch_program(env); return; }
+    for (size_t i = 0; i < n; i++)
+        if (bin_exists(candidates[i])) { desktop_launch_program(candidates[i]); return; }
+    fprintf(stderr, "wubu: %s is not built -- run `make vendored`\n", env_var);
+}
+
+static DosGuiWindow* launch_wubupad(void) {
+    static const char *const paths[] = {
+        "src/apps/wubupad/build/wubupad", "build/wubupad", "../src/apps/wubupad/build/wubupad"
+    };
+    launch_vendored("WUBUPAD_BIN", paths, sizeof paths / sizeof paths[0]);
+    return NULL;
+}
+
+static DosGuiWindow* launch_wubuoffice(void) {
+    static const char *const paths[] = {
+        "src/apps/wubuoffice/build/wubushow", "build/wubushow",
+        "../src/apps/wubuoffice/build/wubushow"
+    };
+    launch_vendored("WUBUOFFICE_BIN", paths, sizeof paths / sizeof paths[0]);
+    return NULL;
+}
+
 DosGuiWindow* launch_edr_dashboard(void) {
     return edr_dash_launch();
 }
@@ -372,6 +408,8 @@ const DosGuiAppDef g_app_defs[] = {
     { "DOS Box",      "DOS Box",        DESK_ICON_COUNT + 4,   0x0000C000, launch_dos_box_default },
     { "EDR Activity", "EDR Activity",  DESK_ICON_COUNT + 5,   0x00C00000, launch_edr_dashboard },
     { "Bonzi Buddy",  "Bonzi Buddy",   DESK_ICON_COUNT + 6,   0x00A030A0, bonzi_launch },
+    { "WubuPad",      "WubuPad",       DESK_ICON_COUNT + 7,   0x000078D4, launch_wubupad },
+    { "WubuOffice",   "WubuOffice",    DESK_ICON_COUNT + 8,   0x00C42B1C, launch_wubuoffice },
     { "Comfy",        "Comfy",          DESK_ICON_COUNT + 7,   0x0000A0C0, comfy_launch },
     { "Tandem",       "Tandem",         DESK_ICON_COUNT + 8,   0x00C0A020, tandem_launch },
     { "Task Manager", "Task Manager",   DESK_ICON_COUNT + 9,   0x00C00000, taskmgr_launch },
