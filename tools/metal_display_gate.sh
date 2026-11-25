@@ -142,7 +142,7 @@ if phys is not None and pitch is not None:
         """A monitor socket can wedge (a half-read reply, a dropped prompt) while
         the guest stays perfectly healthy. Reopening it costs a connect() and is
         the difference between 'no dump' and a frame."""
-        nonlocal s
+        global s          # the gate script is top-level, not a function
         try:
             s.close()
         except OSError:
