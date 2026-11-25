@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -2978,6 +2978,21 @@ test_holyc_elf_in_wemu: $(COMP)/tools/holyd_emit_elf build/wemu_run_elf
 	    echo "test_holyc_elf_in_wemu: FAIL (exit $$rc, want 67 -- main() is 323, low byte 67)"; \
 	    exit 1; \
 	fi
+
+# Two x86 decoders in one tree: WEMU's (for execution) and WuBuNOS's (to check
+# what it emitted). Neither had ever been compared. This walks the compiler's
+# actual output through both and requires the instruction LENGTHS to agree --
+# agreement is not proof for either side, disagreement proves one is wrong about
+# bytes the compiler really emits.
+test_x86_decode_parity: build/x86_decode_parity
+	@rm -rf build/isaexec && mkdir -p build/isaexec
+	@WUBU_EXEC_DUMP_DIR=build/isaexec WUBU_EXEC_DUMP=x86-64 $(COMP)/test_isa_driver >/dev/null 2>&1 || true
+	@./build/x86_decode_parity build/isaexec/x86-64
+
+build/x86_decode_parity: tools/x86_decode_parity.c $(COMP)/x86_decode.c $(WEMU_LIB)
+	@$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Ibuild/wemu-user/include \
+	   -Ibuild/wemu-user/src -I$(COMP) tools/x86_decode_parity.c $(COMP)/x86_decode.c \
+	   $(WEMU_LIB) -lm -ldl -o build/x86_decode_parity
 
 test_cross_tree_overlap:
 	@python3 tools/cross_tree_overlap.py

@@ -57,10 +57,20 @@ x86-64 **until one of them changes**:
 
 These are the gates that do not exist yet, in order of value:
 
-1. **decode parity** — for the bytes WuBuNOS emits, `x86_decode_one`'s length must
-   equal WEMU's decoded length. Cheap once a `WemuCpu` with a flat memory image is
-   set up (the harness above does exactly that), and it would catch both decoders
-   drifting on a prefix/REX/ModRM corner.
+1. **decode parity** — CLOSED. `test_x86_decode_parity` walks the compiler's own
+   emitted bytes through BOTH decoders and requires the instruction lengths to
+   agree:
+
+       == 19 blob(s): 507 instruction(s) agreed, 0 disagreed, 0 beyond the small walker ==
+
+   It found a real bug immediately, in WuBuNOS's walker: 0x54 / 0x57 / 0x5A were
+   listed as ONE-BYTE ModRM carriers, but in that space they are `push r12`,
+   `push r15` and `pop rdx` (no ModRM). So `41 54` was measured as 4 bytes and
+   everything after it decoded at the wrong offset — 57 disagreements across the
+   19 blobs, all downstream of that one predicate. (The ModRM forms are the
+   two-byte SSE ones, 0F 54 / 0F 57 / 0F 5A, which the 0F path already handled.)
+   Any JIT test that trusted those lengths on a frame containing `push r12` was
+   measuring the wrong bytes.
 2. **emit -> load -> run** — CLOSED. `test_holyc_elf_in_wemu` compiles
    `tools/selfbuild_checksum.hc` (sums "WUBU", returns 323) with WuBuNOS's
    `holyd_emit_elf`, then executes the resulting ELF in WEMU through
