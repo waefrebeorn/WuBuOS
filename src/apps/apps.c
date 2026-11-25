@@ -15,7 +15,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "apps.h"
-#include "dos_window.h"
+#include "dos_guest_view.h"
 #include "../gui/wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"

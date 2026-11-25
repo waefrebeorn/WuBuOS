@@ -257,11 +257,11 @@ MATRIX = [
 
     ("shortcuts", "Alt+Tab shows live previews",
      "holding Alt shows thumbnails, not just titles",
-     [r"alt_tab.*thumb|thumb.*alt_tab|switcher"], r"switcher|alt_tab|wm_input|shell/"),
+     [r"wm_thumb_capture"], r"alt_tab_switcher"),
     ("shortcuts", "Alt+Tab stays open while Alt is held",
      "release Alt to commit; the switcher is a modal picker",
-     # alt_held alone is just (mods & MOD_ALT) -- that is a modifier test, not a switcher.
-     [r"alt_tab_open|switcher_open|switcher_render"], r"wm_input|switcher"),
+     # alt_held alone is just (mods & MOD_ALT) -- a modifier test, not a switcher.
+     [r"alt_tab_key_up|alt_tab_is_open"], r"alt_tab_switcher"),
 
     ("explorer", "ribbon / toolbar commands",
      "new, delete, view and sort reachable from a toolbar",

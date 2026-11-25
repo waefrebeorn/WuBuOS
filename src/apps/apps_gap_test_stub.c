@@ -5,7 +5,7 @@
  * + vbe_draw_text); the test only exercises the LOGIC (create/add/
  * scan/play), so these two functions get stub definitions here — the
  * real WM is far too heavy to link. (Precedent:
- * dos_window_test_stub.c.)
+ * dos_guest_view_test_stub.c.)
  * C11.
  */
 #include "../gui/wm.h"

@@ -160,6 +160,8 @@ void wm_move_focused_window(int delta);
 /* -- Input ------------------------------------------------------- */
 
 void wm_handle_key(uint32_t key, uint32_t mods);
+/* Key release. Only the Alt+Tab switcher consumes these; the WM stays press-driven. */
+void wm_handle_key_up(uint32_t key, uint32_t mods);
 void wm_handle_mouse(int x, int y, int btn, int kind);
 /* Current rendered cursor position (set by the input path; used by the AGI
  * automation layer to press/release buttons at the live cursor). */

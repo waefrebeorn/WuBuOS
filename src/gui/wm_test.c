@@ -8,6 +8,7 @@
 #include "../egojar.h"
 #include "wm.h"
 #include "shell/projection_flyout.h"
+#include "shell/alt_tab_switcher.h"
 #include "wm_internal.h"
 #include "wubu_trash.h"
 #include "wubu_theme.h"
@@ -1237,8 +1238,16 @@ static void test_modifier_bits_match_input_h(void) {
     CHECK(a && b, "two windows");
     if (a && b) {
         wm_set_focus(a);
-        wm_handle_key(0x09, MOD_ALT);       /* Alt+Tab */
-        CHECK(wm_get_focused() == b, "Alt+Tab moved focus to the other window");
+        alt_tab_close(false);
+        /* Alt+Tab now OPENS the switcher; focus moves when Alt is released. The observable
+         * this test exists for -- "the MOD_ALT bit reaches a consumer" -- is the grid
+         * opening, and the commit proves the rest of the path. */
+        wm_handle_key(0x09, MOD_ALT);
+        CHECK(alt_tab_is_open(), "Alt+Tab reached the switcher (MOD_ALT bit is right)");
+        wm_handle_key_up(0x38, 0);          /* release Alt: commit */
+        CHECK(!alt_tab_is_open(), "the release committed and closed it");
+        CHECK(wm_get_focused() != a, "committing moved focus to another window");
+        alt_tab_close(false);
     }
     wm_shutdown();
     PASS();
@@ -2396,6 +2405,69 @@ static void test_drag_to_edge_snaps(void) {
     PASS();
 }
 
+
+static void test_alt_tab_switcher_commits_on_alt_release(void) {
+    TEST("Alt+Tab shows previews while Alt is held and commits on release");
+    vbe_init(1024, 768);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    alt_tab_close(false);
+
+    DosGuiWindow *a = wm_create(40, 40, 300, 200, "One");
+    DosGuiWindow *b = wm_create(120, 80, 300, 200, "Two");
+    DosGuiWindow *c = wm_create(200, 140, 300, 200, "Three");
+    CHECK(a && b && c, "three windows");
+    wm_set_focus(c);                     /* most recent first in z-order */
+
+    /* Alt+Tab opens and selects a DIFFERENT window than the focused one. */
+    CHECK(alt_tab_key_down(0x09, MOD_ALT), "Alt+Tab is consumed by the switcher");
+    CHECK(alt_tab_is_open(), "the switcher is open");
+    CHECK(alt_tab_count() == 3, "all three windows are offered");
+    int first = alt_tab_window_at(alt_tab_selected());
+    CHECK(first != c->id, "the selection starts away from the already-focused window");
+
+    /* A held Alt with no further Tab commits nothing yet: the grid stays open. */
+    CHECK(!alt_tab_key_up(0x09, MOD_ALT), "releasing Tab alone does not commit");
+    CHECK(alt_tab_is_open(), "still open while Alt is held");
+
+    /* Second Tab advances. */
+    int sel_before = alt_tab_selected();
+    alt_tab_key_down(0x09, MOD_ALT);
+    CHECK(alt_tab_selected() != sel_before, "another Tab advances the selection");
+
+    /* Releasing Alt commits the selection. */
+    int want = alt_tab_window_at(alt_tab_selected());
+    CHECK(alt_tab_key_up(0x38, 0), "releasing Alt commits");
+    CHECK(!alt_tab_is_open(), "the switcher closed");
+    CHECK(wm_get_focused() && wm_get_focused()->id == want, "the selected window is focused");
+
+    /* Esc cancels: focus must not move. */
+    DosGuiWindow *now = wm_get_focused();
+    alt_tab_key_down(0x09, MOD_ALT);
+    CHECK(alt_tab_is_open(), "reopened");
+    alt_tab_key_down(0x01, MOD_ALT);
+    CHECK(!alt_tab_is_open(), "Esc closed it");
+    CHECK(wm_get_focused() == now, "cancelling left the focus alone");
+
+    /* It has to be VISIBLE: the grid paints thumbnails. */
+    alt_tab_key_down(0x09, MOD_ALT);
+    int cx, cy, cw, ch;
+    CHECK(alt_tab_card_rect(0, 1024, 768, &cx, &cy, &cw, &ch), "card 0 has a rect");
+    int painted = 0;
+    for (int y = cy; y < cy + ch; y++)
+        for (int x = cx; x < cx + cw; x++)
+            if (vbe_get_pixel(x, y) != 0) painted++;
+    alt_tab_render(NULL, 1024, 768);
+    int after = 0;
+    for (int y = cy; y < cy + ch; y++)
+        for (int x = cx; x < cx + cw; x++)
+            if (vbe_get_pixel(x, y) != 0) after++;
+    CHECK(after > painted, "rendering painted the grid where nothing was");
+    alt_tab_close(false);
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2409,6 +2481,7 @@ int main(void) {
     test_thumb_capture_maps_the_window_rect();
     test_taskbar_hover_tracks_slots();
     test_pointer_path_sees_modifier_state();
+    test_alt_tab_switcher_commits_on_alt_release();
     test_drag_to_edge_snaps();
     test_projection_flyout_offers_only_what_works();
     test_wheel_over_taskbar_cycles_focus();

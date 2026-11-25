@@ -2,6 +2,8 @@
   "wired": [
     "Alt+F4 closes window",
     "Alt+Space system menu",
+    "Alt+Tab shows live previews",
+    "Alt+Tab stays open while Alt is held",
     "Alt+Tab switches windows",
     "Ctrl+Shift+Esc task manager",
     "Ctrl+Shift+N new folder",

@@ -71,7 +71,12 @@ bool hosted_input_dispatch(void) {
         /* The WM is press-driven: hotkeys toggle and text widgets append, so
          * a key-up would fire every action twice (Win+W open+close, "not"
          * typed as "nno oott"). */
-        if (kev.kind != KEY_EVENT_DOWN) continue;
+        /* Ups are delivered to the one surface that needs them (the Alt+Tab switcher) and
+         * nowhere else: a key-up reaching the press-driven WM would fire toggles twice. */
+        if (kev.kind != KEY_EVENT_DOWN) {
+            wm_handle_key_up(kev.keycode, kev.modifiers);
+            continue;
+        }
         wm_handle_key(kev.keycode, kev.modifiers);
     }
     MouseEvent mev;

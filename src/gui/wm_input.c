@@ -146,6 +146,14 @@ static uint32_t g_last_mods;
 
 uint32_t wm_last_mods(void) { return g_last_mods; }
 
+/* Key RELEASES go here and nowhere else. The WM is press-driven (a key-up would fire every
+ * toggle twice), but the Alt+Tab switcher must know when Alt is let go -- that release is the
+ * commit. Routing ups to one surface keeps the press-driven model intact everywhere else. */
+void wm_handle_key_up(uint32_t key, uint32_t mods) {
+    extern __attribute__((weak)) bool alt_tab_key_up(uint32_t, uint32_t);
+    if (alt_tab_key_up) (void)alt_tab_key_up(key, mods);
+}
+
 void wm_handle_key(uint32_t key, uint32_t mods) {
     g_last_mods = mods;
     wubu_screensaver_activity();
@@ -355,6 +363,13 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
      * without the shell simply has no hotkeys. */
     if (win11_shell_key && win11_shell_key(key, mods)) return;
 
+    /* Alt+Tab: the switcher (previews while Alt is held, commit on release) when the shell
+     * provides it; otherwise the old immediate cycle. Weak, so a WM-only link keeps cycling. */
+    {
+        extern __attribute__((weak)) bool alt_tab_key_down(uint32_t, uint32_t);
+        if (alt_tab_key_down && alt_tab_key_down(key, mods)) return;
+    }
+
     /* Alt+Tab: cycle through windows */
     bool alt_held = (mods & MOD_ALT) != 0;
     if (alt_held && key == 0x09 && g_dwm.nz > 1) {
@@ -467,6 +482,13 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         extern __attribute__((weak)) bool win11_snap_assist_active(void);
         if (win11_snap_assist_active && win11_snap_assist_active() &&
             win11_snap_assist_click && win11_snap_assist_click(x, y))
+            return;
+    }
+
+    if (btn && kind == 1) {
+        extern __attribute__((weak)) bool alt_tab_is_open(void);
+        extern __attribute__((weak)) bool alt_tab_click(int, int);
+        if (alt_tab_is_open && alt_tab_is_open() && alt_tab_click && alt_tab_click(x, y))
             return;
     }
 
