@@ -316,6 +316,21 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         if (taskbar_slot_launch((int)(key - '1'))) return;
     }
 
+    /* Win+P: the projection selector (Windows). Weak: a WM-only link has no shell. */
+    {
+        extern __attribute__((weak)) void projection_flyout_toggle(void);
+        extern __attribute__((weak)) bool projection_flyout_is_open(void);
+        extern __attribute__((weak)) bool projection_flyout_key(uint32_t, uint32_t);
+        if (projection_flyout_is_open && projection_flyout_is_open()) {
+            if (projection_flyout_key && projection_flyout_key(key, mods)) return;
+        }
+        if ((mods & MOD_WIN) && !(mods & (MOD_CTRL | MOD_SHIFT | MOD_ALT)) &&
+            (key == 'p' || key == 'P' || key == 0x19)) {
+            if (projection_flyout_toggle) projection_flyout_toggle();
+            return;
+        }
+    }
+
     /* Win+A: quick settings panel (Windows 11 parity). */
     if ((mods & MOD_WIN) && (key == 0x1E || key == 'a' || key == 'A')) {
         quick_settings_toggle();
@@ -452,6 +467,15 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         extern __attribute__((weak)) bool win11_snap_assist_active(void);
         if (win11_snap_assist_active && win11_snap_assist_active() &&
             win11_snap_assist_click && win11_snap_assist_click(x, y))
+            return;
+    }
+
+    /* The projection flyout owns the pointer while it is open (click a row or dismiss). */
+    if (btn && kind == 1) {
+        extern __attribute__((weak)) bool projection_flyout_is_open(void);
+        extern __attribute__((weak)) bool projection_flyout_click(int, int);
+        if (projection_flyout_is_open && projection_flyout_is_open() &&
+            projection_flyout_click && projection_flyout_click(x, y))
             return;
     }
 

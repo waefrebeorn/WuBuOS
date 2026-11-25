@@ -7,6 +7,7 @@
 
 #include "../egojar.h"
 #include "wm.h"
+#include "shell/projection_flyout.h"
 #include "wm_internal.h"
 #include "wubu_trash.h"
 #include "wubu_theme.h"
@@ -2312,6 +2313,60 @@ static void test_snap_assist_offers_the_free_half(void) {
     PASS();
 }
 
+
+static void test_projection_flyout_offers_only_what_works(void) {
+    TEST("Win+P flyout: four Win11 rows, only the possible one selectable");
+    vbe_init(1024, 768);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    projection_flyout_close();
+
+    CHECK(projection_row_count() == 4, "the four Win11 modes are listed");
+    CHECK(projection_rows_enabled_count() == 1, "one output -> one selectable mode");
+    CHECK(projection_row_enabled(PROJECTION_MODE_PC_ONLY), "PC screen only is selectable");
+    for (int i = 1; i < 4; i++)
+        CHECK(!projection_row_enabled(i), "the modes needing a second output are greyed, not hidden");
+
+    projection_flyout_toggle();
+    CHECK(projection_flyout_is_open(), "Win+P opens it");
+    CHECK(projection_selected_row() == PROJECTION_MODE_PC_ONLY, "starts on the applied mode");
+
+    /* A greyed row must not act and must not close the card. */
+    int rx, ry, rw, rh;
+    CHECK(projection_row_rect(PROJECTION_MODE_EXTEND, 1024, 768, &rx, &ry, &rw, &rh),
+          "row 2 has a rect");
+    CHECK(projection_flyout_click(rx + 4, ry + 4), "click on a greyed row is consumed");
+    CHECK(projection_flyout_is_open(), "and the card stays open");
+    CHECK(projection_mode() == PROJECTION_MODE_PC_ONLY, "and nothing changed");
+
+    /* Arrow keys walk ENABLED rows only, so the selection cannot land on a greyed one. */
+    projection_flyout_key(0xE050, 0);
+    CHECK(projection_row_enabled(projection_selected_row()), "selection stays on an enabled row");
+
+    /* The enabled row applies and closes. */
+    CHECK(projection_row_rect(PROJECTION_MODE_PC_ONLY, 1024, 768, &rx, &ry, &rw, &rh),
+          "row 0 has a rect");
+    projection_flyout_click(rx + 4, ry + 4);
+    CHECK(!projection_flyout_is_open(), "picking closes the flyout");
+    CHECK(projection_mode() == PROJECTION_MODE_PC_ONLY, "and applies the mode");
+
+    /* It has to be VISIBLE, not just state. */
+    projection_flyout_toggle();
+    for (int y = 0; y < 768; y++)
+        for (int x = 0; x < 1024; x++) vbe_set_pixel(x, y, 0);
+    projection_flyout_render(NULL, 1024, 768);
+    int cx, cy, cw, ch;
+    projection_card_rect(1024, 768, &cx, &cy, &cw, &ch);
+    int painted = 0;
+    for (int y = cy; y < cy + ch; y++)
+        for (int x = cx; x < cx + cw; x++)
+            if (vbe_get_pixel(x, y) != 0) painted++;
+    CHECK(painted > cw * 8, "the projection card is painted");
+    projection_flyout_close();
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2325,6 +2380,7 @@ int main(void) {
     test_thumb_capture_maps_the_window_rect();
     test_taskbar_hover_tracks_slots();
     test_pointer_path_sees_modifier_state();
+    test_projection_flyout_offers_only_what_works();
     test_wheel_over_taskbar_cycles_focus();
     test_win_number_acts_on_taskbar_slot();
     test_win_d_show_desktop_with_focus();

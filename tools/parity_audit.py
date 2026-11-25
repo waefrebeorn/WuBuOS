@@ -170,7 +170,7 @@ MATRIX = [
      [r"0x1B.*MOD_CTRL.*MOD_SHIFT|task_manager_open|wubulens"]),
     ("shortcuts", "Win+P display projection",
      "Win+P opens the display/projection selector",
-     [r"projection_selector|display_mode_toggle|win11_display_mode"]),
+     [r"projection_flyout|projection_selector"], r"shell/"),
     ("shortcuts", "F2 rename selected icon",
      "F2 renames the selected desktop icon",
      [r"wm_rename_selected_icon"]),
