@@ -44,6 +44,23 @@ FWF=$FW/wubufw.fd
 # restored file), and then the gate boots a kernel without the command it is
 # testing and reports "no report from the kernel".
 STAMP=$ESP.stamp
+
+# THE GATE BOOTS $KELF, SO $KELF MUST BE CURRENT. Nothing checked that: the ESP stamp only
+# compares the kernel's size+mtime against the image, and the suite was assumed to build the
+# kernel first. It did not -- the gate was booting an image from ten hours earlier whose
+# source had since changed (it still printed map=%s while the tree printed map=%u), so every
+# result this gate reported was about a kernel nothing had rebuilt. Build it here when a
+# source is newer; the stamp check below then decides whether the ESP needs remaking.
+NEWER_SRC=$(
+    for f in $(find "$FW/../../src/kernel" "$FW/../../include" -name '*.c' -o -name '*.h' 2>/dev/null); do
+        [ "$f" -nt "$KELF" ] && echo "$f"
+    done | head -3
+)
+if [ -n "$NEWER_SRC" ]; then
+    echo "=== kernel.elf is stale, rebuilding (e.g. $(echo "$NEWER_SRC" | head -1)) ==="
+    make -s -C "$FW/../.." kernel > /tmp/metal-kernel-build.log 2>&1 \
+        || { tail -20 /tmp/metal-kernel-build.log; echo "kernel build FAILED"; exit 1; }
+fi
 WANT="$(stat -c '%s-%Y' "$KELF" 2>/dev/null)-$(stat -c '%s-%Y' "$FWF" 2>/dev/null)"
 if [ -f "$ESP" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$WANT" ]; then
     echo "=== ESP up to date (kernel + firmware unchanged) ==="
@@ -126,14 +143,22 @@ else:
                   r'usr=(\d+):(\d+):([0-9a-f]+) map=(\w+) bytes=([0-9a-f]+)',
                   fb_line[-1])
     if not m:
-        print('  FBMAP: FAIL (unparseable report)')
+        # The kernel now prints map=1/0, but an older kernel image can still print a string.
+        # "(null)" means its formatter received a NULL %s argument, which the ternary cannot
+        # produce -- name that rather than calling the report unparseable.
+        if 'map=(null)' in fb_line[0]:
+            print('  FBMAP: FAIL (kernel printed a NULL string for the map result -- '
+                  'probe klog_printf argument handling, not the mapping)')
+        else:
+            print('  FBMAP: FAIL (unparseable report)')
         fail += 1
     else:
         phys = int(m.group(1), 16)
         pitch = int(m.group(2))
         probes = [('damage present', int(m.group(3)), int(m.group(4)), int(m.group(5), 16)),
                   ('ring-3 mapping', int(m.group(6)), int(m.group(7)), int(m.group(8), 16))]
-        mapped = m.group(9) == 'ok'
+        # map=1 (numeric, current kernel) or map=ok (older kernel): both mean mapped.
+        mapped = m.group(9) in ('1', 'ok')
         if not mapped:
             print('  FBMAP: FAIL (scanout could not be mapped for ring 3)')
             fail += 1
@@ -398,7 +423,11 @@ if phys is not None and pitch is not None:
         # tries fit in it.
         best = None
         stable = 0
-        deadline = time.time() + 25
+        # 90 s, not 25: inside the suite the guest is one vCPU competing with 24 compilers
+        # and other QEMU boots, and a 25 s deadline expired at 59.9% painted -- a starved
+        # guest, not a broken scanout. Each full read costs a 3 MB pmemsave, so poll at 1 s
+        # instead of 0.4 s: fewer monitor round-trips leave the guest more CPU to finish.
+        deadline = time.time() + 90
         while True:
             nz2, c2, tot = frame_stats(data)
             pct2 = 100.0 * nz2 / max(tot, 1)
@@ -417,7 +446,7 @@ if phys is not None and pitch is not None:
             more = read_at(phys, w * h * 4)
             if more and len(more) >= w * h * 4:
                 data = more
-            time.sleep(0.4)
+            time.sleep(1.0)
 
         pct, colours, total = best[0], best[1], best[2]
         print(f'  scanout dump: {total} px, non-black {pct:.1f}%, colours {colours}'

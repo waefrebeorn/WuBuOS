@@ -1000,9 +1000,14 @@ int cmd_fbmap(int argc, char **argv)
     }
     __asm__ __volatile__("mfence" ::: "memory");
 
-    klog_printf("fbmap: WROTE phys=%x pitch=%u dmg=%u:%u:%x usr=%u:%u:%x map=%s bytes=%x\n",
+    /* map= is a NUMBER, not a string. A gate run under suite load once reported
+     * "map=(null)" while every %x on the same line was correct -- the ternary cannot produce
+     * NULL, so either the string pointer or the kernel's vararg handling lost it. A boolean
+     * has no business travelling through %s: with 1 = mapped, the report is unambiguous and
+     * cannot be corrupted into an unparseable token. The gate accepts both spellings. */
+    klog_printf("fbmap: WROTE phys=%x pitch=%u dmg=%u:%u:%x usr=%u:%u:%x map=%u bytes=%x\n",
                 (unsigned)phys, (unsigned)v->pitch, (unsigned)dx, (unsigned)dy,
                 (unsigned)DCOLOUR, (unsigned)ux, (unsigned)uy, (unsigned)UCOLOUR,
-                mapped == 0 ? "ok" : "FAIL", (unsigned)bytes);
+                (unsigned)(mapped == 0 ? 1u : 0u), (unsigned)bytes);
     return mapped == 0 ? 0 : 1;
 }
