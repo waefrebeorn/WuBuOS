@@ -18,7 +18,7 @@ how a tidy becomes a regression.
 | 3 | ~~`daemon_panel.c` -> `service_panel.c`~~ | **REJECTED after reading it**: it bridges *daemons* (archd, holyd) into the tray and a window; `service_mgr.c` manages *services*. `daemon_panel` is honest and `service_panel` would assert a relationship that does not exist | 7 | -- |
 | 4 | `big_picture.c` / `big_picture_games.c` | **undocumented acronym** -- read it, then name it for what it does | ~15 | low, but needs a purpose first |
 | 5 | `dos_window.c` vs `wm_window.c` | `dos_window` is the guest-app window body; `wm_window` is the WM's window object. Two "windows" in one layer | ~40 | high -- core windowing |
-| 6 | `wubu_bonzi.*` (GUI sprite blitter; the buddy is no longer Bonzi) | `buddy_sprite.*` (NOT `wubu_bonzi_study.c`, which is a different thing in the kernel) | 13 | low, but the name collides with a real kernel module |
+| 6 | **TWO files named `wubu_bonzi.{c,h}`** -- `src/gui/` is the buddy sprite blitter, `src/kernel/` is a different module; includes use the SAME token `wubu_bonzi.h` in both layers | `src/gui/buddy_sprite.*` for the blitter. **Renaming needs path-qualified edits only** (`$(GUI)/wubu_bonzi.c`, `../wubu_bonzi.h` vs the kernel's plain include), because a bare-token sweep cannot tell the two files apart | 13 | **medium** -- a plain sweep would cross the layers silently |
 
 Rule for #4: a name that needs a comment to explain the acronym is already broken. Read the
 file first, then name it -- do not invent an expansion.
