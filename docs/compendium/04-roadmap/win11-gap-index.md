@@ -68,6 +68,38 @@ before it ships, because a desktop that lists what you opened is a desktop that 
   uses.
 - **`LogPixels=96`** — the DPI assumption to test against once fonts scale.
 
+## Parity ledger (what "like Windows" means, item by item)
+
+The user's bar is not "resembles Windows" but "behaves like it". This list is the
+behavioural side of the table above; each row is either implemented with a gate or named
+as missing on purpose.
+
+| Behaviour | State |
+|---|---|
+| Click an icon: selects | done (`test_icon_click_selects_then_opens`) |
+| Double-click an icon: opens | done, 500 ms window |
+| Click empty desktop: clears selection | done |
+| Enter opens / F2 renames / Delete deletes the selection | done |
+| Icon menu: Open, Rename, Delete, Properties | done |
+| Icon menu: Create shortcut, Pin to taskbar | done |
+| Desktop menu: New (Shortcut/Folder/Text), View, Sort By, Refresh | done |
+| Taskbar right-click: jump list (Focus/Open, Close, Pin/Unpin) | done |
+| Alt+Space: window system menu (Restore/Minimize/Maximize/Close) | done |
+| Shortcut files that actually resolve (`wubu-app <Name>`) | done |
+| Move / Size keyboard modal modes | **missing** -- deliberately absent from the menu |
+| Jump list: recent documents per app | **missing** -- needs a recency store and a privacy rule |
+| Cut / Copy / Paste on icons | **missing** -- clipboard exists, no icon verbs |
+| Open with... (chooser per file type) | **missing** |
+| Taskbar overflow / "show hidden icons" flyout | **missing** |
+| Notification centre: per-item actions | **missing** |
+| Snap assist: pick the other window after a snap | **missing** |
+| Alt+Tab: live thumbnails | partial (window list, not thumbnails) |
+| Explorer: ribbon/command bar verbs | partial |
+
+Rule for this table: a row moves to "done" only when a gate asserts the behaviour, and a
+row marked missing says what it needs -- an absent feature named honestly is a plan, an
+absent feature implied to exist is the class of bug this project keeps paying for.
+
 ## Rule this page adds
 
 A gap is only a gap if it was measured: *"we have X"* means a file that exists and is
