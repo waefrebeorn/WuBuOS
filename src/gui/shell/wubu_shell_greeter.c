@@ -150,7 +150,8 @@ void wubu_shell_greeter_button_rect(int *x, int *y, int *w, int *h) {
 void wubu_shell_greeter_offer_rect(int i, int *x, int *y, int *w, int *h) {
     if (i < 0 || i >= 3) { if (x) *x = 0; if (y) *y = 0;
                            if (w) *w = 0; if (h) *h = 0; return; }
-    int gap = WUBU_METRIC_GAP_SM;
+    /* Microsoft: 8epx between buttons. GAP_SM was 12, which read as "slightly too wide". */
+    int gap = WUBU_SPACE_XS;
     int w3 = (WUBU_SHELL_GREETER_WIDTH - GR_PAD * 2 - gap * 2) / 3;
     if (x) *x = GR_PAD + i * (w3 + gap);
     if (y) *y = GR_OFFER_Y;
@@ -211,9 +212,8 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         for (int i = 0; i < GR_STEPS; i++) {
             int dcx = x0 + g_win->w - GR_PAD - (GR_STEPS - i) * 14;
             int dcy = y0 + GR_TITLE_Y + 22;
-            vbe_fill_rect(dcx, dcy, 8, 8,
-                          i == g_step ? tc->win_title_active : tc->btn_face);
-            vbe_rect(dcx, dcy, 8, 8, tc->border_dark);
+            vbe_fill_rect_rounded(dcx, dcy, 8, 8, 4,
+                                  i == g_step ? tc->select_bg : tc->border_light);
         }
     }
 
@@ -226,11 +226,12 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         bool sel = (i == g_theme);
         bool hov = (i == g_hover);
 
-        uint32_t face = sel ? tc->select_bg : (hov ? tc->btn_hover : tc->btn_face);
-        vbe_fill_rect_rounded(sx, sy, rw, rh - 2, 2, face);
-        if (sel) {
-            vbe_rect_rounded(sx, sy, rw, rh - 2, 2, tc->border_dark);
-        }
+        /* An unselected row must not look like a button: Win11 list rows are transparent
+         * until hover, and the selection is the accent pill -- not a button face with an
+         * outline in border_dark (0x1A on a 0x24 card is invisible, so the "selected" row
+         * was marked only by an outline nobody could see). */
+        uint32_t face = sel ? tc->select_bg : (hov ? tc->btn_hover : tc->win_face);
+        vbe_fill_rect_rounded(sx, sy, rw, rh - 2, WUBU_METRIC_RADIUS_CONTROL, face);
 
         const char *nm = wubu_theme_name((WubuThemeId)i);
         uint32_t tc_col = sel ? tc->select_text : tc->btn_text;
@@ -240,7 +241,7 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         /* Selected marker: a filled square at the row's right edge. */
         if (sel) {
             vbe_fill_rect(sx + rw - 18, sy + (rh - 2 - 10) / 2, 10, 10,
-                          tc->win_title_active);
+                          tc->select_text);
         }
         (void)tw;
     }
@@ -314,15 +315,16 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
     /* Primary button (Next, or Start on the last page) */
     int bx, by, bw, bh;
     wubu_shell_greeter_button_rect(&bx, &by, &bw, &bh);
-    uint32_t bface = tc->btn_face;
-    vbe_fill_rect_rounded(x0 + bx, y0 + by, bw, bh, 3, bface);
-    vbe_3d_raised_rounded_colors(x0 + bx, y0 + by, bw, bh, 3,
-                                 tc->border_light, tc->btn_face,
-                                 tc->border_dark, tc->border_darkest);
+    /* Win11 default button: flat accent fill, control radius, accent-contrast label. The 3D
+     * bevel that used to be here is a Win95/Solaris-era edge -- Microsoft's own guidance is a
+     * flat fill with at most a 1px border, and a raise drawn with four colour bands reads as
+     * "old" no matter how correct the geometry is. */
     const char *bl = (g_step == GR_STEPS - 1) ? "Start WuBuOS" : "Next";
+    vbe_fill_rect_rounded(x0 + bx, y0 + by, bw, bh, WUBU_METRIC_RADIUS_CONTROL,
+                          tc->select_bg);
     int blw = vbe_text_width(bl, 1);
-    vbe_draw_text(x0 + bx + (bw - blw) / 2, y0 + by + (bh - 8) / 2,
-                  bl, tc->btn_text, 1);
+    vbe_draw_text(x0 + bx + (bw - blw) / 2, y0 + by + (bh - WUBU_FONT_CAP_H) / 2,
+                  bl, tc->select_text, 1);
 
     /* First-run offers: the "where do I start" answers.  These answer "what do
      * I do next", a question about the FIRST page -- showing them on every step
@@ -333,18 +335,21 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
     for (int i = 0; (g_step == 0) && i < 3; i++) {
         int ox, oy, ow, oh;
         wubu_shell_greeter_offer_rect(i, &ox, &oy, &ow, &oh);
-        vbe_fill_rect_rounded(x0 + ox, y0 + oy, ow, oh, 3, tc->btn_face);
-        vbe_3d_raised_rounded_colors(x0 + ox, y0 + oy, ow, oh, 3,
-                                     tc->border_light, tc->btn_face,
-                                     tc->border_dark, tc->border_darkest);
+        vbe_fill_rect_rounded(x0 + ox, y0 + oy, ow, oh, WUBU_METRIC_RADIUS_CONTROL,
+                              tc->btn_face);
+        vbe_rect_rounded(x0 + ox, y0 + oy, ow, oh, WUBU_METRIC_RADIUS_CONTROL,
+                         tc->border_light);
         int tw = vbe_text_width(offers[i], 1);
-        vbe_draw_text(x0 + ox + (ow - tw) / 2, y0 + oy + (oh - 8) / 2,
+        vbe_draw_text(x0 + ox + (ow - tw) / 2, y0 + oy + (oh - WUBU_FONT_CAP_H) / 2,
                       offers[i], tc->btn_text, 1);
     }
 
     /* Footer hint, specific to the current page. */
-    vbe_draw_text(x0 + GR_PAD, y0 + WUBU_SHELL_GREETER_HEIGHT - 14,
-                  kStepHint[g_step], tc->icon_text_shadow, 1);
+    /* icon_text_shadow is a DROP-SHADOW colour: using it for text put the hint at the lowest
+     * contrast in the palette against the card, which is why it read as a smudge. The secondary
+     * body colour is the readable choice, and it sits a full margin off the edge. */
+    vbe_draw_text(x0 + GR_PAD, y0 + WUBU_SHELL_GREETER_HEIGHT - GR_PAD + 6,
+                  kStepHint[g_step], tc->win_title_text_ina, 1);
     (void)fb_w; (void)fb_h;
 }
 
