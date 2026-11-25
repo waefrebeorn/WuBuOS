@@ -9,7 +9,7 @@
 # 70% of the recipes.
 RT_ALWAYS := $(RT)/wubu_crc32.c $(RT)/wubu_str.c
 
-test_critical_runtime: test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -2541,6 +2541,9 @@ test_dram_hedge: src/kernel/wubu_dram_hedge.c src/kernel/wubu_dram_hedge.h
 bench_dram_hedge: src/kernel/wubu_dram_hedge.c tools/bench/bench_dram_hedge.c
 	$(CC) -O2 -I$(RT) -Isrc/kernel src/kernel/wubu_dram_hedge.c tools/bench/bench_dram_hedge.c -o build/bench_dram_hedge -lm -lpthread -Iinclude $(RT_ALWAYS) 
 	./build/bench_dram_hedge
+
+test_gate_reachability:
+	python3 tools/gate_reachability.py
 
 test_wm_snap: $(GUI)/wm_window_state.c $(GUI)/wm_snap_test.c
 	$(CC) -O1 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(RT) -Iinclude $(GUI)/wm_window_state.c $(GUI)/wm_snap_test.c -o build/wm_snap_test
