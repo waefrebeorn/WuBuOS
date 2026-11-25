@@ -193,18 +193,35 @@ static void chrome_icon_blit(int x, int y, int w, int h, const unsigned char *ma
                              int mask_sz, uint32_t fg) {
     if (!mask || mask_sz <= 0 || w <= 0 || h <= 0) return;
     int fr = (int)((fg >> 16) & 0xff), fgn = (int)((fg >> 8) & 0xff), fb = (int)(fg & 0xff);
+
+    /* Map the mask's INK BOUNDS, not its full grid. The baked 24px masters carry padding
+     * around the glyph, so drawing the whole grid into a 10px box produced an X of about
+     * 6px next to a 10px dash and square -- "the x is tiny". Filling the target box with the
+     * ink makes every caption glyph the same apparent size regardless of how the master was
+     * padded. */
+    int ix0 = mask_sz, iy0 = mask_sz, ix1 = -1, iy1 = -1;
+    for (int yy = 0; yy < mask_sz; yy++)
+        for (int xx = 0; xx < mask_sz; xx++)
+            if (mask[yy * mask_sz + xx]) {
+                if (xx < ix0) ix0 = xx;
+                if (xx > ix1) ix1 = xx;
+                if (yy < iy0) iy0 = yy;
+                if (yy > iy1) iy1 = yy;
+            }
+    if (ix1 < ix0 || iy1 < iy0) return;            /* empty mask: draw nothing */
+    const int iw = ix1 - ix0 + 1, ih = iy1 - iy0 + 1;
     /* AREA AVERAGE, not point sampling. A 24px master drawn into a 10px box by nearest
      * neighbour drops most of a diagonal, so the close X came out ragged and asymmetric --
      * "the x close looks off". Averaging the source cell each destination pixel covers keeps
      * the stroke's weight however far it is scaled down. */
     for (int py = 0; py < h; py++) {
-        int y0 = py * mask_sz / h, y1 = (py + 1) * mask_sz / h;
+        int y0 = iy0 + py * ih / h, y1 = iy0 + (py + 1) * ih / h;
         if (y1 <= y0) y1 = y0 + 1;
-        if (y1 > mask_sz) y1 = mask_sz;
+        if (y1 > iy1 + 1) y1 = iy1 + 1;
         for (int px = 0; px < w; px++) {
-            int x0 = px * mask_sz / w, x1 = (px + 1) * mask_sz / w;
+            int x0 = ix0 + px * iw / w, x1 = ix0 + (px + 1) * iw / w;
             if (x1 <= x0) x1 = x0 + 1;
-            if (x1 > mask_sz) x1 = mask_sz;
+            if (x1 > ix1 + 1) x1 = ix1 + 1;
             unsigned sum = 0, cnt = 0;
             for (int sy2 = y0; sy2 < y1; sy2++)
                 for (int sx2 = x0; sx2 < x1; sx2++) { sum += mask[sy2 * mask_sz + sx2]; cnt++; }
@@ -238,13 +255,36 @@ static void chrome_glyph_box(int x, int y, int w, int h, int *gx, int *gy, int *
 }
 
 static void chrome_glyph_close(int x, int y, int w, int h, uint32_t fg) {
-    /* The X comes from the baked icon table. Two hand-drawn diagonals is how this file
-     * produced BOTH defects the user reported: four permutations ("two x in x close")
-     * and, once fixed, a 1px hairline. Data can be re-baked; a procedure has to be
-     * re-argued by hand every time. */
-    int ox, oy, s;
-    chrome_glyph_box(x, y, w, h, &ox, &oy, &s);
-    chrome_icon_blit(ox, oy, s, s, wubu_icon_action_close, WUBU_ICON_SIZE, fg);
+    /* A clean 2px-stroke X that FILLS the glyph box. The baked master carried padding and
+     * soft edges, so even after ink-bounds mapping the X read about 6px next to a 10px square:
+     * "the x is tiny". Drawn here as distance-to-diagonal with coverage, which is the same
+     * anti-aliasing rule the rest of the chrome uses -- one stroke width, symmetric, full size.
+     * (The old defect was FOUR hand-drawn diagonals; this is two, from one loop, so it cannot
+     * reintroduce that.) */
+    int gx, gy, s;
+    chrome_glyph_box(x, y, w, h, &gx, &gy, &s);
+    const float half = 1.1f;                 /* ~2.2px stroke */
+    int fr = (int)((fg >> 16) & 0xff), fgn = (int)((fg >> 8) & 0xff), fb = (int)(fg & 0xff);
+    for (int py = 0; py < s; py++) {
+        for (int px = 0; px < s; px++) {
+            float d1 = (float)px - (float)py;                       /* main diagonal */
+            float d2 = (float)px - (float)(s - 1 - py);             /* anti diagonal */
+            if (d1 < 0) d1 = -d1;
+            if (d2 < 0) d2 = -d2;
+            float d = d1 < d2 ? d1 : d2;
+            float cov = half + 0.5f - d * 0.70710678f;
+            if (cov <= 0.0f) continue;
+            if (cov > 1.0f) cov = 1.0f;
+            int sx = gx + px, sy = gy + py;
+            uint32_t dst = vbe_get_pixel(sx, sy);
+            int dr = (int)((dst >> 16) & 0xff), dg = (int)((dst >> 8) & 0xff), db = (int)(dst & 0xff);
+            int a = (int)(cov * 255.0f);
+            int r = (fr * a + dr * (255 - a)) / 255;
+            int g = (fgn * a + dg * (255 - a)) / 255;
+            int b = (fb * a + db * (255 - a)) / 255;
+            vbe_set_pixel(sx, sy, ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+        }
+    }
 }
 
 static void chrome_glyph_max(int x, int y, int w, int h, uint32_t fg) {
