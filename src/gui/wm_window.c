@@ -186,6 +186,15 @@ void wm_set_current_desktop(int desktop) {
 }
 
 /* Move focused window to adjacent desktop (Win+Shift+Left/Right) */
+/* Taskbar progress badge. Clamped here, once, so a caller that passes 150 cannot paint a
+ * bar wider than its button and a caller that passes -5 cannot paint a negative one. */
+void wm_set_taskbar_progress(DosGuiWindow *win, int pct) {
+    if (!win || !win->alive) return;
+    if (pct < 0)   pct = 0;
+    if (pct > 100) pct = 100;
+    win->task_progress = pct;
+}
+
 /* Cycle focus through live windows in z-order. Wheel over the taskbar in Windows walks
  * the window list; we had no way to move focus without the mouse at all. */
 void wm_wheel_cycle(int delta) {

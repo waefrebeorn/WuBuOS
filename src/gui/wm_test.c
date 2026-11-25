@@ -2221,6 +2221,59 @@ static void test_hover_preview_composites_a_card(void) {
     PASS();
 }
 
+
+static int count_colour_in_band(int x0, int x1, int y0, int y1, uint32_t want) {
+    int n = 0;
+    for (int y = y0; y < y1; y++)
+        for (int x = x0; x < x1; x++)
+            if (vbe_get_pixel(x, y) == want) n++;
+    return n;
+}
+
+static void test_taskbar_progress_badge(void) {
+    TEST("taskbar progress badge fills proportionally and clamps");
+    vbe_init(1024, 768);
+    wubu_theme_set(THEME_DARK);      /* the badge is drawn by the modern (Win11) bar */
+    wm_init(1024, 768);
+    DosGuiWindow *w = wm_create(60, 60, 320, 220, "Progressing");
+    CHECK(w != NULL, "window created");
+
+    /* Clamp: one place, so no caller can paint outside its button. */
+    wm_set_taskbar_progress(w, 150);
+    CHECK(w->task_progress == 100, "150 clamps to 100");
+    wm_set_taskbar_progress(w, -5);
+    CHECK(w->task_progress == 0, "-5 clamps to 0 (no badge)");
+
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    int slot = -1;
+    for (int i = 0; i < L.n_slots; i++)
+        if (!L.slot[i].is_pin && L.slot[i].index == w->id) { slot = i; break; }
+    if (slot < 0) { printf("\n  (skip: window has no taskbar slot)\n"); wm_shutdown(); PASS(); return; }
+
+    const WmTaskSlot *s = &L.slot[slot];
+    uint32_t fill = wubu_theme_colors()->select_bg;
+    int y0 = s->y + s->h - 3, y1 = s->y + s->h;
+
+    wm_set_taskbar_progress(w, 0);
+    wm_render(NULL, 1024, 768);
+    int at0 = count_colour_in_band(s->x, s->x + s->w, y0, y1, fill);
+
+    wm_set_taskbar_progress(w, 50);
+    wm_render(NULL, 1024, 768);
+    int at50 = count_colour_in_band(s->x, s->x + s->w, y0, y1, fill);
+
+    wm_set_taskbar_progress(w, 100);
+    wm_render(NULL, 1024, 768);
+    int at100 = count_colour_in_band(s->x, s->x + s->w, y0, y1, fill);
+
+    printf("\n  (progress fill pixels: 0%%=%d 50%%=%d 100%%=%d)\n", at0, at50, at100);
+    CHECK(at50 > at0, "50% paints a sliver");
+    CHECK(at100 > at50, "100% paints more than 50%");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -2229,6 +2282,7 @@ int main(void) {
     test_init();
     test_init_shutdown_no_crash();
     test_hover_preview_composites_a_card();
+    test_taskbar_progress_badge();
     test_thumb_capture_maps_the_window_rect();
     test_taskbar_hover_tracks_slots();
     test_pointer_path_sees_modifier_state();

@@ -244,7 +244,7 @@ MATRIX = [
      [r"taskbar_show_jump_list"]),
     ("bars", "taskbar progress / badges",
      "a window can report progress on its button",
-     [r"taskbar_set_progress|slot.*progress|ITaskbarList"]),
+     [r"wm_set_taskbar_progress|taskbar.*progress"], r"shell/|wm_window|wm\.h"),
     ("bars", "snap assist after snapping",
      "after a half snap, the other half offers the remaining windows",
      [r"snap_assist|snap_group"]),

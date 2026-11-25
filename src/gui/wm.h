@@ -64,6 +64,9 @@ typedef struct DosGuiWindow {
     void         (*on_resize)(DosGuiWindow *win, int w, int h);
     void          *user_data;
     uint32_t      icon_color;   /* Fallback colored box for title bar icon */
+    /* Taskbar progress badge (Win11): 0 = none, 1..100 = percent complete. Windows shows
+     * a green sliver on the button; a copy, a download or an install reports here. */
+    int           task_progress;
 } DosGuiWindow;
 
 /* -- Lifecycle ---------------------------------------------------- */
@@ -109,6 +112,8 @@ void           wm_move(DosGuiWindow *win, int x, int y);
 void           wm_maximize(DosGuiWindow *win);
 void           wm_minimize(DosGuiWindow *win);
 void           wm_show_desktop(void);   /* Win+D: minimize all / restore */
+/* Report task progress on a window's taskbar button: pct 0..100 (0 clears), clamped. */
+void           wm_set_taskbar_progress(DosGuiWindow *win, int pct);
 void           wm_restore(DosGuiWindow *win);
 bool           wm_is_maximized(DosGuiWindow *win);
 /* Win+Left / Win+Right: snap to the left (side<0) or right half of the work

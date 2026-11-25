@@ -183,6 +183,18 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
         vbe_draw_text(s->x + WUBU_SPACE_SM,
                       s->y + (s->h - WUBU_FONT_CAP_H) / 2, title,
                       focused ? tc()->btn_text : tc()->icon_text, 1);
+        /* Progress badge: a sliver across the bottom of the tile. Drawn UNDER the running
+         * indicator so a focused app still reads as focused. */
+        if (!s->is_pin) {
+            DosGuiWindow *pw = &g_dwm.windows[s->index];
+            if (pw->alive && pw->task_progress > 0) {
+                int th2 = 3;
+                int ty2 = s->y + s->h - th2;
+                int tw2 = (s->w * pw->task_progress) / 100;
+                vbe_fill_rect(s->x, ty2, s->w, th2, tc()->border_dark);
+                vbe_fill_rect(s->x, ty2, tw2, th2, tc()->select_bg);
+            }
+        }
         if (running) {
             int iw = focused ? WUBU_TASKBAR_INDICATOR_W_FOCUS
                              : WUBU_TASKBAR_INDICATOR_W_IDLE;
