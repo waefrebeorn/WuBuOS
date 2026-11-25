@@ -20,7 +20,7 @@
 #include "src/kernel/memory.h"
 #include "src/kernel/input.h"
 #include "src/gui/wm.h"
-#include "src/gui/shell/desktop.h"
+#include "src/gui/shell/shell_session.h"
 #include "src/gui/wubu_theme.h"
 #include "src/apps/apps.h"
 #include "src/tools/screenshot.h"

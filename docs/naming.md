@@ -168,6 +168,17 @@ another repo's model families, which needs a behavioural check first, not a swee
 
 ## Rename mechanics (learned by breaking it, 2026-11-25)
 
+**Never sweep historical prose.** The 2026-11-25 renames also ran through `vault/` and
+`os-studies/`, which record what the tree looked like AT THE TIME ("`dosgui_wm.c` -> new split"
+"studied `dosgui_wm_desktop.c`"). The sweep rewrote those sentences into names that never
+existed in that era -- and in one case into a path that has never existed at all
+(`src/gui/wubu_desktop_icons.c`; the real file is `src/gui/shell/desktop_icons.c`). A study
+document is EVIDENCE of a past state, so rewriting its paths falsifies the evidence. Those
+edits were reverted; keep archive/study trees out of every path sweep, and sweep code +
+build files + the docs that describe the CURRENT tree only.
+
+
+
 A rename is `git mv` + path tokens + **the `.o` names in `mk/`** + build + the tests that
 compile those units. Every omission below produced a real failure on this tree:
 
