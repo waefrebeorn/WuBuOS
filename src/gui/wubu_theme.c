@@ -212,6 +212,62 @@ static const WubuTheme g_themes[THEME_COUNT] = {
     .Luna_start_button  = true,
 },
 
+/* -- Windows 11 (Fluent light) ------------------------------------
+ *
+ * The other presets are period pieces: Win98's bevels, XP's blue gradient and green
+ * orb, Zune's chrome. This one is the modern target, and the numbers are Win11's:
+ * surfaces #F3F3F3 (Mica) and #FFFFFF (cards), text #1A1A1A, one accent #0078D4,
+ * hairline borders #E5E5E5, and NO 3D bevel anywhere -- Fluent has no bevels at all,
+ * which is why the retro themes' border_light/dark must both collapse to the same
+ * hairline here. Red is reserved for the close-button hover, exactly as Win11 does. */
+[THEME_WIN11] = {
+    .id = THEME_WIN11,
+    .name = "Windows 11",
+    .colors = {
+        .desktop_bg        = RGB(0xF3,0xF3,0xF3),
+        .win_face          = RGB(0xFF,0xFF,0xFF),
+        .win_title_active  = RGB(0xF3,0xF3,0xF3),
+        .win_title_inactive= RGB(0xF3,0xF3,0xF3),
+        .win_title_text    = RGB(0x1A,0x1A,0x1A),
+        .win_title_text_ina= RGB(0x60,0x60,0x60),   /* 5.7:1 on F3 */
+        .border_light      = RGB(0xE5,0xE5,0xE5),
+        .border_face       = RGB(0xE5,0xE5,0xE5),
+        .border_dark       = RGB(0xE5,0xE5,0xE5),
+        .border_darkest    = RGB(0xD6,0xD6,0xD6),
+        .btn_face          = RGB(0xF3,0xF3,0xF3),
+        .btn_hover         = RGB(0xE9,0xE9,0xE9),
+        .btn_pressed       = RGB(0xDE,0xDE,0xDE),
+        .btn_text          = RGB(0x1A,0x1A,0x1A),
+        .taskbar_bg        = RGB(0xF3,0xF3,0xF3),
+        .taskbar_border    = RGB(0xE5,0xE5,0xE5),
+        .start_btn_face    = RGB(0xF3,0xF3,0xF3),
+        .start_btn_text    = RGB(0x1A,0x1A,0x1A),
+        .startmenu_bg      = RGB(0xF3,0xF3,0xF3),
+        .startmenu_sidebar = RGB(0xE9,0xE9,0xE9),
+        .startmenu_sidebar_grad_end = RGB(0xE9,0xE9,0xE9),
+        .startmenu_hover   = RGB(0xE0,0xE0,0xE0),
+        .startmenu_text    = RGB(0x1A,0x1A,0x1A),
+        .startmenu_shutdown_bg = RGB(0xC4,0x2B,0x1C),
+        .startmenu_shutdown_fg = RGB(0xFF,0xFF,0xFF),
+        .caption_close_hover = RGB(0xC4,0x2B,0x1C),
+        .notif_read_bg = RGB(0xED,0xED,0xED),
+        .select_bg         = RGB(0x00,0x78,0xD4),   /* the accent */
+        .select_text       = RGB(0xFF,0xFF,0xFF),
+        .win_shadow        = 0x000000,
+        .scroll_track      = RGB(0xF3,0xF3,0xF3),
+        .scroll_thumb      = RGB(0xC8,0xC8,0xC8),
+        .icon_text         = RGB(0x1A,0x1A,0x1A),
+        .icon_text_shadow  = RGB(0xFF,0xFF,0xFF),
+        .icon_bg           = RGB(0xFF,0xFF,0xFF),
+        .icon_border       = RGB(0xE5,0xE5,0xE5),
+    },
+    .title_gradient     = {RGB(0xF3,0xF3,0xF3), RGB(0xF3,0xF3,0xF3), false},
+    .title_gradient_ina = {RGB(0xF3,0xF3,0xF3), RGB(0xF3,0xF3,0xF3), false},
+    .rounded_buttons    = true,
+    .gradient_title     = false,
+    .Luna_start_button  = false,
+},
+
 /* -- Zune ---------------------------------------------------------- */
 [THEME_ZUNE] = {
     .id = THEME_ZUNE,
@@ -413,7 +469,9 @@ static void live_apply_high_contrast(void) {
 }
 
 int wubu_theme_init(void) {
-    g_current = THEME_DARK;
+    /* Fluent light is the shipped look. The retro presets stay selectable -- they are
+     * part of this OS's character -- but a fresh install should look like this decade. */
+    g_current = THEME_WIN11;
     g_high_contrast = false;
     live_seed_from_current();
     return 0;
@@ -489,6 +547,11 @@ const WubuTheme *wubu_theme_get(void) {
 
 void wubu_theme_cycle(void) {
     wubu_theme_set((WubuThemeId)((g_current + 1) % THEME_COUNT));
+}
+
+bool wubu_theme_is_fluent(void) {
+    WubuThemeId id = wubu_theme_current();
+    return id == THEME_WIN11 || id == THEME_DARK;
 }
 
 const char *wubu_theme_name(WubuThemeId id) {

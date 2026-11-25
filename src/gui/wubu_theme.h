@@ -28,7 +28,8 @@ typedef enum {
     THEME_WUBU_CUSTOM     = 3,
     THEME_ZUNE            = 4,
     THEME_DARK            = 5,    /* modern dark mode (Win11-dark class) */
-    THEME_COUNT           = 6,
+    THEME_WIN11           = 6,    /* Fluent light: Mica surfaces, 8px radii, centred bar */
+    THEME_COUNT           = 7,
 } WubuThemeId;
 
 /* -- Theme Color Set ---------------------------------------------- */
@@ -158,6 +159,12 @@ void wubu_theme_cycle(void);
 
 /* Get theme name */
 const char *wubu_theme_name(WubuThemeId id);
+
+/* Fluent geometry: the modern presets (Windows 11 light, and its dark class) share a
+ * shape language -- hairline borders, 8px radii, a 48px centred taskbar -- that the
+ * period pieces do not. One predicate, so the shell cannot half-apply it: a rounded
+ * title bar with a 3D bevel underneath is what "half applied" looks like. */
+bool wubu_theme_is_fluent(void);
 
 /* --- High-contrast override (accessibility) -----------------------
  * Forces a WCAG-AA palette (black surfaces, white text, yellow focus)

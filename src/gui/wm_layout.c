@@ -9,7 +9,10 @@
 #include <string.h>
 
 int title_bar_height(void) { return theme()->Luna_start_button ? 24 : DOSGUI_TITLE_H; }
-int taskbar_height_dynamic(void) { return theme()->Luna_start_button ? 30 : DOSGUI_TASK_H; }
+int taskbar_height_dynamic(void) {
+    if (wubu_theme_is_fluent()) return WUBU_METRIC_TASKBAR_H;   /* 48, Win11 */
+    return theme()->Luna_start_button ? 30 : DOSGUI_TASK_H;
+}
 int taskbar_top(void) {
     return g_dwm.screen_h - taskbar_height_dynamic() + g_dwm.taskbar_offset;
 }

@@ -72,6 +72,7 @@ static inline int chrome_title_bar_height(void) {
 }
 
 int chrome_border_width(void) {
+    if (wubu_theme_is_fluent()) return 1;    /* Fluent has hairlines, not frames */
     return theme()->rounded_buttons ? 2 : 1;
 }
 
@@ -207,10 +208,11 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
 
     int tbh = chrome_title_bar_height();
     int bw = chrome_border_width();
-    int rad = th->rounded_buttons
-        ? (wubu_theme_current() == THEME_DARK ? WUBU_METRIC_RADIUS_WINDOW
-                                              : WUBU_METRIC_RADIUS_CONTROL)
-        : 0;
+    /* Fluent rounds WINDOWS to 8px; a control-level 4px radius on a window is the
+     * "almost Win11" tell, and the dark preset had the right number while the light
+     * one did not. */
+    int rad = wubu_theme_is_fluent() ? WUBU_METRIC_RADIUS_WINDOW
+            : (th->rounded_buttons ? WUBU_METRIC_RADIUS_CONTROL : 0);
 
     bool active = (g_dwm.focused_id == win->id);
     bool maximized = win->flags & DOSGUI_WIN_MAXIMIZED;
