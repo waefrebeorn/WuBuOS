@@ -16,11 +16,11 @@
 static void profile_default(WubuNetworkProfile *p, const char *name, WubuNetworkMode mode) {
     memset(p, 0, sizeof(*p));
     gen_id(p->id, sizeof(p->id), "net");
-    strncpy(p->name, name, sizeof(p->name) - 1);
+    wubu_strlcpy(p->name,  name, sizeof(p->name));
     p->mode = mode;
     p->ipam_mode = WUBU_IPAM_DHCP;
-    strncpy(p->subnet, "10.0.0.0/24", sizeof(p->subnet) - 1);
-    strncpy(p->gateway, "10.0.0.1", sizeof(p->gateway) - 1);
+    wubu_strlcpy(p->subnet,  "10.0.0.0/24", sizeof(p->subnet));
+    wubu_strlcpy(p->gateway,  "10.0.0.1", sizeof(p->gateway));
     p->enable_dns = true;
     p->dns_server_count = 0;
     p->dns_search_count = 0;
@@ -63,12 +63,12 @@ int wubu_network_create_bridge(WubuNetworkManager *mgr, const char *name, const 
     profile_default(p, name, WUBU_NET_BRIDGE);
 
     gen_id(p->id, sizeof(p->id), "br-");
-    if (subnet) strncpy(p->subnet, subnet, sizeof(p->subnet) - 1);
-    if (gateway) strncpy(p->gateway, gateway, sizeof(p->gateway) - 1);
+    if (subnet) wubu_strlcpy(p->subnet,  subnet, sizeof(p->subnet));
+    if (gateway) wubu_strlcpy(p->gateway,  gateway, sizeof(p->gateway));
     p->enable_dns = enable_dns;
     snprintf(p->bridge_name, sizeof(p->bridge_name), "wubu%d", mgr->network_count);
-    if (!subnet) strncpy(p->subnet, "10.0.0.0/24", sizeof(p->subnet) - 1);
-    if (!gateway) strncpy(p->gateway, "10.0.0.1", sizeof(p->gateway) - 1);
+    if (!subnet) wubu_strlcpy(p->subnet,  "10.0.0.0/24", sizeof(p->subnet));
+    if (!gateway) wubu_strlcpy(p->gateway,  "10.0.0.1", sizeof(p->gateway));
     p->enabled = true;  /* a created bridge is enabled by default (matches wubu_network_create) */
 
     /* Create bridge via netlink rtnetlink */
@@ -129,9 +129,9 @@ int wubu_network_create_macvlan(WubuNetworkManager *mgr, const char *name, const
     WubuNetworkProfile *p = &mgr->networks[mgr->network_count];
     profile_default(p, name, WUBU_NET_MACVLAN);
     gen_id(p->id, sizeof(p->id), "macvlan-");
-    strncpy(p->parent_interface, parent_iface, sizeof(p->parent_interface) - 1);
-    if (subnet) strncpy(p->subnet, subnet, sizeof(p->subnet) - 1);
-    if (gateway) strncpy(p->gateway, gateway, sizeof(p->gateway) - 1);
+    wubu_strlcpy(p->parent_interface,  parent_iface, sizeof(p->parent_interface));
+    if (subnet) wubu_strlcpy(p->subnet,  subnet, sizeof(p->subnet));
+    if (gateway) wubu_strlcpy(p->gateway,  gateway, sizeof(p->gateway));
     p->vlan_id = vlan_id;
 
     /* Create macvlan via netlink rtnetlink */
@@ -157,9 +157,9 @@ int wubu_network_create_ipvlan(WubuNetworkManager *mgr, const char *name, const 
     WubuNetworkProfile *p = &mgr->networks[mgr->network_count];
     profile_default(p, name, WUBU_NET_IPVLAN);
     gen_id(p->id, sizeof(p->id), "ipvlan-");
-    strncpy(p->parent_interface, parent_iface, sizeof(p->parent_interface) - 1);
-    if (subnet) strncpy(p->subnet, subnet, sizeof(p->subnet) - 1);
-    if (gateway) strncpy(p->gateway, gateway, sizeof(p->gateway) - 1);
+    wubu_strlcpy(p->parent_interface,  parent_iface, sizeof(p->parent_interface));
+    if (subnet) wubu_strlcpy(p->subnet,  subnet, sizeof(p->subnet));
+    if (gateway) wubu_strlcpy(p->gateway,  gateway, sizeof(p->gateway));
 
     /* Create ipvlan via netlink rtnetlink */
     int rc = netlink_link_create(p->name, "ipvlan", p->parent_interface, 0, NULL, 0, NULL, false);
@@ -184,9 +184,9 @@ int wubu_network_create_overlay(WubuNetworkManager *mgr, const char *name, const
     WubuNetworkProfile *p = &mgr->networks[mgr->network_count];
     profile_default(p, name, WUBU_NET_OVERLAY);
     gen_id(p->id, sizeof(p->id), "overlay-");
-    if (subnet) strncpy(p->subnet, subnet, sizeof(p->subnet) - 1);
-    if (gateway) strncpy(p->gateway, gateway, sizeof(p->gateway) - 1);
-    if (vni) strncpy(p->vxlan_vni, vni, sizeof(p->vxlan_vni) - 1);
+    if (subnet) wubu_strlcpy(p->subnet,  subnet, sizeof(p->subnet));
+    if (gateway) wubu_strlcpy(p->gateway,  gateway, sizeof(p->gateway));
+    if (vni) wubu_strlcpy(p->vxlan_vni,  vni, sizeof(p->vxlan_vni));
     p->vxlan_port = port ? port : 4789;
     p->vxlan_encrypt = encrypt;
 
@@ -214,8 +214,8 @@ int wubu_network_create_wireguard(WubuNetworkManager *mgr, const char *name, con
     WubuNetworkProfile *p = &mgr->networks[mgr->network_count];
     profile_default(p, name, WUBU_NET_WIREGUARD);
     gen_id(p->id, sizeof(p->id), "wg-");
-    if (subnet) strncpy(p->subnet, subnet, sizeof(p->subnet) - 1);
-    if (private_key) strncpy(p->wg_private_key, private_key, sizeof(p->wg_private_key) - 1);
+    if (subnet) wubu_strlcpy(p->subnet,  subnet, sizeof(p->subnet));
+    if (private_key) wubu_strlcpy(p->wg_private_key,  private_key, sizeof(p->wg_private_key));
     p->wg_listen_port = listen_port;
 
     /* Attempt WireGuard interface setup via netlink (best-effort) */
@@ -252,7 +252,7 @@ int wubu_network_create_tailscale(WubuNetworkManager *mgr, const char *name, con
     WubuNetworkProfile *p = &mgr->networks[mgr->network_count];
     profile_default(p, name, WUBU_NET_TAILSCALE);
     gen_id(p->id, sizeof(p->id), "ts-");
-    if (auth_key) strncpy(p->ts_auth_key, auth_key, sizeof(p->ts_auth_key) - 1);
+    if (auth_key) wubu_strlcpy(p->ts_auth_key,  auth_key, sizeof(p->ts_auth_key));
 
     /* Attempt Tailscale invocation (best-effort; binary may not exist) */
     if (p->ts_auth_key[0]) {

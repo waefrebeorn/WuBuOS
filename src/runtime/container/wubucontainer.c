@@ -286,13 +286,13 @@ int wubu_container_get_formats(WubuContainerEngine *engine,
         json_object_object_get_ex(fmt, "to", &to);
         json_object_object_get_ex(fmt, "handler", &handler);
         
-        strncpy(out_formats[i].mime, mime ? json_object_get_string(mime) : "", sizeof(out_formats[i].mime) - 1);
-        strncpy(out_formats[i].format, format ? json_object_get_string(format) : "", sizeof(out_formats[i].format) - 1);
-        strncpy(out_formats[i].extension, ext ? json_object_get_string(ext) : "", sizeof(out_formats[i].extension) - 1);
-        strncpy(out_formats[i].name, name ? json_object_get_string(name) : "", sizeof(out_formats[i].name) - 1);
+        wubu_strlcpy(out_formats[i].mime,  mime ? json_object_get_string(mime) : "", sizeof(out_formats[i].mime));
+        wubu_strlcpy(out_formats[i].format,  format ? json_object_get_string(format) : "", sizeof(out_formats[i].format));
+        wubu_strlcpy(out_formats[i].extension,  ext ? json_object_get_string(ext) : "", sizeof(out_formats[i].extension));
+        wubu_strlcpy(out_formats[i].name,  name ? json_object_get_string(name) : "", sizeof(out_formats[i].name));
         out_formats[i].from = from ? json_object_get_boolean(from) : false;
         out_formats[i].to = to ? json_object_get_boolean(to) : false;
-        strncpy(out_formats[i].handler, handler ? json_object_get_string(handler) : "", sizeof(out_formats[i].handler) - 1);
+        wubu_strlcpy(out_formats[i].handler,  handler ? json_object_get_string(handler) : "", sizeof(out_formats[i].handler));
     }
     
     if (inout_count) *inout_count = count;
@@ -329,7 +329,7 @@ int wubu_container_get_handlers(WubuContainerEngine *engine,
         json_object_object_get_ex(hdl, "supportsAnyInput", &supports_any);
         json_object_object_get_ex(hdl, "formats", &formats_arr);
         
-        strncpy(out_handlers[i].name, name ? json_object_get_string(name) : "", sizeof(out_handlers[i].name) - 1);
+        wubu_strlcpy(out_handlers[i].name,  name ? json_object_get_string(name) : "", sizeof(out_handlers[i].name));
         out_handlers[i].ready = ready ? json_object_get_boolean(ready) : false;
         out_handlers[i].supports_any_input = supports_any ? json_object_get_boolean(supports_any) : false;
         out_handlers[i].format_count = 0;
@@ -346,13 +346,13 @@ int wubu_container_get_handlers(WubuContainerEngine *engine,
                 json_object_object_get_ex(fmt, "from", &from);
                 json_object_object_get_ex(fmt, "to", &to);
                 
-                strncpy(out_handlers[i].formats[j].mime, mime ? json_object_get_string(mime) : "", sizeof(out_handlers[i].formats[j].mime) - 1);
-                strncpy(out_handlers[i].formats[j].format, format ? json_object_get_string(format) : "", sizeof(out_handlers[i].formats[j].format) - 1);
-                strncpy(out_handlers[i].formats[j].extension, ext ? json_object_get_string(ext) : "", sizeof(out_handlers[i].formats[j].extension) - 1);
-                strncpy(out_handlers[i].formats[j].name, fname ? json_object_get_string(fname) : "", sizeof(out_handlers[i].formats[j].name) - 1);
+                wubu_strlcpy(out_handlers[i].formats[j].mime,  mime ? json_object_get_string(mime) : "", sizeof(out_handlers[i].formats[j].mime));
+                wubu_strlcpy(out_handlers[i].formats[j].format,  format ? json_object_get_string(format) : "", sizeof(out_handlers[i].formats[j].format));
+                wubu_strlcpy(out_handlers[i].formats[j].extension,  ext ? json_object_get_string(ext) : "", sizeof(out_handlers[i].formats[j].extension));
+                wubu_strlcpy(out_handlers[i].formats[j].name,  fname ? json_object_get_string(fname) : "", sizeof(out_handlers[i].formats[j].name));
                 out_handlers[i].formats[j].from = from ? json_object_get_boolean(from) : false;
                 out_handlers[i].formats[j].to = to ? json_object_get_boolean(to) : false;
-                strncpy(out_handlers[i].formats[j].handler, out_handlers[i].name, sizeof(out_handlers[i].formats[j].handler) - 1);
+                wubu_strlcpy(out_handlers[i].formats[j].handler,  out_handlers[i].name, sizeof(out_handlers[i].formats[j].handler));
                 out_handlers[i].format_count++;
             }
         }
@@ -407,10 +407,10 @@ int wubu_container_find_path(WubuContainerEngine *engine,
                     json_object_object_get_ex(fmt, "from", &from);
                     json_object_object_get_ex(fmt, "to", &to);
             
-                    strncpy(out_path->nodes[i].format.mime, mime ? json_object_get_string(mime) : "", sizeof(out_path->nodes[i].format.mime) - 1);
-                    strncpy(out_path->nodes[i].format.format, format ? json_object_get_string(format) : "", sizeof(out_path->nodes[i].format.format) - 1);
-                    strncpy(out_path->nodes[i].format.extension, ext ? json_object_get_string(ext) : "", sizeof(out_path->nodes[i].format.extension) - 1);
-                    strncpy(out_path->nodes[i].format.name, name ? json_object_get_string(name) : "", sizeof(out_path->nodes[i].format.name) - 1);
+                    wubu_strlcpy(out_path->nodes[i].format.mime,  mime ? json_object_get_string(mime) : "", sizeof(out_path->nodes[i].format.mime));
+                    wubu_strlcpy(out_path->nodes[i].format.format,  format ? json_object_get_string(format) : "", sizeof(out_path->nodes[i].format.format));
+                    wubu_strlcpy(out_path->nodes[i].format.extension,  ext ? json_object_get_string(ext) : "", sizeof(out_path->nodes[i].format.extension));
+                    wubu_strlcpy(out_path->nodes[i].format.name,  name ? json_object_get_string(name) : "", sizeof(out_path->nodes[i].format.name));
                     out_path->nodes[i].format.from = from ? json_object_get_boolean(from) : false;
                     out_path->nodes[i].format.to = to ? json_object_get_boolean(to) : false;
                 }
@@ -421,7 +421,7 @@ int wubu_container_find_path(WubuContainerEngine *engine,
                         json_object *hdl_name, *hdl_ready;
                         json_object_object_get_ex(hdl, "name", &hdl_name);
                         json_object_object_get_ex(hdl, "ready", &hdl_ready);
-                        strncpy(out_path->nodes[i].handler->name, hdl_name ? json_object_get_string(hdl_name) : "", sizeof(out_path->nodes[i].handler->name) - 1);
+                        wubu_strlcpy(out_path->nodes[i].handler->name,  hdl_name ? json_object_get_string(hdl_name) : "", sizeof(out_path->nodes[i].handler->name));
                         out_path->nodes[i].handler->ready = hdl_ready ? json_object_get_boolean(hdl_ready) : false;
                     }
                 }
@@ -464,7 +464,7 @@ int wubu_container_convert(WubuContainerEngine *engine,
         json_object_object_get_ex(resp, "outputBytes", &out_bytes);
         
         result->error_code = err_code ? json_object_get_int(err_code) : 0;
-        strncpy(result->error_message, err_msg ? json_object_get_string(err_msg) : "", sizeof(result->error_message) - 1);
+        wubu_strlcpy(result->error_message,  err_msg ? json_object_get_string(err_msg) : "", sizeof(result->error_message));
         result->duration_ms = duration ? json_object_get_int64(duration) : 0;
         result->input_bytes = in_bytes ? json_object_get_int64(in_bytes) : 0;
         result->output_bytes = out_bytes ? json_object_get_int64(out_bytes) : 0;
@@ -674,7 +674,7 @@ int wubu_container_batch_convert(WubuContainerEngine *engine,
                 strncat(output_path, request->target_format, sizeof(output_path) - strlen(output_path) - 1);
             }
         } else {
-            strncpy(output_path, request->input_paths[i], sizeof(output_path) - 1);
+            wubu_strlcpy(output_path,  request->input_paths[i], sizeof(output_path));
         }
         
         WubuContainerConvertRequest req = {

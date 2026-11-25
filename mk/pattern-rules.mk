@@ -38,6 +38,11 @@ $(KERNEL)/%.o: $(KERNEL)/%.c
 $(KERNEL)/wubu_crc32.o: $(RT)/wubu_crc32.c
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -I$(RT) -MMD -MP -c $< -o $@ -Iinclude
 
+# Bounded strings: the runtime owner (src/runtime/wubu_str.c, libc-free),
+# compiled freestanding for the kernel exactly like wubu_crc32.
+$(KERNEL)/wubu_str.o: $(RT)/wubu_str.c
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -I$(RT) -MMD -MP -c $< -o $@ -Iinclude
+
 # Assembly files
 $(KERNEL)/%.o: $(KERNEL)/%.S
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude

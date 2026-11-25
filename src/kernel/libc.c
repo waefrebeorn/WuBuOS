@@ -191,6 +191,14 @@ char *strncpy(char *dest, const char *src, size_t n) {
     return dest;
 }
 
+/* wubu_strlcpy() lives in src/runtime/wubu_str.c -- ONE owner, linked into both
+ * the freestanding kernel and the hosted product. Do not add a second copy here:
+ * the first version of this helper was written into this file and the hosted
+ * link failed with an undefined reference, because libc.c is freestanding-only.
+ *
+ * Note what this strncpy() does, and why wubu_strlcpy() exists: it zero-fills
+ * the whole remainder (strncpy(buf, "ok", 65536) writes 65,533 NULs) and it
+ * does not terminate at all when src is longer than n. */
 char *strcat(char *dest, const char *src) {
     char *d = dest;
     while (*d) d++;

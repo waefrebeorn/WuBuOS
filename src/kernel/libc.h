@@ -15,6 +15,11 @@ static inline void pause(void) { __asm__ __volatile__("pause"); }
 
 static inline uint64_t rdtsc(void);
 
+/* Bounded copy that always terminates and never zero-fills the remainder.
+ * See libc.c for why strncpy() is not this function. Returns strlen(src):
+ * a return >= size means the copy was truncated. */
+#include "../runtime/wubu_str.h"   /* wubu_strlcpy: one owner, kernel + hosted */
+
 /* strtoul/strtol -- console + the future HolyC runtime + VSL tables. */
 unsigned long strtoul(const char *nptr, char **endptr, int base);
 long strtol(const char *nptr, char **endptr, int base);
