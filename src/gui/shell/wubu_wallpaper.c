@@ -253,3 +253,21 @@ void wubu_wallpaper_rect(WubuWallpaperMode mode,
     if (out_w) *out_w = w;
     if (out_h) *out_h = h;
 }
+
+/* Fold a decoded wallpaper toward dark. Blend toward the dark surface rather than
+ * scaling per channel, so a saturated wallpaper keeps its hue instead of turning into
+ * a muddy monochrome. */
+void wubu_wallpaper_darken(uint32_t *pixels, int w, int h, float keep) {
+    if (!pixels || w <= 0 || h <= 0) return;
+    if (keep < 0.0f) keep = 0.0f;
+    if (keep > 1.0f) keep = 1.0f;
+    const int sr = 0x20, sg = 0x20, sb = 0x20;   /* theme dark surface */
+    for (int i = 0; i < w * h; i++) {
+        uint32_t p = pixels[i];
+        int r = (int)((p >> 16) & 0xff), g = (int)((p >> 8) & 0xff), b = (int)(p & 0xff);
+        r = (int)((float)r * keep + (float)sr * (1.0f - keep));
+        g = (int)((float)g * keep + (float)sg * (1.0f - keep));
+        b = (int)((float)b * keep + (float)sb * (1.0f - keep));
+        pixels[i] = ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+    }
+}

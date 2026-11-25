@@ -37,6 +37,8 @@
 #define WUBU_METRIC_TOUCH_H     40
 #define WUBU_METRIC_TITLEBAR_H  32   /* window caption (Win11-faithful) */
 #define WUBU_METRIC_TASKBAR_H    48   /* taskbar height */
+#define WUBU_METRIC_TITLE_H      32   /* Fluent title bar (Win11); legacy is 24 */
+#define WUBU_METRIC_BORDER_HAIRLINE 1 /* Fluent border: a hairline, never a frame */
 #define WUBU_METRIC_SCROLLBAR_W 12
 #define WUBU_METRIC_BORDER_W      2   /* hairline frame width */
 #define WUBU_METRIC_RADIUS_CONTROL 4

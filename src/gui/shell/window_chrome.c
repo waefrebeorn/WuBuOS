@@ -72,7 +72,7 @@ static inline int chrome_title_bar_height(void) {
 }
 
 int chrome_border_width(void) {
-    if (wubu_theme_is_fluent()) return 1;    /* Fluent has hairlines, not frames */
+    if (wubu_theme_is_fluent()) return WUBU_METRIC_BORDER_HAIRLINE;   /* not a literal */
     return theme()->rounded_buttons ? 2 : 1;
 }
 

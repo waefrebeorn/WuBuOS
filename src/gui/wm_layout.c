@@ -43,6 +43,8 @@ void load_default_wallpaper(void) {
             g_dwm.wallpaper_w = wp.w;
             g_dwm.wallpaper_h = wp.h;
             g_dwm.wallpaper_mode = s->theme.wallpaper_mode;  /* 0..4 */
+            if (wubu_theme_current() == THEME_DARK)
+                wubu_wallpaper_darken(g_dwm.wallpaper, wp.w, wp.h, 0.35f);
             return;
         }
         /* Decode failed -> fall through to bundled default. */
@@ -60,6 +62,10 @@ void load_default_wallpaper(void) {
             g_dwm.wallpaper_w = wp.w;
             g_dwm.wallpaper_h = wp.h;
             g_dwm.wallpaper_mode = WUBU_WP_FILL;  /* crop-to-fill, no banding */
+            /* A light shipped wallpaper on the dark shell is the "blinding" the user
+             * reported: 29% of the screen at luminance > 200. Dark mode owns this. */
+            if (wubu_theme_current() == THEME_DARK)
+                wubu_wallpaper_darken(g_dwm.wallpaper, wp.w, wp.h, 0.35f);
             return;
         }
         /* Fallback gradient: draw the "W" logo badge so the default still has

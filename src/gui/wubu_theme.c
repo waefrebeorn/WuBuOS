@@ -471,7 +471,7 @@ static void live_apply_high_contrast(void) {
 int wubu_theme_init(void) {
     /* Fluent light is the shipped look. The retro presets stay selectable -- they are
      * part of this OS's character -- but a fresh install should look like this decade. */
-    g_current = THEME_WIN11;
+    g_current = THEME_DARK;   /* dark only: the shipped look */
     g_high_contrast = false;
     live_seed_from_current();
     return 0;

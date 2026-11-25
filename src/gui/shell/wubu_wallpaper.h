@@ -45,6 +45,12 @@ typedef struct {
  */
 int wubu_wallpaper_load(const char *path, WubuWallpaper *out);
 
+/* Dark-mode transform: fold a decoded image toward the theme's dark surface so a light
+ * wallpaper cannot blind a dark desktop. Applied ONCE at load, not per frame -- a
+ * per-frame multiply is 786k operations every frame for a result that never changes.
+ * `keep` is the fraction of original colour retained (0.35 for the shipped dark look). */
+void wubu_wallpaper_darken(uint32_t *pixels, int w, int h, float keep);
+
 /*
  * Get the path to the bundled default wallpaper (ships with the source tree).
  * Returns NULL if the file doesn't exist (caller falls through to gradient).

@@ -57,7 +57,7 @@ void settings_default_theme(ThemeSettings *t) {
      * the user asked for. */
     /* A fresh profile starts on the Fluent look; the retro presets are a choice, not
      * a default. (wubu_theme_init's default is the same id for the no-settings case.) */
-    t->theme_id = THEME_WIN11;
+    t->theme_id = THEME_DARK;   /* dark only */
     t->wallpaper_path[0] = '\0';
     t->wallpaper_mode = 2; /* STRETCH — full desktop coverage */
     t->use_custom_colors = false;

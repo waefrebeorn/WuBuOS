@@ -456,7 +456,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_vsl_ker
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_wm_snap test_greeter test_synth test_wubu_sound test_cp_sound test_cp_applets test_hwdetect test_colonel test_wm test_guests_panel test_lua_gui test_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_first_run test_tutorial test_taskbar_tasks test_dos_window test_startmenu test_explorer test_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_image_ffmpeg test_control test_calc test_regedit test_comfy test_settings test_era_apps test_exec_games test_hosted_pe
+test_high_gui: gui runtime test_gui_fluent test_wm_snap test_greeter test_synth test_wubu_sound test_cp_sound test_cp_applets test_hwdetect test_colonel test_wm test_guests_panel test_lua_gui test_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_first_run test_tutorial test_taskbar_tasks test_dos_window test_startmenu test_explorer test_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_image_ffmpeg test_control test_calc test_regedit test_comfy test_settings test_era_apps test_exec_games test_hosted_pe
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -1508,6 +1508,10 @@ test_crc32:
 	$(RT)/wubu_crc32_test
 
 # GUI metric system (Longhorn-derived): one owner for every spacing/type number.
+test_gui_fluent:
+	python3 tools/gate_gui_fluent.py
+
+
 test_gui_blit:
 	$(CC) -O1 -g -std=c11 -Wall -Wextra -I$(GUI) $(GUI)/gui_blit.c $(GUI)/gui_blit_test.c -o build/gui_blit_test
 	timeout 300 build/gui_blit_test
