@@ -22,6 +22,7 @@
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
 #include "../wubu_tokens.h"   /* unified design tokens (CLI + GUI cohesion) */
+#include "../icons/wubu_icons_data.h"   /* baked icon masters (assets/icons) */
 #include <string.h>
 
 /* -- Chrome constants -------------------------------------------------
@@ -179,21 +180,45 @@ int chrome_hit_test_button(DosGuiWindow *win, int mx, int my) {
  * 3..10 box, which produced a lopsided X the moment the button stopped being
  * 14px square -- the exact kind of drift a shared metric is meant to kill.
  */
-static void chrome_glyph_close(int x, int y, int w, int h, uint32_t fg) {
-    /* TWO lines, not four. The old loop drew all four corner-to-corner permutations,
-     * which coincide only when the button is exactly square -- on any other button it
-     * painted an X AND an offset second X (the "two x in x close" the user saw). An X
-     * is two diagonals of one square, so pick the square, centre it, and draw twice. */
-    int s = (w < h) ? w : h;
-    int p = s / 5;
-    if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
-    int len = s - 2 * p;
-    if (len < 3) return;
-    int ox = x + (w - s) / 2, oy = y + (h - s) / 2;
-    for (int i = 0; i < len; i++) {
-        vbe_set_pixel(ox + p + i,         oy + p + i,         fg);   /* TL -> BR */
-        vbe_set_pixel(ox + s - p - 1 - i, oy + p + i,         fg);   /* TR -> BL */
+
+/* ---------------------------------------------------------------------------
+ * Icon table blit. The glyphs are DATA now (assets/icons -> tools/icon_bake.py ->
+ * src/gui/icons/wubu_icons_data.h), not procedures inside this file: one icon set,
+ * one bake, and the same coverage antialiasing as the chrome's own corners.
+ *
+ * Nearest-neighbour scaling is deliberate for the small sizes we ship (24 -> 16..24);
+ * below 16 the mask's own 4x4 supersampling already carries the softness.
+ * ------------------------------------------------------------------------- */
+static void chrome_icon_blit(int x, int y, int w, int h, const unsigned char *mask,
+                             int mask_sz, uint32_t fg) {
+    if (!mask || mask_sz <= 0 || w <= 0 || h <= 0) return;
+    int fr = (int)((fg >> 16) & 0xff), fgn = (int)((fg >> 8) & 0xff), fb = (int)(fg & 0xff);
+    for (int py = 0; py < h; py++) {
+        int my = py * mask_sz / h;
+        for (int px = 0; px < w; px++) {
+            int mx = px * mask_sz / w;
+            unsigned a = mask[my * mask_sz + mx];
+            if (!a) continue;
+            int sx = x + px, sy = y + py;
+            uint32_t dst = vbe_get_pixel(sx, sy);
+            int dr = (int)((dst >> 16) & 0xff), dg = (int)((dst >> 8) & 0xff), db = (int)(dst & 0xff);
+            int r = (fr * (int)a + dr * (255 - (int)a)) / 255;
+            int g = (fgn * (int)a + dg * (255 - (int)a)) / 255;
+            int b = (fb * (int)a + db * (255 - (int)a)) / 255;
+            vbe_set_pixel(sx, sy, ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+        }
     }
+}
+
+static void chrome_glyph_close(int x, int y, int w, int h, uint32_t fg) {
+    /* The X comes from the baked icon table. Two hand-drawn diagonals is how this file
+     * produced BOTH defects the user reported: four permutations ("two x in x close")
+     * and, once fixed, a 1px hairline. Data can be re-baked; a procedure has to be
+     * re-argued by hand every time. */
+    int s = (w < h) ? w : h;
+    if (s < 8) return;
+    int ox = x + (w - s) / 2, oy = y + (h - s) / 2;
+    chrome_icon_blit(ox, oy, s, s, wubu_icon_action_close, WUBU_ICON_SIZE, fg);
 }
 
 static void chrome_glyph_max(int x, int y, int w, int h, uint32_t fg) {
