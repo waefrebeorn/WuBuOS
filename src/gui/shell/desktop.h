@@ -43,6 +43,15 @@ void launch_app(const char *name);
  * shell already uses -- one owner for spawning, not a second one per app. */
 void desktop_launch_program(const char *cmd);
 
+/* Resolve an Exec line the way our own shortcuts and pins mean it: "wubu-app <Name>"
+ * names a registry app (the whole remainder, spaces included), a bare first token is
+ * tried in the registry, and only then does it become a shell command line. */
+void desktop_launch_exec(const char *exec);
+
+/* The pure half of the resolver, so it can be asserted without opening a window:
+ * returns 0 and fills `out` with the registry app name an Exec line refers to. */
+int desktop_exec_app_name(const char *exec, char *out, size_t cap);
+
 /* System shutdown (triggers hosted exit) */
 void wubu_shutdown();
 

@@ -15,6 +15,7 @@
 /* The app registry lives in src/apps; a test or minimal build may not link
  * it.  Weak, exactly as the taskbar's pinned buttons do it. */
 __attribute__((weak)) void launch_app(const char *name);
+__attribute__((weak)) void desktop_launch_exec(const char *exec);
 /* Win+W widgets board lives in its own module; weak for the same reason. */
 __attribute__((weak)) void win11_widgets_toggle(void);
 
@@ -288,7 +289,14 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind) {
             continue;
         if (s->is_pin) {
             const WubuTask *t = wubu_taskbar_get(s->index);
-            if (t && launch_app) launch_app(t->exec[0] ? t->exec : t->title);
+            /* Pins store "wubu-app <Name>" exactly like our shortcuts do. Resolving it
+             * with launch_app() looked up the literal string and found nothing, so a
+             * pinned button did nothing. The same resolver serves both. */
+            if (t) {
+                const char *x = t->exec[0] ? t->exec : t->title;
+                if (desktop_launch_exec) desktop_launch_exec(x);
+                else if (launch_app)     launch_app(x);
+            }
         } else {
             DosGuiWindow *w = &g_dwm.windows[s->index];
             if (w->flags & DOSGUI_WIN_MINIMIZED) {

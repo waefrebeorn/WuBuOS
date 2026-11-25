@@ -248,6 +248,18 @@ int wm_new_folder(void);
 int wm_new_text_doc(void);
 /* Write a real .desktop shortcut into ~/Desktop; returns 0 on success. */
 int  wm_write_desktop_shortcut(const char *name, const char *exec);
+
+/* Strip Freedesktop field codes (%f %U ...) from an Exec line. Shared with desktop.c:
+ * the file that WRITES the Exec and the code that RUNS it must agree on its meaning. */
+void strip_field_codes(const char *in, char *out, size_t cap);
+
+/* The pure half of Exec resolution: which registry app does this line name?
+ * wubu_exec_app_name() takes a matcher so the RULE is testable without a registry;
+ * desktop_exec_app_name() is the product's form, using app_find_by_name(). */
+int wubu_exec_app_name(const char *exec,
+                       int (*is_app)(const char *name, void *ctx), void *ctx,
+                       char *out, size_t cap);
+int desktop_exec_app_name(const char *exec, char *out, size_t cap);
 /* Seed ~/Desktop with default icons on first boot (empty desktop only). */
 int  wm_seed_default_desktop_icons(void);
 /* Re-enumerate desktop icons from ~/Desktop (real filesystem refresh). */

@@ -15,6 +15,7 @@
 
 #include "../../egojar.h"
 #include "../wm_internal.h"
+#include "../../apps/apps.h"
 #include "../../runtime/wubu_guest_root.h"
 #include <stdlib.h>     /* qsort */
 #include <fcntl.h>      /* O_CREAT / O_EXCL / O_WRONLY */
@@ -379,3 +380,81 @@ void wm_sort_icons(DosGuiSortMode mode) {
     reflow_icons_column();
 }
 
+/* Exec resolution lives with the .desktop owner: this is the only place that knows what
+ * an Exec line WE wrote means. The rule is pure and takes a matcher, so it can be
+ * asserted without linking an app registry or a window system; the product passes the
+ * registry in. */
+static void strip_field_codes_impl(const char *in, char *out, size_t cap) {
+    if (!out || cap == 0) return;
+    out[0] = '\0';
+    if (!in) return;
+    size_t o = 0;
+    for (const char *p = in; *p && o + 1 < cap; p++) {
+        if (*p == '%' && p[1]) {
+            char f = p[1];
+            if (f == 'f' || f == 'F' || f == 'u' || f == 'U' || f == 'i' ||
+                f == 'c' || f == 'k') { p++; continue; }
+            if (f == '%') { out[o++] = '%'; p++; continue; }
+        }
+        out[o++] = *p;
+    }
+    out[o] = '\0';
+}
+
+void strip_field_codes(const char *in, char *out, size_t cap) {
+    strip_field_codes_impl(in, out, cap);
+}
+
+/* "wubu-app " is the launcher token our seeder writes and our pins store. Nothing ever
+ * implemented a wubu-app PROGRAM, so those Exec lines resolved to a shell lookup of a
+ * missing binary: the shortcut did nothing when clicked. */
+#define WUBU_APP_TOKEN "wubu-app "
+
+int wubu_exec_app_name(const char *exec,
+                       int (*is_app)(const char *name, void *ctx), void *ctx,
+                       char *out, size_t cap) {
+    if (!is_app || !out || cap == 0) return -1;
+    out[0] = '\0';
+    if (!exec || !*exec) return -1;
+
+    char cmd[512];
+    strip_field_codes_impl(exec, cmd, sizeof cmd);
+    char *lead = cmd;
+    while (*lead == ' ') lead++;
+    if (!*lead) return -1;
+
+    const size_t tok = sizeof(WUBU_APP_TOKEN) - 1;
+    if (strncmp(lead, WUBU_APP_TOKEN, tok) == 0) {
+        char name[512];
+        snprintf(name, sizeof name, "%s", lead + tok);
+        char *n = name;
+        while (*n == ' ') n++;
+        /* Strip a trailing space left behind by removing a field code: "Calculator %U"
+         * strips to "Calculator " and a matcher comparing whole names would miss it. */
+        for (char *q = n + strlen(n); q > n && q[-1] == ' '; ) *--q = '\0';
+        if (!*n || !is_app(n, ctx)) return -1;
+        snprintf(out, cap, "%s", n);
+        return 0;
+    }
+
+    char first[512];
+    snprintf(first, sizeof first, "%s", lead);
+    char *sp = strchr(first, ' ');
+    if (sp) *sp = '\0';
+    if (!first[0] || !is_app(first, ctx)) return -1;
+    snprintf(out, cap, "%s", first);
+    return 0;
+}
+
+/* WEAK: a .desktop test must be able to assert the RULE without linking the app
+ * registry; the product links it and this resolves normally. */
+__attribute__((weak)) const DosGuiAppDef *app_find_by_name(const char *name);
+
+static int registry_has_app(const char *name, void *ctx) {
+    (void)ctx;
+    return app_find_by_name && app_find_by_name(name) != NULL;
+}
+
+int desktop_exec_app_name(const char *exec, char *out, size_t cap) {
+    return wubu_exec_app_name(exec, registry_has_app, NULL, out, cap);
+}

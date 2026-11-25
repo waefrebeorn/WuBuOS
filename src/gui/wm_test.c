@@ -101,6 +101,15 @@ static void test_create_multiple(void) {
     PASS();
 }
 
+/* Stands in for the app registry: the names our desktop seeder writes. The RULE is
+ * what was broken -- "wubu-app <Name>" named a program that was never built -- so it is
+ * asserted with an explicit matcher rather than by linking the whole registry. */
+static int test_is_app(const char *name, void *ctx) {
+    (void)ctx;
+    return strcmp(name, "Calculator") == 0 || strcmp(name, "File Manager") == 0 ||
+           strcmp(name, "Editor") == 0 || strcmp(name, "Terminal") == 0;
+}
+
 static void test_window_count(void) {
     TEST("window count tracks creates and destroys");
     wm_init(1024, 768);
@@ -1460,6 +1469,27 @@ static void test_desktop_new_shortcut(void) {
     wm_init(1024, 768);
     wm_refresh_desktop();
     int before = wm_get_icon_count();
+
+    /* THE CONTRACT THAT WAS BROKEN: our seeder and our taskbar pins write
+     * "wubu-app <Name>", and no such program was ever built -- so the shortcut fell
+     * through to a shell lookup of a missing binary and the click did nothing. The
+     * resolver must turn that Exec into a REGISTRY app, taking the whole remainder so
+     * "File Manager" survives its space. */
+    {
+        /* The rule is tested with its own matcher: this graph has no app registry, and
+         * the RULE is what was broken -- "wubu-app <Name>" had no implementation. */
+        char got[128];
+        CHECK(wubu_exec_app_name("wubu-app Calculator", test_is_app, NULL, got, sizeof got) == 0 &&
+              strcmp(got, "Calculator") == 0, "wubu-app prefix resolves to an app name");
+        CHECK(wubu_exec_app_name("wubu-app File Manager", test_is_app, NULL, got, sizeof got) == 0 &&
+              strcmp(got, "File Manager") == 0, "spaces in the app name survive");
+        CHECK(wubu_exec_app_name("Terminal", test_is_app, NULL, got, sizeof got) == 0 &&
+              strcmp(got, "Terminal") == 0, "bare app name resolves");
+        CHECK(wubu_exec_app_name("wubu-app Nope", test_is_app, NULL, got, sizeof got) != 0,
+              "an unknown app does NOT resolve");
+        CHECK(wubu_exec_app_name("wubu-app Calculator %U", test_is_app, NULL, got, sizeof got) == 0 &&
+              strcmp(got, "Calculator") == 0, "field codes are stripped before resolution");
+    }
 
     /* The named mechanism: craft a shortcut for an app. */
     int rc = wm_write_desktop_shortcut("Calc", "wubu-app calculator");

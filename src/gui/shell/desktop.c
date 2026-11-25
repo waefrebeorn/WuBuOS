@@ -223,6 +223,39 @@ static void launch_host_app(const char *cmd) {
  * fork/reap bookkeeping here: one launch path, one owner. */
 void desktop_launch_program(const char *cmd) { launch_host_app(cmd); }
 
+/* Resolve and start an Exec line that WE wrote. Every .desktop our seeder creates and
+ * every taskbar pin stores "wubu-app <Name>" -- and no such program was ever built. The
+ * shortcut therefore resolved to a shell lookup of a missing binary and the click did
+ * nothing, which is exactly the "shortcuts on desktop have to function as shortcuts"
+ * report. One resolver, so the prefix works for shortcuts, pins and anything else that
+ * stores an Exec. The WHOLE remainder is the app name: "File Manager" has a space, so
+ * taking the first token would look up "File". */
+void desktop_launch_exec(const char *exec) {
+    if (!exec || !*exec) return;
+    char cmd[MAX_HANDLER_CMD_LEN];
+    strip_field_codes(exec, cmd, sizeof(cmd));
+    if (!cmd[0]) return;
+
+    char app[128];
+    if (desktop_exec_app_name(exec, app, sizeof app) == 0) { launch_app(app); return; }
+
+    if (strncmp(cmd, "wubu-app ", 9) == 0) {
+        const char *name = cmd + 9;
+        while (*name == ' ') name++;
+        if (*name) { launch_app(name); return; }
+    }
+
+    /* A bare application name still goes through the registry first, so "notepad"
+     * launches the real Notepad rather than a shell search. */
+    char first[MAX_HANDLER_CMD_LEN];
+    snprintf(first, sizeof(first), "%s", cmd);
+    char *sp = strchr(first, ' ');
+    if (sp) *sp = '\0';
+    if (app_find_by_name(first)) { launch_app(first); return; }
+
+    wubu_runline_execute(cmd, "shortcut-output.txt");
+}
+
 void launch_app(const char *name) {
     /* Daemon panel windows */
     if (strcmp(name, "Container Manager") == 0) {
@@ -313,15 +346,6 @@ void wubu_shutdown() {
 /* Strip .desktop field codes (%f %F %u %U %i %c %k ...) from an Exec value.
  * Shortcuts we write never use them, but a user-supplied .desktop may, and a
  * stray "%f" handed to a shell is just noise on the command line. */
-static void strip_field_codes(const char *in, char *out, size_t cap)
-{
-    size_t o = 0;
-    for (const char *p = in; *p && o + 1 < cap; p++) {
-        if (*p == '%' && p[1]) { p++; continue; }
-        out[o++] = *p;
-    }
-    out[o] = '\0';
-}
 
 void desktop_launch_icon(int icon_id)
 {
@@ -338,18 +362,7 @@ void desktop_launch_icon(int icon_id)
                     ic->name, ic->target);
             break;
         }
-        char cmd[MAX_HANDLER_CMD_LEN];
-        strip_field_codes(e.exec, cmd, sizeof(cmd));
-
-        /* A bare application name still goes through the registry first, so
-         * "notepad" launches the real Notepad rather than a shell search. */
-        char first[MAX_HANDLER_CMD_LEN];
-        snprintf(first, sizeof(first), "%s", cmd);
-        char *sp = strchr(first, ' ');
-        if (sp) *sp = '\0';
-        if (app_find_by_name(first)) { launch_app(first); break; }
-
-        wubu_runline_execute(cmd, "shortcut-output.txt");
+        desktop_launch_exec(e.exec);
         break;
     }
     case DESK_ICON_FOLDER:
