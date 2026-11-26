@@ -57,3 +57,22 @@ Mutation-proven: shifting the hit-test 40 px down fails four of those checks.
 3. The gate that would have caught this: assert that the function the desktop's Settings icon calls is
    the one that renders the applet registry. Not "the applets render" — that was already true and meant
    nothing.
+
+## Follow-up measurement: the panel DOES draw
+
+Read back inside `cp_on_draw`, immediately after the render call, from the same framebuffer:
+
+    CPRB: sidebar_px=001f1f1f page_px=00242424 page_ink=384 count=11
+
+`001f1f1f` is exactly the sidebar colour, and 384 page pixels are neither the face colour nor untouched
+(i.e. the page's text is there). So `controlpanel_render_at()` paints the sidebar, the rows, the border
+and the page **into the surface it is given**, at the content rect the chrome hands it.
+
+What is still true: the host window and the dumped frame show that area as plain face colour. Therefore
+the defect is in PRESENTATION for this window -- the buffer the panel draws into is not the one the user
+sees -- and not in the panel's drawing. That is the next thread to pull, and it is a compositor question:
+where does `wm_render`'s `fb` go between the draw and the present, and does the window's own surface copy
+happen before `on_draw` rather than after it?
+
+Do not "fix" the panel again on the strength of an empty-looking window until that is answered; the
+drawing side is proven.

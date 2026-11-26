@@ -339,6 +339,7 @@ static void cp_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h)
     if (win && wm_content_rect) wm_content_rect(win, &cx, &cy, &cw, &ch);
     if (cw <= 0 || ch <= 0) { cw = fb_w; ch = fb_h; cx = 0; cy = 0; }
     controlpanel_render_at(fb, fb_w, fb_h, cx, cy, cw, ch);
+
 }
 
 static void cp_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
