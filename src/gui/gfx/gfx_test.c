@@ -90,6 +90,57 @@ static void test_vbe_blit(void)
     vbe_shutdown();
 }
 
+/* The fast row-pointer blit must produce EXACTLY what the per-pixel path produces -- same maths, same clip.
+ * An optimisation that changes pixels is a regression wearing a speedup. */
+static void test_fast_blit_matches(void)
+{
+    vbe_init(40, 32);
+    GuiSurface *s = gui_surface_create(17, 11);
+    for (int y = 0; y < 11; y++)
+        for (int x = 0; x < 17; x++) {
+            uint32_t a = (uint32_t)((x * 37 + y * 91) & 0xFF);
+            gui_surface_set(s, x, y, GUI_ARGB(a, (uint8_t)(x * 13), (uint8_t)(y * 21), (uint8_t)(x + y)));
+        }
+
+    /* reference: the per-pixel path */
+    vbe_clear(0xFF101010u);
+    vbe_set_clip(3, 2, 30, 24);
+    gui_blit_to_vbe_alpha(s, 5, 4, 0x5A);
+    uint32_t ref[40 * 32];
+    for (int y = 0; y < 32; y++)
+        for (int x = 0; x < 40; x++) ref[y * 40 + x] = vbe_get_pixel(x, y);
+
+    /* candidate: the row-pointer path, same clip, same global alpha */
+    vbe_clear(0xFF101010u);
+    vbe_set_clip(3, 2, 30, 24);
+    gui_blit_alpha_fast(s, 5, 4, 0x5A);
+
+    int diff = 0, first_x = -1, first_y = -1;
+    for (int y = 0; y < 32; y++)
+        for (int x = 0; x < 40; x++)
+            if (vbe_get_pixel(x, y) != ref[y * 40 + x]) {
+                if (first_x < 0) { first_x = x; first_y = y; }
+                diff++;
+            }
+    char msg[160];
+    snprintf(msg, sizeof msg, "fast blit is pixel-identical to the per-pixel path (diff=%d first=%d,%d)",
+             diff, first_x, first_y);
+    CHECK(diff == 0, msg);
+
+    /* and it must obey the clip: nothing outside 3,2 30x24 may change */
+    vbe_clear(0xFF202020u);
+    uint32_t cleared = vbe_get_pixel(0, 0);          /* what clear ACTUALLY wrote, not what we assumed */
+    vbe_set_clip(3, 2, 30, 24);
+    gui_blit_alpha_fast(s, 5, 4, 0xFF);
+    CHECK(vbe_get_pixel(2, 5) == cleared, "fast blit respects the left clip edge");
+    /* (6,5) is source pixel (1,1): alpha 128, so it must be written. (5,4) is transparent source (0,0). */
+    CHECK(vbe_get_pixel(6, 5) != cleared, "and writes an opaque-enough pixel inside it");
+
+    vbe_reset_clip();
+    gui_surface_destroy(s);
+    vbe_shutdown();
+}
+
 static void test_rounded(void)
 {
     GuiSurface *s = gui_surface_create(20, 20);
@@ -166,6 +217,7 @@ int main(void)
     test_surface();
     test_blend_math();
     test_vbe_blit();
+    test_fast_blit_matches();
     test_rounded();
     test_blur();
     if (failures) { printf("gui_gfx: %d FAILURES\n", failures); return 1; }

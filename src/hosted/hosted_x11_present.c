@@ -19,6 +19,11 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
+/* MIT-SHM: without it every frame is a 3.8 MB socket transfer at 1200x800, which measured the loop at
+ * ~36 fps no matter how cheap the render got -- and the loop rate IS the input latency. */
+#include <X11/extensions/XShm.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -36,6 +41,8 @@ static Window   g_xwin;
 static GC       g_xgc;
 static XImage  *g_ximg;
 static int      g_xw, g_xh;
+static int      g_shm_ok;                 /* the server accepted a shared segment */
+static XShmSegmentInfo g_shm;
 static int      g_xopen;
 static int      g_xquit;
 static int      g_xbuttons;
@@ -108,11 +115,37 @@ int hosted_x11_present_open(int width, int height, const char *title) {
 
     /* Zero-copy view of our framebuffer. XDestroyImage would free data, so it is never called;
      * the buffer belongs to the VBE backend. */
-    char *data = (char *)calloc((size_t)width * (size_t)height, 4);
-    if (!data) return -1;
-    g_ximg = XCreateImage(g_xdpy, vis, (unsigned)depth, ZPixmap, 0, data,
-                          (unsigned)width, (unsigned)height, 32, 0);
-    if (!g_ximg) return -1;
+    /* Prefer a shared-memory image: the server then reads the pixels straight out of our memory instead of
+     * receiving them over the socket. Fall back to the plain XImage if the extension is missing or a segment
+     * cannot be attached -- a fallback path that has never been taken is not a fallback. */
+    g_shm_ok = 0;
+    if (XShmQueryExtension(g_xdpy)) {
+        g_ximg = XShmCreateImage(g_xdpy, vis, (unsigned)depth, ZPixmap, NULL, &g_shm,
+                                 (unsigned)width, (unsigned)height);
+        if (g_ximg) {
+            size_t bytes = (size_t)width * (size_t)height * 4u;
+            g_shm.shmid = shmget(IPC_PRIVATE, bytes, IPC_CREAT | 0600);
+            if (g_shm.shmid >= 0) {
+                g_shm.shmaddr = g_ximg->data = (char *)shmat(g_shm.shmid, NULL, 0);
+                if (g_shm.shmaddr != (char *)-1) {
+                    g_shm.readOnly = False;
+                    if (XShmAttach(g_xdpy, &g_shm)) {
+                        XSync(g_xdpy, False);
+                        shmctl(g_shm.shmid, IPC_RMID, NULL);   /* the segment dies with us */
+                        g_shm_ok = 1;
+                    }
+                }
+            }
+            if (!g_shm_ok) { fprintf(stderr, "[x11] MIT-SHM unavailable, using socket present\n"); }
+        }
+    }
+    if (!g_shm_ok) {
+        char *data = (char *)calloc((size_t)width * (size_t)height, 4);
+        if (!data) return -1;
+        g_ximg = XCreateImage(g_xdpy, vis, (unsigned)depth, ZPixmap, 0, data,
+                              (unsigned)width, (unsigned)height, 32, 0);
+        if (!g_ximg) return -1;
+    }
 
     g_xopen = 1;
     XFlush(g_xdpy);
@@ -148,8 +181,16 @@ void hosted_x11_present_frame(const void *fb) {
     if (last.tv_sec && dt_us < 16000L) return;   /* cap at ~60 Hz */
     last = now;
 
-    XPutImage(g_xdpy, g_xwin, g_xgc, g_ximg, 0, 0, 0, 0,
-              (unsigned)g_xw, (unsigned)g_xh);
+    if (g_shm_ok) {
+        /* One memcpy into the shared segment (the server reads it in place); measured far cheaper than a
+         * 3.8 MB socket write per frame. */
+        if (fb) memcpy(g_ximg->data, fb, (size_t)g_xw * (size_t)g_xh * 4u);
+        XShmPutImage(g_xdpy, g_xwin, g_xgc, g_ximg, 0, 0, 0, 0,
+                     (unsigned)g_xw, (unsigned)g_xh, False);
+    } else {
+        XPutImage(g_xdpy, g_xwin, g_xgc, g_ximg, 0, 0, 0, 0,
+                  (unsigned)g_xw, (unsigned)g_xh);
+    }
     XFlush(g_xdpy);
 }
 

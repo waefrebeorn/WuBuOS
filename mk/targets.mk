@@ -172,7 +172,7 @@ HOSTED_GLUE = src/kernel/vbe.c src/kernel/vbe_font.c $(KERNEL)/wubu_kvfs.c $(KER
               $(BRIDGE)/bridge.c $(RT)/wubu_ns_kv.c $(RT)/wubu_onboarding.c \
               $(HOSTED)/hosted_agent_channel.c
 # Full library link line for the hosted closure.
-HOSTED_LIBS = -no-pie -fopenmp -lwayland-client -lxkbcommon -lX11 -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lvulkan -lgbm -ldrm -lpulse-simple -lpulse -lasound
+HOSTED_LIBS = -no-pie -fopenmp -lwayland-client -lxkbcommon -lX11 -lXext -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lvulkan -lgbm -ldrm -lpulse-simple -lpulse -lasound
 # The two signing leaves are compiled into build/hosted/ with the auto-detected
 # backend flags, so the product links the SAME backend the gates test.  Other
 # targets keep using the plain GUI objects (fail-closed, no new link deps).
