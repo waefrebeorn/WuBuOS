@@ -273,6 +273,11 @@ DosGuiWindow* launch_getting_started(void) {
  * the click vanish with no feedback -- which is how "VWS Designer" and "WET Applet" sat on the
  * desktop doing nothing. docs/dead-paths.md records the fix (link the vws + wb_lv stack after
  * the duplicated wb_lv is unified); until then the user gets a notification, not silence. */
+/* WEAK, not linked-in: the product has the strong unit (wubu_notify.c), the registry tests do
+ * not, and a test that supplies its own stub must not collide with a second definition. When
+ * the symbol is absent the branch below falls through to stderr and says what is missing. */
+extern uint32_t wubu_notify_send(const Notification *n) __attribute__((weak));
+
 static void launch_unavailable(const char *what) {
     if (wubu_notify_send) {
         Notification n;

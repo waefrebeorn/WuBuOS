@@ -16,6 +16,7 @@
  * is hardcoded here.
  */
 #include "wubu_pkgmgr_sync_panel.h"
+#include "wubu_theme.h"   /* the palette owner the assertion reads */
 #include "wubu_settings.h"
 #include "wubu_pkgmgr.h"
 #include "../kernel/vbe.h"
@@ -151,7 +152,10 @@ int main(void) {
     CHECK(vbe_init(640, 400) == 0, "vbe_init for widget render");
     if (a.render) a.render(&a, NULL, 640, 400, 0, 32, 640, 368);
     vbe_swap();
-    CHECK(vbe_get_pixel(620, 390) == 0xFF101820u, "widget renders a real panel background");
+    /* The panel background is the THEME's face, not a private hex. Asserting 0xFF101820 pinned
+     * a literal into the test and made a correct theming change look like a regression. */
+    CHECK(vbe_get_pixel(620, 390) == wubu_theme_colors()->win_face,
+          "widget renders a real panel background (theme face)");
 
     /* -- Drive the widget: type URL + Enter (Save) ------------------ */
     type_url(&a, url);

@@ -3862,14 +3862,14 @@ test_pkgmgr:
 test_apps_weak:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED  -Iinclude  $(RT_ALWAYS) \
 		-I$(APPS) -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) \
-		$(APPS)/apps_weak_test.c $(APPS)/apps.c $(APPS)/apps_wet.c $(GUI)/shell/wubu_notify.c \
-		-o $(APPS)/apps_weak_test
+		$(APPS)/apps_weak_test.c $(APPS)/apps.c $(APPS)/apps_wet.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
+		-o $(APPS)/apps_weak_test -lm
 	timeout 300 $(APPS)/apps_weak_test
 
 test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM  -Iinclude  $(RT_ALWAYS) \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(RT) -I$(COMP) -I$(JIT) \
-		$(APPS)/apps.c $(APPS)/wubu_petdex.c $(APPS)/apps_wet.c $(APPS)/app_canvas.c $(APPS)/cmd/cmd.c $(GUI)/shell/wubu_notify.c \
+		$(APPS)/apps.c $(APPS)/wubu_petdex.c $(APPS)/apps_wet.c $(APPS)/app_canvas.c $(APPS)/cmd/cmd.c \
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c \

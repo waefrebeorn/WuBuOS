@@ -3,8 +3,29 @@
  */
 
 #include "wubu_holyd_internal.h"
+#include <setjmp.h>
+#include <signal.h>
+
 #include <ctype.h>
 #include <stdbool.h>
+/* A REPL must never take the desktop down with it.
+ *
+ * Input that is not a HolyC statement ("test", "hello") still makes codegen emit a call into
+ * an address that does not exist, and the process died with SIGSEGV inside the JIT -- twice on
+ * the user's real screen. Until the codegen rejects undefined symbols itself, the JIT call is
+ * guarded: a fault inside generated code jumps back here and is reported as a runtime error. */
+static sigjmp_buf g_jit_jmp;
+static volatile sig_atomic_t g_jit_guarded;
+
+static void jit_fault_handler(int sig) {
+    (void)sig;
+    if (g_jit_guarded) {
+        g_jit_guarded = 0;
+        siglongjmp(g_jit_jmp, 1);
+    }
+    signal(SIGSEGV, SIG_DFL);
+    raise(SIGSEGV);
+}
 
 /* -- Code Execution ----------------------------------------------- */
 
@@ -107,10 +128,29 @@ int wubu_holyd_eval(WubuHoly *d, const char *session,
     hd_gen_init(&compiler->gen);
 
     emit_prologue(&compiler->gen);
+    /* A prologue always emits bytes, so the existing "code_size == 0" guard never fired for
+     * input that produced NO statement -- the JIT then ran a prologue-only function whose
+     * epilogue popped a return address that was never pushed, and the process died jumping to
+     * it. Typing "test" or "hello" at the HolyC prompt crashed the whole desktop this way.
+     * Compare against the prologue size, not against zero. */
+    size_t prologue_size = compiler->gen.code_size;
     gen_stmt(&compiler->gen, ast);   /* BLOCK/decl/expr: decls register, expr returns */
+    int generated_no_code = (compiler->gen.code_size == prologue_size);
     emit_epilogue(&compiler->gen);
 
     hd_ast_free(ast);
+
+    if (generated_no_code) {
+        /* Nothing to run: say so instead of executing a bare prologue. A REPL must never die
+         * on input it does not understand. */
+        free(compiler->gen.code);  compiler->gen.code = NULL;
+        free(compiler->gen.data);  compiler->gen.data = NULL;
+        compiler->gen.code_size = 0;
+        compiler->gen.data_size = 0;
+        snprintf(output, out_size, "Parse error: not a statement");
+        s->state = SESSION_STATE_ACTIVE;
+        return 0;
+    }
 
     if (compiler->gen.code_size == 0 || compiler->gen.has_error) {
         free(compiler->gen.code);
@@ -153,7 +193,38 @@ int wubu_holyd_eval(WubuHoly *d, const char *session,
         *(int32_t *)((uint8_t *)exec + patch_pos) = disp32;
     }
 
-    int64_t result = ((int64_t(*)(void))exec)();
+    int64_t result = 0;
+    {
+        static int installed;
+        if (!installed) {
+            struct sigaction sa;
+            memset(&sa, 0, sizeof sa);
+            sa.sa_handler = jit_fault_handler;
+            sigemptyset(&sa.sa_mask);
+            sa.sa_flags = SA_NODEFER;
+            sigaction(SIGSEGV, &sa, NULL);
+            sigaction(SIGBUS, &sa, NULL);
+            installed = 1;
+        }
+        if (sigsetjmp(g_jit_jmp, 1) == 0) {
+            g_jit_guarded = 1;
+            result = ((int64_t(*)(void))exec)();
+            g_jit_guarded = 0;
+        } else {
+            /* Faulted inside generated code: report, discard, stay alive. */
+            g_jit_guarded = 0;
+            jit_free_exec(exec, compiler->gen.code_size + compiler->gen.data_size);
+            free(compiler->gen.code);
+            free(compiler->gen.data);
+            compiler->gen.code = NULL;
+            compiler->gen.data = NULL;
+            compiler->gen.code_size = 0;
+            compiler->gen.data_size = 0;
+            snprintf(output, out_size, "Runtime error: the compiled code faulted");
+            s->state = SESSION_STATE_ACTIVE;
+            return 0;
+        }
+    }
 
     /* Copy runtime data section back to compiler's data section for persistence */
     if (compiler->gen.data_size > 0) {

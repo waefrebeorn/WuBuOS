@@ -111,11 +111,16 @@ int main(void) {
     int content_w = 520 - 2;  /* 2 borders */
     int content_h = 440 - 26 - 1; /* total - titlebar - border */
 
-    int found_orb = 0, found_cat = 0;
+    int found_orb = 0, found_cat = 0, found_flag_colour = 0;
     for (int y = 0; y < 440 && !(found_orb && found_cat); y++)
         for (int x = 0; x < 520; x++) {
             uint32_t p = fb2[y * 520 + x];
-            if (p == 0xF24C3E) found_orb = 1;
+            /* The orb is four panes of ONE accent. It used to be Microsoft's
+             * red/green/blue/yellow flag -- borrowed identity, the same defect as the Win95
+             * flag on Start -- so the assertion now names the panes and forbids the flag. */
+            if (p == wubu_theme_colors()->select_bg) found_orb = 1;
+            if (p == 0xF24C3E || p == 0x6FCF3C || p == 0x39A0EC || p == 0xFFC90E)
+                found_flag_colour = 1;
             /* Right pane light panel: theme uses 0xE8E8E8 for Luna, 0xC0C0C0 for Win98. 
              * Also check for variations. */
             if (x > content_x + 160 && (p == 0x00F8F8F8 || p == 0x00C0C0C0 || p == 0x00E8E8E8)) found_cat = 1;
@@ -149,7 +154,8 @@ int main(void) {
         }
     }
 
-    T(found_orb, "Control Panel orb (red quadrant) drawn in left rail");
+    T(found_orb, "Control Panel orb drawn in the left rail, in the theme accent");
+    T(!found_flag_colour, "Control Panel orb is not Microsoft's four-colour flag");
     T(found_cat, "Control Panel right pane (light panel) drawn");
     vbe_shutdown();
 
