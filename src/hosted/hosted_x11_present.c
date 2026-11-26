@@ -192,6 +192,21 @@ int hosted_x11_present_pump(void) {
         switch (ev.type) {
         case MapNotify:
             XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
+            /* PARITY: a guest OS is the session while it is the focused window, so it must see the
+             * Win key. Without a keyboard grab the HOST window manager resolves Super+Shift+S and
+             * Super+E before the OS is ever handed the event -- measured: no key event arrived at
+             * all, which is why a Win-key binding could never work here. Grabbed on focus, released
+             * on focus loss, and switchable off with WUBU_NO_KBD_GRAB=1. */
+            if (!getenv("WUBU_NO_KBD_GRAB"))
+                XGrabKeyboard(g_xdpy, g_xwin, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+            break;
+        case FocusIn:
+            if (!getenv("WUBU_NO_KBD_GRAB"))
+                XGrabKeyboard(g_xdpy, g_xwin, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+            break;
+        case FocusOut:
+            XUngrabKeyboard(g_xdpy, CurrentTime);
+            break;
             break;
         case Expose:
             if (g_ximg) {
@@ -251,6 +266,8 @@ int hosted_x11_present_pump(void) {
              * the app could be clicked but every physical keystroke went to whatever else the
              * window manager had focused -- which read as "the keyboard does not work". */
             XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
+            if (!getenv("WUBU_NO_KBD_GRAB"))
+                XGrabKeyboard(g_xdpy, g_xwin, False, GrabModeAsync, GrabModeAsync, CurrentTime);
             MouseEvent mev;
             memset(&mev, 0, sizeof(mev));
             mev.x = tx;

@@ -316,6 +316,13 @@ if (g_dwm.lasso_active) {
     wm_gesture_poll();
 
     /* Win+R run dialog, then the Win+X power menu (both modal overlays). */
+    /* CapturePicker overlay: the dimmed screen and the selection rectangle. */
+    {
+        extern __attribute__((weak)) void wubu_screenshot_render_region_selector(uint32_t *, int, int);
+        if (wubu_screenshot_render_region_selector)
+            wubu_screenshot_render_region_selector(fb, fb_w, fb_h);
+    }
+
     run_dialog_render(fb, fb_w, fb_h);
 
     /* The Print dialog draws above everything: it is modal. Weak so a WM test graph without the

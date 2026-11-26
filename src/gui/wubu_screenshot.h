@@ -91,6 +91,12 @@ void wubu_screenshot_handle_shift_printscr(void);/* Region select */
 
 /* Region selection overlay (interactive) */
 typedef struct wubu_region_selector wubu_region_selector_t;
+bool wubu_screenshot_region_active(void);
+void wubu_screenshot_update_region_selector(int x, int y, bool down);
+void wubu_screenshot_region_move(int x, int y);
+void wubu_screenshot_render_region_selector(uint32_t *fb, int w, int h);
+void wubu_screenshot_handle_shift_printscr(void);
+
 wubu_region_selector_t *wubu_region_selector_begin(int screen_w, int screen_h,
                                                     void (*on_complete)(int x, int y, int w, int h, void *user),
                                                     void *user);

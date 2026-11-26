@@ -251,6 +251,23 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
+    if ((mods & MOD_WIN) && getenv("WUBU_KEY_PROBE"))
+        fprintf(stderr, "[kp] key=0x%X '%c' mods=0x%X\n", key,
+                (key >= 32 && key < 127) ? (char)key : '?', mods);
+    /* Win+Shift+S: the CapturePicker (Win11's screenshot region tool). The selector, its capture
+     * and its save path all existed; NOTHING bound or drew them, and every capture path began with
+     * "if the Wayland shm buffer is absent, give up" -- so on this X11 desktop the feature did
+     * nothing at all. The Win+Shift+S binding is the parity one; it only became receiveable once
+     * the hosted presenter grabs the keyboard while it is the focused window, because the host WM
+     * otherwise resolves Super combos before the OS is handed the event (measured: none arrived). */
+    if (((mods & MOD_WIN) && (mods & MOD_SHIFT) && (key == 's' || key == 'S')) ||
+        /* Ctrl+Shift+S stays as the shell's own convenience, the way Ctrl+Shift+O is. */
+        ((mods & MOD_CTRL) && (mods & MOD_SHIFT) && (key == 's' || key == 'S'))) {
+        extern __attribute__((weak)) void wubu_screenshot_handle_shift_printscr(void);
+        if (wubu_screenshot_handle_shift_printscr) wubu_screenshot_handle_shift_printscr();
+        return;
+    }
+
     /* Ctrl+P: Print. Win11 binds it inside the app that owns a document; here the shell offers it
      * globally so a file selected in Explorer can be printed. The dialog asks the real spooler and
      * reports what it says. Weak: the WM tests link this TU without the dialog or the runtime. */
@@ -516,6 +533,23 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
     wubu_screensaver_activity();
     g_dwm.mouse_x = x;
     g_dwm.mouse_y = y;
+
+    /* The CapturePicker owns the pointer while it is up: press starts the selection, motion extends
+     * it, release completes it. This must be the FIRST consumer -- placed further down, a press
+     * landed on whichever window was under the pointer and started dragging THAT, so the selection
+     * never began and no capture was ever saved. Press, motion and release are three different
+     * calls: passing down=true for the release is what made the rectangle unfinishable. */
+    {
+        extern __attribute__((weak)) int wubu_screenshot_region_active(void);
+        extern __attribute__((weak)) void wubu_screenshot_update_region_selector(int, int, bool);
+        extern __attribute__((weak)) void wubu_screenshot_region_move(int, int);
+        if (wubu_screenshot_region_active && wubu_screenshot_region_active()) {
+            if (kind == 1) wubu_screenshot_update_region_selector(x, y, true);
+            else if (kind == 2) wubu_screenshot_update_region_selector(x, y, false);
+            else if (wubu_screenshot_region_move) wubu_screenshot_region_move(x, y);
+            return;
+        }
+    }
 
     /* Snap assist claims the whole pointer while it is open: a card click picks a window,
      * any other click dismisses the offer (Windows behaviour). Weak: a WM-only link has no

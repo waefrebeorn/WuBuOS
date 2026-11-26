@@ -5,6 +5,7 @@
 #include "wubu_theme.h"
 #include "shell/wubu_notify.h"
 #include "../hosted/hosted.h"
+#include "../kernel/vbe.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +54,12 @@ void wubu_region_selector_end(wubu_region_selector_t *sel) {
         free(sel->overlay_buffer);
         free(sel);
     }
+}
+
+void wubu_region_selector_move(wubu_region_selector_t *sel, int x, int y) {
+    if (!sel || !sel->dragging) return;
+    sel->current_x = x;
+    sel->current_y = y;
 }
 
 void wubu_region_selector_mouse(wubu_region_selector_t *sel, int x, int y, bool down) {
@@ -181,12 +188,29 @@ void wubu_screenshot_gen_filename(char *buf, size_t n) {
  * ============================================================ */
 extern wayland_state_t g_wl;
 
-static wubu_sshot_t *capture_framebuffer(int x, int y, int w, int h) {
-    if (!g_wl.shm_buffer || !g_wl.shm_data) return NULL;
+/* WHERE THE PIXELS ARE. This file used to assume Wayland: every capture path began with "if the
+ * shm buffer is absent, give up". On the hosted X11 desktop there is no shm buffer -- the pixels
+ * are in the VBE framebuffer -- so EVERY screenshot function (and the region CapturePicker with
+ * it) silently did nothing on the environment the user actually runs. One source function, asked
+ * once, so the two display paths cannot disagree about where the screen is. */
+static const uint32_t *sshot_source(int *w, int *h) {
+    extern wayland_state_t g_wl;
+    if (g_wl.shm_buffer && g_wl.shm_data) {
+        *w = g_wl.width;
+        *h = g_wl.height;
+        return (const uint32_t *)g_wl.shm_data;
+    }
+    const uint32_t *fb = vbe_framebuffer();
+    if (!fb) return NULL;
+    *w = vbe_width();
+    *h = vbe_height();
+    return fb;
+}
 
-    int fb_w = g_wl.width;
-    int fb_h = g_wl.height;
-    uint32_t *src = (uint32_t*)g_wl.shm_data;
+static wubu_sshot_t *capture_framebuffer(int x, int y, int w, int h) {
+    int fb_w = 0, fb_h = 0;
+    const uint32_t *src = sshot_source(&fb_w, &fb_h);
+    if (!src || fb_w <= 0 || fb_h <= 0) return NULL;
 
     if (x < 0) { w += x; x = 0; }
     if (y < 0) { h += y; y = 0; }
@@ -375,6 +399,14 @@ static void region_complete_cb(int x, int y, int w, int h, void *user) {
     (void)user;
     wubu_sshot_t *sshot = capture_framebuffer(x, y, w, h);
     g_region_result = sshot;
+    /* A capture the user cannot find is a capture that did not happen: save it and say where. */
+    if (sshot) {
+        char path[PATH_MAX];
+        if (wubu_screenshot_save_auto(sshot, path, sizeof path)) {
+            wubu_notify_simple("WuBuOS", "Region Captured", path, NULL, NOTIFY_URGENCY_LOW, 5000);
+            wubu_screenshot_to_clipboard(sshot);
+        }
+    }
     if (g_region_callback) g_region_callback(x, y, w, h, g_region_userdata);
 }
 
@@ -403,8 +435,10 @@ void wubu_screenshot_handle_alt_printscr(void) {
 }
 
 void wubu_screenshot_handle_shift_printscr(void) {
-    extern wayland_state_t g_wl;
-    if (!g_wl.shm_buffer) return;
+    /* The region picker must work wherever the desktop works, so it asks the same source the
+     * capture does instead of testing for Wayland. */
+    int w = 0, h = 0;
+    if (!sshot_source(&w, &h)) return;
 
     if (g_region_selector) {
         wubu_region_selector_end(g_region_selector);
@@ -412,8 +446,19 @@ void wubu_screenshot_handle_shift_printscr(void) {
         return;
     }
 
-    g_region_selector = wubu_region_selector_begin(g_wl.width, g_wl.height,
-                                                    region_complete_cb, NULL);
+    g_region_selector = wubu_region_selector_begin(w, h, region_complete_cb, NULL);
+}
+
+bool wubu_screenshot_region_active(void) { return g_region_selector != NULL; }
+
+/* Motion while the button is held. Kept separate from press/release because the selector treats
+ * down=true with no drag in progress as the START of a selection: calling it on hover would begin
+ * a selection wherever the pointer happened to be, and calling it on the release would restart one
+ * instead of finishing. */
+void wubu_screenshot_region_move(int x, int y) {
+    if (!g_region_selector) return;
+    extern void wubu_region_selector_move(wubu_region_selector_t *, int, int);
+    wubu_region_selector_move(g_region_selector, x, y);
 }
 
 void wubu_screenshot_update_region_selector(int x, int y, bool down) {
