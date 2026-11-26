@@ -135,6 +135,9 @@ void        cp_ai_test_measure(void);      /* force a probe without a frame loop
 CpApplet cp_create_people_applet(void);
 const char *cp_people_last_drawn(void);    /* the rows the People page actually drew */
 void        cp_people_test_reload(void);   /* re-read the store without a frame loop */
+CpApplet cp_create_programs_applet(void);
+const char *cp_programs_last_drawn(void);  /* the rows the Programs page actually drew */
+void        cp_programs_test_reload(void); /* re-read the registry without a frame loop */
 const char *cp_theme_last_drawn(void);     /* and the Theme page */
 
 /* The launcher the desktop's Settings icon uses (src/apps/apps.c). Creates a WM window whose draw is

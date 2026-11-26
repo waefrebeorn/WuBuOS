@@ -70,7 +70,13 @@ SHELL = [
                                      "de-duplication, truncating untrusted input) behind a People page that lists "
                                      "the real contacts and says 'no contacts' when empty. The taskbar contact "
                                      "flyout is NOT built and is not claimed."),
-    ("WindowsAppRuntime",       [], "packaged-app runtime"),
+    ("Microsoft.WindowsAppRuntime", ["src/runtime/wubu_pkgx.c", "src/runtime/wubu_pkgx_test.c"],
+                                     "packaged-app runtime core: registration from a package manifest, MSIX-shaped "
+                                     "identity (name_<8hex> family from a documented FNV-1a publisher hash, NOT "
+                                     "Microsoft's), enumeration, resolution by name or family, removal, and an "
+                                     "entry-point validation that refuses absolute and '..' exec paths. NOT done "
+                                     "and not claimed: MSIX format/signature verification, container isolation, "
+                                     "and a Store UI."),
     ("Win32WebViewHost",        ["src/lua/www"], "embedded web view (WorldSpace)"),
     ("MicrosoftWindows.Client.AIX", ["src/runtime/wubu_ai_link.c", "src/gui/control_panel_ai.c",
                                      "src/runtime/wubu_ai_link_test.c"],

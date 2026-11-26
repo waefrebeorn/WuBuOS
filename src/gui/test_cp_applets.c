@@ -16,6 +16,7 @@
 #include "../runtime/wubu_parental.h"
 #include "../runtime/wubu_biometric.h"
 #include "../runtime/wubu_people.h"
+#include "../runtime/wubu_pkgx.h"
 #include "../kernel/wubu_world.h"
 
 /* A world snapshot the Display page can report: without one the page draws its "no snapshot" line and a
@@ -295,6 +296,24 @@ int main(void)
         const char *empty = cp_people_last_drawn();
         check(empty && strstr(empty, "no contacts") != NULL, "the People page says there are no contacts");
         unsetenv("WUBU_PEOPLE_DB");
+
+        /* Programs: the packaged-app runtime must have a surface, not just a test. With no packages the
+         * page says so; the root is always shown so a user can find where to install. */
+        char pkgroot[] = "/tmp/wubu_cp_pkgs_XXXXXX";
+        char *pr = mkdtemp(pkgroot);
+        if (pr) setenv("WUBU_PKGS", pr, 1);
+        CpApplet prog = cp_create_programs_applet();
+        controlpanel_init();
+        controlpanel_register_applet(&prog);
+        activate_last_page();
+        cp_programs_test_reload();
+        controlpanel_render(dfb, W, H);
+        const char *gline = cp_programs_last_drawn();
+        char mA[260];
+        snprintf(mA, sizeof mA, "the Programs page shows the package root and its state (drew: '%s')",
+                 gline ? gline : "");
+        check(gline && strstr(gline, "Installed") != NULL && strstr(gline, pr ? pr : "packages") != NULL, mA);
+        unsetenv("WUBU_PKGS");
 
         controlpanel_shutdown();
         free(dfb);
