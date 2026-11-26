@@ -49,7 +49,7 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
      * not the position. */
     for (int idx = 0; idx < DOSGUI_MAX_WINDOWS && L->n_slots < 48; idx++) {
         DosGuiWindow *w = &g_dwm.windows[idx];
-        if (!w->alive || w->desktop != g_dwm.current_desktop) continue;
+        if (!w->alive || w->close_t0 || w->desktop != g_dwm.current_desktop) continue;
         /* Uniform tile: Win11 shows ICONS at a fixed size, never titles. Measuring the title
          * made buttons variable-width, truncated ("Tem...") and text-heavy -- the single
          * biggest tell that this was not a Win11 taskbar. */

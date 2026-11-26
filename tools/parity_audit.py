@@ -291,7 +291,7 @@ MATRIX = [
      [r"wm_window_render_h|WUBU_ANIM_OPEN_MS"], r"wm_render"),
     ("bars", "window close animation",
      "a closing window shrinks away instead of vanishing",
-     [r"close_anim|wm_anim_close"], r"wm_render|wm_window_state"),
+     [r"wm_request_close|close_t0"], r"wm_window.c|wm_render"),
     ("bars", "snap assist after snapping",
      "after a half snap, the other half offers the remaining windows",
      [r"snap_assist|snap_group"]),

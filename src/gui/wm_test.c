@@ -2658,6 +2658,37 @@ static void test_app_icons(void) {
           "an app with no master resolves NO icon (the letter fallback is the honest path)");
 }
 
+/* Close animation: the window is drawn shrinking, refuses input, and only then disappears.
+ * Asserted in that order, because "gone after 140ms" alone would also pass if it vanished
+ * instantly and the close_t0 bookkeeping was fake. */
+static void test_window_close_animation(void) {
+    DosGuiWindow *w = wm_create(60, 60, 320, 240, "CloseAnim");
+    CHECK(w != NULL, "window created for the close animation");
+    if (!w) return;
+    /* The API takes an ARRAY INDEX, not a window id -- they are different numbers, and using
+     * the id here made the pre-close assertion fail on a perfectly good window. */
+    int idx = -1;
+    for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++)
+        if (&g_dwm.windows[i] == w) { idx = i; break; }
+    CHECK(idx >= 0, "the window has an index in the window table");
+    CHECK(hit_test(w->x + 5, w->y + 5) == idx, "before closing, the window is hit-testable");
+
+    wm_request_close(idx);
+    CHECK(w->alive, "a closing window is still alive and drawn");
+    CHECK(w->close_t0 != 0, "and it carries a close stamp");
+    CHECK(hit_test(w->x + 5, w->y + 5) == -1, "but it no longer accepts input");
+    /* Sample the MIDDLE of the transition: at t=0 the frame is still full height, so an
+     * assertion taken right after the request would pass with no animation at all. */
+    w->close_t0 = wm_clock_ms() - WUBU_ANIM_OPEN_MS / 2;
+    int mid = wm_window_render_h(w);
+    CHECK(mid < w->h, "the frame shrinks during the close");
+    CHECK(mid >= w->h * WUBU_ANIM_OPEN_FROM_PCT / 100, "and never shrinks past the close scale");
+
+    w->close_t0 = wm_clock_ms() - WUBU_ANIM_OPEN_MS - 1;   /* let it finish */
+    wm_close_tick();
+    CHECK(!w->alive, "after the duration the window is destroyed");
+}
+
 int main(void) {
     /* BEFORE any taskbar call: this suite must never read or write the user's dock file. */
     setenv("WUBU_TASKBAR_CONF", "/tmp/wubu-test-taskbar.conf", 1);
@@ -2667,6 +2698,7 @@ int main(void) {
 
     test_window_open_animation();
     test_app_icons();
+    test_window_close_animation();
     test_init();
     test_init_shutdown_no_crash();
     test_hover_preview_composites_a_card();

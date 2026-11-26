@@ -395,7 +395,7 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
      * delivers ASCII, so 'o' closed the window, 'W' maximized it and '?'
      * cycled the theme in the middle of typing. */
     if ((mods & MOD_ALT) && key == 0x3E && g_dwm.focused_id >= 0) {
-        close_win(g_dwm.focused_id);
+        wm_request_close(g_dwm.focused_id);   /* Alt+F4 animates */
         return;
     }
     if ((mods & MOD_CTRL) && key == 0x14) {
@@ -724,7 +724,7 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                 if (chrome_button_rects(w, &bmin, &bmax, &bclose)) {
                     if (x >= bclose.x && x < bclose.x + bclose.w &&
                         y >= bclose.y && y < bclose.y + bclose.h) {
-                        close_win(idx);
+                        wm_request_close(idx);  /* X button animates */
                         return;
                     }
                     if (x >= bmax.x && x < bmax.x + bmax.w &&

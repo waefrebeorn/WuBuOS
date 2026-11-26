@@ -65,9 +65,10 @@ void close_win(int i) {
 }
 
 int hit_test(int x, int y) {
+    /* A window that is closing is drawn for its transition but must not accept input. */
     for (int j = g_dwm.nz - 1; j >= 0; j--) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
-        if (w->alive && w->desktop == g_dwm.current_desktop &&
+        if (w->alive && !w->close_t0 && w->desktop == g_dwm.current_desktop &&
             x >= w->x && x < w->x + w->w &&
             y >= w->y && y < w->y + w->h)
             return g_dwm.zorder[j];
@@ -87,7 +88,16 @@ void wm_get_mouse(int *x, int *y) {
 /* The height a window is DRAWN at right now. Settled windows return w->h unchanged; a window
  * inside its open animation returns an interpolated height. The hit rect is never touched. */
 int wm_window_render_h(const DosGuiWindow *w) {
-    if (!w || !w->anim_t0 || w->h <= 0) return w ? w->h : 0;
+    if (!w || w->h <= 0) return w ? w->h : 0;
+    /* Closing: shrink from full height toward the same opening scale. Reuses the one clock and
+     * the one duration, so open and close cannot drift apart. */
+    if (w->close_t0) {
+        uint32_t cel = wm_clock_ms() - w->close_t0;
+        if (cel >= WUBU_ANIM_OPEN_MS) return w->h * WUBU_ANIM_OPEN_FROM_PCT / 100;
+        int to = w->h * WUBU_ANIM_OPEN_FROM_PCT / 100;
+        return w->h - (int)((long)(w->h - to) * (long)cel / (long)WUBU_ANIM_OPEN_MS);
+    }
+    if (!w->anim_t0) return w->h;
     uint32_t el = wm_clock_ms() - w->anim_t0;
     if (el >= WUBU_ANIM_OPEN_MS) return w->h;
     int from = w->h * WUBU_ANIM_OPEN_FROM_PCT / 100;
@@ -113,6 +123,35 @@ DosGuiWindow *wm_create(int x, int y, int w, int h,
      * an animation can never make a click land somewhere the window is not. */
     g_dwm.windows[i].anim_t0 = wm_clock_ms();
     return &g_dwm.windows[i];
+}
+
+/* Interactive close: start the shrink, do NOT destroy yet. wm_destroy stays immediate so
+ * every existing caller keeps its semantics; only the X button / Alt+F4 animate. */
+void wm_request_close(int idx) {
+    if (idx < 0 || idx >= DOSGUI_MAX_WINDOWS) return;
+    DosGuiWindow *w = &g_dwm.windows[idx];
+    if (!w->alive || w->close_t0) return;
+    w->close_t0 = wm_clock_ms() ? wm_clock_ms() : 1;
+    /* A closing window must not keep focus: the next window gets it now, not after 140ms. */
+    if (g_dwm.focused_id == idx) {
+        for (int k = 0; k < g_dwm.nz; k++) {
+            int cand = g_dwm.zorder[k];
+            if (cand != idx && g_dwm.windows[cand].alive && !g_dwm.windows[cand].close_t0) {
+                g_dwm.focused_id = cand;
+                break;
+            }
+        }
+    }
+}
+
+/* Finish any close animation whose time is up. Called once per frame from the renderer. */
+void wm_close_tick(void) {
+    uint32_t now = wm_clock_ms();
+    for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++) {
+        DosGuiWindow *w = &g_dwm.windows[i];
+        if (!w->alive || !w->close_t0) continue;
+        if (now - w->close_t0 >= WUBU_ANIM_OPEN_MS) close_win(i);
+    }
 }
 
 void wm_destroy(DosGuiWindow *win) {

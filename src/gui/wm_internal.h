@@ -181,6 +181,9 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind);
 uint32_t wm_clock_ms(void);
 /* Animated render height (never the hit rect). */
 int wm_window_render_h(const DosGuiWindow *w);
+/* Interactive close animation: start it, and finish finished ones. */
+void wm_request_close(int idx);
+void wm_close_tick(void);
 /* Win+1..9: act on the n-th task slot (0-based) -- focus/restore the running window, or
  * launch the pinned app. Returns 1 when there was such a slot. */
 int  taskbar_slot_launch(int n);

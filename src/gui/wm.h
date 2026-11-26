@@ -70,6 +70,9 @@ typedef struct DosGuiWindow {
     /* Window open animation (Win11): the tick the window was created on, so the renderer can
      * grow it into place instead of popping. 0 = settled (no animation). */
     uint32_t      anim_t0;
+    /* Close animation stamp (0 = not closing). A closing window is still DRAWN for the
+     * transition but is no longer hit-testable, focused or listed -- it is on its way out. */
+    uint32_t      close_t0;
 } DosGuiWindow;
 
 /* -- Lifecycle ---------------------------------------------------- */
@@ -97,7 +100,9 @@ void wm_cursor_pos(int *x, int *y);
 
 DosGuiWindow *wm_create(int x, int y, int w, int h,
                                 const char *title);
-void           wm_destroy(DosGuiWindow *win);
+void wm_destroy(DosGuiWindow *win);
+/* Interactive close (X button / Alt+F4): animates, then destroys. wm_destroy is immediate. */
+void wm_request_close(int idx);
 void           wm_set_focus(DosGuiWindow *win);
 DosGuiWindow  *wm_get_focused(void);
 DosGuiWindow  *wm_find_by_id(int id);
