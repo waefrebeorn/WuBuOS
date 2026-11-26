@@ -144,6 +144,12 @@ static void display_render(CpApplet *applet, uint32_t *fb,
     DisplayAppletData *d = (DisplayAppletData *)applet->user_data;
     const wubu_world_t *wd = d ? d->snap : NULL;
     if (!wd && g_disp.snap) wd = g_disp.snap();
+    /* Resolve the LIVE world here, before the null check: the fallback used to sit below it, so a session
+     * with no installed provider (which is now every product session) drew "no display snapshot". */
+    {
+        extern const wubu_world_t *wubu_world_snapshot(void) __attribute__((weak));
+        if (!world_plausible(wd) && wubu_world_snapshot) wd = wubu_world_snapshot();
+    }
 
     /* Colours come from the theme: this page used to paint a near-white card in a dark-only OS,
      * which is exactly how one panel read as bootleg next to every other. */
@@ -155,12 +161,6 @@ static void display_render(CpApplet *applet, uint32_t *fb,
                      "no display snapshot", c->body_text_ina, 1);
         g_last_drawn[0] = 0;
         return;
-    }
-
-    /* Prefer the real world over a provider that hands back something that cannot be one. */
-    {
-        extern const wubu_world_t *wubu_world_snapshot(void) __attribute__((weak));
-        if (!world_plausible(wd) && wubu_world_snapshot) wd = wubu_world_snapshot();
     }
 
     disp_build_rows(wd);

@@ -74,13 +74,10 @@ void controlpanel_init(void)
     }
     g_controlpanel.applet_count = n;
 
-    /* The pages that report machine state need a provider, and nothing in the shell ever installed one:
-     * Display and Network rendered "no snapshot" on every real install while the tests injected fakes and
-     * passed. Wire the real snapshot once, here, where the panel is set up. */
-    if (wubu_world_snapshot) {
-        cp_display_set_snapshot(wubu_world_snapshot);
-        cp_network_set_snapshot(wubu_world_snapshot);
-    }
+    /* The pages that report machine state resolve the LIVE world themselves (weak wubu_world_snapshot),
+     * and the injected provider is a TEST override only. This used to install wubu_world_snapshot through
+     * cp_*_set_snapshot() here, which stored a pointer the applet did not own: measured in a live session,
+     * the applet read 0x47a4ec (screen=3843x51383) while the real world sat at 0x360d320 (1920x1080). */
     g_controlpanel.active_applet = 0;
 }
 

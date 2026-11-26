@@ -53,6 +53,13 @@ static void network_render(CpApplet *applet, uint32_t *fb,
     NetworkAppletData *d = (NetworkAppletData *)applet->user_data;
     const wubu_world_t *wd = d ? d->snap : NULL;
     if (!wd && g_net.snap) wd = g_net.snap();
+    /* No product code installs a provider any more: resolve the live world directly, and treat the
+     * injected provider as a test override (an unowned pointer gave one live session a world that was not
+     * the world). */
+    {
+        extern const wubu_world_t *wubu_world_snapshot(void) __attribute__((weak));
+        if (!wd && wubu_world_snapshot) wd = wubu_world_snapshot();
+    }
 
     /* Colours come from the theme: this page used to paint a near-white card in a dark-only OS,
      * which is exactly how one panel read as bootleg next to every other. */
