@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <time.h>   /* wm_clock_ms */
 
 /* -- Z-order + window lifecycle ----------------------------------- */
 
@@ -79,10 +80,38 @@ void wm_get_mouse(int *x, int *y) {
     if (y) *y = g_dwm.mouse_y;
 }
 
+/* ONE clock for the whole WM. There were already three static wm_now_ms() copies
+ * (wm_input.c, wm_taskbar.c, and this file would have been the fourth); animation timing that
+ * disagrees between the module that starts it and the module that renders it is a bug waiting
+ * to happen. */
+/* The height a window is DRAWN at right now. Settled windows return w->h unchanged; a window
+ * inside its open animation returns an interpolated height. The hit rect is never touched. */
+int wm_window_render_h(const DosGuiWindow *w) {
+    if (!w || !w->anim_t0 || w->h <= 0) return w ? w->h : 0;
+    uint32_t el = wm_clock_ms() - w->anim_t0;
+    if (el >= WUBU_ANIM_OPEN_MS) return w->h;
+    int from = w->h * WUBU_ANIM_OPEN_FROM_PCT / 100;
+    if (from < WUBU_METRIC_CONTROL_H) from = w->h;      /* too small to animate meaningfully */
+    /* ease-out: fast at the start, settling at the end */
+    uint32_t t = WUBU_ANIM_OPEN_MS - el;
+    uint32_t ease = WUBU_ANIM_OPEN_MS - (t * t) / WUBU_ANIM_OPEN_MS;
+    return from + (int)((long)(w->h - from) * (long)ease / (long)WUBU_ANIM_OPEN_MS);
+}
+
+uint32_t wm_clock_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)((uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u);
+}
+
 DosGuiWindow *wm_create(int x, int y, int w, int h,
                                const char *title) {
     int i = spawn_window(x, y, w, h, title);
     if (i < 0) return NULL;
+    /* Windows grow into place; they do not pop. The stamp is the animation clock -- the
+     * renderer interpolates the FRAME from it, and hit-testing always uses the real rect, so
+     * an animation can never make a click land somewhere the window is not. */
+    g_dwm.windows[i].anim_t0 = wm_clock_ms();
     return &g_dwm.windows[i];
 }
 

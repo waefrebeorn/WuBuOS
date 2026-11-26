@@ -69,6 +69,11 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
         extern void wm_shadow_render(const DosGuiWindow *) __attribute__((weak));
         if (wm_shadow_render) wm_shadow_render(w);
     }
+    /* Open animation: grow the window from WUBU_ANIM_OPEN_FROM_PCT of its height to full over
+     * WUBU_ANIM_OPEN_MS. Only the RENDERED height changes -- w->h itself is restored right
+     * after, so hit-testing, snapping and the taskbar always see the real rect. */
+    int anim_saved_h = w->h;
+    w->h = wm_window_render_h(w);
     ChromeContentRect content = chrome_draw_window(&g_dwm.windows[idx], fb, fb_w, fb_h);
 
     /* Content region: clip and call app's on_draw if present */
@@ -77,6 +82,8 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
         w->on_draw(w, fb, fb_w, fb_h);
         vbe_reset_clip();
     }
+
+    w->h = anim_saved_h;   /* end of the animated frame */
 
     /* An app that fills its rect squares off the chrome's radius. Cut the corners
      * AFTER the app has drawn, so the window reads as rounded whatever the app did --

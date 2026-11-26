@@ -33,6 +33,11 @@
 #define WUBU_METRIC_MARGIN_MD   16
 #define WUBU_METRIC_MARGIN_LG   24
 #define WUBU_METRIC_ROW_H       24
+/* Window open animation (Win11): 140ms ease-out. A window must not pop: on Windows it grows
+ * into place. The duration is a metric like every other number in the shell. */
+#define WUBU_ANIM_OPEN_MS       140
+#define WUBU_ANIM_OPEN_FROM_PCT 85   /* opens from 85% of its height */
+
 #define WUBU_METRIC_CONTROL_H   32
 #define WUBU_METRIC_TOUCH_H     40
 #define WUBU_METRIC_TITLEBAR_H  32   /* window caption (Win11-faithful) */

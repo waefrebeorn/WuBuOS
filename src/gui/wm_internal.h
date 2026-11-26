@@ -176,6 +176,11 @@ typedef struct {
 
 void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L);
 bool taskbar_modern_handle(int x, int y, int btn, int kind);
+
+/* The WM's single millisecond clock (wm_window.c). */
+uint32_t wm_clock_ms(void);
+/* Animated render height (never the hit rect). */
+int wm_window_render_h(const DosGuiWindow *w);
 /* Win+1..9: act on the n-th task slot (0-based) -- focus/restore the running window, or
  * launch the pinned app. Returns 1 when there was such a slot. */
 int  taskbar_slot_launch(int n);

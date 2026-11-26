@@ -2628,6 +2628,26 @@ static void test_rim_beads_are_opt_in(void) {
 }
 
 
+/* Win11 window open animation. The assertion samples the MIDDLE of the transition, because an
+ * end-state check passes with no animation at all; and it pins the rule that animation is
+ * visual only -- the hit rect must not move with the frame. */
+static void test_window_open_animation(void) {
+    DosGuiWindow *w = wm_create(40, 40, 300, 260, "AnimWindow");
+    CHECK(w != NULL, "window created for the animation test");
+    if (!w) return;
+
+    w->anim_t0 = wm_clock_ms();                 /* as if it had just opened */
+    int mid = wm_window_render_h(w);
+    CHECK(mid < w->h, "the frame is DRAWN shorter than the window mid-open");
+    CHECK(mid >= w->h * WUBU_ANIM_OPEN_FROM_PCT / 100,
+          "and it never starts smaller than the opening scale");
+    CHECK(w->h == 260, "the hit rect is untouched while the frame animates");
+
+    w->anim_t0 = wm_clock_ms() - WUBU_ANIM_OPEN_MS - 1;
+    CHECK(wm_window_render_h(w) == w->h, "it settles at exactly its own height");
+    wm_destroy(w);
+}
+
 int main(void) {
     /* BEFORE any taskbar call: this suite must never read or write the user's dock file. */
     setenv("WUBU_TASKBAR_CONF", "/tmp/wubu-test-taskbar.conf", 1);
@@ -2635,6 +2655,7 @@ int main(void) {
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
     printf("+========================================================+\n\n");
 
+    test_window_open_animation();
     test_init();
     test_init_shutdown_no_crash();
     test_hover_preview_composites_a_card();

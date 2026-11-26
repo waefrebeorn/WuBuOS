@@ -67,6 +67,9 @@ typedef struct DosGuiWindow {
     /* Taskbar progress badge (Win11): 0 = none, 1..100 = percent complete. Windows shows
      * a green sliver on the button; a copy, a download or an install reports here. */
     int           task_progress;
+    /* Window open animation (Win11): the tick the window was created on, so the renderer can
+     * grow it into place instead of popping. 0 = settled (no animation). */
+    uint32_t      anim_t0;
 } DosGuiWindow;
 
 /* -- Lifecycle ---------------------------------------------------- */

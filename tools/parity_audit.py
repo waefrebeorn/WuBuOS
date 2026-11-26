@@ -282,9 +282,16 @@ MATRIX = [
     ("bars", "Start all-apps list",
      "an A-Z list of every installed app",
      [r"startmenu_tree|all_apps"], r"shell/startmenu"),
-    ("bars", "window open/close animation",
-     "windows animate in and out rather than popping",
-     [r"win_anim|window_anim|open_anim|close_anim"], r"wm_render|shell/window_chrome"),
+    # Split on purpose: the OPEN animation exists (wm_window_render_h interpolates the frame from
+    # anim_t0). The CLOSE animation does not -- it needs a deferred destroy so a closing window
+    # stops being hit-testable while still being drawn -- and one row would let the half that
+    # exists hide the half that does not.
+    ("bars", "window open animation",
+     "a new window grows into place instead of popping",
+     [r"wm_window_render_h|WUBU_ANIM_OPEN_MS"], r"wm_render"),
+    ("bars", "window close animation",
+     "a closing window shrinks away instead of vanishing",
+     [r"close_anim|wm_anim_close"], r"wm_render|wm_window_state"),
     ("bars", "snap assist after snapping",
      "after a half snap, the other half offers the remaining windows",
      [r"snap_assist|snap_group"]),
