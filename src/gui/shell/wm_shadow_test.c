@@ -48,10 +48,15 @@ int main(void)
     /* Cache: same geometry again must not re-blur. */
     wm_shadow_render(&win);
     CHECK(wm_shadow_blur_count() == b1, "unchanged geometry reuses the cache");
-    /* Moved window: rebuild exactly once. */
+    /* Moved window: the shadow SHAPE is unchanged, so the cache must be REUSED and painted at
+     * the new position. Re-blurring on every move is what held the renderer at 40 ms/frame with
+     * two windows open; the cache is keyed on size because the bitmap is position-independent.
+     * What must be true is the PIXELS, not the blur count. */
     win.x += 10;
     wm_shadow_render(&win);
-    CHECK(wm_shadow_blur_count() == b1 + 1, "moved geometry re-blurs once");
+    CHECK(wm_shadow_blur_count() == b1, "moving a window reuses the size cache");
+    uint32_t moved = vbe_get_pixel(win.x + win.w + 4, win.y + win.h / 2);
+    CHECK(red(moved) < 0x80 && red(moved) > 0, "and the shadow is painted at the NEW position");
 
     /* Classic theme: no shadow at all. */
     wubu_theme_set(THEME_WIN98_CLASSIC);

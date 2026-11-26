@@ -67,7 +67,9 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
      * wallpaper -- which is most of why the chrome looked boxy. */
     {
         extern void wm_shadow_render(const DosGuiWindow *) __attribute__((weak));
-        if (wm_shadow_render) wm_shadow_render(w);
+        static int no_shadow = -1;
+        if (no_shadow < 0) no_shadow = getenv("WUBU_NO_SHADOW") ? 1 : 0;
+        if (wm_shadow_render && !no_shadow) wm_shadow_render(w);
     }
     /* Finish any close animation whose time is up before drawing this frame. */
     wm_close_tick();
@@ -81,8 +83,10 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Content region: clip and call app's on_draw if present */
     if (w->on_draw) {
+        static int no_content = -1;
+        if (no_content < 0) no_content = getenv("WUBU_NO_CONTENT") ? 1 : 0;
         vbe_set_clip(content.x, content.y, content.w, content.h);
-        w->on_draw(w, fb, fb_w, fb_h);
+        if (!no_content) w->on_draw(w, fb, fb_w, fb_h);
         vbe_reset_clip();
     }
 
@@ -162,9 +166,13 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
      * human rhythm, not all at once). */
     wm_typer_tick(16);
 
-    draw_desktop_bg(fb_w, fb_h);
+    /* WUBU_PERF_SKIP bitmask (1 wallpaper, 2 icons, 4 windows, 8 taskbar): locate frame cost
+     * by bisection instead of guessing. Unset in normal use. */
+    static int skip, skip_init;
+    if (!skip_init) { skip_init = 1; const char *e = getenv("WUBU_PERF_SKIP"); skip = e ? atoi(e) : 0; }
+    if (!(skip & 1)) draw_desktop_bg(fb_w, fb_h);
 
-    for (int i = 0; i < g_dwm.icon_count; i++) {
+    for (int i = 0; i < ((skip & 2) ? 0 : g_dwm.icon_count); i++) {
         DosGuiIcon *icon = &g_dwm.icons[i];
         if (!icon->alive) continue;
 
@@ -212,7 +220,7 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     }
 
     /* Rubber-band drag-select lasso (Classic Mac / Win98 lesson). */
-    if (g_dwm.lasso_active) {
+if (g_dwm.lasso_active) {
         int x0 = g_dwm.lasso_x0, y0 = g_dwm.lasso_y0;
         int x1 = g_dwm.lasso_x1, y1 = g_dwm.lasso_y1;
         if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
@@ -223,7 +231,7 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         vbe_rect(x0, y0, w, h, tc()->select_bg);
     }
 
-    for (int j = 0; j < g_dwm.nz; j++) {
+    for (int j = 0; j < ((skip & 4) ? 0 : g_dwm.nz); j++) {
         int idx = g_dwm.zorder[j];
         DosGuiWindow *w = &g_dwm.windows[idx];
         if (w->alive && w->desktop == g_dwm.current_desktop && !(w->flags & DOSGUI_WIN_MINIMIZED)) {
@@ -288,7 +296,7 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         extern __attribute__((weak)) void win11_snap_assist_render(uint32_t *, int, int);
         if (win11_snap_assist_render) win11_snap_assist_render(fb, fb_w, fb_h);
     }
-    taskbar_render(fb, fb_w, fb_h);
+    if (!(skip & 8)) taskbar_render(fb, fb_w, fb_h);
     notif_center_render(fb, fb_w, fb_h);
 
     /* Clock popup menu (Win98 parity): the clock's own calendar panel. */

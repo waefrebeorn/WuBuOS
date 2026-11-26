@@ -108,6 +108,10 @@ int wm_window_render_h(const DosGuiWindow *w) {
     return from + (int)((long)(w->h - from) * (long)ease / (long)WUBU_ANIM_OPEN_MS);
 }
 
+/* Live desktop-icon count: the boot path checks it after the greeter, because the greeter
+ * resets the WM and the icons seeded before it are gone. */
+int wm_icon_count(void) { return g_dwm.icon_count; }
+
 uint32_t wm_clock_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);

@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <poll.h>
 
 /* The WM does not take input from a callback: it drains the kernel's input queue via
  * input_key_poll / input_mouse_poll. X events are therefore translated into Set-1 scancodes
@@ -282,6 +283,30 @@ int hosted_x11_present_pump(void) {
 }
 
 int hosted_x11_present_active(void) { return g_xopen ? 1 : 0; }
+
+/* The X connection's file descriptor, so the run loop can block on INPUT with a frame
+ * deadline instead of sleeping and then checking. That sleep is what made the pointer feel
+ * broken: at the idle rate a motion waited a whole frame (up to 125 ms). */
+/* Block until X is readable or the frame deadline passes. Returns 0 when woken by input, -1
+ * when the deadline expired. */
+int hosted_x11_wait_ms(int ms) {
+    if (!g_xopen || !g_xdpy) return -1;
+    struct pollfd pfd;
+    pfd.fd = ConnectionNumber(g_xdpy);
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    int r = poll(&pfd, 1, ms);
+    if (r > 0 && (pfd.revents & POLLIN)) {
+        /* Drain the socket into Xlib's queue so XPending() sees it next iteration. */
+        XFlush(g_xdpy);
+        return 0;
+    }
+    return -1;
+}
+
+int hosted_x11_present_fd(void) {
+    return (g_xopen && g_xdpy) ? ConnectionNumber(g_xdpy) : -1;
+}
 
 void hosted_x11_present_close(void) {
     if (!g_xopen) return;

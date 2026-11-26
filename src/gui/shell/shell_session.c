@@ -70,7 +70,7 @@ int desktop_init(void) {
             if (g_app_defs[j].launch == d->launch && g_app_defs[j].icon_type == d->icon_type) { dup = true; break; }
         if (dup) continue;
         icon_add_ex(d->name, DESK_ICON_APP, NULL,
-                           i % 6, i / 6, d->icon_color, NULL);
+                    i % 6, i / 6, d->icon_color, NULL);
     }
 
     /* A program is a file.  Anything .wet in the applet directory becomes a

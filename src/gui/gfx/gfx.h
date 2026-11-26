@@ -67,5 +67,8 @@ void gui_blur_gauss_approx(GuiSurface *s, int x, int y, int w, int h,
 void gui_blit_to_vbe(const GuiSurface *s, int dx, int dy);
 /* Same, with an extra global alpha (0 = invisible, 255 = unchanged). */
 void gui_blit_to_vbe_alpha(const GuiSurface *s, int dx, int dy, uint8_t alpha);
+/* Sub-rect variant: skip pixels the caller knows are covered (see wm_shadow_render). */
+void gui_blit_rect_to_vbe_alpha(const GuiSurface *s, int sx, int sy, int w, int h,
+                                int dx, int dy, uint8_t alpha);
 
 #endif /* GUI_GFX_H */

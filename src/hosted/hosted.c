@@ -290,6 +290,15 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         wubu_onboarding_load(obpath);
         if (wubu_onboarding_target() == WUBU_ONBOARD_GREETER)
             wubu_shell_greeter_run();
+
+        /* The greeter RESETS the window manager, so icons seeded at init are gone by the time
+         * it returns -- which is why the live desktop was empty while a headless run (no
+         * greeter) reported 30. Re-seed whatever the greeter cleared. */
+        if (wm_icon_count() == 0) {
+            desktop_init();
+            fprintf(stderr, "WuBuOS: re-seeded %d desktop icons after onboarding\n",
+                    wm_icon_count());
+        }
     }
 
     fprintf(stderr, "WuBuOS: kernel + GUI shell initialized\n");

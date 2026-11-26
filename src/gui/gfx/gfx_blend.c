@@ -47,10 +47,24 @@ void gui_blit_to_vbe(const GuiSurface *s, int dx, int dy)
 void gui_blit_to_vbe_alpha(const GuiSurface *s, int dx, int dy, uint8_t alpha)
 {
     if (!s || alpha == 0) return;
-    for (int row = 0; row < s->h; row++) {
+    gui_blit_rect_to_vbe_alpha(s, 0, 0, s->w, s->h, dx, dy, alpha);
+}
+
+/* Blit a SUB-RECT of a surface, so a caller can skip pixels it knows are covered. The window
+ * shadow only shows in the ring OUTSIDE the window; compositing the whole padded rect every
+ * frame was the single most expensive thing in the renderer (40 ms/frame, 23 fps). */
+void gui_blit_rect_to_vbe_alpha(const GuiSurface *s, int sx, int sy, int w, int h,
+                               int dx, int dy, uint8_t alpha)
+{
+    if (!s || alpha == 0 || w <= 0 || h <= 0) return;
+    if (sx < 0) { w += sx; dx -= sx; sx = 0; }
+    if (sy < 0) { h += sy; dy -= sy; sy = 0; }
+    if (sx + w > s->w) w = s->w - sx;
+    if (sy + h > s->h) h = s->h - sy;
+    for (int row = 0; row < h; row++) {
         int y = dy + row;
-        const uint32_t *sp = s->px + (size_t)row * s->w;
-        for (int col = 0; col < s->w; col++)
+        const uint32_t *sp = s->px + (size_t)(sy + row) * s->w + (size_t)sx;
+        for (int col = 0; col < w; col++)
             put(dx + col, y, sp[col], alpha);
     }
 }

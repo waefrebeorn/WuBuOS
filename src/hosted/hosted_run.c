@@ -45,6 +45,32 @@ static long fps_env(const char *name, long dflt, long lo, long hi) {
     return v;
 }
 
+/* Frame-cost instrumentation, OFF unless WUBU_FPS_REPORT is set. Left in the product because a
+ * number nobody can reproduce is how "it feels laggy" becomes an argument instead of a fix. */
+static const char *perf_on(void) { static int v = -1; if (v < 0) v = getenv("WUBU_FPS_REPORT") ? 1 : 0; return v ? "" : NULL; }
+static struct timespec g_perf_t0;
+static double g_perf_acc[3];
+static int g_perf_n;
+static struct timespec g_perf_start;
+static int g_perf_frames;
+static void perf_begin(void) { if (perf_on()) clock_gettime(CLOCK_MONOTONIC, &g_perf_t0); }
+static void perf_end(int slot) {
+    if (!perf_on()) return;
+    struct timespec b; clock_gettime(CLOCK_MONOTONIC, &b);
+    g_perf_acc[slot] += (b.tv_sec - g_perf_t0.tv_sec) * 1e3 + (b.tv_nsec - g_perf_t0.tv_nsec) / 1e6;
+}
+static void perf_frame_tick(void) {
+    if (!perf_on()) return;
+    if (g_perf_frames++ == 0) clock_gettime(CLOCK_MONOTONIC, &g_perf_start);
+    if (++g_perf_n % 120) return;
+    struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
+    double secs = (t.tv_sec - g_perf_start.tv_sec) + (t.tv_nsec - g_perf_start.tv_nsec) / 1e9;
+    fprintf(stderr, "[perf] %.1f fps  render %.2f ms  blit %.2f ms  evdev %.2f ms\n",
+            g_perf_frames / secs, g_perf_acc[0] / g_perf_n, g_perf_acc[1] / g_perf_n,
+            g_perf_acc[2] / g_perf_n);
+    g_perf_acc[0] = g_perf_acc[1] = g_perf_acc[2] = 0; g_perf_n = 0; g_perf_frames = 0;
+}
+
 int hosted_run(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS running. Mode: %s\n",
             state->mode == HMODE_GUI ? "GUI" :
@@ -62,16 +88,25 @@ struct timespec last_input;
      * idle rate is tunable and defaults lower -- WUBU_FPS_IDLE / WUBU_FPS_ACTIVE
      * exist so the number can be measured instead of argued about. */
     const long frame_ns_active = 1000000000L / fps_env("WUBU_FPS_ACTIVE", 60, 1, 240);
-    const long frame_ns_idle   = 1000000000L / fps_env("WUBU_FPS_IDLE", 8, 1, 240);
+    /* Idle at 30, not 8: any pointer move must repaint promptly, and a 125 ms idle tick made
+     * the whole shell feel broken even when nothing was wrong with the drawing. */
+    const long frame_ns_idle   = 1000000000L / fps_env("WUBU_FPS_IDLE", 30, 1, 240);
     long last_input_ms = last.tv_sec * 1000L + last.tv_nsec / 1000000L;
 
     bool screenshot_requested = (state->screenshot_path != NULL);
     int frame_count = 0;
 
     while (state->running) {
+        /* X11 input FIRST. It used to be pumped at the END of the frame, so a pointer move
+         * was queued after dispatch had already run and only took effect one frame later --
+         * with the idle rate that is up to 125 ms of lag on every app and on the window. */
+        if (hosted_x11_present_active() && hosted_x11_present_pump())
+            state->running = false;
+
         hosted_wl_dispatch();
 
-        if (hosted_input_dispatch()) {
+        int had_input = hosted_input_dispatch();
+        if (had_input) {
             clock_gettime(CLOCK_MONOTONIC, &last_input);
             last_input_ms = last_input.tv_sec * 1000L +
                             last_input.tv_nsec / 1000000L;
@@ -80,7 +115,9 @@ struct timespec last_input;
         /* Gamepads: drain evdev every frame and route it through Steam
          * Input's mapping table into the kernel input queue. Every frame,
          * not throttled -- input latency is visible. */
+        perf_begin();
         wubu_evdev_poll();
+        perf_end(2);
 
         /* The AGI play loop, throttled to about twice a second (the policy
          * is tick-driven): perceive -> decide -> act -> learn. Each learn
@@ -109,8 +146,10 @@ struct timespec last_input;
                 shm_buffer_t *rb = &g_shm_bufs[g_shm_render_idx];
                 if (rb->pixels)
                     vbe_set_render_target(rb->pixels, rb->width, rb->height);
+                perf_begin();
                 hosted_render_desktop(state);
                 vbe_swap();
+                perf_end(0);
                 /* The GUI presents straight out of the VBE/Shm buffer; the
                  * shadow framebuffer is only needed for screenshots. */
                 if (state->screenshot_path) {
@@ -139,8 +178,9 @@ struct timespec last_input;
             hosted_wl_frame_render();
         } else if (hosted_x11_present_active()) {
             VBEState *vs = vbe_state();
+            perf_begin();
             if (vs && vs->fb) hosted_x11_present_frame(vs->fb);
-            if (hosted_x11_present_pump()) state->running = false;
+            perf_end(1);
         }
 
         /* If screenshot requested in headless mode, render a couple frames and exit */
@@ -177,12 +217,16 @@ struct timespec last_input;
              * display) keeps the plain sleep. */
             long wait_ms = (frame_ns - elapsed) / 1000000L;
             if (wait_ms < 1) wait_ms = 1;
-            if (hosted_wl_wait_ms((int)wait_ms) < 0) {
+            int woke = (g_wl.surface) ? hosted_wl_wait_ms((int)wait_ms)
+                                      : (hosted_x11_present_active()
+                                             ? hosted_x11_wait_ms((int)wait_ms) : -1);
+            if (woke < 0) {
                 /* No display (headless): nothing can wake us early. */
                 struct timespec slp = {0, frame_ns - elapsed};
                 nanosleep(&slp, NULL);
             }
         }
+        perf_frame_tick();
         clock_gettime(CLOCK_MONOTONIC, &last);
     }
     return 0;

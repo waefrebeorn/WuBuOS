@@ -125,6 +125,8 @@ void hosted_x11_present_frame(const void *fb);
 int  hosted_x11_present_pump(void);
 int  hosted_x11_present_active(void);
 void hosted_x11_present_close(void);
+int  hosted_x11_present_fd(void);
+int  hosted_x11_wait_ms(int ms);
 
 /* ── Sub-module lifecycle hooks (declared so the facade can orchestrate) ── */
 void wl_shm_init(hosted_state_t *state);
