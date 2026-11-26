@@ -30,6 +30,7 @@
 #include "../egojar.h"
 #include "../egojar_net.h"
 #include "hosted.h"
+#include "../runtime/wubu_crashcap.h"
 #include "hosted_internal.h"
 
 static int g_hosted_x11;   /* presenting on the real X11 display */
@@ -432,6 +433,11 @@ void hosted_fs_reset(void) { fs_reset(); }
 
 #ifndef WUBU_HOSTED_TEST
 int main(int argc, char **argv) {
+    /* Before anything that can fault: a crash report is the one thing this process must still be
+     * able to do while it is dying. Reports are pruned to the last 20 at startup. */
+    wubu_crashcap_install();
+    wubu_crashcap_prune(20);
+
     hosted_state_t state;
     int init_ret = hosted_init(&state, argc, argv);
     if (init_ret != 0) return 1;
