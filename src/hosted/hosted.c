@@ -51,6 +51,7 @@ static int g_hosted_x11;   /* presenting on the real X11 display */
 #include "../kernel/input.h"
 #include "../kernel/wubu_evdev.h"
 #include "../runtime/wubu_steaminput.h"
+#include "../runtime/wubu_priority.h"
 #include "../gui/wm.h"
 #include "../gui/shell/startmenu.h"
 #include "../gui/wubu_settings.h"
@@ -194,7 +195,28 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     holyc_term_set_eval(wubu_holyc_eval);
     wubu_holyd_set_pointer_handler(wm_handle_mouse);
     desktop_init();
-    fprintf(stderr, "[probe] after boot desktop_init: %d\n", wm_icon_count());
+
+    /* OPT-IN per-process priority pass (the reference desktop's ananicy-cpp half). Off by
+     * default: it re-nices live processes, which is not something a test harness should do to the
+     * user's machine behind their back. Rule data lives in /etc/wubuos/ananicy.d; WUBU_ANICY_DIR
+     * and WUBU_PRIORITY are the seams. */
+    if (getenv("WUBU_PRIORITY")) {
+        const char *pdir = getenv("WUBU_ANICY_DIR");
+        if (!pdir || !*pdir) pdir = "/etc/wubuos/ananicy.d";
+        wubu_priority_reset();
+        char tf[1024];
+        snprintf(tf, sizeof tf, "%s/00-types.types", pdir);
+        int types = wubu_priority_load_types(tf);
+        if (types <= 0) types = wubu_priority_load_builtin_types();  /* no rule data on disk */
+        int rules = wubu_priority_load_rules_dir(pdir, 0);
+        WubuPriorityStats st;
+        int matched = wubu_priority_scan(NULL, 0, &st);
+        fprintf(stderr,
+                "[priority] %d types (%d from %s), %d rules, %d matched "
+                "(applied %d clamped %d denied %d), %d unmatched\n",
+                wubu_priority_type_count(), types, tf, rules, matched,
+                st.applied, st.clamped, st.denied, st.unmatched);
+    }
 
     /* Hosted session: the host desktop owns idle blanking and session
      * locking.  The in-guest screensaver/lock would only interrupt the

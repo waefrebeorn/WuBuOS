@@ -3865,6 +3865,12 @@ test_perf_profile:
 		-o $(RT)/test_perf_profile
 	timeout 60 $(RT)/test_perf_profile
 
+test_priority:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude -I$(RT) \
+		$(RT)/wubu_priority.c $(RT)/test_priority.c \
+		-o $(RT)/test_priority
+	timeout 60 $(RT)/test_priority
+
 test_power_profile:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude -I$(RT) \
 		$(RT)/wubu_power_profile.c $(RT)/test_power_profile.c \
