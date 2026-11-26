@@ -26,6 +26,7 @@
 #include "../gui/wubu_settings.h"
 #include "buddy_sprite.h"
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
@@ -2689,6 +2690,51 @@ static void test_window_close_animation(void) {
     CHECK(!w->alive, "after the duration the window is destroyed");
 }
 
+/* Palette invariants, for EVERY theme -- the reason the Win98 wizard shipped white-on-white
+ * headings is that nothing checked a pair the renderer actually used. Each pair below is one
+ * the shell draws: caption ink on the caption bar, body ink on the window face, label ink on a
+ * button, selected ink on the selection pill, and an inactive caption that exists at all. */
+/* WCAG relative luminance. The first version of this was arithmetic nonsense that could not
+ * fail a pair, which is worse than no gate at all. This is the real formula. */
+static double rel_lum(uint32_t c) {
+    double ch[3] = { (double)((c >> 16) & 0xFF), (double)((c >> 8) & 0xFF), (double)(c & 0xFF) };
+    const double w[3] = { 0.2126, 0.7152, 0.0722 };
+    double L = 0.0;
+    for (int i = 0; i < 3; i++) {
+        double v = ch[i] / 255.0;
+        v = (v <= 0.03928) ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4);
+        L += w[i] * v;
+    }
+    return L;
+}
+
+static void test_theme_palette_invariants(void) {
+    for (int t = 0; t < THEME_COUNT; t++) {
+        wubu_theme_set((WubuThemeId)t);
+        const WubuThemeColors *c = wubu_theme_colors();
+        char msg[128];
+
+        double l1 = rel_lum(c->win_title_active), l2 = rel_lum(c->win_title_text);
+        double cr = (l1 > l2 ? (l1 + 0.05) / (l2 + 0.05) : (l2 + 0.05) / (l1 + 0.05));
+        snprintf(msg, sizeof msg, "theme %d: caption ink readable on the caption bar", t);
+        CHECK(cr >= 4.5, msg);
+
+        double b1 = rel_lum(c->win_face), b2 = rel_lum(c->body_text);
+        double br = (b1 > b2 ? (b1 + 0.05) / (b2 + 0.05) : (b2 + 0.05) / (b1 + 0.05));
+        snprintf(msg, sizeof msg, "theme %d: body ink readable on the window face", t);
+        CHECK(br >= 4.5, msg);
+
+        double s1 = rel_lum(c->select_bg), s2 = rel_lum(c->select_text);
+        double sr = (s1 > s2 ? (s1 + 0.05) / (s2 + 0.05) : (s2 + 0.05) / (s1 + 0.05));
+        snprintf(msg, sizeof msg, "theme %d: selected ink readable on the selection", t);
+        CHECK(sr >= 4.5, msg);
+
+        snprintf(msg, sizeof msg, "theme %d: has a real inactive caption (not unset/black-default)", t);
+        CHECK(c->win_title_inactive != 0, msg);
+    }
+    wubu_theme_set(THEME_DARK);
+}
+
 int main(void) {
     /* BEFORE any taskbar call: this suite must never read or write the user's dock file. */
     setenv("WUBU_TASKBAR_CONF", "/tmp/wubu-test-taskbar.conf", 1);
@@ -2699,6 +2745,7 @@ int main(void) {
     test_window_open_animation();
     test_app_icons();
     test_window_close_animation();
+    test_theme_palette_invariants();
     test_init();
     test_init_shutdown_no_crash();
     test_hover_preview_composites_a_card();
