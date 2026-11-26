@@ -17,7 +17,8 @@ struct wubu_world;
 
 /* -- Applet System ------------------------------------------------- */
 
-#define CP_MAX_APPLETS        12   /* display, network, sound, theme, hardware, firmware, mirror, account, pkg sync */
+#define CP_MAX_APPLETS        16   /* 10 in use. Headroom is the guard: a register() past the bound returns -1 and
+                                    * the newest applet silently never appears -- that is how this bound grew from 8. */
 #define CP_MAX_RECENT_ENTRIES 16
 #define CP_SIDEBAR_W          180
 #define CP_CONTENT_MARGIN     16
@@ -36,6 +37,7 @@ typedef enum {
     CP_APPLET_FIRMWARE    = 10, /* BIOS/SMBIOS identity + what can update it (fwupd parity) */
     CP_APPLET_MIRROR      = 11, /* package mirrorlist, ranked (reflector parity) */
     CP_APPLET_ACCOUNT     = 12, /* the signed-in user (AccountsControl parity) */
+    CP_APPLET_LIMITS      = 13, /* family limits: hours and days (ParentalControls parity) */
 } CpAppletId;
 
 typedef struct CpApplet CpApplet;
@@ -115,6 +117,8 @@ CpApplet cp_create_firmware_applet(void);   /* control_panel_firmware.c */
 CpApplet cp_create_mirror_applet(void);     /* control_panel_mirror.c */
 int      cp_firmware_test_summary(char *out, size_t cap);
 CpApplet cp_create_account_applet(void);    /* control_panel_account.c */
+CpApplet cp_create_limits_applet(void);     /* control_panel_limits.c */
+const void *cp_limits_test_policy(bool *dirty);
 int      cp_mirror_test_rows(char *first_url, size_t cap);
 int      cp_account_test_login(char *out, size_t cap);
 typedef int (*WorldStateFn)(char *buf, size_t cap);

@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**35/42 have an owner, 7 missing, 8 declared not applicable.**
+**36/42 have an owner, 6 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -29,7 +29,7 @@ the behaviour works -- that is the test suite's job.
 | win11 | `Windows.ContentDeliveryManager` | `src/gui/wubu_pkgmgr.c:16` | content delivery / packages |
 | win11 | `AccountsControl` | `src/runtime/wubu_userinfo.c:14` | account surface -- signed-in user, home, picture, password tool (read from passwd) |
 | win11 | `BioEnrollment` | **MISSING** | biometrics |
-| win11 | `ParentalControls` | **MISSING** | parental controls |
+| win11 | `ParentalControls` | `src/runtime/wubu_parental.c:14` | family limits -- allowed hours/days, enforced by locking the session |
 | win11 | `AsyncTextService` | `src/gui/term_ansi.c:41` | text services |
 | win11 | `NcsiUwpApp` | `src/gui/shell/quick_settings.c:29` | status rows + tray click opens the panel; SSID scan in control panel |
 | win11 | `Windows.OOBENetworkConnectionFlow` | `src/gui/shell/wubu_shell_greeter.c:29` | setup network step -- the interfaces WuBuOS can see |

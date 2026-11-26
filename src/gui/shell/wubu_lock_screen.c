@@ -18,6 +18,7 @@
 #include <time.h>
 
 static bool g_locked = false;
+static char g_reason[160];   /* "" normally; set when a limit, not the user, locked the session */
 static bool g_enabled = true;
 
 void wubu_lock_screen_set_enabled(bool enabled) {
@@ -27,7 +28,7 @@ void wubu_lock_screen_set_enabled(bool enabled) {
 bool wubu_lock_screen_is_enabled(void) { return g_enabled; }
 
 void wubu_lock_screen_lock(void)   { if (g_enabled) g_locked = true; }
-void wubu_lock_screen_unlock(void) { g_locked = false; }
+void wubu_lock_screen_unlock(void) { g_locked = false; g_reason[0] = '\0'; }
 bool wubu_lock_screen_is_locked(void) { return g_locked; }
 
 bool wubu_lock_screen_handle_key(uint32_t key, uint32_t mods) {
@@ -63,4 +64,17 @@ void wubu_lock_screen_render(uint32_t *fb, int fb_w, int fb_h) {
     const char *prompt = "Locked -- press Enter to resume";
     int pw = (int)strlen(prompt) * 8;
     vbe_draw_text((fb_w - pw) / 2, fb_h / 2 + 20, prompt, c->btn_text, 1);
+
+    /* The reason, when something other than the user locked the session. */
+    if (g_reason[0]) {
+        int rw = (int)strlen(g_reason) * 8;
+        vbe_draw_text((fb_w - rw) / 2, fb_h / 2 + 44, g_reason, c->body_text_ina, 1);
+    }
 }
+
+void wubu_lock_screen_set_reason(const char *why)
+{
+    snprintf(g_reason, sizeof g_reason, "%s", why ? why : "");
+}
+
+const char *wubu_lock_screen_reason(void) { return g_reason; }

@@ -45,6 +45,7 @@ void controlpanel_init(void)
     applets[n++] = cp_create_firmware_applet();
     applets[n++] = cp_create_mirror_applet();
     applets[n++] = cp_create_account_applet();
+    applets[n++] = cp_create_limits_applet();
     if (cp_create_pkg_sync_applet && n < CP_MAX_APPLETS)
         applets[n++] = cp_create_pkg_sync_applet();
 

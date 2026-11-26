@@ -30,6 +30,11 @@ bool wubu_lock_screen_is_enabled(void);
  * must not dispatch it to any window). */
 bool wubu_lock_screen_handle_key(uint32_t key, uint32_t mods);
 
+/* Why the session is locked, when it was not the user's own doing (a family limit, for example).
+ * "Locked" with no reason reads as a broken computer; the line is cleared on unlock. */
+void wubu_lock_screen_set_reason(const char *why);
+const char *wubu_lock_screen_reason(void);
+
 void wubu_lock_screen_render(uint32_t *fb, int fb_w, int fb_h);
 
 #endif /* WUBU_LOCK_SCREEN_H */

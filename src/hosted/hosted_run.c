@@ -15,6 +15,7 @@
 #include "../kernel/wubu_drv_thermal.h"
 #include "../kernel/wubu_evdev.h"
 #include "../gui/buddy_sprite.h"
+#include "../gui/shell/parental_guard.h"   /* family limits lock the session when the window closes */
 #include "hosted_agent_channel.h"
 
 #include "../kernel/vbe.h"
@@ -128,6 +129,8 @@ struct timespec last_input;
             /* The agent's requests (buddy mood, walkthrough) arrive through
              * its own namespace; act on them here. */
             hosted_agent_channel_poll();
+            /* Family limits: throttled inside the guard, so this is one stat + one localtime a minute. */
+            (void)wubu_parental_enforce(time(NULL), 30);
             if (wubu_agi_play_tick() >= 0) wubu_agi_play_learn();
             /* The buddy reports the thermal state for real: past 85C on the
              * CPU or the GPU the box is on fire and he reaches for the

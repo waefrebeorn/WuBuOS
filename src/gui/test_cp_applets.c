@@ -13,6 +13,7 @@
  *   3. the theme page shows actual palette colours, not just text.
  */
 #include "control_panel.h"
+#include "../runtime/wubu_parental.h"
 #include "control_panel_text.h"
 #include "../runtime/wubu_mirror.h"
 
@@ -147,6 +148,7 @@ int main(void)
     paint_one("sound",    cp_create_sound_applet(),    0);
     paint_one("hardware", cp_create_hardware_applet(), 0);
     paint_one("account",  cp_create_account_applet(),  0);
+    paint_one("limits",   cp_create_limits_applet(),   0);
 
     /* A fake DMI tree, so the gate measures the wiring and not the host's BIOS. */
     char froot[] = "/tmp/cpfwXXXXXX";
@@ -222,6 +224,61 @@ int main(void)
         check(controlpanel_count() >= 8, "the Control Panel registry holds every applet it ships");
         controlpanel_shutdown();
         free(afb);
+    }
+
+    /* Family limits: the panel must be an EDITOR. Toggling and saving through its own keys must write a
+     * policy, and the written policy must be the one the decision reads back. */
+    {
+        char conf[] = "/tmp/cplimitsXXXXXX";
+        int fd = mkstemp(conf);
+        if (fd >= 0) close(fd);
+        remove(conf);                                  /* start with no policy file */
+        setenv("WUBU_PARENTAL_CONF", conf, 1);
+
+        controlpanel_init();
+        CpApplet *lim = controlpanel_get_applet(CP_APPLET_LIMITS);
+        check(lim != NULL, "the Family limits applet is registered");
+
+        uint32_t *lfb = calloc((size_t)W * H + CANARY, sizeof(uint32_t));
+        for (unsigned i = 0; i < CANARY; i++) lfb[(size_t)W * H + i] = CANARY_VAL;
+        controlpanel_render(lfb, W, H);
+        check(non_black_in_content(lfb) > 400, "the Family limits page paints");
+        check(canary_intact(lfb), "the Family limits page honours the surface stride");
+
+        bool dirty = false;
+        const void *pol = cp_limits_test_policy(&dirty);
+        check(pol != NULL, "the panel holds a policy");
+        const WubuParentalPolicy *p = (const WubuParentalPolicy *)pol;
+        check(!p->enabled, "a fresh machine has no limits enabled");
+        check(!dirty, "nothing is unsaved before the user touches it");
+
+        /* Space enables, Down moves the end hour, Enter saves. */
+        lim->key(lim, ' ', 0);
+        check(cp_limits_test_policy(&dirty) && dirty, "toggling marks the policy unsaved");
+        lim->key(lim, 9, 0);                           /* Tab: select the end hour */
+        lim->key(lim, 0xE050, 0);                      /* Down: end hour +30 min */
+        lim->key(lim, 0x1C, 0);                        /* Enter: save */
+        bool still = true;
+        cp_limits_test_policy(&still);
+        check(!still, "saving clears the unsaved mark");
+
+        WubuParentalPolicy written;
+        check(wubu_parental_load(&written) == 0, "the panel wrote a policy file");
+        check(written.enabled, "the written policy is enabled");
+        check(written.end_min == 20 * 60 + 30, "the written policy carries the edited end hour");
+
+        /* And the decision agrees with what was written: at a moment outside the window, denied. */
+        struct tm t;
+        memset(&t, 0, sizeof t);
+        t.tm_wday = 3; t.tm_hour = 3; t.tm_min = 0;
+        char why[160];
+        check(!wubu_parental_allowed(&written, &t, why, sizeof why),
+              "the saved policy actually denies 03:00");
+
+        controlpanel_shutdown();
+        free(lfb);
+        remove(conf);
+        unsetenv("WUBU_PARENTAL_CONF");
     }
 
     /* cp_text is the shared drawer: it must honour clip bounds too */

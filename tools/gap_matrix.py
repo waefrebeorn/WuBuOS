@@ -73,7 +73,8 @@ SHELL = [
     ("AccountsControl",         ["src/runtime/wubu_userinfo.c", "src/gui/control_panel_account.c"],
                                   "account surface -- signed-in user, home, picture, password tool (read from passwd)"),
     ("BioEnrollment",           [], "biometrics"),
-    ("ParentalControls",        [], "parental controls"),
+    ("ParentalControls",         ["src/runtime/wubu_parental.c", "src/gui/control_panel_limits.c"],
+                                  "family limits -- allowed hours/days, enforced by locking the session"),
     ("AsyncTextService",        ["src/gui/term_ansi.c"], "text services"),
     # The connectivity surface exists twice over and neither was mapped: quick settings draws
     # "WiFi: connected/off" and "Ethernet: connected/off" from the real link state, and the tray's
