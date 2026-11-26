@@ -50,7 +50,8 @@ static long fps_env(const char *name, long dflt, long lo, long hi) {
  * number nobody can reproduce is how "it feels laggy" becomes an argument instead of a fix. */
 static const char *perf_on(void) { static int v = -1; if (v < 0) v = getenv("WUBU_FPS_REPORT") ? 1 : 0; return v ? "" : NULL; }
 static struct timespec g_perf_t0;
-static double g_perf_acc[3];
+static double g_perf_acc[8];   /* 0 render 1 present 2 evdev 3 x11 pump 4 wl dispatch 5 input 6 other */
+
 static int g_perf_n;
 static struct timespec g_perf_start;
 static int g_perf_frames;
@@ -66,10 +67,12 @@ static void perf_frame_tick(void) {
     if (++g_perf_n % 120) return;
     struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
     double secs = (t.tv_sec - g_perf_start.tv_sec) + (t.tv_nsec - g_perf_start.tv_nsec) / 1e9;
-    fprintf(stderr, "[perf] %.1f fps  render %.2f ms  blit %.2f ms  evdev %.2f ms\n",
+    fprintf(stderr, "[perf] %.1f fps | render %.2f | present %.2f | evdev %.2f | pump %.2f | wl %.2f | input %.2f | agi %.2f ms\n",
             g_perf_frames / secs, g_perf_acc[0] / g_perf_n, g_perf_acc[1] / g_perf_n,
-            g_perf_acc[2] / g_perf_n);
-    g_perf_acc[0] = g_perf_acc[1] = g_perf_acc[2] = 0; g_perf_n = 0; g_perf_frames = 0;
+            g_perf_acc[2] / g_perf_n, g_perf_acc[3] / g_perf_n, g_perf_acc[4] / g_perf_n,
+            g_perf_acc[5] / g_perf_n, g_perf_acc[6] / g_perf_n);
+    for (int k = 0; k < 8; k++) g_perf_acc[k] = 0;
+    g_perf_n = 0; g_perf_frames = 0;
 }
 
 int hosted_run(hosted_state_t *state) {
@@ -101,15 +104,21 @@ struct timespec last_input;
         /* X11 input FIRST. It used to be pumped at the END of the frame, so a pointer move
          * was queued after dispatch had already run and only took effect one frame later --
          * with the idle rate that is up to 125 ms of lag on every app and on the window. */
+        perf_begin();
         if (hosted_x11_present_active() && hosted_x11_present_pump())
             state->running = false;
+        perf_end(3);
 
+        perf_begin();
         hosted_wl_dispatch();
+        perf_end(4);
 
+        perf_begin();
         int had_input = hosted_input_dispatch();
         /* An X event is input even if the same frame's dispatch already drained the queue: without this the
          * loop dropped to the 30 fps idle rate mid-drag (measured). */
         if (hosted_x11_present_activity()) had_input = 1;
+        perf_end(5);
         if (had_input) {
             clock_gettime(CLOCK_MONOTONIC, &last_input);
             last_input_ms = last_input.tv_sec * 1000L +
@@ -180,6 +189,13 @@ struct timespec last_input;
             }
         }
 
+        static int path_logged;
+        if (!path_logged) {
+            path_logged = 1;
+            fprintf(stderr, "[path] present=%s mode=%d wl_surface=%p x11=%d\n",
+                    g_wl.surface ? "wayland" : hosted_x11_present_active() ? "x11" : "none",
+                    (int)state->mode, (void *)g_wl.surface, hosted_x11_present_active());
+        }
         if (g_wl.surface) {
             hosted_wl_frame_render();
         } else if (hosted_x11_present_active()) {
