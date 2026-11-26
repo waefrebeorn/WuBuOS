@@ -263,8 +263,14 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
      * The registry entry's title is "HolyC Terminal" -- launch_app matches on
      * name OR title, and the old "HolyC REPL" string matched neither, so that
      * window silently never opened. */
-    launch_app("My Computer");
-    launch_app("HolyC Terminal");
+    /* WUBU_NO_BOOT_APPS=1 boots to a CLEAR desktop. Needed to test the desktop itself (icons,
+     * context menus, the properties sheet): the two windows below cover the icon grid, and
+     * clearing them by hand with Alt+F4 also closes the hosted window once no OS window has
+     * focus. This is a test affordance, off by default. */
+    if (!getenv("WUBU_NO_BOOT_APPS")) {
+        launch_app("My Computer");
+        launch_app("HolyC Terminal");
+    }
 
     /* GAP F: the first-boot greeter -- the visible configurator the
      * onboarding decision layer has always targeted but never drawn.  Shown
