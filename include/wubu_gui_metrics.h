@@ -55,6 +55,12 @@
 
 /* Toast cards: the reference desktop's notification popup. Wide enough for a summary plus two body
  * lines, tall enough for both -- a card that clips the message is a card that says nothing. */
+/* The Explorer search field: wide enough for a filename, never wider than the toolbar has room for. */
+#define WUBU_METRIC_SEARCH_W 180
+/* Where it may sit: the five buttons occupy this much, and the view label reserves this much at the
+ * far right. Both are layout numbers, so they live here like every other one. */
+#define WUBU_METRIC_TOOLBAR_BUTTONS_W 390
+#define WUBU_METRIC_VIEW_LABEL_W      180
 #define WUBU_METRIC_TOAST_W 360
 #define WUBU_METRIC_TOAST_H 84
 #define WUBU_METRIC_TOAST_BODY_DY 46

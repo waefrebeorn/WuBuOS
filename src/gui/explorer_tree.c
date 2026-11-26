@@ -31,6 +31,8 @@ int ex_strcasecmp(const char *a, const char *b) {
 void ex_sort_entries(ExExplorerState *ex) {
     g_sort_ctx = ex;
     qsort(ex->entries, ex->entry_count, sizeof(ExEntry), ex_file_compare);
+    /* Sorting reorders entries in place: the filtered view holds INDICES, so it is stale now. */
+    ex_view_invalidate(ex);
     g_sort_ctx = NULL;
 }
 

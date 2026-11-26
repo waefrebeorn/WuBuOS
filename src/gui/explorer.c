@@ -78,9 +78,6 @@ int str_contains_nocase(const char *haystack, const char *needle) {
     return 0;
 }
 
-/* -- Find State (defined here; declared extern in internal header) ----- */
-ExFindState g_find_state = {0};
-
 /* -- Lifecycle ---------------------------------------------------- */
 
 int explorer_init(void) {

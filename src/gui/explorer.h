@@ -282,7 +282,42 @@ typedef struct {
     
     /* Focus pane for Tab navigation: 0=tree, 1=breadcrumbs, 2=list, 3=preview */
     int                 focus_pane;
+
+    /* Search (the Win11 field in the toolbar: type and the list filters as you go).
+     * The filtered view lives in visible[] and is built by ex_view_sync(); the renderer and the
+     * hit-test both read it, so a click can never land on a different entry than the drawn one. */
+    char                search[64];
+    bool                search_active;
+    int                 toolbar_w;       /* content width the toolbar was last drawn at: input needs it */
+    int                 visible[EX_MAX_ENTRIES];
+    int                 visible_count;
+    bool                visible_dirty;
+    int                 visible_stamp;   /* entry_count the view was built from: catches a missed invalidate */
 } ExExplorerState;
+
+/* -- Search / filtered view (explorer_search.c) ------------------- */
+
+/* One row of the list -> one entry. ex_view_entry() is the ONLY mapping; nothing else may compute
+ * "which entry is row N" from entry_count. */
+void ex_view_invalidate(ExExplorerState *ex);
+void ex_view_sync(ExExplorerState *ex);
+int  ex_view_count(const ExExplorerState *ex);
+int  ex_view_entry(const ExExplorerState *ex, int row);
+/* Does this entry match the query? Empty query matches everything. Case-insensitive; matches the
+ * name, the type string and the extension, which is what a user types ("png", "folder", "report"). */
+bool ex_entry_matches_search(const ExEntry *e, const char *query);
+void ex_search_set(ExExplorerState *ex, const char *query);
+void ex_search_clear(ExExplorerState *ex);
+
+/* Where the search field is drawn, in toolbar coordinates. FALSE when the toolbar is too narrow for
+ * it -- the renderer and the click handler both ask, so clicking a field that was not drawn cannot
+ * activate it. */
+bool ex_search_rect(const ExExplorerState *ex, int x, int y, int w, int toolbar_h,
+                    int *out_x, int *out_y, int *out_w, int *out_h);
+void ex_render_search(ExExplorerState *ex, int x, int y, int w, int toolbar_h);
+
+/* Shared by the search and the legacy find: one implementation of "contains, ignoring case". */
+int str_contains_nocase(const char *haystack, const char *needle);
 
 /* -- Global Instance ---------------------------------------------- */
 

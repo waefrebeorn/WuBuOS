@@ -39,94 +39,41 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
         if (key >= 32 && key < 127) { explorer_pick_typed_char((char)key); return; }
     }
 
-    if (g_explorer.context_menu_x >= 0) {
-        ex_hide_context_menu(&g_explorer);
-        return;
+    /* The search field owns keystrokes while it is focused. It is a TEXT FIELD: typing "n" must filter
+     * the list, not create a folder, and Backspace must edit the query, not navigate up. */
+    if (g_explorer.search_active) {
+        if (key == 0x01 || key == 27) {                 /* Esc: clear and give the list back */
+            ex_search_clear(&g_explorer);
+            return;
+        }
+        if (key == 0x1C || key == 0xE01C || key == '\r' || key == '\n') {
+            g_explorer.search_active = false;           /* Enter keeps the filter, returns to the list */
+            return;
+        }
+        if (key == 8) {
+            size_t n = strlen(g_explorer.search);
+            if (n) {
+                g_explorer.search[n - 1] = '\0';
+                ex_search_set(&g_explorer, g_explorer.search);
+            }
+            return;
+        }
+        if (key >= 32 && key < 127) {
+            size_t n = strlen(g_explorer.search);
+            if (n + 1 < sizeof g_explorer.search) {
+                g_explorer.search[n] = (char)key;
+                g_explorer.search[n + 1] = '\0';
+                ex_search_set(&g_explorer, g_explorer.search);
+            }
+            return;
+        }
+        /* Arrows still move through the filtered list; anything else is swallowed so a focused field
+         * never triggers a shortcut by accident. */
+        if (!(key == 0xE048 || key == 0xE050 || key == 0xE04B || key == 0xE04D)) return;
     }
 
-    /* If find is active, handle find input */
-    if (g_find_state.active) {
-        if (key == 0x01) { /* Escape — close find */
-            g_find_state.active = false;
-            g_find_state.query_len = 0;
-            g_find_state.query[0] = '\0';
-            g_find_state.last_match = -1;
-            snprintf(g_explorer.status_text, sizeof(g_explorer.status_text), "Find cancelled");
-        } else if (key == 0x1C || key == 0xE01C) { /* Enter — find next */
-            /* Search from last_match + 1 */
-            int start = (g_find_state.last_match >= 0) ? g_find_state.last_match + 1 : 0;
-            int found = -1;
-            for (int i = start; i < g_explorer.entry_count; i++) {
-                if (str_contains_nocase(g_explorer.entries[i].name, g_find_state.query)) {
-                    found = i;
-                    break;
-                }
-            }
-            /* Wrap around if not found */
-            if (found < 0 && start > 0) {
-                for (int i = 0; i < start; i++) {
-                    if (str_contains_nocase(g_explorer.entries[i].name, g_find_state.query)) {
-                        found = i;
-                        break;
-                    }
-                }
-            }
-            if (found >= 0) {
-                g_find_state.last_match = found;
-                g_explorer.focus_idx = found;
-                g_explorer.anchor_idx = found;
-                explorer_clear_selection();
-                explorer_toggle_selection(found);
-                /* Scroll to make visible */
-                int row_h = ex_row_h();
-                /* Both branches were the same expression, copied. ex_content_top() owns
-                 * the sum now, so the tab strip cannot be in one copy and missing from the
-                 * other. */
-                int list_h = vbe_state()->height - ex_content_top() - ex_statusbar_h();
-                int visible_rows = list_h / row_h;
-                if (g_explorer.focus_idx < g_explorer.list_scroll_y)
-                    g_explorer.list_scroll_y = g_explorer.focus_idx;
-                else if (g_explorer.focus_idx >= g_explorer.list_scroll_y + visible_rows)
-                    g_explorer.list_scroll_y = g_explorer.focus_idx - visible_rows + 1;
-                snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                         "Found: %s", g_explorer.entries[found].name);
-            } else {
-                snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                         "No match for: %s", g_find_state.query);
-            }
-        } else if (key == 0x0E) { /* Backspace */
-            if (g_find_state.query_len > 0) {
-                g_find_state.query[--g_find_state.query_len] = '\0';
-                g_find_state.last_match = -1;
-                snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                         "Find: %s", g_find_state.query);
-            }
-        } else if (g_find_state.query_len < EX_FIND_MAX_LEN - 1) {
-            /* Accept printable ASCII */
-            char ch = 0;
-            if (key >= 'a' && key <= 'z') ch = (char)key;
-            else if (key >= 'A' && key <= 'Z') ch = (char)key;
-            else if (key >= '0' && key <= '9') ch = (char)key;
-            else if (key == 0x39) ch = ' ';       /* Space */
-            else if (key == 0x0C) ch = '-';        /* Minus */
-            else if (key == 0x0D) ch = '=';        /* Equals */
-            else if (key == 0x1A) ch = '[';        /* Left bracket */
-            else if (key == 0x1B) ch = ']';        /* Right bracket */
-            else if (key == 0x27) ch = ';';        /* Semicolon */
-            else if (key == 0x28) ch = '\'';       /* Apostrophe */
-            else if (key == 0x29) ch = '`';        /* Grave */
-            else if (key == 0x2B) ch = '\\';       /* Backslash */
-            else if (key == 0x33) ch = ',';        /* Comma */
-            else if (key == 0x34) ch = '.';        /* Period */
-            else if (key == 0x35) ch = '/';        /* Slash */
-            if (ch) {
-                g_find_state.query[g_find_state.query_len++] = ch;
-                g_find_state.query[g_find_state.query_len] = '\0';
-                g_find_state.last_match = -1;
-                snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                         "Find: %s", g_find_state.query);
-            }
-        }
+    if (g_explorer.context_menu_x >= 0) {
+        ex_hide_context_menu(&g_explorer);
         return;
     }
 
@@ -226,13 +173,12 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
         case 'f':
         case 'F':
             if (ctrl) {
-                /* Activate find mode */
-                g_find_state.active = true;
-                g_find_state.query_len = 0;
-                g_find_state.query[0] = '\0';
-                g_find_state.last_match = -1;
+                /* Ctrl+F focuses the toolbar search field -- the Windows behaviour: the list filters
+                 * as you type. The old find-next modal is gone from this key because two search
+                 * mechanisms is two answers to one question. */
+                g_explorer.search_active = true;
                 snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                         "Find: type search query, Enter=find next, Esc=cancel");
+                         "Search: type to filter, Enter=apply, Esc=clear");
             }
             break;
 
@@ -432,8 +378,17 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
             /* Toolbar strip: this range is the TOOLBAR (below the address bar), not the
              * breadcrumbs -- the label was wrong, which is how the real breadcrumb hit-test ended up
              * testing the wrong rows. No toolbar buttons are wired here yet. */
-            if (y >= ex_breadcrumb_h() && y < ex_breadcrumb_h() + ex_toolbar_h()) {
-                /* Toolbar buttons */
+            if (y >= 0 && y < ex_toolbar_h()) {
+                /* The search field first: its box comes from ex_search_rect(), the same function the
+                 * renderer paints it with, using the width the toolbar was DRAWN at. */
+                if (kind == 1 && btn == 1) {
+                    int sx, sy, sw, sh;
+                    if (ex_search_rect(ex, 0, 0, ex->toolbar_w, ex_toolbar_h(), &sx, &sy, &sw, &sh) &&
+                        x >= sx && x < sx + sw && y >= sy && y < sy + sh) {
+                        ex->search_active = true;
+                        return;
+                    }
+                }
                 return;
             }
 
@@ -448,8 +403,10 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
                     if (cols < 1) cols = 1;
                     int row = rel_y / (EX_ICON_SIZE + 20);
                     int col = (x - list_x) / (EX_ICON_SIZE + 16);
-                    int idx = row * cols + col;
-                    if (idx >= 0 && idx < ex->entry_count) {
+                    /* row*cols+col is a VISIBLE position; the entry index comes from the same
+                     * filtered view the renderer drew. */
+                    int idx = ex_view_entry(ex, row * cols + col);
+                    if (idx >= 0) {
                         ex->focus_idx = idx;
                         ex->anchor_idx = idx;
                         if (!shift) {
@@ -458,9 +415,9 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
                         }
                     }
                 } else {
-                    /* Details/List/Tiles - single column */
-                    int idx = rel_y / row_h;
-                    if (idx >= 0 && idx < ex->entry_count) {
+                    /* Details/List/Tiles - single column: visible row -> entry through the view. */
+                    int idx = ex_view_entry(ex, rel_y / row_h);
+                    if (idx >= 0) {
                         ex->focus_idx = idx;
                         ex->anchor_idx = idx;
                         if (!shift) {

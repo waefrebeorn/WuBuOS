@@ -93,17 +93,9 @@ extern ExExplorerState *g_sort_ctx;
 extern bool g_shift_pressed;
 extern bool g_ctrl_pressed;
 
-/* -- Find subsystem state + helper (defined in explorer.c,
- *     used by explorer_input.c) ----------------------------- */
-#define EX_FIND_MAX_LEN 256
-typedef struct {
-    bool    active;
-    char    query[EX_FIND_MAX_LEN];
-    int     query_len;
-    int     last_match;     /* index of last match, -1 = none */
-    bool    case_sensitive;
-} ExFindState;
-extern ExFindState g_find_state;
+/* One implementation of "contains, ignoring case" -- shared by the search field and every other
+ * matcher in the shell. Declared in explorer.h; the find-next modal that also used it is gone:
+ * the toolbar field filters the list, which is what Windows does. */
 int str_contains_nocase(const char *haystack, const char *needle);
 
 /* -- 9P/Styx filesystem backend (implemented in explorer_fs.c) --

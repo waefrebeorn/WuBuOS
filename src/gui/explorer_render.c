@@ -10,6 +10,7 @@
  */
 
 #include "wubu_gui_metrics.h"   /* layout comes from one owner */
+#include "wubu_tokens.h"
 #include "explorer_internal.h"
 #include "wm.h"
 #include "../kernel/vbe.h"
@@ -140,188 +141,6 @@ void ex_render_breadcrumbs(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h
     }
 }
 
-void ex_render_toolbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h) {
-    (void)fb; (void)fb_w; (void)fb_h; (void)h;
-
-    vbe_fill_rect(x, y, w, ex_toolbar_h(), tc()->taskbar_bg);
-    vbe_hline(x, x + w, y + ex_toolbar_h() - 1, tc()->taskbar_border);
-
-    const char *btns[] = {"Back", "Forward", "Up", "Refresh", "New Folder"};
-    int btn_w = 70;
-    int btn_x = x + 10;
-
-    for (int i = 0; i < 5; i++) {
-        vbe_fill_rect(btn_x, y + 4, btn_w, ex_toolbar_h() - 8, tc()->btn_face);
-        vbe_3d_raised_colors(btn_x, y + 4, btn_w, ex_toolbar_h() - 8,
-                            tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(btn_x + (btn_w - vbe_text_width(btns[i], 1)) / 2, y + 4 + (ex_toolbar_h() - 8 - 8) / 2, btns[i], tc()->btn_text, 1);
-        btn_x += btn_w + 6;
-    }
-
-    /* View mode dropdown indicator */
-    const char *view_names[] = {"Details", "Icons", "List", "Tiles"};
-    char view_label[64];
-    snprintf(view_label, sizeof(view_label), "View: %s", view_names[ex->view_mode]);
-    vbe_draw_text(x + w - 180, y + (ex_toolbar_h() - 8) / 2, view_label, tc()->btn_text, 1);
-}
-
-void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h) {
-    (void)fb; (void)fb_w; (void)fb_h;
-
-    vbe_fill_rect(x, y, w, h, tc()->win_face);
-
-    if (ex->view_mode == EX_VIEW_DETAILS) {
-        /* Column headers */
-        int col_x = x;
-        for (int i = 0; i < ex->column_count; i++) {
-            if (!ex->columns[i].visible) continue;
-            vbe_fill_rect(col_x, y, ex->columns[i].width, ex_title_h(), tc()->win_title_inactive);
-            vbe_3d_raised_colors(col_x, y, ex->columns[i].width, ex_title_h(),
-                                tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(col_x + 6, y + (ex_title_h() - 8) / 2, ex->columns[i].name, tc()->body_text, 1);
-            col_x += ex->columns[i].width;
-            vbe_vline(col_x - 1, y, y + h, tc()->border_dark);
-        }
-
-        /* Entries */
-        int row_y = y + ex_title_h();
-        int row_h = ex_row_h();
-        int max_rows = (h - ex_title_h()) / row_h;
-
-        for (int i = 0; i < ex->entry_count && i < max_rows; i++) {
-            ExEntry *entry = &ex->entries[i];
-            if (entry->hidden && !ex->show_hidden) continue;
-
-            int col_x2 = x;
-            for (int c = 0; c < ex->column_count; c++) {
-                if (!ex->columns[c].visible) continue;
-                int col_w = ex->columns[c].width;
-
-                if (entry->is_selected || i == ex->focus_idx) {
-                    vbe_fill_rect(col_x2, row_y, col_w, row_h, tc()->select_bg);
-                }
-
-                if (c == 0) { /* Name with icon */
-                    vbe_fill_rect(col_x2 + 4, row_y + (row_h - 16) / 2, 16, 16, entry->icon_color);
-                    vbe_rect(col_x2 + 4, row_y + (row_h - 16) / 2, 16, 16, tc()->icon_border);
-                    vbe_draw_text(col_x2 + 24, row_y + (row_h - 8) / 2, entry->name, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
-                } else if (c == 1) { /* Size */
-                    char size_str[32];
-                    explorer_format_size(entry->size, size_str, sizeof(size_str));
-                    vbe_draw_text(col_x2 + 6, row_y + (row_h - 8) / 2, size_str, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
-                } else if (c == 2) { /* Type */
-                    vbe_draw_text(col_x2 + 6, row_y + (row_h - 8) / 2, entry->type_str, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
-                } else if (c == 3) { /* Date */
-                    char date_str[64];
-                    explorer_format_time(entry->modified, date_str, sizeof(date_str));
-                    vbe_draw_text(col_x2 + 6, row_y + (row_h - 8) / 2, date_str, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
-                }
-
-                col_x2 += col_w;
-            }
-            row_y += row_h;
-        }
-    } else if (ex->view_mode == EX_VIEW_ICONS) {
-        /* Large icons grid */
-        int icon_w = EX_ICON_SIZE;
-        int icon_h = EX_ICON_SIZE;
-        int cell_w = icon_w + 16;
-        int cell_h = icon_h + 24;
-        int cols = w / cell_w;
-        if (cols < 1) cols = 1;
-        int start_x = x + (w - cols * cell_w) / 2;
-        int cur_x = start_x;
-        int cur_y = y + 10;
-
-        for (int i = 0; i < ex->entry_count; i++) {
-            ExEntry *entry = &ex->entries[i];
-            if (entry->hidden && !ex->show_hidden) continue;
-
-            bool selected = entry->is_selected || i == ex->focus_idx;
-            if (selected) {
-                vbe_fill_rect(cur_x, cur_y, cell_w, cell_h, tc()->select_bg);
-            }
-
-            /* Icon */
-            vbe_fill_rect(cur_x + 8, cur_y + 4, icon_w, icon_h, entry->icon_color);
-            vbe_rect(cur_x + 8, cur_y + 4, icon_w, icon_h, tc()->icon_border);
-
-            /* Name */
-            vbe_draw_text(cur_x + (cell_w - vbe_text_width(entry->name, 1)) / 2,
-                         cur_y + icon_h + 8, entry->name,
-                         selected ? tc()->select_text : tc()->icon_text, 1);
-
-            cur_x += cell_w;
-            if (cur_x + cell_w > x + w - 10) {
-                cur_x = start_x;
-                cur_y += cell_h;
-            }
-        }
-    } else if (ex->view_mode == EX_VIEW_LIST) {
-        /* Small icons, single column */
-        int row_h = WUBU_METRIC_ROW_H;
-        int row_y = y + 4;
-
-        for (int i = 0; i < ex->entry_count; i++) {
-            ExEntry *entry = &ex->entries[i];
-            if (entry->hidden && !ex->show_hidden) continue;
-
-            bool selected = entry->is_selected || i == ex->focus_idx;
-            if (selected) {
-                vbe_fill_rect(x + 2, row_y, w - 4, row_h, tc()->select_bg);
-            }
-
-            vbe_fill_rect(x + 4, row_y + (row_h - 16) / 2, 16, 16, entry->icon_color);
-            vbe_rect(x + 4, row_y + (row_h - 16) / 2, 16, 16, tc()->icon_border);
-            vbe_draw_text(x + 24, row_y + (row_h - 8) / 2, entry->name, selected ? tc()->select_text : tc()->icon_text, 1);
-
-            row_y += row_h;
-            if (row_y + row_h > y + h) break;
-        }
-    } else if (ex->view_mode == EX_VIEW_TILES) {
-        /* Medium icons with metadata */
-        int tile_w = 180;
-        int tile_h = 90;
-        int cols = w / tile_w;
-        if (cols < 1) cols = 1;
-        int cur_x = x + 10;
-        int cur_y = y + 10;
-
-        for (int i = 0; i < ex->entry_count; i++) {
-            ExEntry *entry = &ex->entries[i];
-            if (entry->hidden && !ex->show_hidden) continue;
-
-            bool selected = entry->is_selected || i == ex->focus_idx;
-            if (selected) {
-                vbe_fill_rect(cur_x, cur_y, tile_w, tile_h, tc()->select_bg);
-            }
-
-            vbe_3d_raised_colors(cur_x, cur_y, tile_w, tile_h,
-                                tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
-
-            vbe_fill_rect(cur_x + 8, cur_y + 8, 48, 48, entry->icon_color);
-            vbe_rect(cur_x + 8, cur_y + 8, 48, 48, tc()->icon_border);
-
-            vbe_draw_text(cur_x + 60, cur_y + 10, entry->name, selected ? tc()->select_text : tc()->icon_text, 1);
-
-            char size_str[32];
-            explorer_format_size(entry->size, size_str, sizeof(size_str));
-            vbe_draw_text(cur_x + 60, cur_y + 26, size_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
-
-            char date_str[64];
-            explorer_format_time(entry->modified, date_str, sizeof(date_str));
-            vbe_draw_text(cur_x + 60, cur_y + 38, date_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
-
-            vbe_draw_text(cur_x + 60, cur_y + 50, entry->type_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
-
-            cur_x += tile_w + 10;
-            if (cur_x + tile_w > x + w - 10) {
-                cur_x = x + 10;
-                cur_y += tile_h + 10;
-            }
-        }
-    }
-}
 
 void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h) {
     (void)fb; (void)fb_w; (void)fb_h;
@@ -581,4 +400,175 @@ void explorer_render(uint32_t *fb, int fb_w, int fb_h) {
 
     ex_render_statusbar(ex, fb, fb_w, fb_h, 0, fb_h - ex_statusbar_h(), fb_w, ex_statusbar_h());
     ex_render_context_menu(ex, fb, fb_w, fb_h);
+}
+
+void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h) {
+    /* One sync per frame: the list below is drawn from the filtered view, and the search field's
+     * keystroke only marks it dirty. */
+    ex_view_sync(ex);
+    (void)fb; (void)fb_w; (void)fb_h;
+
+    vbe_fill_rect(x, y, w, h, tc()->win_face);
+
+    if (ex->view_mode == EX_VIEW_DETAILS) {
+        /* Column headers */
+        int col_x = x;
+        for (int i = 0; i < ex->column_count; i++) {
+            if (!ex->columns[i].visible) continue;
+            vbe_fill_rect(col_x, y, ex->columns[i].width, ex_title_h(), tc()->win_title_inactive);
+            vbe_3d_raised_colors(col_x, y, ex->columns[i].width, ex_title_h(),
+                                tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
+            vbe_draw_text(col_x + 6, y + (ex_title_h() - 8) / 2, ex->columns[i].name, tc()->body_text, 1);
+            col_x += ex->columns[i].width;
+            vbe_vline(col_x - 1, y, y + h, tc()->border_dark);
+        }
+
+        /* Entries */
+        int row_y = y + ex_title_h();
+        int row_h = ex_row_h();
+        int max_rows = (h - ex_title_h()) / row_h;
+
+        /* Rows come from the filtered view: the search field decides what the list SHOWS, and the
+         * hit-test reads the same array, so a click cannot land on an undrawn entry. */
+        for (int r = 0; r < ex_view_count(ex) && r < max_rows; r++) {
+            int i = ex_view_entry(ex, r);
+            if (i < 0) break;
+            ExEntry *entry = &ex->entries[i];
+            if (entry->hidden && !ex->show_hidden) continue;
+
+            int col_x2 = x;
+            for (int c = 0; c < ex->column_count; c++) {
+                if (!ex->columns[c].visible) continue;
+                int col_w = ex->columns[c].width;
+
+                if (entry->is_selected || i == ex->focus_idx) {
+                    vbe_fill_rect(col_x2, row_y, col_w, row_h, tc()->select_bg);
+                }
+
+                if (c == 0) { /* Name with icon */
+                    vbe_fill_rect(col_x2 + 4, row_y + (row_h - 16) / 2, 16, 16, entry->icon_color);
+                    vbe_rect(col_x2 + 4, row_y + (row_h - 16) / 2, 16, 16, tc()->icon_border);
+                    vbe_draw_text(col_x2 + 24, row_y + (row_h - 8) / 2, entry->name, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
+                } else if (c == 1) { /* Size */
+                    char size_str[32];
+                    explorer_format_size(entry->size, size_str, sizeof(size_str));
+                    vbe_draw_text(col_x2 + 6, row_y + (row_h - 8) / 2, size_str, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
+                } else if (c == 2) { /* Type */
+                    vbe_draw_text(col_x2 + 6, row_y + (row_h - 8) / 2, entry->type_str, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
+                } else if (c == 3) { /* Date */
+                    char date_str[64];
+                    explorer_format_time(entry->modified, date_str, sizeof(date_str));
+                    vbe_draw_text(col_x2 + 6, row_y + (row_h - 8) / 2, date_str, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
+                }
+
+                col_x2 += col_w;
+            }
+            row_y += row_h;
+        }
+    } else if (ex->view_mode == EX_VIEW_ICONS) {
+        /* Large icons grid */
+        int icon_w = EX_ICON_SIZE;
+        int icon_h = EX_ICON_SIZE;
+        int cell_w = icon_w + 16;
+        int cell_h = icon_h + 24;
+        int cols = w / cell_w;
+        if (cols < 1) cols = 1;
+        int start_x = x + (w - cols * cell_w) / 2;
+        int cur_x = start_x;
+        int cur_y = y + 10;
+
+        for (int r = 0; r < ex_view_count(ex); r++) {
+            int i = ex_view_entry(ex, r);
+            if (i < 0) break;
+            ExEntry *entry = &ex->entries[i];
+            if (entry->hidden && !ex->show_hidden) continue;
+
+            bool selected = entry->is_selected || i == ex->focus_idx;
+            if (selected) {
+                vbe_fill_rect(cur_x, cur_y, cell_w, cell_h, tc()->select_bg);
+            }
+
+            /* Icon */
+            vbe_fill_rect(cur_x + 8, cur_y + 4, icon_w, icon_h, entry->icon_color);
+            vbe_rect(cur_x + 8, cur_y + 4, icon_w, icon_h, tc()->icon_border);
+
+            /* Name */
+            vbe_draw_text(cur_x + (cell_w - vbe_text_width(entry->name, 1)) / 2,
+                         cur_y + icon_h + 8, entry->name,
+                         selected ? tc()->select_text : tc()->icon_text, 1);
+
+            cur_x += cell_w;
+            if (cur_x + cell_w > x + w - 10) {
+                cur_x = start_x;
+                cur_y += cell_h;
+            }
+        }
+    } else if (ex->view_mode == EX_VIEW_LIST) {
+        /* Small icons, single column */
+        int row_h = WUBU_METRIC_ROW_H;
+        int row_y = y + 4;
+
+        for (int r = 0; r < ex_view_count(ex); r++) {
+            int i = ex_view_entry(ex, r);
+            if (i < 0) break;
+            ExEntry *entry = &ex->entries[i];
+            if (entry->hidden && !ex->show_hidden) continue;
+
+            bool selected = entry->is_selected || i == ex->focus_idx;
+            if (selected) {
+                vbe_fill_rect(x + 2, row_y, w - 4, row_h, tc()->select_bg);
+            }
+
+            vbe_fill_rect(x + 4, row_y + (row_h - 16) / 2, 16, 16, entry->icon_color);
+            vbe_rect(x + 4, row_y + (row_h - 16) / 2, 16, 16, tc()->icon_border);
+            vbe_draw_text(x + 24, row_y + (row_h - 8) / 2, entry->name, selected ? tc()->select_text : tc()->icon_text, 1);
+
+            row_y += row_h;
+            if (row_y + row_h > y + h) break;
+        }
+    } else if (ex->view_mode == EX_VIEW_TILES) {
+        /* Medium icons with metadata */
+        int tile_w = 180;
+        int tile_h = 90;
+        int cols = w / tile_w;
+        if (cols < 1) cols = 1;
+        int cur_x = x + 10;
+        int cur_y = y + 10;
+
+        for (int r = 0; r < ex_view_count(ex); r++) {
+            int i = ex_view_entry(ex, r);
+            if (i < 0) break;
+            ExEntry *entry = &ex->entries[i];
+            if (entry->hidden && !ex->show_hidden) continue;
+
+            bool selected = entry->is_selected || i == ex->focus_idx;
+            if (selected) {
+                vbe_fill_rect(cur_x, cur_y, tile_w, tile_h, tc()->select_bg);
+            }
+
+            vbe_3d_raised_colors(cur_x, cur_y, tile_w, tile_h,
+                                tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
+
+            vbe_fill_rect(cur_x + 8, cur_y + 8, 48, 48, entry->icon_color);
+            vbe_rect(cur_x + 8, cur_y + 8, 48, 48, tc()->icon_border);
+
+            vbe_draw_text(cur_x + 60, cur_y + 10, entry->name, selected ? tc()->select_text : tc()->icon_text, 1);
+
+            char size_str[32];
+            explorer_format_size(entry->size, size_str, sizeof(size_str));
+            vbe_draw_text(cur_x + 60, cur_y + 26, size_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
+
+            char date_str[64];
+            explorer_format_time(entry->modified, date_str, sizeof(date_str));
+            vbe_draw_text(cur_x + 60, cur_y + 38, date_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
+
+            vbe_draw_text(cur_x + 60, cur_y + 50, entry->type_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
+
+            cur_x += tile_w + 10;
+            if (cur_x + tile_w > x + w - 10) {
+                cur_x = x + 10;
+                cur_y += tile_h + 10;
+            }
+        }
+    }
 }

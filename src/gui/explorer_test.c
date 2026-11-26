@@ -432,38 +432,149 @@ static void test_state_accessors(void) {
 
 /* -- New Feature Tests ------------------------------------------- */
 
-static void test_find(void) {
-    printf("\n=== Test: Find (Ctrl+F) ===\n");
+static void test_search(void) {
+    printf("\n=== Test: Search field (the Win11 toolbar box) ===\n");
 
     explorer_init();
-
-    /* Shift+Ctrl+F activates find mode - simulate by calling handle_key with Ctrl+F */
-    explorer_handle_key('f', 0x02); /* Ctrl+F -- MOD_CTRL is 0x02 */
-    /* After activation, the find state should be accessible via status text */
     ExExplorerState *ex = explorer_state();
-    TEST_ASSERT(strlen(ex->status_text) > 0, "Ctrl+F sets status text");
 
-    /* Negative control: 0x04 is MOD_ALT, the mask this test used to pass as
-     * Ctrl. It must not open find mode -- so a following 'z' must never land
-     * in the find query. */
-    explorer_handle_key(0x01, 0);   /* Escape: leave find mode */
-    explorer_handle_key('f', 0x04); /* MOD_ALT -- must NOT be Ctrl+F */
-    explorer_handle_key('z', 0);    /* would type into the query if find were open */
-    TEST_ASSERT(strstr(ex->status_text, "Find: z") == NULL,
-                "MOD_ALT is NOT read as Ctrl (find did not open)");
+    /* A known list, not whatever the machine's root happens to hold: the search model is what is
+     * under test, and a gate that depends on the host's files is a gate that fails on another box. */
+    memset(ex->entries, 0, sizeof ex->entries);
+    ex->entry_count = 3;
+    snprintf(ex->entries[0].name, sizeof ex->entries[0].name, "report.png");
+    snprintf(ex->entries[0].type_str, sizeof ex->entries[0].type_str, "PNG Image");
+    snprintf(ex->entries[0].extension, sizeof ex->entries[0].extension, "png");
+    snprintf(ex->entries[1].name, sizeof ex->entries[1].name, "notes.txt");
+    snprintf(ex->entries[1].type_str, sizeof ex->entries[1].type_str, "Text Document");
+    snprintf(ex->entries[1].extension, sizeof ex->entries[1].extension, "txt");
+    snprintf(ex->entries[2].name, sizeof ex->entries[2].name, "Documents");
+    snprintf(ex->entries[2].type_str, sizeof ex->entries[2].type_str, "Folder");
+    ex->focus_idx = -1;
+    ex_view_invalidate(ex);
 
-    /* Test escape cancels find */
-    explorer_handle_key(0x01, 0); /* Escape */
-    TEST_ASSERT(ex->status_text[0] != '\0', "Escape doesn't crash (status set)");
+    /* 1. No query: the view is the whole list. */
+    ex_search_set(ex, "");
+    ex_view_sync(ex);
+    int total = ex_view_count(ex);
+    TEST_ASSERT(total == ex->entry_count, "no query: every entry is visible");
+    TEST_ASSERT(total == 3, "the test list is the three entries it was given");
 
-    /* Test typing in find mode */
-    explorer_handle_key('f', 0x02); /* Ctrl+F - reactivate (MOD_CTRL) */
-    explorer_handle_key('t', 0);    /* Type 't' */
-    TEST_ASSERT(ex->status_text[0] != '\0', "Typing in find mode sets status text");
+    /* 2. Name, extension and type all match -- the three things a user types. */
+    ex_search_set(ex, "repo");
+    TEST_ASSERT(ex_view_count(ex) == 1 && ex_view_entry(ex, 0) == 0, "a name substring finds one entry");
+    ex_search_set(ex, "png");
+    TEST_ASSERT(ex_view_count(ex) == 1 && ex_view_entry(ex, 0) == 0, "an extension finds the image");
+    ex_search_set(ex, "folder");
+    TEST_ASSERT(ex_view_count(ex) == 1 && ex_view_entry(ex, 0) == 2, "a type string finds the folder");
 
-    explorer_handle_key(0x01, 0);   /* Cancel */
+    /* 3. Invariant: every visible row is an entry that MATCHES the query. This is the assertion that
+     *    catches a filter applied to the drawing but not to the hit-test. */
+    ex_search_set(ex, "o");
+    int all_match = 1;
+    for (int r = 0; r < ex_view_count(ex); r++) {
+        int e = ex_view_entry(ex, r);
+        if (e < 0 || !ex_entry_matches_search(&ex->entries[e], "o")) { all_match = 0; break; }
+    }
+    TEST_ASSERT(all_match, "every visible row matches the query");
+    ex_search_set(ex, "p");     /* only report.png holds a p */
+    TEST_ASSERT(ex_view_count(ex) < total, "a matching query hides the entries it does not match");
+
+    /* 4. Case-insensitive: the same query shouted shows the same rows (Windows behaviour). */
+    int before = ex_view_count(ex);      /* still the "p" view */
+    ex_search_set(ex, "P");
+    TEST_ASSERT(ex_view_count(ex) == before, "search ignores case");
+    ex_search_set(ex, "repo");
+
+    /* 4. A query matching nothing empties the list, and row 0 stops being an entry (a click on that
+     *    row must find nothing rather than entry 0). */
+    ex_search_set(ex, "zzzz-no-such-entry-xyz");
+    TEST_ASSERT(ex_view_count(ex) == 0, "a query matching nothing shows nothing");
+    TEST_ASSERT(ex_view_entry(ex, 0) == -1, "row 0 of an empty view is not an entry");
+
+    /* 5. Focus is clamped: a selection past the new end is what makes Delete act on nothing. */
+    ex_search_clear(ex);
+    ex->focus_idx = ex->entry_count - 1;
+    ex_search_set(ex, "zzzz-no-such-entry-xyz");
+    TEST_ASSERT(ex->focus_idx < ex_view_count(ex), "focus is clamped into the filtered view");
+    ex_search_clear(ex);
+    TEST_ASSERT(ex_view_count(ex) == ex->entry_count, "clearing the query restores the list");
+
+    /* 6. The field's box: absent when the toolbar is too narrow to hold it, and otherwise to the left
+     *    of the view label -- the click handler asks the same function, so a field that was not drawn
+     *    cannot be focused. */
+    int fx, fy, fw, fh;
+    TEST_ASSERT(!ex_search_rect(ex, 0, 0, 500, ex_toolbar_h(), &fx, &fy, &fw, &fh),
+                "no search field when the toolbar has no room for one");
+    TEST_ASSERT(ex_search_rect(ex, 0, 0, 1024, ex_toolbar_h(), &fx, &fy, &fw, &fh),
+                "the field exists on a normal toolbar");
+    TEST_ASSERT(fx > 390, "the field sits right of the buttons");
+    TEST_ASSERT(fx + fw <= 1024 - 180, "the field does not run under the view label");
+    TEST_ASSERT(fh > 0 && fy + fh <= ex_toolbar_h(), "the field fits inside the toolbar strip");
+
+    /* 6b. It has to be VISIBLE, not just state: render the toolbar onto a real surface and count the
+     *     pixels the field paints. A field that exists in a struct and never draws is the failure this
+     *     tree keeps shipping (the tab strip had the same gate for the same reason). */
+    vbe_init(1024, 768);
+    vbe_reset_clip();
+    wubu_theme_set(THEME_DARK);
+    vbe_fill_rect(0, 0, 1024, ex_toolbar_h(), 0x000000);   /* a known background to measure against */
+    ex_search_set(ex, "");
+    ex_render_toolbar(ex, NULL, 1024, 768, 0, 0, 1024, ex_toolbar_h());
+    fx = fy = fw = fh = 0;
+    bool have_rect = ex_search_rect(ex, 0, 0, 1024, ex_toolbar_h(), &fx, &fy, &fw, &fh);
+    TEST_ASSERT(have_rect, "the field has a rect to measure");
+    if (!have_rect) {        /* nothing was drawn: measuring a rect that does not exist is how this
+                              * assertion used to meet uninitialised values (the mutation run hung) */
+        explorer_shutdown();
+        return;
+    }
+    int placeholder_px = 0;
+    unsigned long placeholder_sig = 0;
+    for (int yy = fy; yy < fy + fh; yy++)
+        for (int xx = fx; xx < fx + fw; xx++) {
+            uint32_t p = vbe_get_pixel(xx, yy);
+            if (p != 0) placeholder_px++;
+            placeholder_sig = placeholder_sig * 31u + p;
+        }
+    TEST_ASSERT(placeholder_px > fw, "the search field is painted, not just state");
+
+    /* The placeholder and a query must render DIFFERENTLY -- otherwise the box shows "Search" while
+     * the list is filtered, and the user has no idea why most files vanished. */
+    vbe_fill_rect(0, 0, 1024, ex_toolbar_h(), 0x000000);
+    ex_search_set(ex, "report");
+    ex_render_toolbar(ex, NULL, 1024, 768, 0, 0, 1024, ex_toolbar_h());
+    int query_px = 0;
+    unsigned long query_sig = 0;
+    for (int yy = fy; yy < fy + fh; yy++)
+        for (int xx = fx; xx < fx + fw; xx++) {
+            uint32_t p = vbe_get_pixel(xx, yy);
+            if (p != 0) query_px++;
+            query_sig = query_sig * 31u + p;
+        }
+    TEST_ASSERT(query_px > 0, "the typed query paints inside the field");
+    TEST_ASSERT(query_sig != placeholder_sig,
+                "a typed query renders differently from the placeholder");
+    ex_search_clear(ex);
+
+    /* 7. Ctrl+F focuses the field (the find-next modal is gone). */
+    explorer_handle_key('f', 0x02);          /* MOD_CTRL */
+    TEST_ASSERT(ex->search_active, "Ctrl+F focuses the search field");
+    explorer_handle_key('z', 0);             /* a text field eats the character */
+    TEST_ASSERT(strcmp(ex->search, "z") == 0, "typing filters instead of running a shortcut");
+    explorer_handle_key(0x01, 0);            /* Esc */
+    TEST_ASSERT(!ex->search_active && ex->search[0] == '\0', "Esc clears and releases the field");
+
+    /* Negative control: MOD_ALT is 0x04, the mask this test used to pass as Ctrl. It must not focus
+     * the field, so a following character must not become the query. */
+    explorer_handle_key('f', 0x04);
+    explorer_handle_key('q', 0);
+    TEST_ASSERT(!ex->search_active && ex->search[0] == '\0',
+                "MOD_ALT is NOT read as Ctrl (the field did not open)");
+
     explorer_shutdown();
 }
+
 
 static void test_shift_select(void) {
     printf("\n=== Test: Shift-Select (Mouse) ===\n");
@@ -761,7 +872,7 @@ int main(void) {
     test_history();
     test_zip();
     test_state_accessors();
-    test_find();
+    test_search();
     test_shift_select();
     test_image_preview();
     test_ctx_menu_rows();
