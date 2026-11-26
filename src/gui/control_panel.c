@@ -313,10 +313,22 @@ extern DosGuiWindow *wm_create(int x, int y, int w, int h, const char *title) __
 
 static void cp_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h)
 {
-    if (!fb) return;
-    /* on_draw's surface IS the window's content area (wm.h: four parameters, no rect), so the panel's
-     * origin is (0,0) and its size is the surface it was handed. An eight-parameter version of this
-     * function compiled fine and painted the panel into garbage coordinates -- the window opened empty. */
+    /* wm_render calls on_draw with a NULL `fb` in the hosted session: drawing goes through the vbe layer,
+     * which owns the global framebuffer, and every other app simply ignores the parameter. This one must
+     * not -- it indexes the surface directly -- so it falls back to the vbe state rather than returning
+     * early. That early return is why the Control Panel window opened empty while its chrome drew. */
+    int sw = fb_w, sh = fb_h;
+    if (!fb) {
+        /* Weak: vbe_state lives in the kernel's vbe unit, which a panel test graph does not link. */
+        extern VBEState *vbe_state(void) __attribute__((weak));
+        if (!vbe_state) return;
+        VBEState *st = vbe_state();
+        if (!st || !st->fb) return;
+        fb = st->fb;
+        sw = st->width;
+        sh = st->height;
+    }
+    fb_w = sw; fb_h = sh;
     /* wm_render clips to the content rect and then calls us with the WHOLE framebuffer, so the panel
      * must paint at the content ORIGIN in framebuffer coordinates. Painting at (0,0) put every pixel
      * outside the clip and the window opened empty -- twice, because the first fix changed the size but
