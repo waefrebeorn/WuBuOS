@@ -58,13 +58,20 @@ int main(void)
     uint32_t moved = vbe_get_pixel(win.x + win.w + 4, win.y + win.h / 2);
     CHECK(red(moved) < 0x80 && red(moved) > 0, "and the shadow is painted at the NEW position");
 
-    /* Classic theme: no shadow at all. */
+    /* Classic theme: no shadow at all. The window is FIRST resized, because a size that is
+     * already in the cache cannot prove anything -- the old assertion passed trivially off the
+     * cache whether classic blurred or not. An uncached size makes a classic blur visible. */
     wubu_theme_set(THEME_WIN98_CLASSIC);
+    win.w += 32; win.h += 32;
     vbe_clear(0xFF808080u);
     wm_shadow_render(&win);
     CHECK(vbe_get_pixel(win.x + win.w + 4, win.y + win.h / 2) == 0xFF808080u,
           "classic theme draws no shadow");
-    CHECK(wm_shadow_blur_count() == b1 + 1, "classic theme does not blur");
+    /* NO blur is the contract: wm_shadow_render returns for a non-dark theme BEFORE touching the
+     * cache, so a classic desktop must pay for nothing. This used to assert b1 + 1 -- i.e. it
+     * demanded exactly the wasted blur it was named after not happening, so it failed against
+     * correct code. */
+    CHECK(wm_shadow_blur_count() == b1, "classic theme does not blur");
 
     /* High contrast: shadow suppressed, then restored when toggled off. */
     wubu_theme_set(THEME_DARK);

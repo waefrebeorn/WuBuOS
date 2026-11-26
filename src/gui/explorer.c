@@ -643,8 +643,13 @@ static bool scan_one(const char *name, bool is_dir, uint32_t size, void *user) {
     if (!ex->show_hidden && name[0] == '.') return true;
 
     ExEntry *entry = &ex->entries[ex->entry_count];
-    snprintf(entry->full_path, sizeof(entry->full_path), "%s/%s",
-             ex->current_path, name);
+    {   /* Guest paths arrive as "/" at the root, so "%s/%s" produced "//cons". Cosmetic to look
+         * at, but the result of a pick is handed to openers as a path. */
+        size_t pl = strlen(ex->current_path);
+        int need_sep = !(pl > 0 && ex->current_path[pl - 1] == '/');
+        snprintf(entry->full_path, sizeof(entry->full_path), "%s%s%s",
+                 ex->current_path, need_sep ? "/" : "", name);
+    }
     strncpy(entry->name, name, sizeof(entry->name) - 1);
     entry->type = is_dir ? EX_ENTRY_DIR : EX_ENTRY_FILE;
     entry->size = is_dir ? 0 : (uint64_t)size;
