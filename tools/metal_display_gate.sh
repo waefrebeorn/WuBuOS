@@ -218,7 +218,13 @@ if phys is not None and pitch is not None:
         f = f'/tmp/metal-px-{pid}.bin'
         if os.path.exists(f):
             os.unlink(f)
+        # PAUSE THE vCPUs AROUND THE DUMP. pmemsave is executed by QEMU's main loop, and with a TCG guest
+        # spinning the main loop may not get scheduled for the whole deadline -- which is why waiting 90 s
+        # and reconnecting twice still produced "no dump: qemu rc=0, temp file absent" while the guest was
+        # healthy. `stop` parks the vCPUs, the main loop services the command immediately, `cont` resumes.
         try:
+            s.sendall(b'stop\n')
+            drain()
             s.sendall(f'pmemsave {off} {n} "{f}"\n'.encode())
         except (BrokenPipeError, OSError):
             return None          # monitor gone: QEMU died (see below)
@@ -248,6 +254,14 @@ if phys is not None and pitch is not None:
                 time.sleep(0.5)
         except OSError:
             pass
+        finally:
+            # Always resume: a stopped guest would make the next read a repeat of this frame and turn the
+            # settle check into a no-op.
+            try:
+                s.sendall(b'cont\n')
+                drain()
+            except OSError:
+                pass
         return None
 
     def qemu_startup_failed():
