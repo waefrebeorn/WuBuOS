@@ -76,3 +76,30 @@ happen before `on_draw` rather than after it?
 
 Do not "fix" the panel again on the strength of an empty-looking window until that is answered; the
 drawing side is proven.
+
+## Three theories, all falsified (measured, 2026-11-26)
+
+Each of these was tested against the live build with `WUBU_OPEN_SETTINGS=1`; none is the answer, and
+recording them stops the next session from re-running the same experiments.
+
+1. **"on_draw gets a NULL framebuffer."** It does on the first frames of a boot, and the panel now falls
+   back to `vbe_state()->fb` -- but on the frames that matter the callback receives a real surface at a
+   real content rect (81,93 858x537) and the read-back shows the panel painted in it.
+2. **"The panel draws into the back buffer, which is never presented."** Painting the content into
+   `vbe_state()->fb` (the surface the `vbe_*` calls and the chrome use) instead of the `fb` parameter
+   changed nothing: the presented frame still showed face colour only.
+3. **"It is a tear: content drawn, then the next frame's chrome covers it before capture."** Five
+   consecutive host captures 300 ms apart, with the content area filled with pure magenta: zero magenta
+   pixels in any of them. It is not a race.
+
+What IS established:
+- the presented window is the object whose callback runs (`win->title` set inside `on_draw` appeared in
+  the presented title bar as "MAGENTA 0");
+- the chrome reaches the presented frame every time;
+- the content, after being written to the surface handed to `on_draw`, does not -- and neither does a
+  full-rect magenta fill.
+
+So the next reader should start at the hosted composition path: who owns the surface passed to
+`on_draw`, and where does that surface go between the call and the blit to the screen.
+`src/gui/compositor/gui_dbuf.c`, `src/gui/gui_blit.c` and `src/hosted/hosted_x11_present.c` are the files
+the evidence points at.
