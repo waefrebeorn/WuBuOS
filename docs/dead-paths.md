@@ -37,9 +37,26 @@ definitions. So the prerequisite is the unification that has been on the naming/
 list for days: pick the canonical `wb_lv`, make the other a consumer of it (or delete it), and
 only then add the designers to `APP_OBJS`.
 
+## Win-key capture in hosted mode: manual toggle, not automatic
+
+`Ctrl+Alt+G` hands the keyboard to the guest. Two automatic alternatives were implemented, measured
+and reverted, because neither can be honest with the window as it stands:
+
+* **Grab on focus.** Delivered `Win+Shift+S`, but swallowed every host shortcut for as long as the
+  guest window had focus.
+* **Grab when the guest fills the screen.** Could never become true: the hosted window is pinned to
+  the OS resolution (1024x768) so the WM can neither maximise nor fullscreen it, and relaxing the
+  pin without resizing the framebuffer reproduces the bug fixed earlier -- a 1024x768 framebuffer
+  painted into a 1920 window, with half the window dead. Real fullscreen needs a framebuffer
+  resize, which is a display-stack job, not an input job.
+
+So the copy that ships is the toggle: off by default, released by the same key and on focus loss.
+A Win-key binding that only works after an explicit hand-over is worse parity than Windows, and it
+is better than an OS that quietly owns the keyboard.
+
 ## The rule this establishes
 
-**A weak symbol is a promise the linker will check at runtime, silently.** Any weak capability
+**A weak symbol is a promise the linker will check at runtime, silently.** the linker will check at runtime, silently.** Any weak capability
 the product depends on must either (a) have its strong unit in the product link, or (b) have a
 caller that visibly degrades (`HAVE(x)` guard, greyed control, printed reason). A weak symbol
 with neither is a dead path, and `nm` finds it in one command.
