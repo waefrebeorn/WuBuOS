@@ -172,6 +172,8 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     if (!skip_init) { skip_init = 1; const char *e = getenv("WUBU_PERF_SKIP"); skip = e ? atoi(e) : 0; }
     if (!(skip & 1)) draw_desktop_bg(fb_w, fb_h);
 
+    { static int once; if (!once) { once = 1;
+        fprintf(stderr, "[probe] render sees icon_count=%d\n", g_dwm.icon_count); } }
     for (int i = 0; i < ((skip & 2) ? 0 : g_dwm.icon_count); i++) {
         DosGuiIcon *icon = &g_dwm.icons[i];
         if (!icon->alive) continue;

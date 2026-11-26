@@ -194,6 +194,7 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     holyc_term_set_eval(wubu_holyc_eval);
     wubu_holyd_set_pointer_handler(wm_handle_mouse);
     desktop_init();
+    fprintf(stderr, "[probe] after boot desktop_init: %d\n", wm_icon_count());
 
     /* Hosted session: the host desktop owns idle blanking and session
      * locking.  The in-guest screensaver/lock would only interrupt the

@@ -50,6 +50,28 @@ static const PerfKnob g_knobs[] = {
       "kernel pointers hidden from unprivileged readers" },
     { "/proc/sys/kernel/printk",            "3 3 3 3",
       "quiet console: log spam is frame jitter" },
+
+    /* -- from 50-pid-max.conf, 10-arch.conf, 50-default.conf, 99-local.conf (same image) -- */
+    { "/proc/sys/kernel/pid_max",           "4194304",
+      "a container-heavy desktop can exhaust a low pid space" },
+    { "/proc/sys/fs/inotify/max_user_instances", "1024",
+      "every file watcher (editor, build, sync) takes an inotify instance" },
+    { "/proc/sys/fs/inotify/max_user_watches",  "524288",
+      "a large source tree needs more watches than the default" },
+    { "/proc/sys/vm/max_map_count",         "1048576",
+      "large games and JITs map more regions than the default allows" },
+    { "/proc/sys/net/ipv4/tcp_keepalive_time", "120",
+      "notice a dead peer in two minutes, not two hours" },
+    { "/proc/sys/kernel/core_uses_pid",     "1",
+      "a core that names its pid cannot be overwritten by the next crash" },
+    { "/proc/sys/net/ipv4/conf/default/rp_filter", "2",
+      "strict reverse-path filtering (the distro's desktop default)" },
+    { "/proc/sys/net/ipv4/conf/default/accept_source_route", "0",
+      "no source-routed packets by default" },
+    { "/proc/sys/net/ipv4/conf/default/promote_secondaries", "1",
+      "promote a secondary address when the primary goes away" },
+    { "/proc/sys/net/ipv6/conf/default/use_tempaddr", "2",
+      "privacy addresses for IPv6" },
 };
 
 #define PERF_KNOB_COUNT ((int)(sizeof g_knobs / sizeof g_knobs[0]))

@@ -15,8 +15,10 @@
 #include "wubu_settings.h"
 
 #include <string.h>
+#include <stddef.h>
 #include <stdio.h>
-#include <time.h>   /* wm_clock_ms */
+#include <time.h>
+#include <stddef.h>   /* wm_clock_ms */
 
 /* -- Z-order + window lifecycle ----------------------------------- */
 
@@ -112,8 +114,9 @@ int wm_window_render_h(const DosGuiWindow *w) {
  * resets the WM and the icons seeded before it are gone. */
 int wm_icon_count(void) {
     if (getenv("WUBU_ICON_PROBE"))
-        fprintf(stderr, "[probe] wm_icon_count: &g_dwm=%p count=%d\n",
-                (void *)&g_dwm, g_dwm.icon_count);
+        fprintf(stderr, "[probe] wm_icon_count: &g_dwm=%p off=%zu size=%zu count=%d\n",
+                (void *)&g_dwm, offsetof(DosGuiWM, icon_count), sizeof(DosGuiWM),
+                g_dwm.icon_count);
     return g_dwm.icon_count;
 }
 

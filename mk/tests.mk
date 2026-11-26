@@ -3865,6 +3865,12 @@ test_perf_profile:
 		-o $(RT)/test_perf_profile
 	timeout 60 $(RT)/test_perf_profile
 
+test_power_profile:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude -I$(RT) \
+		$(RT)/wubu_power_profile.c $(RT)/test_power_profile.c \
+		-o $(RT)/test_power_profile
+	timeout 60 $(RT)/test_power_profile
+
 test_apps_weak:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED  -Iinclude  $(RT_ALWAYS) \
 		-I$(APPS) -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) \

@@ -234,14 +234,27 @@ int hosted_x11_present_pump(void) {
             break;
         }
         case ButtonPress: {
+            /* COORDINATE TRUTH: an X event's x/y are relative to the window it was delivered on,
+             * and a reparenting WM reports them against its FRAME. On this desktop that leaked a
+             * 33 px titlebar into every click -- the pointer sat on the power row and the OS saw
+             * a point below the panel, which closed it. Translate into our own client window so
+             * every coordinate below is the one the user is pointing at. */
+            /* Root coordinates minus OUR origin. The event's own x/y were already correct here,
+             * but a reparenting WM can report them against its frame, and this window's client
+             * origin (447,111) is not the frame geometry a tool like xdotool prints (448,144) --
+             * so measure the mapping instead of assuming it. */
+            Window child; int ox = 0, oy = 0;
+            XTranslateCoordinates(g_xdpy, g_xwin, DefaultRootWindow(g_xdpy), 0, 0, &ox, &oy, &child);
+            int tx = ev.xbutton.x_root - ox, ty = ev.xbutton.y_root - oy;
+
             /* A real keyboard only reaches the window that holds X input focus. Without this
              * the app could be clicked but every physical keystroke went to whatever else the
              * window manager had focused -- which read as "the keyboard does not work". */
             XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
             MouseEvent mev;
             memset(&mev, 0, sizeof(mev));
-            mev.x = ev.xbutton.x;
-            mev.y = ev.xbutton.y;
+            mev.x = tx;
+            mev.y = ty;
             int bit = (ev.xbutton.button == 1) ? 1 : (ev.xbutton.button == 3) ? 2 : 4;
             g_xbuttons |= bit;
             mev.buttons = g_xbuttons;
@@ -250,10 +263,13 @@ int hosted_x11_present_pump(void) {
             break;
         }
         case ButtonRelease: {
+            Window child; int ox = 0, oy = 0;
+            XTranslateCoordinates(g_xdpy, g_xwin, DefaultRootWindow(g_xdpy), 0, 0, &ox, &oy, &child);
+            int tx = ev.xbutton.x_root - ox, ty = ev.xbutton.y_root - oy;
             MouseEvent mev;
             memset(&mev, 0, sizeof(mev));
-            mev.x = ev.xbutton.x;
-            mev.y = ev.xbutton.y;
+            mev.x = tx;
+            mev.y = ty;
             int bit = (ev.xbutton.button == 1) ? 1 : (ev.xbutton.button == 3) ? 2 : 4;
             g_xbuttons &= ~bit;
             mev.buttons = g_xbuttons;
@@ -264,12 +280,15 @@ int hosted_x11_present_pump(void) {
         case MotionNotify: {
             MouseEvent mev;
             memset(&mev, 0, sizeof(mev));
-            mev.x = ev.xmotion.x;
-            mev.y = ev.xmotion.y;
-            mev.dx = ev.xmotion.x - g_xlast_x;
-            mev.dy = ev.xmotion.y - g_xlast_y;
-            g_xlast_x = ev.xmotion.x;
-            g_xlast_y = ev.xmotion.y;
+            Window child; int ox = 0, oy = 0;
+            XTranslateCoordinates(g_xdpy, g_xwin, DefaultRootWindow(g_xdpy), 0, 0, &ox, &oy, &child);
+            int tx = ev.xmotion.x_root - ox, ty = ev.xmotion.y_root - oy;
+            mev.x = tx;
+            mev.y = ty;
+            mev.dx = tx - g_xlast_x;
+            mev.dy = ty - g_xlast_y;
+            g_xlast_x = tx;
+            g_xlast_y = ty;
             mev.buttons = g_xbuttons;
             mev.kind = 0;                 /* a move is not a press */
             input_mouse_push(mev);

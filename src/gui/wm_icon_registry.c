@@ -19,6 +19,7 @@
 #include "wubu_settings.h"
 
 #include <string.h>
+#include <stddef.h>
 
 /* -- Registry ------------------------------------------------------- */
 
@@ -54,8 +55,9 @@ int icon_add_ex(const char *name, DeskIconType type,
     icon->on_execute = on_execute;
     icon->alive = true;
     if (getenv("WUBU_ICON_PROBE"))
-        fprintf(stderr, "[probe] icon_add_ex: &g_dwm=%p count now %d\n",
-                (void *)&g_dwm, g_dwm.icon_count + 1);
+        fprintf(stderr, "[probe] icon_add_ex: &g_dwm=%p off=%zu size=%zu count now %d\n",
+                (void *)&g_dwm, offsetof(DosGuiWM, icon_count), sizeof(DosGuiWM),
+                g_dwm.icon_count + 1);
     return g_dwm.icon_count++;
 }
 
