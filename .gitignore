@@ -15,8 +15,13 @@
 *.png
 *.mp4
 
-# Test binaries
+# Test BINARIES are built next to their sources; the SOURCES are tracked. A test source that exists
+# only in one working copy is a gate that cannot run in a fresh clone -- 37 of them were being ignored
+# by this pattern (including test_gauntlet_runner.c), and each one had been papered over with a
+# hand-written "!" line instead of fixing the rule.
 src/*/test_*
+!src/*/test_*.c
+!src/*/test_*.h
 !src/runtime/test_archd_n1.c
 !src/gui/test_synth.c
 !src/gui/test_wubu_sound.c
