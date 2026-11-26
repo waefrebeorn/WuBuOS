@@ -12,6 +12,7 @@
 #include "taskbar_tasks.h"
 #include "startmenu.h"
 #include <time.h>
+#include "window_chrome.h"   /* chrome_app_icon_draw: the dock carries real icons */
 
 /* The app registry lives in src/apps; a test or minimal build may not link
  * it.  Weak, exactly as the taskbar's pinned buttons do it. */
@@ -225,12 +226,20 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
             int isz = WUBU_TASKBAR_TRAY_ICON + 6;         /* 24px mark */
             int mx = s->x + (s->w - isz) / 2;
             int my = s->y + (s->h - isz) / 2 - 2;         /* room for the pill below */
-            char mono[2] = { title && title[0] ? title[0] : '?', 0 };
             vbe_fill_rect_rounded(mx, my, isz, isz, WUBU_METRIC_RADIUS_CONTROL,
                                   focused ? tc()->select_bg : tc()->btn_face);
-            vbe_draw_text(mx + (isz - vbe_text_width(mono, 1)) / 2,
-                          my + (isz - WUBU_FONT_INK_H) / 2, mono,
-                          focused ? tc()->select_text : tc()->btn_text, 1);
+            /* The app's REAL icon from the baked set; the initial is only a fallback for an
+             * app with no master, and it is drawn smaller so a letter never pretends to be a
+             * glyph. This is what removed the F / H / J tiles. */
+            uint32_t ink = focused ? tc()->select_text : tc()->btn_text;
+            int pad = 4;
+            if (chrome_app_icon_draw(title, mx + pad, my + pad, isz - pad * 2, isz - pad * 2, ink))
+                ;
+            else {
+                char mono[2] = { title && title[0] ? title[0] : '?', 0 };
+                vbe_draw_text(mx + (isz - vbe_text_width(mono, 1)) / 2,
+                              my + (isz - WUBU_FONT_INK_H) / 2, mono, ink, 1);
+            }
         }
         /* Progress badge: a sliver across the bottom of the tile. Drawn UNDER the running
          * indicator so a focused app still reads as focused. */

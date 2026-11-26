@@ -49,6 +49,11 @@ ChromeCaptionMetrics chrome_caption_metrics(void);
 /* The frame border width for the current theme (1 or 2). */
 int chrome_border_width(void);
 
+/* App icons: the baked 24-grid masters (assets/icons/apps) behind a title lookup.
+ * chrome_app_icon_draw returns 0 when no master matches, so a caller can fall back. */
+const unsigned char *chrome_app_icon_for(const char *title);
+int chrome_app_icon_draw(const char *title, int x, int y, int w, int h, uint32_t ink);
+
 /* True when the Windows 11 caption treatment is active: flush full-height
  * buttons at the top-right corner rather than inset square ones. */
 bool chrome_is_win11(void);

@@ -190,6 +190,50 @@ int chrome_hit_test_button(DosGuiWindow *win, int mx, int my) {
  * below 16 the mask's own 4x4 supersampling already carries the softness.
  * ------------------------------------------------------------------------- */
 static void chrome_icon_blit(int x, int y, int w, int h, const unsigned char *mask,
+                             int mask_sz, uint32_t fg);
+
+/* Title -> baked app icon. The dock and the taskbar used to draw the app's INITIAL because
+ * the icon set only had four action glyphs; the masters now include the shipped applets, so a
+ * window can carry its real mark. Matching is by name fragment, and a miss returns NULL --
+ * the caller then falls back to the letter, which is honest rather than wrong. */
+const unsigned char *chrome_app_icon_for(const char *title) {
+    if (!title || !*title) return NULL;
+    struct { const char *needle; const unsigned char *mask; } kMap[] = {
+        { "calc",      wubu_icon_apps_calculator },
+        { "holyc",     wubu_icon_apps_holyc },
+        { "term",      wubu_icon_apps_terminal },
+        { "file",      wubu_icon_apps_folder },
+        { "explor",    wubu_icon_apps_folder },
+        { "folder",    wubu_icon_apps_folder },
+        { "paint",     wubu_icon_apps_paint },
+        { "canvas",    wubu_icon_apps_paint },
+        { "notepad",   wubu_icon_apps_notepad },
+        { "editor",    wubu_icon_apps_editor },
+        { "setting",   wubu_icon_apps_settings },
+        { "control",   wubu_icon_apps_settings },
+        { "task mgr",  wubu_icon_apps_settings },
+    };
+    for (size_t i = 0; i < sizeof kMap / sizeof kMap[0]; i++) {
+        const char *h = title, *n = kMap[i].needle;
+        /* case-insensitive substring search, bounded by the title */
+        for (; *h; h++) {
+            const char *a = h, *b = n;
+            while (*a && *b && (*a | 0x20) == (*b | 0x20)) { a++; b++; }
+            if (!*b) return kMap[i].mask;
+        }
+    }
+    return NULL;
+}
+
+/* Draw an app icon in a box, in one ink colour. Returns 0 when there is no icon for the title. */
+int chrome_app_icon_draw(const char *title, int x, int y, int w, int h, uint32_t ink) {
+    const unsigned char *mask = chrome_app_icon_for(title);
+    if (!mask) return 0;
+    chrome_icon_blit(x, y, w, h, mask, WUBU_ICON_SIZE, ink);
+    return 1;
+}
+
+static void chrome_icon_blit(int x, int y, int w, int h, const unsigned char *mask,
                              int mask_sz, uint32_t fg) {
     if (!mask || mask_sz <= 0 || w <= 0 || h <= 0) return;
     int fr = (int)((fg >> 16) & 0xff), fgn = (int)((fg >> 8) & 0xff), fb = (int)(fg & 0xff);

@@ -2648,6 +2648,16 @@ static void test_window_open_animation(void) {
     wm_destroy(w);
 }
 
+/* Dock/taskbar app marks come from the baked icon set, and a title with no master must fall
+ * back to the letter rather than draw a wrong glyph. */
+static void test_app_icons(void) {
+    CHECK(chrome_app_icon_for("Calculator") != NULL, "Calculator resolves a baked icon");
+    CHECK(chrome_app_icon_for("HolyC Terminal") != NULL, "HolyC Terminal resolves a baked icon");
+    CHECK(chrome_app_icon_for("File Manager") != NULL, "File Manager resolves the folder icon");
+    CHECK(chrome_app_icon_for("zzz unknown app") == NULL,
+          "an app with no master resolves NO icon (the letter fallback is the honest path)");
+}
+
 int main(void) {
     /* BEFORE any taskbar call: this suite must never read or write the user's dock file. */
     setenv("WUBU_TASKBAR_CONF", "/tmp/wubu-test-taskbar.conf", 1);
@@ -2656,6 +2666,7 @@ int main(void) {
     printf("+========================================================+\n\n");
 
     test_window_open_animation();
+    test_app_icons();
     test_init();
     test_init_shutdown_no_crash();
     test_hover_preview_composites_a_card();
