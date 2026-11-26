@@ -157,14 +157,44 @@ static void dialog_delete_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int
     vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_HINT_DY, "Press Y to confirm, N to cancel", tc()->btn_text, 1);
 }
 
+static int g_props_tab;   /* declared early: the key handler cycles it */
+
 static void dialog_properties_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    (void)mods;
     if (key == 27 || key == 'q' || key == 'Q') {  /* Escape or Q to close */
         g_properties_target = NULL;
         wm_destroy(win);
+        return;
+    }
+    if (key == 9) {                               /* Tab / Ctrl+Tab cycles the tab strip */
+        g_props_tab = (g_props_tab + 1) % 3;
     }
 }
 
+/* Properties sheet: a tabbed dialog, not a flat list of five lines.
+ *
+ * Win11's sheet has General / Details / Security and a footer action; the version here showed
+ * every field at once with no tabs, no buttons, and caption-role ink on a light face. Everything
+ * below is real data from the icon and, when the target is a path, from stat() -- nothing is
+ * invented, and there is no Apply button that would silently do nothing. */
+/* g_props_tab: 0 = General, 1 = Details, 2 = Security (declared above, used by both the key
+ * handler and the renderer). */
+
+#define PROPS_TABS 3
+static const char *const kPropsTab[PROPS_TABS] = { "General", "Details", "Security" };
+
+/* Single geometry owner for the tab strip (draw + hit-test). */
+static void props_tab_rect(int i, int cx, int cy, int cw, int *x, int *w) {
+    int pad = WUBU_DIALOG_PAD_X;
+    int tw = cw / PROPS_TABS;
+    if (tw > 120) tw = 120;
+    (void)pad;
+    if (x) *x = cx + i * tw;
+    if (w) *w = tw;
+}
+
 static void dialog_properties_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb; (void)fb_w; (void)fb_h;
     DosGuiIcon *ic = g_properties_target;
     if (!ic) return;
 
@@ -174,28 +204,98 @@ static void dialog_properties_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w,
     int cy = win->y + tbh;
     int cw = win->w - 2 * bw;
     int ch = win->h - tbh - bw;
-    int y = cy + WUBU_DIALOG_PROP_TOP;
 
     vbe_fill_rect(cx, cy, cw, ch, tc()->win_face);
 
+    /* ---- tab strip ---- */
+    int tab_h = WUBU_METRIC_CONTROL_H;
+    for (int i = 0; i < PROPS_TABS; i++) {
+        int tx, tw2;
+        props_tab_rect(i, cx, cy, cw, &tx, &tw2);
+        if (i == g_props_tab) {
+            vbe_fill_rect(tx, cy, tw2, tab_h, tc()->win_face);
+            vbe_fill_rect(tx + 8, cy + tab_h - 2, tw2 - 16, 2, tc()->select_bg);
+        }
+        int lw = vbe_text_width(kPropsTab[i], 1);
+        vbe_draw_text(tx + (tw2 - lw) / 2, WUBU_TEXT_LABEL_Y(cy, tab_h), kPropsTab[i],
+                      i == g_props_tab ? tc()->body_text : tc()->body_text_ina, 1);
+    }
+    vbe_fill_rect(cx, cy + tab_h, cw, 1, tc()->border_dark);
+
+    int y = cy + tab_h + WUBU_DIALOG_PROP_TOP;
+    int px = cx + WUBU_DIALOG_PAD_X;
     char buf[256];
-    snprintf(buf, sizeof(buf), "Name: %s", ic->name);
-    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
 
-    const char *type_str[] = {"App", "Shortcut", "Folder", "Drive", "File", "URL"};
-    snprintf(buf, sizeof(buf), "Type: %s", ic->type < 6 ? type_str[ic->type] : "Unknown");
-    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+    if (g_props_tab == 0) {
+        snprintf(buf, sizeof(buf), "Name: %s", ic->name);
+        vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+        const char *type_str[] = { "App", "Shortcut", "Folder", "Drive", "File", "URL" };
+        snprintf(buf, sizeof(buf), "Type: %s",
+                 ic->type < 6 ? type_str[ic->type] : "Unknown");
+        vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+        snprintf(buf, sizeof(buf), "Target: %s", ic->target[0] ? ic->target : "(none)");
+        vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+        snprintf(buf, sizeof(buf), "Open with: %s", ic->target[0] ? "WuBuOS shell" : "(none)");
+        vbe_draw_text(px, y, buf, tc()->body_text_ina, 1); y += WUBU_DIALOG_PROP_PITCH;
+    } else if (g_props_tab == 1) {
+        snprintf(buf, sizeof(buf), "Desktop position: grid (%d, %d)", ic->grid_x, ic->grid_y);
+        vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+        snprintf(buf, sizeof(buf), "Pixel position: (%d, %d)", ic->x, ic->y);
+        vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+        snprintf(buf, sizeof(buf), "Icon colour: #%06X", ic->icon_color & 0xFFFFFF);
+        vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+        /* Real size when the target is a path we can stat; otherwise say nothing. */
+        struct stat st;
+        if (ic->target[0] == '/' && stat(ic->target, &st) == 0) {
+            snprintf(buf, sizeof(buf), "Size: %ld bytes", (long)st.st_size);
+            vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+            snprintf(buf, sizeof(buf), "Owner uid: %u  mode: %04o",
+                     (unsigned)st.st_uid, (unsigned)(st.st_mode & 07777));
+        } else {
+            snprintf(buf, sizeof(buf), "Size: (target is not a path on this system)");
+        }
+        vbe_draw_text(px, y, buf, tc()->body_text_ina, 1); y += WUBU_DIALOG_PROP_PITCH;
+    } else {
+        struct stat st;
+        if (ic->target[0] == '/' && stat(ic->target, &st) == 0) {
+            snprintf(buf, sizeof(buf), "Mode: %04o", (unsigned)(st.st_mode & 07777));
+            vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+            snprintf(buf, sizeof(buf), "Owner: %u   Group: %u",
+                     (unsigned)st.st_uid, (unsigned)st.st_gid);
+            vbe_draw_text(px, y, buf, tc()->body_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+            snprintf(buf, sizeof(buf), "%s%s%s",
+                     S_ISDIR(st.st_mode) ? "directory" : "file",
+                     (st.st_mode & S_IWUSR) ? ", writable" : ", read-only",
+                     (st.st_mode & S_IXUSR) ? ", executable" : "");
+            vbe_draw_text(px, y, buf, tc()->body_text, 1);
+        } else {
+            vbe_draw_text(px, y, "Permissions are only available for real paths.",
+                          tc()->body_text_ina, 1);
+            y += WUBU_DIALOG_PROP_PITCH;
+            vbe_draw_text(px, y, "This shortcut has no filesystem object of its own.",
+                          tc()->body_text_ina, 1);
+        }
+    }
 
-    snprintf(buf, sizeof(buf), "Target: %s", ic->target[0] ? ic->target : "(none)");
-    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
+    vbe_draw_text(px, cy + ch - WUBU_DIALOG_PROP_PITCH, "Esc closes  \u00b7  Ctrl+Tab switches tab",
+                  tc()->body_text_ina, 1);
+}
 
-    snprintf(buf, sizeof(buf), "Position: (%d, %d) grid (%d, %d)", ic->x, ic->y, ic->grid_x, ic->grid_y);
-    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
-
-    snprintf(buf, sizeof(buf), "Color: #%06X", ic->icon_color & 0xFFFFFF); /* format-mask */
-    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
-
-    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y + WUBU_DIALOG_PROP_HINT_DY, "Press ESC to close", tc()->icon_text_shadow, 1);
+/* Click a tab to switch it. The dialog had no mouse handler at all, so a tab strip would have
+ * been decoration. */
+static void dialog_properties_on_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+    (void)btn;
+    if (kind != 1) return;
+    const int tbh = chrome_caption_metrics().bar_h;
+    const int bw = chrome_border_width();
+    int cx = win->x + bw, cy = win->y + tbh;
+    int cw = win->w - 2 * bw;
+    if (y < cy || y >= cy + WUBU_METRIC_CONTROL_H) return;
+    for (int i = 0; i < PROPS_TABS; i++) {
+        int tx, tw2;
+        props_tab_rect(i, cx, cy, cw, &tx, &tw2);
+        if (x >= tx && x < tx + tw2) { g_props_tab = i; return; }
+    }
 }
 
 /* New-Shortcut dialog: reuse the rename input buffer to collect a name,
@@ -404,6 +504,7 @@ static void ctx_action_properties(void) {
         if (dialog) {
             dialog->on_key = dialog_properties_on_key;
             dialog->on_draw = dialog_properties_on_draw;
+            dialog->on_mouse = dialog_properties_on_mouse;
         }
     }
 }
