@@ -104,16 +104,14 @@ int cp_display_test_line(char *out, size_t cap)
         return 0;
     }
     const wubu_world_t *w = snap();
-    /* A zero vram figure is "this machine does not report it", not "0 MB". Saying 0 MB is the kind of
-     * plausible-looking number that sends someone hunting a nonexistent problem. */
-    if (w->vram_mb)
-        snprintf(out, cap, "display: %s %ux%u@%d %uMB vram",
-                 connector_name(w->gpu_connector), w->screen_w, w->screen_h,
-                 w->gpu_connector ? 60 : 0, w->vram_mb);
-    else
-        snprintf(out, cap, "display: %s %ux%u@%d vram not reported",
-                 connector_name(w->gpu_connector), w->screen_w, w->screen_h,
-                 w->gpu_connector ? 60 : 0);
+    /* NO INVENTED NUMBERS. This used to print "@60" whenever a connector was present -- a refresh rate
+     * nothing in the world snapshot measures (wubu_world_t has no refresh field), so the page stated a
+     * fact the OS never learned. It now reports the mode and says plainly what it does not know. */
+    char vram[48];
+    if (w->vram_mb) snprintf(vram, sizeof vram, "%uMB vram", w->vram_mb);
+    else            snprintf(vram, sizeof vram, "vram not reported");
+    snprintf(out, cap, "display: %s %ux%u, refresh not reported, %s",
+             connector_name(w->gpu_connector), w->screen_w, w->screen_h, vram);
     return 0;
 }
 
