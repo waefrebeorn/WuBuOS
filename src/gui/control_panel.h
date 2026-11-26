@@ -131,6 +131,7 @@ struct DosGuiWindow;
 struct DosGuiWindow *control_panel_launch(void);
 
 /* Chrome geometry: the renderer and the hit-test share these, and tests can ask for them. */
+void controlpanel_render_at(uint32_t *fb, int fb_w, int fb_h, int ox, int oy, int ow, int oh);
 int  controlpanel_sidebar_w(void);
 int  controlpanel_header_h(void);
 bool controlpanel_sidebar_row_rect(int i, int *x, int *y, int *w, int *h);

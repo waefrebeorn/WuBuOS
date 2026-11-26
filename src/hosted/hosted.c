@@ -318,6 +318,17 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         launch_app("HolyC Terminal");
     }
 
+    /* WUBU_OPEN_SETTINGS=1 opens the Control Panel at boot. Verification affordance: the desktop icons
+     * can sit UNDER a boot window, so clicking them from the host proves nothing about whether the panel
+     * opens -- this opens exactly the window the Settings icon opens, so a screenshot can check it. */
+    if (getenv("WUBU_OPEN_SETTINGS")) {
+        extern DosGuiWindow *control_panel_launch(void) __attribute__((weak));
+        if (control_panel_launch) {
+            DosGuiWindow *cp = control_panel_launch();
+            if (!cp) fprintf(stderr, "WuBuOS: WUBU_OPEN_SETTINGS set but the panel could not launch\n");
+        }
+    }
+
     /* GAP F: the first-boot greeter -- the visible configurator the
      * onboarding decision layer has always targeted but never drawn.  Shown
      * only when no onboarding sentinel exists; completing it persists the

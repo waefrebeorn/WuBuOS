@@ -255,36 +255,44 @@ int controlpanel_sidebar_hit(int mx, int my)
     return -1;
 }
 
-void controlpanel_render(uint32_t *fb, int fb_w, int fb_h)
+void controlpanel_render_at(uint32_t *fb, int fb_w, int fb_h,
+                           int ox, int oy, int ow, int oh)
 {
-    if (!fb || fb_w <= 0 || fb_h <= 0) return;
+    if (!fb || ow <= 0 || oh <= 0) return;
     const WubuThemeColors *c = wubu_theme_colors();
 
-    /* Drawing goes through control_panel_text's helpers, which CLIP to the surface: this renderer is
-     * called with the window's surface and must never write outside it (the canary in the applet gate
-     * exists because a panel once did). */
-    cp_fill(fb, fb_w, fb_h, 0, 0, fb_w, fb_h, c->win_face);
+    /* The panel is a window's CONTENT area: paint at the origin it was given and clip to it. Drawing at
+     * (0,0) with the framebuffer's size was the reason the Control Panel window opened empty -- its
+     * painted surface landed outside the chrome's clip. */
+    cp_fill(fb, fb_w, fb_h, ox, oy, ow, oh, c->win_face);
 
-    /* The sidebar: its own surface and a NAME per row. */
-    cp_fill(fb, fb_w, fb_h, 0, 0, CP_SIDEBAR_W, fb_h, c->taskbar_bg);
-    cp_fill(fb, fb_w, fb_h, CP_SIDEBAR_W - 1, 0, 1, fb_h, c->border_dark);
-    cp_draw_text(fb, fb_w, fb_h, CP_SIDE_PAD, 10, "Settings", c->win_title_text, 1);
+    int sw = CP_SIDEBAR_W < ow ? CP_SIDEBAR_W : ow;
+    cp_fill(fb, fb_w, fb_h, ox, oy, sw, oh, c->taskbar_bg);
+    cp_fill(fb, fb_w, fb_h, ox + sw - 1, oy, 1, oh, c->border_dark);
+    cp_draw_text(fb, fb_w, fb_h, ox + CP_SIDE_PAD, oy + 10, "Settings", c->win_title_text, 1);
 
     for (int i = 0; i < g_controlpanel.applet_count; i++) {
         int x, y, w, h;
         if (!controlpanel_sidebar_row_rect(i, &x, &y, &w, &h)) continue;
         bool active = (i == g_controlpanel.active_applet);
-        if (active) cp_fill(fb, fb_w, fb_h, x + 4, y, w - 12, h, c->select_bg);
-        /* The applet's colour becomes a small mark, so the sidebar is not a wall of text. */
-        cp_fill(fb, fb_w, fb_h, x + CP_SIDE_PAD, y + 9, 8, 8, g_controlpanel.applets[i].icon_color);
-        cp_draw_text(fb, fb_w, fb_h, x + CP_SIDE_PAD + 16, y + 9, g_controlpanel.applets[i].name,
+        if (active) cp_fill(fb, fb_w, fb_h, ox + x + 4, oy + y, w - 12, h, c->select_bg);
+        cp_fill(fb, fb_w, fb_h, ox + x + CP_SIDE_PAD, oy + y + 9, 8, 8,
+                g_controlpanel.applets[i].icon_color);
+        cp_draw_text(fb, fb_w, fb_h, ox + x + CP_SIDE_PAD + 16, oy + y + 9,
+                     g_controlpanel.applets[i].name,
                      active ? c->select_text : c->body_text, 1);
     }
 
     CpApplet *a = controlpanel_active();
-    if (a && a->render)
-        a->render(a, fb, fb_w, fb_h, CP_SIDEBAR_W, CP_HEADER_H,
-                  fb_w - CP_SIDEBAR_W, fb_h > CP_HEADER_H ? fb_h - CP_HEADER_H : 1);
+    int px = ox + sw, py = oy + CP_HEADER_H;
+    int pw = ow - sw, ph = oh - CP_HEADER_H;
+    if (a && a->render && pw > 0 && ph > 0)
+        a->render(a, fb, fb_w, fb_h, px, py, pw, ph);
+}
+
+void controlpanel_render(uint32_t *fb, int fb_w, int fb_h)
+{
+    controlpanel_render_at(fb, fb_w, fb_h, 0, 0, fb_w, fb_h);
 }
 
 /* CP15: shutdown — cleanup every applet. */
@@ -303,12 +311,22 @@ void controlpanel_shutdown(void)
  * the window manager. */
 extern DosGuiWindow *wm_create(int x, int y, int w, int h, const char *title) __attribute__((weak));
 
-static void cp_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h)
+static void cp_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h)
 {
-    (void)win; (void)x; (void)y;
     if (!fb) return;
-    (void)w; (void)h;
-    controlpanel_render(fb, fb_w, fb_h);
+    /* on_draw's surface IS the window's content area (wm.h: four parameters, no rect), so the panel's
+     * origin is (0,0) and its size is the surface it was handed. An eight-parameter version of this
+     * function compiled fine and painted the panel into garbage coordinates -- the window opened empty. */
+    /* wm_render clips to the content rect and then calls us with the WHOLE framebuffer, so the panel
+     * must paint at the content ORIGIN in framebuffer coordinates. Painting at (0,0) put every pixel
+     * outside the clip and the window opened empty -- twice, because the first fix changed the size but
+     * kept the origin at zero. */
+    int cx = 0, cy = 0, cw = fb_w, ch = fb_h;
+    /* Weak: a panel test graph has the applets without the window manager. */
+    extern void wm_content_rect(const DosGuiWindow *, int *, int *, int *, int *) __attribute__((weak));
+    if (win && wm_content_rect) wm_content_rect(win, &cx, &cy, &cw, &ch);
+    if (cw <= 0 || ch <= 0) { cw = fb_w; ch = fb_h; cx = 0; cy = 0; }
+    controlpanel_render_at(fb, fb_w, fb_h, cx, cy, cw, ch);
 }
 
 static void cp_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
@@ -319,8 +337,12 @@ static void cp_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
 
 static void cp_on_mouse(DosGuiWindow *win, int mx, int my, int btn, int kind)
 {
-    (void)win;
-    controlpanel_handle_mouse(mx, my, btn, kind);
+    /* Mouse coordinates arrive in window space; the sidebar's rows live in content space. */
+    int cx = 0, cy = 0, cw = 0, ch = 0;
+    extern void wm_content_rect(const DosGuiWindow *, int *, int *, int *, int *) __attribute__((weak));
+    if (wm_content_rect) wm_content_rect(win, &cx, &cy, &cw, &ch);
+    (void)cw; (void)ch;
+    controlpanel_handle_mouse(mx - cx, my - cy, btn, kind);
 }
 
 DosGuiWindow *control_panel_launch(void)
