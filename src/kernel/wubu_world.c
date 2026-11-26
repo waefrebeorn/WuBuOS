@@ -32,7 +32,6 @@
 #include "wubu_drv_sd.h"
 #include "wubu_drv_thermal.h"
 
-#include <stdio.h>
 #include <string.h>
 
 static wubu_world_t g_world;

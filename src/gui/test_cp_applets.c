@@ -19,9 +19,11 @@
 
 /* A world snapshot the Display page can report: without one the page draws its "no snapshot" line and a
  * heading-only page would still pass an ink count. */
+static wubu_world_t junk_world_for_test;
 static wubu_world_t fake_world_for_test = { .screen_w = 1234, .screen_h = 567,
                                             .gpu_connector = 1, .vram_mb = 64 };
 static const wubu_world_t *fake_snapshot(void) { return &fake_world_for_test; }
+static const wubu_world_t *junk_snapshot(void) { return &junk_world_for_test; }
 #include <sys/stat.h>
 #include "control_panel_text.h"
 #include "../runtime/wubu_mirror.h"
@@ -189,6 +191,23 @@ int main(void)
         check(rows >= 4, m5);
         check(strstr(drawn, "Hz") == NULL && strstr(drawn, "@60") == NULL,
               "no invented refresh rate in the Display rows");
+
+        /* A provider that hands back a struct which cannot be a world must not be printed at face value:
+         * a live session's provider returned 0x47a4ec with screen=3843x51383 while the real world sat at
+         * 0x360d320 with 1920x1080. Garbage in must not become garbage on screen. */
+        static wubu_world_t junk_world;
+        junk_world.screen_w = 65535;
+        junk_world.screen_h = 65535;
+        junk_world.gpu_connector = 99;
+        junk_world.vram_mb = 0xDEADBEEF;
+        cp_display_set_snapshot(junk_snapshot);
+        controlpanel_render(dfb, W, H);
+        const char *junk_drawn = cp_display_last_drawn();
+        char m6[240];
+        snprintf(m6, sizeof m6, "an implausible world is never printed as a display (drew: '%s')",
+                 junk_drawn ? junk_drawn : "");
+        check(junk_drawn && strstr(junk_drawn, "65535") == NULL && strstr(junk_drawn, "3735928559") == NULL, m6);
+        cp_display_set_snapshot(fake_snapshot);
 
         /* The Theme page had the same "> 0" defect; the same behavioural check applies. */
         CpApplet thm = cp_create_theme_applet();

@@ -79,6 +79,17 @@ static int g_nrows;
 #define CP_DISP_MAX_W 16384
 #define CP_DISP_MAX_VRAM_MB 1048576u   /* 1 TB: no machine this runs on exceeds it */
 
+/* Could this struct be a real world snapshot? The applet's stored provider read a DIFFERENT object than
+ * the live world in a hosted session (measured: provider returned 0x47a4ec while &g_world was 0x360d320,
+ * with screen=3843x51383), so a provider's answer is not trusted on its identity -- only on its content. */
+static int world_plausible(const wubu_world_t *w)
+{
+    if (!w) return 0;
+    return w->screen_w == 0 && w->screen_h == 0
+        || (w->screen_w >= 320 && w->screen_h >= 200 &&
+            w->screen_w <= 16384 && w->screen_h <= 16384);
+}
+
 static void disp_build_rows(const wubu_world_t *w)
 {
     g_nrows = 0;
@@ -144,6 +155,12 @@ static void display_render(CpApplet *applet, uint32_t *fb,
                      "no display snapshot", c->body_text_ina, 1);
         g_last_drawn[0] = 0;
         return;
+    }
+
+    /* Prefer the real world over a provider that hands back something that cannot be one. */
+    {
+        extern const wubu_world_t *wubu_world_snapshot(void) __attribute__((weak));
+        if (!world_plausible(wd) && wubu_world_snapshot) wd = wubu_world_snapshot();
     }
 
     disp_build_rows(wd);
