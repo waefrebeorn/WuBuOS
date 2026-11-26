@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**37/42 have an owner, 5 missing, 8 declared not applicable.**
+**39/42 have an owner, 3 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -27,8 +27,8 @@ the behaviour works -- that is the test suite's job.
 | win11 | `MicrosoftWindows.Client.CBS` | `src/runtime/wubu_account.c:13` | core shell services: accounts, search/spotlight, input UX, first-run setup -- implemented as modules here, not shipped as a servicing package |
 | win11 | `MicrosoftWindows.Client.FileExp` | `src/gui/explorer.c:43` | file explorer client |
 | win11 | `Windows.ContentDeliveryManager` | `src/gui/wubu_pkgmgr.c:16` | content delivery / packages |
-| win11 | `AccountsControl` | **MISSING** | GAP: wubu_userinfo reads the account and the panel now launches from the Settings icon, but the panel's content is not drawn in the hosted session (wm_render receives a NULL surface), so the page is not user-visible yet -- see docs control-panel-status.md |
-| win11 | `BioEnrollment` | **MISSING** | GAP: wubu_biometric measures reader/service/enrolled prints, but its page is not user-visible: the hosted render path calls wm_render with a NULL surface |
+| win11 | `AccountsControl` | `src/runtime/wubu_userinfo.c:14` | account page -- signed-in user, home, picture, password tool, in the Control Panel the Settings icon opens (visible: drawn into the surface vbe_* presents) |
+| win11 | `BioEnrollment` | `src/runtime/wubu_biometric.c:15` | sign-in options page -- reader, service and enrolled prints, each measured |
 | win11 | `ParentalControls` | `src/runtime/wubu_parental.c:14` | family limits -- the policy is enforced (the session locks outside the hours); the editor page lives in the unwired Control Panel engine |
 | win11 | `AsyncTextService` | `src/gui/term_ansi.c:41` | text services |
 | win11 | `NcsiUwpApp` | `src/gui/shell/quick_settings.c:29` | status rows + tray click opens the panel; SSID scan in control panel |

@@ -103,3 +103,28 @@ So the next reader should start at the hosted composition path: who owns the sur
 `on_draw`, and where does that surface go between the call and the blit to the screen.
 `src/gui/compositor/gui_dbuf.c`, `src/gui/gui_blit.c` and `src/hosted/hosted_x11_present.c` are the files
 the evidence points at.
+
+## RESOLVED: the panel was drawing into the wrong buffer
+
+The cause was one line of vbe.c. `vbe_row()` -- the backing for every `vbe_fill_rect` / `vbe_draw_text` --
+is `(uint8_t *)g_vbe.back + y * g_vbe.pitch`. `vbe_state()->fb` is a DIFFERENT buffer, and the `fb`
+parameter handed to `on_draw` is NULL in the hosted frame loop (`desktop_render(NULL, w, h)`). Chrome drew
+through `vbe_*` and therefore appeared; the panel indexed a pointer directly and landed in memory nothing
+presents. A full-rect magenta fill through that pointer never reached a frame, which is what ruled out
+tearing and the back-buffer theory.
+
+The fix is an accessor rather than a convention: `vbe_draw_surface(&stride_px, &height)` in vbe.c returns
+the surface vbe_* writes, WITH ITS STRIDE (pitch/4, which is not always the width). The panel uses it and
+draws into the presented surface.
+
+Measured after the fix, in the presented frame: 20,133 sidebar pixels of `#1F1F1F`, 965 accent-blue pixels,
+477 white text pixels. The Control Panel now shows its labelled sidebar (Settings, Display, Network, Sound,
+Theme, Hardware, Firmware, Software sources, Your account, Family limits, Sign-in options, Revocation Sync)
+and the selected page.
+
+The gate for the class is `test_vbe_surface`: draw a pixel with the API, read it through the accessor, and
+require the same memory (plus a far-away pixel, so a stride mix-up cannot pass). Mutation-proven by
+returning `g_vbe.fb` instead of `g_vbe.back` -> three failures.
+
+Rule for any future renderer that indexes pixels instead of calling `vbe_*`: take the surface from
+`vbe_draw_surface()` and use the stride it reports.

@@ -345,6 +345,17 @@ uint32_t *vbe_scanline(int y) {
 
 int vbe_surface_width(void) { return g_vbe.width; }
 
+/* The surface the vbe_* calls actually write: vbe_row() indexes g_vbe.back with g_vbe.pitch, NOT
+ * g_vbe.fb. A renderer that indexes a framebuffer pointer directly (rather than calling vbe_*) must use
+ * THIS, or its pixels land in a buffer nothing presents -- which is exactly how the Control Panel window
+ * opened with chrome and an empty body. stride_px is pitch/4, which is NOT always width. */
+uint32_t *vbe_draw_surface(int *stride_px, int *height)
+{
+    if (stride_px) *stride_px = (int)(g_vbe.pitch / 4);
+    if (height) *height = g_vbe.height;
+    return g_vbe.back;
+}
+
 uint32_t vbe_get_pixel(int x, int y) {
     if (x >= 0 && x < g_vbe.width && y >= 0 && y < g_vbe.height)
         return vbe_row(y)[x];

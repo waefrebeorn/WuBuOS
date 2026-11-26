@@ -134,7 +134,9 @@ uint32_t vbe_get_pixel(int x, int y);
  * is off-surface. Lets a sprite/scanline loop write pixels inline instead of
  * paying the bounds+clip check per pixel through vbe_set_pixel. */
 uint32_t *vbe_scanline(int y);
-int vbe_surface_width(void);
+int  vbe_surface_width(void);
+/* The buffer vbe_* writes, with its row stride in pixels (pitch/4) and the surface height. */
+uint32_t *vbe_draw_surface(int *stride_px, int *height);
 
 /* Filled rectangle */
 void vbe_fill_rect(int x, int y, int w, int h, uint32_t color);

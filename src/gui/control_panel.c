@@ -313,21 +313,29 @@ extern DosGuiWindow *wm_create(int x, int y, int w, int h, const char *title) __
 
 static void cp_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h)
 {
-    /* wm_render calls on_draw with a NULL `fb` in the hosted session: drawing goes through the vbe layer,
-     * which owns the global framebuffer, and every other app simply ignores the parameter. This one must
-     * not -- it indexes the surface directly -- so it falls back to the vbe state rather than returning
-     * early. That early return is why the Control Panel window opened empty while its chrome drew. */
+    /* Draw into the surface that vbe_* ACTUALLY writes.
+     *
+     * vbe_row() -- the backing for every vbe_fill_rect / vbe_draw_text -- is
+     * (uint8_t*)g_vbe.back + y * g_vbe.pitch. The `fb` parameter is NULL in the hosted frame loop
+     * (desktop_render(NULL, ...)), and vbe_state()->fb is a DIFFERENT buffer from g_vbe.back. Both were
+     * tried and measured: a full-rect magenta fill and a title change through this callback left the
+     * presented frame untouched, while the chrome (which goes through vbe_*) always appeared. That is
+     * exactly the shape of "chrome draws, content does not". */
     int sw = fb_w, sh = fb_h;
-    if (!fb) {
-        /* Weak: vbe_state lives in the kernel's vbe unit, which a panel test graph does not link. */
-        extern VBEState *vbe_state(void) __attribute__((weak));
-        if (!vbe_state) return;
-        VBEState *st = vbe_state();
-        if (!st || !st->fb) return;
-        fb = st->fb;
-        sw = st->width;
-        sh = st->height;
+    {
+        /* Weak: the kernel's vbe unit is not linked into a panel test graph. */
+        extern uint32_t *vbe_draw_surface(int *, int *) __attribute__((weak));
+        if (vbe_draw_surface) {
+            int stride = 0, hgt = 0;
+            uint32_t *surf = vbe_draw_surface(&stride, &hgt);
+            if (surf) {
+                fb = surf;
+                sw = stride > 0 ? stride : fb_w;
+                sh = hgt > 0 ? hgt : fb_h;
+            }
+        }
     }
+    if (!fb) return;
     fb_w = sw; fb_h = sh;
     /* wm_render clips to the content rect and then calls us with the WHOLE framebuffer, so the panel
      * must paint at the content ORIGIN in framebuffer coordinates. Painting at (0,0) put every pixel

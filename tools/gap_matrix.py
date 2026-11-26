@@ -75,13 +75,11 @@ SHELL = [
                                           "implemented as modules here, not shipped as a servicing package"),
     ("MicrosoftWindows.Client.FileExp", ["src/gui/explorer.c"], "file explorer client"),
     ("Windows.ContentDeliveryManager", ["src/gui/wubu_pkgmgr.c"], "content delivery / packages"),
-    ("AccountsControl",         [],
-                                  "GAP: wubu_userinfo reads the account and the panel now launches from the Settings icon, "
-                                  "but the panel's content is not drawn in the hosted session (wm_render receives a NULL "
-                                  "surface), so the page is not user-visible yet -- see docs control-panel-status.md"),
-    ("BioEnrollment",            [],
-                                  "GAP: wubu_biometric measures reader/service/enrolled prints, but its page is not "
-                                  "user-visible: the hosted render path calls wm_render with a NULL surface"),
+    ("AccountsControl",         ["src/runtime/wubu_userinfo.c", "src/gui/control_panel_account.c"],
+                                  "account page -- signed-in user, home, picture, password tool, in the Control Panel "
+                                  "the Settings icon opens (visible: drawn into the surface vbe_* presents)"),
+    ("BioEnrollment",            ["src/runtime/wubu_biometric.c", "src/gui/control_panel_signin.c"],
+                                  "sign-in options page -- reader, service and enrolled prints, each measured"),
     ("ParentalControls",         ["src/runtime/wubu_parental.c", "src/gui/shell/parental_guard.c"],
                                   "family limits -- the policy is enforced (the session locks outside the hours); "
                                   "the editor page lives in the unwired Control Panel engine"),
