@@ -64,7 +64,12 @@ SHELL = [
     ("Windows.CloudExperienceHost", ["src/gui/shell/wubu_shell_greeter.c"], "first-run OOBE"),
     ("Windows.PinningConfirmationDialog",     ["src/gui/shell/pin_confirm.c"],
                                                "ask before pinning to the taskbar, with a remembered answer"),
-    ("Windows.PeopleExperienceHost", [], "people/contacts flyout"),
+    ("Windows.PeopleExperienceHost", ["src/runtime/wubu_people.c", "src/gui/control_panel_people.c",
+                                      "src/runtime/wubu_people_test.c"],
+                                     "contacts: a bounded persistent store (TSV, atomic replace, case-insensitive "
+                                     "de-duplication, truncating untrusted input) behind a People page that lists "
+                                     "the real contacts and says 'no contacts' when empty. The taskbar contact "
+                                     "flyout is NOT built and is not claimed."),
     ("WindowsAppRuntime",       [], "packaged-app runtime"),
     ("Win32WebViewHost",        ["src/lua/www"], "embedded web view (WorldSpace)"),
     ("MicrosoftWindows.Client.AIX", ["src/runtime/wubu_ai_link.c", "src/gui/control_panel_ai.c",

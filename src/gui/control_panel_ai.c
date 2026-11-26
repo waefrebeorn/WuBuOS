@@ -39,9 +39,9 @@ static void ai_applet_init(CpApplet *applet)
     ai_measure();
 }
 
-static void ai_applet_key(CpApplet *applet, int key)
+static void ai_applet_key(CpApplet *applet, unsigned key, unsigned mods)
 {
-    (void)applet;
+    (void)applet; (void)mods;
     if (key == 0xE034)              /* F5: re-measure on demand */
         ai_measure();
 }

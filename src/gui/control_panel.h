@@ -40,6 +40,7 @@ typedef enum {
     CP_APPLET_LIMITS      = 13, /* family limits: hours and days (ParentalControls parity) */
     CP_APPLET_SIGNIN      = 14, /* sign-in options: fingerprint state (BioEnrollment parity) */
     CP_APPLET_AI          = 15, /* the model endpoint this machine can reach (Client.AIX parity) */
+    CP_APPLET_PEOPLE      = 16, /* contacts (PeopleExperienceHost parity) */
 } CpAppletId;
 
 typedef struct CpApplet CpApplet;
@@ -131,6 +132,9 @@ const char *cp_network_last_drawn(void);   /* the rows the Network page actually
 CpApplet cp_create_ai_applet(void);
 const char *cp_ai_last_drawn(void);        /* the rows the AI page actually drew */
 void        cp_ai_test_measure(void);      /* force a probe without a frame loop */
+CpApplet cp_create_people_applet(void);
+const char *cp_people_last_drawn(void);    /* the rows the People page actually drew */
+void        cp_people_test_reload(void);   /* re-read the store without a frame loop */
 const char *cp_theme_last_drawn(void);     /* and the Theme page */
 
 /* The launcher the desktop's Settings icon uses (src/apps/apps.c). Creates a WM window whose draw is

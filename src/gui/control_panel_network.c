@@ -52,7 +52,7 @@ static void network_render(CpApplet *applet, uint32_t *fb,
                            int fb_w, int fb_h, int x, int y, int w, int h)
 {
     NetworkAppletData *d = (NetworkAppletData *)applet->user_data;
-    const wubu_world_t *wd = d ? d->snap : NULL;
+    const wubu_world_t *wd = (d && d->snap) ? d->snap() : NULL;   /* CALL it: assigning the function pointer read it as data */
     if (!wd && g_net.snap) wd = g_net.snap();
     /* No product code installs a provider any more: resolve the live world directly, and treat the
      * injected provider as a test override (an unowned pointer gave one live session a world that was not

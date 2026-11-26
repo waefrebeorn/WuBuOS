@@ -15,6 +15,7 @@
 #include "control_panel.h"
 #include "../runtime/wubu_parental.h"
 #include "../runtime/wubu_biometric.h"
+#include "../runtime/wubu_people.h"
 #include "../kernel/wubu_world.h"
 
 /* A world snapshot the Display page can report: without one the page draws its "no snapshot" line and a
@@ -263,6 +264,37 @@ int main(void)
               strstr(aline, "127.0.0.1:9") != NULL && strstr(aline, "not measured") == NULL, m8);
         check(aline && strstr(aline, "yes,") == NULL, "a dead endpoint is never reported reachable");
         unsetenv("WUBU_AI_ENDPOINT");
+
+        /* The People page must show contacts that are really in the store, and say so when there are none. */
+        char pdb[] = "/tmp/wubu_cp_people_XXXXXX";
+        int pfd = mkstemp(pdb);
+        if (pfd >= 0) close(pfd);
+        setenv("WUBU_PEOPLE_DB", pdb, 1);
+        unlink(pdb);
+        WubuPeople seed;
+        memset(&seed, 0, sizeof seed);
+        wubu_people_add(&seed, "Ada Lovelace", "ada@example.org", "555-0100");
+        wubu_people_save(&seed);
+
+        CpApplet ppl = cp_create_people_applet();
+        controlpanel_init();
+        controlpanel_register_applet(&ppl);
+        activate_last_page();
+        cp_people_test_reload();
+        controlpanel_render(dfb, W, H);
+        const char *pline = cp_people_last_drawn();
+        char m9[260];
+        snprintf(m9, sizeof m9, "the People page shows the contact from the store (drew: '%s')",
+                 pline ? pline : "");
+        check(pline && strstr(pline, "Ada Lovelace") != NULL && strstr(pline, "1 contact") != NULL, m9);
+
+        /* and an empty store says so instead of showing an empty card */
+        unlink(pdb);
+        cp_people_test_reload();
+        controlpanel_render(dfb, W, H);
+        const char *empty = cp_people_last_drawn();
+        check(empty && strstr(empty, "no contacts") != NULL, "the People page says there are no contacts");
+        unsetenv("WUBU_PEOPLE_DB");
 
         controlpanel_shutdown();
         free(dfb);

@@ -142,7 +142,7 @@ static void display_render(CpApplet *applet, uint32_t *fb,
                            int fb_w, int fb_h, int x, int y, int w, int h)
 {
     DisplayAppletData *d = (DisplayAppletData *)applet->user_data;
-    const wubu_world_t *wd = d ? d->snap : NULL;
+    const wubu_world_t *wd = (d && d->snap) ? d->snap() : NULL;   /* CALL it: assigning the function pointer read it as data */
     if (!wd && g_disp.snap) wd = g_disp.snap();
     /* Resolve the LIVE world here, before the null check: the fallback used to sit below it, so a session
      * with no installed provider (which is now every product session) drew "no display snapshot". */
@@ -181,7 +181,7 @@ int cp_display_row_count(void)
     DisplayAppletData *d = NULL;
     CpApplet *a = controlpanel_get_applet(CP_APPLET_DISPLAY);
     if (a && a->user_data) d = (DisplayAppletData *)a->user_data;
-    const wubu_world_t *wd = d ? d->snap : NULL;
+    const wubu_world_t *wd = (d && d->snap) ? d->snap() : NULL;   /* CALL it: assigning the function pointer read it as data */
     if (!wd && g_disp.snap) wd = g_disp.snap();
     if (!wd) return 0;
     disp_build_rows(wd);
