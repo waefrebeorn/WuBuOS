@@ -65,7 +65,9 @@ static void network_render(CpApplet *applet, uint32_t *fb,
         return;
     }
     char line[256];
-    if (cp_network_test_line(line, sizeof line) > 0)
+    /* The line builder returns 0 on success and -1 for bad arguments, so "> 0" was never true and the
+     * page drew its heading and NOTHING ELSE on every install. Ask for "not an error" instead. */
+    if (cp_network_test_line(line, sizeof line) >= 0)
         cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, c->body_text, 1);
 }
 

@@ -34,6 +34,10 @@ typedef struct {
 
 static DisplayAppletData g_disp;
 
+/* What the page last DREW for its body ("" when it drew none). A page that renders only its heading
+ * looks like a broken app, and the only way to gate that is to record the draw, not to count pixels. */
+static char g_last_drawn[256];
+
 /* set the provider (the desktop wires wubu_world_snapshot). */
 void cp_display_set_snapshot(DisplaySnapFn fn)
 {
@@ -79,8 +83,12 @@ static void display_render(CpApplet *applet, uint32_t *fb,
     }
     /* the line the test asserts is the line the user reads: one source */
     char line[256];
-    if (cp_display_test_line(line, sizeof line) > 0)
+    /* The line builder returns 0 on success and -1 for bad arguments, so "> 0" was never true and the
+     * page drew its heading and NOTHING ELSE on every install. Ask for "not an error" instead. */
+    if (cp_display_test_line(line, sizeof line) >= 0) {
+        snprintf(g_last_drawn, sizeof g_last_drawn, "%s", line);
         cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, c->body_text, 1);
+    }
 }
 
 /* the test hook: the display line the applet would show. */
@@ -96,11 +104,16 @@ int cp_display_test_line(char *out, size_t cap)
         return 0;
     }
     const wubu_world_t *w = snap();
-    snprintf(out, cap, "display: %s %ux%u@%d %uMB vram",
-             connector_name(w->gpu_connector),
-             w->screen_w, w->screen_h,
-             w->gpu_connector ? 60 : 0,
-             w->vram_mb);
+    /* A zero vram figure is "this machine does not report it", not "0 MB". Saying 0 MB is the kind of
+     * plausible-looking number that sends someone hunting a nonexistent problem. */
+    if (w->vram_mb)
+        snprintf(out, cap, "display: %s %ux%u@%d %uMB vram",
+                 connector_name(w->gpu_connector), w->screen_w, w->screen_h,
+                 w->gpu_connector ? 60 : 0, w->vram_mb);
+    else
+        snprintf(out, cap, "display: %s %ux%u@%d vram not reported",
+                 connector_name(w->gpu_connector), w->screen_w, w->screen_h,
+                 w->gpu_connector ? 60 : 0);
     return 0;
 }
 
@@ -122,3 +135,6 @@ CpApplet cp_create_display_applet(void)
     a.initialized = false;
     return a;
 }
+
+/* Test hook: the body line the Display page last drew. */
+const char *cp_display_last_drawn(void) { return g_last_drawn; }

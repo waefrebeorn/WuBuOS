@@ -129,7 +129,26 @@ sign_with "$TMP/fallback"; expect_sig "fail-closed fallback sign"; SIG_F=$SIG; e
     || { echo "[native] FAIL  fallback output differs from ladder"; FAIL=$((FAIL+1)); }
 
 # 6. Tamper / forgery negatives -- must fail on every path.
-TAMPERED="00${SIG_N:2}"
+# A negative control that can be a no-op is not a control: "00" + the rest of the signature is IDENTICAL
+# to the original whenever the signature already starts with 00 (1 run in 256), and then the forgery
+# correctly verifies and the gate reports "tampered signature accepted". Measured: the suite failed
+# intermittently on exactly that, and passed on every retry. Flip a known digit and PROVE the difference.
+flip_hex() {
+    case "$1" in
+        0) echo -n 1;; 1) echo -n 2;; 2) echo -n 3;; 3) echo -n 4;;
+        4) echo -n 5;; 5) echo -n 6;; 6) echo -n 7;; 7) echo -n 8;;
+        8) echo -n 9;; 9) echo -n a;; a) echo -n b;; b) echo -n c;;
+        c) echo -n d;; d) echo -n e;; e) echo -n f;; f) echo -n 0;;
+        *) echo -n 0;;
+    esac
+}
+LAST="${SIG_N:127:1}"
+FLIPPED=$(flip_hex "$LAST")
+TAMPERED="${SIG_N:0:127}${FLIPPED}"
+if [ "$TAMPERED" = "$SIG_N" ] || [ "${#TAMPERED}" -ne 128 ]; then
+    echo "[rt] FAIL: could not build a tampered signature (refusing to test a no-op)" >&2
+    exit 1
+fi
 verify_with "$TMP/native" "$DIG" "$PUB" "$TAMPERED"; expect_verify FAIL "tampered signature rejected by native"
 verify_with "$TMP/ladder" "$DIG" "$PUB" "$TAMPERED"; expect_verify FAIL "tampered signature rejected by ladder"
 verify_with "$TMP/native" "$DIG" "$WRONG_PUB" "$SIG_N"; expect_verify FAIL "wrong public key rejected by native"

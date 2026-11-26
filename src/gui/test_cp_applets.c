@@ -15,6 +15,13 @@
 #include "control_panel.h"
 #include "../runtime/wubu_parental.h"
 #include "../runtime/wubu_biometric.h"
+#include "../kernel/wubu_world.h"
+
+/* A world snapshot the Display page can report: without one the page draws its "no snapshot" line and a
+ * heading-only page would still pass an ink count. */
+static wubu_world_t fake_world_for_test = { .screen_w = 1234, .screen_h = 567,
+                                            .gpu_connector = 1, .vram_mb = 64 };
+static const wubu_world_t *fake_snapshot(void) { return &fake_world_for_test; }
 #include <sys/stat.h>
 #include "control_panel_text.h"
 #include "../runtime/wubu_mirror.h"
@@ -154,6 +161,28 @@ int main(void)
     paint_one("sound",    cp_create_sound_applet(),    0);
     paint_one("hardware", cp_create_hardware_applet(), 0);
     paint_one("account",  cp_create_account_applet(),  0);
+    /* A page that draws only its heading reads as an empty app. The Display page's body line was never
+     * drawn because its builder returns 0 on success and the renderer tested "> 0". Count the ink. */
+    {
+        /* A fake world snapshot: without one the page draws its "no snapshot" line and the gate would
+         * count THAT as a body, which is exactly how the "> 0" bug passed a heading-only page. */
+        cp_display_set_snapshot(fake_snapshot);
+        CpApplet disp = cp_create_display_applet();
+        uint32_t *dfb = calloc((size_t)W * H + CANARY, sizeof(uint32_t));
+        for (unsigned i = 0; i < CANARY; i++) dfb[(size_t)W * H + i] = CANARY_VAL;
+        controlpanel_init();
+        controlpanel_register_applet(&disp);
+        controlpanel_render(dfb, W, H);
+        /* The page must DRAW its body, not only its heading. The page records the line it drew, so this
+         * is a behavioural assertion rather than a pixel count that a background colour can satisfy. */
+        const char *drawn = cp_display_last_drawn();
+        char m2[220];
+        snprintf(m2, sizeof m2, "the Display page draws its body line (drew: '%s')", drawn ? drawn : "");
+        check(drawn && drawn[0] && strstr(drawn, "1234x567") != NULL, m2);
+        controlpanel_shutdown();
+        free(dfb);
+    }
+
     paint_one("limits",   cp_create_limits_applet(),   0);
     paint_one("signin",   cp_create_signin_applet(),   0);
 

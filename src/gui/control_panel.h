@@ -124,6 +124,7 @@ CpApplet cp_create_signin_applet(void);     /* control_panel_signin.c */
 const void *cp_signin_test_probe(void);
 int      cp_mirror_test_rows(char *first_url, size_t cap);
 int      cp_account_test_login(char *out, size_t cap);
+const char *cp_display_last_drawn(void);   /* the body line the Display page actually drew */
 
 /* The launcher the desktop's Settings icon uses (src/apps/apps.c). Creates a WM window whose draw is
  * this engine. Returns NULL when there is no window manager in the link. */
