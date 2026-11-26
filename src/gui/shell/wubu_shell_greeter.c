@@ -252,10 +252,12 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
     (void)tc;
 
     /* Title + subtitle follow the current page. */
+    /* Body text uses the BODY role: white-on-navy caption ink is invisible on a light card,
+     * which is exactly what the Win98 theme showed. */
     vbe_draw_text(x0 + GR_PAD, y0 + GL.title_y, kStepTitle[g_step],
-                  tc->win_title_text, 2);
+                  tc->body_text, 2);
     vbe_draw_text(x0 + GR_PAD, y0 + GL.sub_y, kStepSub[g_step],
-                  tc->win_title_text_ina, 1);
+                  tc->body_text_ina, 1);
 
     /* Progress: "Step N of M" plus one pip per page.  A wizard the user cannot
      * locate themselves in is not a wizard. */

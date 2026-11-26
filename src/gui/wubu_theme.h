@@ -43,7 +43,13 @@ typedef struct {
     uint32_t win_title_active;   /* Active window title bar */
     uint32_t win_title_inactive; /* Inactive window title bar */
     uint32_t win_title_text;     /* Title text color */
-    uint32_t win_title_text_ina; /* Inactive title text */
+    uint32_t win_title_text_ina;
+    /* Body text on the WINDOW FACE. This is a separate role from the caption text: a caption
+     * sits on an accent/navy bar (so it is usually white), while body text sits on win_face
+     * (light in the classic themes). Reusing one field put light-grey text on a light-grey
+     * card -- the Win98 setup wizard rendered its headings nearly invisible. */
+    uint32_t body_text;
+    uint32_t body_text_ina; /* Inactive title text */
 
     /* Borders */
     uint32_t border_light;       /* 3D highlight (top-left) */

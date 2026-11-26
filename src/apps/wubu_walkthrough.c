@@ -99,7 +99,7 @@ static void walk_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int y = c.y + WALK_PAD;
 
     /* Title. */
-    vbe_draw_text(c.x + WALK_PAD, y, s->title, tc()->win_title_text, 2);
+    vbe_draw_text(c.x + WALK_PAD, y, s->title, tc()->body_text, 2);
     y += WALK_STEP_TITLE_H;
 
     /* Rule under the title. */
@@ -143,7 +143,7 @@ static void walk_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ty = y;
     for (int i = 0; i < WALK_BODY_MAX && s->body[i]; i++) {
         if (s->body[i][0] == '\0') { ty += 6; continue; }
-        vbe_draw_text(tx, ty, s->body[i], tc()->win_title_text, 1);
+        vbe_draw_text(tx, ty, s->body[i], tc()->body_text, 1);
         ty += 14;
     }
 

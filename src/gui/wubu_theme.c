@@ -26,6 +26,9 @@ static const WubuTheme g_themes[THEME_COUNT] = {
         .desktop_bg        = RGB(0x00,0x80,0x80),   /* Teal */
         .win_face          = RGB(0xC0,0xC0,0xC0),   /* Silver */
         .win_title_active  = RGB(0x00,0x00,0x80),   /* Navy */
+        /* WAS MISSING: an unset field is 0, so every inactive Win98 window drew a BLACK
+         * caption bar. The classic inactive caption is grey. */
+        .win_title_inactive= RGB(0x80,0x80,0x80),
         .win_title_text    = RGB(0xFF,0xFF,0xFF),   /* white on navy: 15.9:1 */
         .win_title_text_ina= RGB(0xFF,0xFF,0xFF),   /* WCAG AA: white on gray title */
         .border_light      = RGB(0xFF,0xFF,0xFF),   /* White */
@@ -397,8 +400,22 @@ static WubuThemeColors g_live;
 static bool              g_high_contrast = false;
 static WubuThemeColors   g_hc_saved;
 
+static uint32_t live_text_on(uint32_t bg);   /* defined below; used by the seed */
+
 static void live_seed_from_current(void) {
     g_live = g_themes[g_current].colors;
+    /* Derive the body-text pair from the surface it will actually be drawn on, for EVERY
+     * palette at once, instead of trusting seven hand-written pairs to agree with their faces. */
+    g_live.body_text = live_text_on(g_live.win_face);
+    {
+        /* Dim body text: halfway between the readable ink and the face, which keeps a label
+         * secondary without dropping it under the 4.5:1 floor on either polarity. */
+        uint32_t t = g_live.body_text, f = g_live.win_face;
+        int tr = (int)((t >> 16) & 0xFF), tg = (int)((t >> 8) & 0xFF), tb = (int)(t & 0xFF);
+        int fr = (int)((f >> 16) & 0xFF), fg = (int)((f >> 8) & 0xFF), fb = (int)(f & 0xFF);
+        int r = (tr * 3 + fr) / 4, g2 = (tg * 3 + fg) / 4, b = (tb * 3 + fb) / 4;
+        g_live.body_text_ina = ((uint32_t)r << 16) | ((uint32_t)g2 << 8) | (uint32_t)b;
+    }
 }
 
 /* Pick black or white text for a background, by relative luminance. */
