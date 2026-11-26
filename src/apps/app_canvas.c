@@ -159,7 +159,9 @@ static void draw_content(CvState *s) {
 }
 
 static void draw_toolbar(CvState *s, DosGuiWindow *win) {
-    int tb_x = win->x + 2, tb_y = win->y + 22;
+    int cx, cy, cw, ch;
+    wm_content_rect(win, &cx, &cy, &cw, &ch);
+    int tb_x = cx + 2, tb_y = cy + 2;
     int bw = 54, bh = 18, gap = 2;
     for (int t = 0; t < CV_TOOL_COUNT; t++) {
         int bx = tb_x + (t % 6) * (bw + gap);
@@ -173,8 +175,10 @@ static void draw_toolbar(CvState *s, DosGuiWindow *win) {
 }
 
 static void draw_palette(CvState *s, DosGuiWindow *win) {
-    int px = win->x + win->w - 2 - 16 * 1 - 8;
-    int py = win->y + 22 + 4;
+    int cx, cy, cw, ch;
+    wm_content_rect(win, &cx, &cy, &cw, &ch);
+    int px = cx + cw - 2 - 16 * 1 - 8;
+    int py = cy + 2 + 4;
     for (int i = 0; i < 16; i++) {
         int col = i % 8, row = i / 8;
         int cx = px + col * 18, cy = py + row * 18;
@@ -189,7 +193,9 @@ static void draw_palette(CvState *s, DosGuiWindow *win) {
 }
 
 static void draw_layers(CvState *s, DosGuiWindow *win) {
-    int lx = win->x + 2, ly = win->y + win->h - 2 - 120;
+    int ox, oy, ow, oh;
+    wm_content_rect(win, &ox, &oy, &ow, &oh);
+    int lx = ox + 2, ly = oy + oh - 2 - 120;
     int lw = 150, lh = 118;
     vbe_fill_rect(lx, ly, lw, lh, 0x00E0E0E0);
     vbe_rect(lx, ly, lw, lh, 0x00808080);
@@ -262,9 +268,13 @@ void app_canvas_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     screen_to_canvas(s, x, y, &cx, &cy);
     s->last_x = x - s->content_x; s->last_y = y - s->content_y;
 
+    /* Hit-test from the SAME rect the palette is painted in; the old win->y + 22 guess is what put
+     * the palette under the caption in the first place. */
+    int ox, oy, ow, oh;
+    wm_content_rect(win, &ox, &oy, &ow, &oh);
     /* Palette click → set FG (left) / BG (right). */
-    int px = win->x + win->w - 2 - 16 * 1 - 8;
-    int py = win->y + 22 + 4;
+    int px = ox + ow - 2 - 16 * 1 - 8;
+    int py = oy + 2 + 4;
     if (x >= px && x < px + 8 * 18 && y >= py && y < py + 2 * 18) {
         int col = (x - px) / 18, row = (y - py) / 18;
         int i = row * 8 + col;
@@ -276,7 +286,7 @@ void app_canvas_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     }
 
     /* Layers panel click → set active layer. */
-    int lx = win->x + 2, ly = win->y + win->h - 2 - 120;
+    int lx = ox + 2, ly = oy + oh - 2 - 120;
     if (x >= lx && x < lx + 150 && y >= ly && y < ly + 118) {
         WubuCanvas *cv = s->cv;
         int row = (y - (ly + 16)) / 18;

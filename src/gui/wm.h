@@ -79,6 +79,11 @@ typedef struct DosGuiWindow {
     int           content_x, content_y, content_w, content_h;
 } DosGuiWindow;
 
+/* Where this window's app may paint, in SCREEN coordinates -- the rect the chrome clipped to.
+ * Never recompute this from a caption height; ask. */
+void wm_content_rect(const DosGuiWindow *w, int *x, int *y, int *w_out, int *h);
+
+
 /* -- Lifecycle ---------------------------------------------------- */
 
 int  wm_init(int screen_w, int screen_h);

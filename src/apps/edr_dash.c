@@ -189,8 +189,8 @@ static void edr_dash_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     /* Content rect from chrome geometry (border_width=2, title_bar_height unified). */
     int bw  = border_width();
     int tbh = title_bar_height();
-    int cx = win->x + bw;
-    int cy = win->y + tbh;
+    int cx, cy, cw_, ch_;
+    wm_content_rect(win, &cx, &cy, &cw_, &ch_);
     int cw = win->w - 2 * bw;
 
     /* Click on a filter chip? */

@@ -93,7 +93,9 @@ static void tandem_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h)
     s->draws++;
 
     /* the tandem panel: three bands */
-    int y = win->y + 4;
+    int cx, cy, cw, ch;
+    wm_content_rect(win, &cx, &cy, &cw, &ch);
+    int y = cy + 4;
     /* 1. the user model gauge */
     vbe_draw_text(win->x + 4, y, "USER MODEL", tc()->win_title_text_ina, 1);
     y += 14;

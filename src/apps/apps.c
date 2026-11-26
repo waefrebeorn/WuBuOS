@@ -89,7 +89,9 @@ void app_explorer_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 static void app_placeholder_draw(DosGuiWindow *win, uint32_t *fb,
                                   int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
-    int x = win->x + 8, y = win->y + 28;
+    int cx, cy, cw, ch;
+    wm_content_rect(win, &cx, &cy, &cw, &ch);
+    int x = cx + 8, y = cy + 8;
     vbe_fill_rect(x, y, win->w - 16, win->h - 36, wubu_theme_colors()->win_face);
     vbe_rect(x, y, win->w - 16, win->h - 36, wubu_theme_colors()->border_dark);
     vbe_draw_text(x + 10, y + 10, win->title, wubu_theme_colors()->btn_text, 1);
