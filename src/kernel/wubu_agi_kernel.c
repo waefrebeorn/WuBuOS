@@ -49,6 +49,14 @@ struct wubu_agi_kernel {
     bool             frozen;
     int              promoted_total;
     uint64_t         last_promote_tick;   /* D7: supervisor watchdog   */
+    /* Console echo throttle. The echo was keyed to promoted_total % 25, so a
+     * productive loop printed thousands of lines and the serial port became the
+     * boot's bottleneck: under `make -j24` the metal gate could not get a console
+     * command answered inside its 90 s deadline because the guest was busy writing
+     * AGI lines to COM1 (measured: the same build passed standalone in 40 s). The
+     * echo is now at most one line per second, carrying the suppressed count. */
+    uint64_t         echo_last_ms;
+    int              echo_suppressed;
 
     /* Firmware root of trust (WuBuFW attestation, consumed at init). */
     bool             attest_valid;
@@ -419,11 +427,21 @@ int wubu_agi_kernel_cycle(wubu_agi_kernel_t *k)
              * metal's hive (retained across boots). */
             if (k->memory_fn)
                 k->memory_fn("put", s->id, s->data, k->memory_ud);
-            /* Rate-limited console echo (every 25th promotion): the
-             * console stays a live window, not a firehose. */
-            if (klog_printf && (k->promoted_total % 25) == 0)
-                klog_printf("WuBuOS AGI: PROMOTED span id=%u\n",
-                            (unsigned)s->id);
+            /* Console echo, throttled by TIME: at most one line per second. A
+             * per-25-promotions rule still emitted tens of thousands of serial
+             * lines during a busy boot, and COM1 polling in TCG starved the very
+             * console task that answers commands (the metal display gate's
+             * "FBMAP: MISSING" under suite load). One line per second keeps the
+             * console a live window; +N reports what was folded in. */
+            k->echo_suppressed++;
+            if (klog_printf && k->uptime_ms - k->echo_last_ms >= 1000) {
+                klog_printf("WuBuOS AGI: PROMOTED span id=%u total=%d%s%u\n",
+                            (unsigned)s->id, k->promoted_total,
+                            k->echo_suppressed > 1 ? " +" : "",
+                            k->echo_suppressed > 1 ? (unsigned)k->echo_suppressed : 0u);
+                k->echo_last_ms = k->uptime_ms;
+                k->echo_suppressed = 0;
+            }
         }
     }
     return promoted;

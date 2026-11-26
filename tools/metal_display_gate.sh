@@ -125,6 +125,14 @@ while time.time() < deadline:
 log = buf.decode('latin-1', 'replace')
 fail = 0
 
+# Console traffic is a first-class number: a self-improve loop that echoes every
+# promotion writes thousands of serial lines, and in TCG each klog_printf polls
+# COM1 -- so the flood starves the console task that must answer this gate's
+# commands. Print the count so "boot is slow" is attributable, not a mystery.
+lines = log.splitlines()
+promo = sum(1 for l in lines if 'PROMOTED span' in l)
+print(f'  console: {len(lines)} lines to first fbmap reply, {promo} AGI promotion echoes')
+
 # ---- 1. fbmap: pixels the kernel says it wrote ------------------------------
 fb_line = [l for l in log.splitlines() if 'fbmap: WROTE' in l]
 fbmap_ok = False

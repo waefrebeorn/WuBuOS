@@ -62,7 +62,11 @@ CACHYOS_FEATURES = [
      "profile only (no live priority daemon)"),
     ("pipewire", "audio server", ["src/gui/wubu_sound.c", "src/audio/bigmac"], "audio"),
     ("NetworkManager", "network management", ["src/gui/control_panel_network.c"], "network panel"),
-    ("power-profiles-daemon", "power profiles", ["src/gui/wubu_gamemode.c"], "game mode only"),
+    # The old row pointed at src/gui/wubu_gamemode.c, which does not exist, so a feature the OS
+    # genuinely owns was reported MISSING. Power profiles live in runtime (measured state, 17/17
+    # gate); applying one still needs the capability authority, which denies by default.
+    ("power-profiles-daemon", "power profiles", ["src/runtime/wubu_power_profile.c"],
+     "3 profiles (power-saver/balanced/performance), live in quick settings"),
     ("zram-generator", "compressed swap", ["src/runtime/wubu_perf_profile.c"], "tunables only"),
     ("systemd-coredump", "crash capture", [], "none"),
     ("fwupd", "firmware updates", [], "none"),
