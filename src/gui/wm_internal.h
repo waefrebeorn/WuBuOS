@@ -152,6 +152,9 @@ typedef struct {
     int x, y, w, h;      /* button rect */
     int is_pin;          /* 0 = window task, 1 = pinned task */
     int index;           /* window index, or taskbar pin index */
+    int win_index;       /* for a RUNNING pin: the window it owns (-1 when not running). A pin keeps its
+                          * slot when its app opens: dropping the pin and appending the window at the end
+                          * of the row is what made the taskbar "shuffle" on every launch. */
 } WmTaskSlot;
 
 typedef struct {

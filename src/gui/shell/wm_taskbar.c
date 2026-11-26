@@ -35,39 +35,64 @@ static void draw_start_flag(int x, int y);   /* defined below */
  * THE geometry for the floating bar.  The renderer and the pointer path both
  * call this, so "drawn here, clicked there" is not reachable.
  */
+static int slot_window(const WmTaskSlot *s);   /* layout needs it; it is defined below */
+
 void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     memset(L, 0, sizeof *L);
     int th  = taskbar_height_dynamic();
     int bh  = th - WUBU_TASKBAR_TILE_INSET;
     int gap = WUBU_SPACE_XS;
-
-    /* Measure the button row first so it can be centred. */
     int row_w = 0;
-    /* STABLE ORDER: creation order, never z-order. Iterating zorder[] meant every focus
-     * change re-sorted the row, so tiles physically jumped under the pointer -- "the taskbar
-     * shuffles". Windows in Windows 11 never reorder on focus; a click changes the indicator,
-     * not the position. */
+
+    /* Measure the button row first so it can be centred.
+     *
+     * ORDER IS UNCHANGED: windows in creation order, then pins in pin order. What changed is that a window
+     * OWNED BY A RUNNING PIN is marked claimed and left out of the window pass, so the pin keeps its place in
+     * the row and stands for the running window through win_index. The old code skipped the PIN instead and
+     * appended its window at the end -- the tile moved on every launch, which is "the taskbar shuffles".
+     * Moving the pins to the front would also have "fixed" it, and it broke four existing behaviours
+     * (Win+number slots, the indicator pill, the hover preview, click-to-minimise); this does not reorder. */
+    int claimed[DOSGUI_MAX_WINDOWS] = {0};
+    for (int i = 0; i < wubu_taskbar_count(); i++) {
+        const WubuTask *t = wubu_taskbar_get(i);
+        if (!t || !t->pinned || t->win_id < 0) continue;
+        for (int idx = 0; idx < DOSGUI_MAX_WINDOWS; idx++) {
+            DosGuiWindow *w = &g_dwm.windows[idx];
+            if (w->alive && w->id == t->win_id && w->desktop == g_dwm.current_desktop) {
+                claimed[idx] = 1;
+                break;
+            }
+        }
+    }
+
     for (int idx = 0; idx < DOSGUI_MAX_WINDOWS && L->n_slots < 48; idx++) {
         DosGuiWindow *w = &g_dwm.windows[idx];
         if (!w->alive || w->close_t0 || w->desktop != g_dwm.current_desktop) continue;
-        /* Uniform tile: Win11 shows ICONS at a fixed size, never titles. Measuring the title
-         * made buttons variable-width, truncated ("Tem...") and text-heavy -- the single
-         * biggest tell that this was not a Win11 taskbar. */
+        if (claimed[idx]) continue;              /* a running pin stands for it */
+        /* Uniform tile: Win11 shows ICONS at a fixed size, never titles. */
         int tw = WUBU_TASKBAR_BTN_MIN_W;
         L->slot[L->n_slots].w = tw;
         L->slot[L->n_slots].h = bh;
         L->slot[L->n_slots].is_pin = 0;
         L->slot[L->n_slots].index = idx;
+        L->slot[L->n_slots].win_index = -1;
         row_w += tw + gap;
         L->n_slots++;
     }
     for (int i = 0; i < wubu_taskbar_count() && L->n_slots < 48; i++) {
         const WubuTask *t = wubu_taskbar_get(i);
-        if (!t || !t->pinned || t->win_id >= 0) continue;
+        if (!t || !t->pinned) continue;          /* a running pin stays here, it does not move */
+        int wi = -1;
+        if (t->win_id >= 0)
+            for (int idx = 0; idx < DOSGUI_MAX_WINDOWS; idx++) {
+                DosGuiWindow *w = &g_dwm.windows[idx];
+                if (w->alive && w->id == t->win_id && w->desktop == g_dwm.current_desktop) { wi = idx; break; }
+            }
         L->slot[L->n_slots].w = WUBU_TASKBAR_BTN_MIN_W;
         L->slot[L->n_slots].h = bh;
         L->slot[L->n_slots].is_pin = 1;
         L->slot[L->n_slots].index = i;
+        L->slot[L->n_slots].win_index = wi;
         row_w += WUBU_TASKBAR_BTN_MIN_W + gap;
         L->n_slots++;
     }
@@ -201,17 +226,20 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
 
     for (int i = 0; i < L.n_slots; i++) {
         const WmTaskSlot *s = &L.slot[i];
+        /* One source for "which window is this tile": a pin that is running and a plain window tile are the
+         * same thing to the bar, so the running pill and the focus lift cannot disagree with the click. */
+        int wi = slot_window(s);
+        bool running = wi >= 0;
         bool focused = false;
-        bool running = !s->is_pin;
-        const char *title;
+        const char *title = "";
         if (s->is_pin) {
             const WubuTask *t = wubu_taskbar_get(s->index);
             title = t ? t->title : "";
-        } else {
-            DosGuiWindow *w = &g_dwm.windows[s->index];
-            title = w->title;
-            focused = (s->index == g_dwm.focused_id) &&
-                      !(w->flags & DOSGUI_WIN_MINIMIZED);
+        }
+        if (wi >= 0) {
+            DosGuiWindow *w = &g_dwm.windows[wi];
+            if (!s->is_pin) title = w->title;
+            focused = (wi == g_dwm.focused_id) && !(w->flags & DOSGUI_WIN_MINIMIZED);
         }
         /* Flat Fluent tile: the focused app gets a subtle lift, the rest
          * sit flush on the bar. Running state reads from the indicator
@@ -329,9 +357,39 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
 
 /* Which window a slot stands for, or -1. */
 static int slot_window(const WmTaskSlot *s) {
-    if (!s || s->is_pin) return -1;
-    if (s->index < 0 || s->index >= DOSGUI_MAX_WINDOWS) return -1;
-    return g_dwm.windows[s->index].alive ? s->index : -1;
+    if (!s) return -1;
+    /* A running PIN stands for its window; a pin with no window stands for nothing (click launches). */
+    int wi = s->is_pin ? s->win_index : s->index;
+    if (wi < 0 || wi >= DOSGUI_MAX_WINDOWS) return -1;
+    return g_dwm.windows[wi].alive ? wi : -1;
+}
+
+/* A pin that launches an app must LINK to the window that appears, or the bar shows the pin AND a separate
+ * window tile -- which reads as the taskbar shuffling/duplicating on every launch. Nothing in the product
+ * ever called wubu_taskbar_set_running (only the tests did), so pins never linked. The launcher records the
+ * key it is launching and the next window created claims it. */
+static char g_pending_key[WUBU_TASKBAR_KEY_LEN];
+
+void taskbar_note_launch(const char *key) {
+    if (!key) { g_pending_key[0] = 0; return; }
+    snprintf(g_pending_key, sizeof g_pending_key, "%s", key);
+}
+
+/* Called by wm_create for every new window. Claims the pending pin, else matches a pin by title. */
+void taskbar_link_new_window(int win_id, const char *title) {
+    if (g_pending_key[0]) {
+        wubu_taskbar_set_running(g_pending_key, win_id, title);
+        g_pending_key[0] = 0;
+        return;
+    }
+    for (int i = 0; i < wubu_taskbar_count(); i++) {
+        const WubuTask *t = wubu_taskbar_get(i);
+        if (!t || !t->pinned || t->win_id >= 0) continue;
+        if (title && t->title[0] && strcmp(t->title, title) == 0) {
+            wubu_taskbar_set_running(t->key, win_id, title);
+            return;
+        }
+    }
 }
 
 /* Launch-or-focus the n-th task slot: Win+1..9 lands here. Windows numbers the BUTTONS the
@@ -361,6 +419,7 @@ int taskbar_slot_launch(int n) {
         const WubuTask *t = wubu_taskbar_get(s->index);
         if (t) {
             const char *x = t->exec[0] ? t->exec : t->title;
+            taskbar_note_launch(t->key);          /* the next window created is this pin's */
             if (desktop_launch_exec) desktop_launch_exec(x);
             else if (launch_app)     launch_app(x);
         }

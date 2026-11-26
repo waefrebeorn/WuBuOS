@@ -134,6 +134,13 @@ DosGuiWindow *wm_create(int x, int y, int w, int h,
      * renderer interpolates the FRAME from it, and hit-testing always uses the real rect, so
      * an animation can never make a click land somewhere the window is not. */
     g_dwm.windows[i].anim_t0 = wm_clock_ms();
+    /* A window born from a pinned task links to that pin, so the bar shows ONE tile for the app instead of
+     * the pin plus a new tile at the end of the row (the "taskbar shuffles" report). Weak: a test graph that
+     * carries no taskbar module must still link. */
+    {
+        extern void taskbar_link_new_window(int win_id, const char *title) __attribute__((weak));
+        if (taskbar_link_new_window) taskbar_link_new_window(g_dwm.windows[i].id, title);
+    }
     return &g_dwm.windows[i];
 }
 

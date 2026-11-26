@@ -10,6 +10,7 @@
 #include "shell/projection_flyout.h"
 #include "shell/alt_tab_switcher.h"
 #include "shell/taskbar_overflow_menu.h"
+#include "shell/taskbar_tasks.h"
 #include "wm_internal.h"
 #include "wubu_trash.h"
 #include "wubu_theme.h"
@@ -183,6 +184,52 @@ static void test_mouse_drag_window(void) {
 }
 
 /* -- Taskbar Tests --------------------------------------------- */
+
+/* THE TASKBAR DOES NOT SHUFFLE. A pinned app that is launched must keep the SAME slot: the layout used to
+ * skip a pin while it was running and append a window tile at the end of the row, so the tile physically
+ * moved on every launch. The pin now stands for its window (win_index) and no second tile appears. */
+static void test_taskbar_pin_keeps_its_slot(void) {
+    TEST("a running pin keeps its slot (no shuffle on launch)");
+    wubu_taskbar_pin("editor", "Editor", "/bin/true");
+    /* the STORED key, not the one we passed: pin() derives its key from the exec, and set_running() matches on
+     * that key. Using a made-up key created a SECOND pin -- which is what the debug output showed. */
+    const WubuTask *pt = wubu_taskbar_get(0);
+    char pin_key[64] = "editor";
+    if (pt) snprintf(pin_key, sizeof pin_key, "%s", pt->key);
+
+    WmTaskLayout l1;
+    taskbar_modern_layout(1024, 768, &l1);
+    int pin_slot = -1;
+    for (int i = 0; i < l1.n_slots; i++) if (l1.slot[i].is_pin) { pin_slot = i; break; }
+    CHECK(pin_slot >= 0, "the pin has a slot before launch");
+
+    DosGuiWindow *w = wm_create(40, 40, 300, 200, "Editor");
+    CHECK(w != NULL, "window created");
+    wubu_taskbar_set_running(pin_key, w->id, "Editor");
+
+    WmTaskLayout l2;
+    taskbar_modern_layout(1024, 768, &l2);
+    int pin_slot2 = -1;
+    for (int i = 0; i < l2.n_slots; i++) if (l2.slot[i].is_pin) { pin_slot2 = i; break; }
+    CHECK(pin_slot2 == pin_slot, "the pin is still at the same position after its app launches");
+
+    /* by ID, not by pointer: a create() that returns a handle rather than an array slot would leave a
+     * pointer comparison always false, and the check would fail while the layout was correct. */
+    int wi = -1;
+    for (int idx = 0; idx < DOSGUI_MAX_WINDOWS; idx++)
+        if (g_dwm.windows[idx].id == w->id && g_dwm.windows[idx].alive) { wi = idx; break; }
+    CHECK(pin_slot2 >= 0 && wi >= 0 && l2.slot[pin_slot2].win_index == wi,
+          "the pin now stands for the launched window (click focuses instead of relaunching)");
+
+    int dupes = 0;
+    for (int i = 0; i < l2.n_slots; i++)
+        if (!l2.slot[i].is_pin && l2.slot[i].index == wi) dupes++;
+    CHECK(dupes == 0, "and there is no second tile for the same window");
+
+    wubu_taskbar_set_running(pin_key, -1, NULL);
+    wm_destroy(w);
+    wubu_taskbar_unpin(pin_key);
+}
 
 static void test_taskbar_height(void) {
     TEST("taskbar height == canonical WUBU_METRIC_TASKBAR_H");
@@ -2774,6 +2821,7 @@ int main(void) {
     test_mouse_click_no_crash();
     test_mouse_drag_window();
     test_taskbar_height();
+    test_taskbar_pin_keeps_its_slot();
     test_render_no_crash();
     test_buddy_states_render_differently();
     test_render_draws_glyphs_and_selection();
