@@ -216,6 +216,9 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
                 "(applied %d clamped %d denied %d), %d unmatched\n",
                 wubu_priority_type_count(), types, tf, rules, matched,
                 st.applied, st.clamped, st.denied, st.unmatched);
+        fprintf(stderr, "[priority] name-lines seen %d; dropped %d unknown-type, %d no-policy, %d unparsed\n",
+                wubu_priority_dropped(3), wubu_priority_dropped(0), wubu_priority_dropped(1),
+                wubu_priority_dropped(2));
     }
 
     /* Hosted session: the host desktop owns idle blanking and session

@@ -53,6 +53,7 @@ typedef struct {
     PrType t;
 } PrRule;
 
+static int     g_drop_unknown_type, g_drop_no_policy, g_drop_bad_line, g_seen_name;
 static PrType  g_types[PR_MAX_TYPES];
 static int     g_type_count;
 static PrRule  g_rules[PR_MAX_RULES];
@@ -80,7 +81,13 @@ static const PrType kBuiltinTypes[] = {
     { "OOM_NO_KILL",    0, 0,  0, 0, 0, 0, 0, 1, -1000 },
 };
 
+int wubu_priority_dropped(int which) {
+    return which == 0 ? g_drop_unknown_type : which == 1 ? g_drop_no_policy
+         : which == 2 ? g_drop_bad_line : g_seen_name;
+}
+
 void wubu_priority_reset(void) {
+    g_drop_unknown_type = g_drop_no_policy = g_drop_bad_line = g_seen_name = 0;
     g_type_count = g_rule_count = 0;
     g_loaded_from = NULL;
 }
@@ -187,19 +194,24 @@ int wubu_priority_load_rules(const char *path) {
             && !strstr(line, "\"name\":")) continue;
         if (g_rule_count >= PR_MAX_RULES) break;
         char nm[PR_NAME_LEN], ty[PR_NAME_LEN];
-        if (!field_str(line, "name", nm, sizeof nm)) continue;
+        if (!field_str(line, "name", nm, sizeof nm)) { g_drop_bad_line++; continue; }
+        g_seen_name++;
         PrRule r;
         memset(&r, 0, sizeof r);
         snprintf(r.name, sizeof r.name, "%s", nm);
         if (field_str(line, "type", ty, sizeof ty)) {
             const PrType *t = find_type(ty);
-            if (!t) continue;                 /* unknown type: no invented defaults */
+            if (!t) { g_drop_unknown_type++; continue; }  /* no invented defaults */
             r.t = *t;
         }
         /* a rule may override the type's fields */
         int v;
         if (field_int(line, "nice", &v))   { r.t.nice = v; r.t.has_nice = 1; }
         if (field_int(line, "ionice", &v)) { r.t.ionice = v; r.t.has_ionice = 1; }
+        if (field_int(line, "oom_score_adj", &v)) { r.t.oom = v; r.t.has_oom = 1; }
+        /* A rule that carries NO policy applies nothing, so keeping it would make the count look
+         * complete while the rule does nothing. Two such lines exist in the reference. */
+        if (!r.t.has_nice && !r.t.has_ionice && !r.t.ioclass && !r.t.has_oom) { g_drop_no_policy++; continue; }
         g_rules[g_rule_count++] = r;
     }
     fclose(f);
@@ -309,6 +321,39 @@ int wubu_priority_apply_pid(int pid, const char *comm, WubuPriorityOut *out) {
             return -1;
         }
         out->ionice_applied = 1;
+    }
+    /* oom_score_adj is its own file per process, and it is the one policy the kernel lets an
+     * unprivileged owner RAISE (+1000) while requiring CAP_SYS_RESOURCE to LOWER. Read back so a
+     * type like OOM_NO_KILL (which wants -1000) cannot claim success it did not get. */
+    if (r->t.has_oom) {
+        char path[512], want[32], got[32] = {0};
+        snprintf(path, sizeof path, "%s/%d/oom_score_adj", wubu_priority_proc_root(), pid);
+        snprintf(want, sizeof want, "%d", r->t.oom);
+        FILE *f = fopen(path, "r");
+        if (f) {
+            if (!fgets(got, sizeof got, f)) got[0] = '\0';
+            fclose(f);
+            size_t L = strlen(got);
+            while (L && (got[L - 1] == '\n' || got[L - 1] == ' ')) got[--L] = '\0';
+        }
+        if (strcmp(got, want) != 0) {
+            f = fopen(path, "w");
+            if (!f) { out->result = WUBU_PR_DENIED; return -1; }
+            int ok = fprintf(f, "%s\n", want) > 0;
+            if (fclose(f) != 0 || !ok) { out->result = WUBU_PR_DENIED; return -1; }
+            got[0] = '\0';
+            f = fopen(path, "r");
+            if (f) { if (!fgets(got, sizeof got, f)) got[0] = '\0'; fclose(f); }
+            size_t L2 = strlen(got);
+            while (L2 && (got[L2 - 1] == '\n' || got[L2 - 1] == ' ')) got[--L2] = '\0';
+            if (strcmp(got, want) != 0) { out->result = WUBU_PR_DENIED; return -1; }
+        }
+        out->oom_applied = 1;
+    }
+    /* Nothing applicable means nothing happened: OK, not APPLIED. */
+    if (!out->oom_applied && !out->ionice_applied && !r->t.has_nice) {
+        out->result = WUBU_PR_OK;
+        return 0;
     }
     out->result = WUBU_PR_APPLIED;
     return 0;

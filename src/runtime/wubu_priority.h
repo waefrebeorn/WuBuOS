@@ -28,6 +28,7 @@ typedef struct {
     char comm[96];
     int  nice_after;
     int  ionice_applied;
+    int  oom_applied;
     WubuPriorityResult result;
 } WubuPriorityOut;
 
@@ -44,6 +45,7 @@ int  wubu_priority_load_builtin_types(void);
 int  wubu_priority_load_types(const char *path);
 int  wubu_priority_load_rules(const char *path);
 
+int  wubu_priority_dropped(int which);   /* 0 unknown type, 1 no policy, 2 unparsed name */
 int  wubu_priority_type_count(void);
 int  wubu_priority_rule_count(void);
 const char *wubu_priority_source(void);
