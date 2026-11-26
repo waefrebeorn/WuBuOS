@@ -226,6 +226,14 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         }
     }
 
+    /* Ctrl+Shift+Esc: Task Manager -- a Windows norm that was simply missing. Weak so the
+     * headless WM tests (no applet stack) still link. */
+    if ((mods & MOD_CTRL) && (mods & MOD_SHIFT) && (key == 0x01 || key == 0x1B)) {
+        extern __attribute__((weak)) DosGuiWindow *taskmgr_launch(void);
+        if (taskmgr_launch) taskmgr_launch();
+        return;
+    }
+
     /* Ctrl+Alt+Up/Down: system volume.  Ctrl+Alt+Left/Right: brightness.
      * Both drive the OSD, so the change is visible. */
     if ((mods & MOD_CTRL) && (mods & MOD_ALT)) {

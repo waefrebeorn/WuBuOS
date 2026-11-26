@@ -87,10 +87,95 @@ static const char* cmd_history_next(void) {
 
 static void cmd_screen_put(char c) {
     if (g_cmd.screen_col >= CMD_SCREEN_COLS - 1) return;
+    /* Only terminate when writing PAST the current content: a positioned write in the middle
+     * of a line must not truncate the text after it (every TUI redraws in place). */
+    int len = (int)strlen(g_cmd.screen[g_cmd.screen_row]);
     g_cmd.screen[g_cmd.screen_row][g_cmd.screen_col++] = c;
-    /* Keep the row NUL-terminated at the cursor: the line must survive a
-     * later CR (a pty sends CRLF, which would otherwise truncate it). */
-    g_cmd.screen[g_cmd.screen_row][g_cmd.screen_col] = '\0';
+    if (g_cmd.screen_col >= len)
+        g_cmd.screen[g_cmd.screen_row][g_cmd.screen_col] = '\0';
+}
+
+/* ---- a minimal ANSI/VT parser -------------------------------------------
+ * The feed used to SKIP every CSI sequence outright. That is enough for a plain shell whose
+ * output is line-oriented, and it is why the Task Manager (wubulens, a cursor-positioned TUI)
+ * showed one green header line and a black body: all of its positioning was thrown away, so
+ * every glyph was appended sequentially and ran off the right edge.
+ *
+ * Implemented: CUP (H/f), CUU/CUD/CUF/CUB (A/B/C/D), CHA (G), VPA (d), ED (J), EL (K),
+ * SGR (m, accepted and ignored -- colour comes later), mode set/reset (h/l, ignored), scroll
+ * region (r, ignored). Anything unknown is skipped as before, which is the honest fallback.
+ */
+static void cmd_screen_clamp(void) {
+    if (g_cmd.screen_row < 0) g_cmd.screen_row = 0;
+    if (g_cmd.screen_row >= CMD_SCREEN_ROWS) g_cmd.screen_row = CMD_SCREEN_ROWS - 1;
+    if (g_cmd.screen_col < 0) g_cmd.screen_col = 0;
+    if (g_cmd.screen_col >= CMD_SCREEN_COLS - 1)
+        g_cmd.screen_col = CMD_SCREEN_COLS - 2;
+}
+
+static void cmd_screen_erase_line(int mode) {
+    char *row = g_cmd.screen[g_cmd.screen_row];
+    int len = (int)strlen(row);
+    if (mode == 2) { row[0] = '\0'; g_cmd.screen_col = 0; return; }
+    if (mode == 1) {                       /* start .. cursor */
+        for (int i = 0; i <= g_cmd.screen_col && i < CMD_SCREEN_COLS; i++) row[i] = ' ';
+        if (g_cmd.screen_col >= len) row[g_cmd.screen_col + 1] = '\0';
+        return;
+    }
+    if (g_cmd.screen_col < len) row[g_cmd.screen_col] = '\0';   /* cursor .. end */
+}
+
+static void cmd_screen_erase_display(int mode) {
+    if (mode == 2 || mode == 3) {          /* whole screen */
+        for (int r = 0; r < CMD_SCREEN_ROWS; r++) g_cmd.screen[r][0] = '\0';
+        return;
+    }
+    if (mode == 1) {                       /* start .. cursor */
+        for (int r = 0; r < g_cmd.screen_row; r++) g_cmd.screen[r][0] = '\0';
+        cmd_screen_erase_line(1);
+        return;
+    }
+    cmd_screen_erase_line(0);              /* cursor .. end */
+    for (int r = g_cmd.screen_row + 1; r < CMD_SCREEN_ROWS; r++) g_cmd.screen[r][0] = '\0';
+}
+
+/* Parse one CSI sequence: *pi points at the ESC, so the parameters start two bytes later
+ * (ESC '['). Starting at +1 consumed the '[' and left "?1049h" on screen as literal text. */
+static void cmd_screen_csi(int *pi, const char *data, int len) {
+    int i = *pi + 2;
+    int p[4] = { 0, 0, 0, 0 };
+    int np = 0, cur = -1;
+    while (i < len) {
+        char c = data[i];
+        if (c >= '0' && c <= '9') { if (cur < 0) cur = 0; cur = cur * 10 + (c - '0'); i++; continue; }
+        if (c == ';' || c == '?' || c == '>' || c == ' ') {
+            if (np < 4) p[np++] = (cur < 0) ? 0 : cur;
+            cur = -1; i++; continue;
+        }
+        break;
+    }
+    if (i >= len) { *pi = len; return; }
+    if (np < 4 && cur >= 0) p[np++] = cur;
+    char fin = data[i];
+    int n1 = (np > 0 && p[0] > 0) ? p[0] : 1;
+
+    switch (fin) {
+    case 'H': case 'f':
+        g_cmd.screen_row = ((np > 0 && p[0] > 0) ? p[0] : 1) - 1;
+        g_cmd.screen_col = ((np > 1 && p[1] > 0) ? p[1] : 1) - 1;
+        break;
+    case 'A': g_cmd.screen_row -= n1; break;
+    case 'B': g_cmd.screen_row += n1; break;
+    case 'C': g_cmd.screen_col += n1; break;
+    case 'D': g_cmd.screen_col -= n1; break;
+    case 'G': g_cmd.screen_col = n1 - 1; break;
+    case 'd': g_cmd.screen_row = n1 - 1; break;
+    case 'J': cmd_screen_erase_display(np > 0 ? p[0] : 0); break;
+    case 'K': cmd_screen_erase_line(np > 0 ? p[0] : 0); break;
+    default: break;                        /* m / h / l / r / unknown: skip */
+    }
+    cmd_screen_clamp();
+    *pi = i;
 }
 
 static void cmd_screen_newline(void) {
@@ -114,8 +199,15 @@ static void cmd_screen_feed(const char *data, int len) {
         char c = data[i];
         if (c == '\033') {
             if (i + 1 < len && data[i + 1] == '[') {
+                cmd_screen_csi(&i, data, len);
+                continue;
+            }
+            if (i + 1 < len && (data[i + 1] == ']' || data[i + 1] == 'P')) {
+                /* OSC/DCS: skip to BEL or ST */
                 i += 2;
-                while (i < len && !(data[i] >= '@' && data[i] <= '~')) i++;
+                while (i < len && data[i] != '\a' &&
+                       !(data[i] == '\033' && i + 1 < len && data[i + 1] == '\\')) i++;
+                i++;
                 continue;
             }
             i++;                       /* ESC + single char */

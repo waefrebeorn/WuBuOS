@@ -75,7 +75,7 @@ void ex_render_tree(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x
 
     /* Tree header */
     vbe_fill_rect(x, y, w, ex_title_h(), tc()->win_title_inactive);
-    vbe_draw_text(x + 8, y + (ex_title_h() - 8) / 2, "Folders", tc()->win_title_text, 1);
+    vbe_draw_text(x + 8, y + (ex_title_h() - 8) / 2, "Folders", tc()->body_text, 1);
 
     int drawn_y = y + ex_title_h() + 2;
 
@@ -101,7 +101,7 @@ void ex_render_breadcrumbs(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h
 
         vbe_fill_rect(seg_x, y + 2, seg_w, ex_breadcrumb_h() - 4, is_last ? tc()->select_bg : tc()->btn_face);
         vbe_rect_rounded(seg_x, y + 2, seg_w, ex_breadcrumb_h() - 4, 3, is_last ? tc()->border_dark : tc()->border_light);
-        vbe_draw_text(seg_x + 6, y + (ex_breadcrumb_h() - 8) / 2, ex->breadcrumb_segments[i], tc()->win_title_text, 1);
+        vbe_draw_text(seg_x + 6, y + (ex_breadcrumb_h() - 8) / 2, ex->breadcrumb_segments[i], tc()->body_text, 1);
 
         seg_x += seg_w + 4;
 
@@ -151,7 +151,7 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
             vbe_fill_rect(col_x, y, ex->columns[i].width, ex_title_h(), tc()->win_title_inactive);
             vbe_3d_raised_colors(col_x, y, ex->columns[i].width, ex_title_h(),
                                 tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
-            vbe_draw_text(col_x + 6, y + (ex_title_h() - 8) / 2, ex->columns[i].name, tc()->win_title_text, 1);
+            vbe_draw_text(col_x + 6, y + (ex_title_h() - 8) / 2, ex->columns[i].name, tc()->body_text, 1);
             col_x += ex->columns[i].width;
             vbe_vline(col_x - 1, y, y + h, tc()->border_dark);
         }
@@ -279,13 +279,13 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
 
             char size_str[32];
             explorer_format_size(entry->size, size_str, sizeof(size_str));
-            vbe_draw_text(cur_x + 60, cur_y + 26, size_str, selected ? tc()->select_text : tc()->win_title_text_ina, 1);
+            vbe_draw_text(cur_x + 60, cur_y + 26, size_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
 
             char date_str[64];
             explorer_format_time(entry->modified, date_str, sizeof(date_str));
-            vbe_draw_text(cur_x + 60, cur_y + 38, date_str, selected ? tc()->select_text : tc()->win_title_text_ina, 1);
+            vbe_draw_text(cur_x + 60, cur_y + 38, date_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
 
-            vbe_draw_text(cur_x + 60, cur_y + 50, entry->type_str, selected ? tc()->select_text : tc()->win_title_text_ina, 1);
+            vbe_draw_text(cur_x + 60, cur_y + 50, entry->type_str, selected ? tc()->select_text : tc()->body_text_ina, 1);
 
             cur_x += tile_w + 10;
             if (cur_x + tile_w > x + w - 10) {
@@ -306,13 +306,13 @@ void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
 
     /* Preview header */
     vbe_fill_rect(x, y, w, ex_title_h(), tc()->win_title_inactive);
-    vbe_draw_text(x + 8, y + (ex_title_h() - 8) / 2, "Preview", tc()->win_title_text, 1);
+    vbe_draw_text(x + 8, y + (ex_title_h() - 8) / 2, "Preview", tc()->body_text, 1);
 
     int content_y = y + ex_title_h() + 4;
     int content_h = h - ex_title_h() - 4;
 
     if (ex->preview.type == EX_PREVIEW_NONE) {
-        vbe_draw_text(x + 10, content_y + 10, "Select a file to preview", tc()->win_title_text_ina, 1);
+        vbe_draw_text(x + 10, content_y + 10, "Select a file to preview", tc()->body_text_ina, 1);
     } else if (ex->preview.type == EX_PREVIEW_TEXT) {
         int line_h = WUBU_METRIC_GAP_MD;
         int lines = content_h / line_h;
@@ -331,7 +331,7 @@ void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
                 char buf[128];
                 strncpy(buf, line, len);
                 buf[len] = '\0';
-                vbe_draw_text(x + 10, content_y + i * line_h, buf, tc()->win_title_text, 1);
+                vbe_draw_text(x + 10, content_y + i * line_h, buf, tc()->body_text, 1);
             }
         }
     } else if (ex->preview.type == EX_PREVIEW_IMAGE) {
@@ -378,29 +378,29 @@ void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
 
             char dims[64];
             snprintf(dims, sizeof(dims), "%dx%d (shown %dx%d)", ex->preview.img_w, ex->preview.img_h, out_w, out_h);
-            vbe_draw_text(x + 10, content_y + content_h - 14, dims, tc()->win_title_text_ina, 1);
+            vbe_draw_text(x + 10, content_y + content_h - 14, dims, tc()->body_text_ina, 1);
         } else {
-            vbe_draw_text(x + 10, content_y + 10, "[Image Preview - No Data]", tc()->win_title_text_ina, 1);
+            vbe_draw_text(x + 10, content_y + 10, "[Image Preview - No Data]", tc()->body_text_ina, 1);
             char dims[64];
             snprintf(dims, sizeof(dims), "%dx%d pixels", ex->preview.img_w, ex->preview.img_h);
-            vbe_draw_text(x + 10, content_y + 30, dims, tc()->win_title_text_ina, 1);
+            vbe_draw_text(x + 10, content_y + 30, dims, tc()->body_text_ina, 1);
         }
     } else if (ex->preview.type == EX_PREVIEW_METADATA) {
         char size_str[32];
         explorer_format_size(ex->preview.file_size, size_str, sizeof(size_str));
 
-        vbe_draw_text(x + 10, content_y + 10, "File Size:", tc()->win_title_text_ina, 1);
-        vbe_draw_text(x + 100, content_y + 10, size_str, tc()->win_title_text, 1);
+        vbe_draw_text(x + 10, content_y + 10, "File Size:", tc()->body_text_ina, 1);
+        vbe_draw_text(x + 100, content_y + 10, size_str, tc()->body_text, 1);
 
         char date_str[64];
         explorer_format_time(ex->preview.modified, date_str, sizeof(date_str));
-        vbe_draw_text(x + 10, content_y + 30, "Modified:", tc()->win_title_text_ina, 1);
-        vbe_draw_text(x + 100, content_y + 30, date_str, tc()->win_title_text, 1);
+        vbe_draw_text(x + 10, content_y + 30, "Modified:", tc()->body_text_ina, 1);
+        vbe_draw_text(x + 100, content_y + 30, date_str, tc()->body_text, 1);
 
-        vbe_draw_text(x + 10, content_y + 50, "Type:", tc()->win_title_text_ina, 1);
-        vbe_draw_text(x + 100, content_y + 50, ex->preview.mime_type, tc()->win_title_text, 1);
+        vbe_draw_text(x + 10, content_y + 50, "Type:", tc()->body_text_ina, 1);
+        vbe_draw_text(x + 100, content_y + 50, ex->preview.mime_type, tc()->body_text, 1);
     } else if (ex->preview.type == EX_PREVIEW_BINARY) {
-        vbe_draw_text(x + 10, content_y + 10, "[Binary File - No Preview]", tc()->win_title_text_ina, 1);
+        vbe_draw_text(x + 10, content_y + 10, "[Binary File - No Preview]", tc()->body_text_ina, 1);
     }
 }
 
@@ -413,7 +413,7 @@ void ex_render_statusbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
     vbe_hline(0, fb_w, sb_y, tc()->taskbar_border);
 
     /* Left: status text */
-    vbe_draw_text(10, sb_y + (ex_statusbar_h() - 8) / 2, ex->status_text[0] ? ex->status_text : "Ready", tc()->win_title_text, 1);
+    vbe_draw_text(10, sb_y + (ex_statusbar_h() - 8) / 2, ex->status_text[0] ? ex->status_text : "Ready", tc()->body_text, 1);
 
     /* Center: item count and total size */
     char count_str[128];
@@ -424,13 +424,13 @@ void ex_render_statusbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
         snprintf(count_str, sizeof(count_str), "%d items, %lu bytes", ex->status_file_count, (unsigned long)ex->status_total_size);
     }
     int count_x = (fb_w - vbe_text_width(count_str, 1)) / 2;
-    vbe_draw_text(count_x, sb_y + (ex_statusbar_h() - 8) / 2, count_str, tc()->win_title_text, 1);
+    vbe_draw_text(count_x, sb_y + (ex_statusbar_h() - 8) / 2, count_str, tc()->body_text, 1);
 
     /* Right: view mode */
     const char *view_names[] = {"Details", "Icons", "List", "Tiles"};
     char view_str[64];
     snprintf(view_str, sizeof(view_str), "%s View", view_names[ex->view_mode]);
-    vbe_draw_text(fb_w - 10 - vbe_text_width(view_str, 1), sb_y + (ex_statusbar_h() - 8) / 2, view_str, tc()->win_title_text, 1);
+    vbe_draw_text(fb_w - 10 - vbe_text_width(view_str, 1), sb_y + (ex_statusbar_h() - 8) / 2, view_str, tc()->body_text, 1);
 }
 
 void ex_render_context_menu(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h) {
