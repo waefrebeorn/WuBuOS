@@ -289,6 +289,35 @@ int main(void)
                  pline ? pline : "");
         check(pline && strstr(pline, "Ada Lovelace") != NULL && strstr(pline, "1 contact") != NULL, m9);
 
+        /* the EDITOR: typing a person through the page's own keys, then reading the store back. A page you
+         * can only read is not a contacts app, and a test that pokes the store directly would prove nothing
+         * about the page. */
+        controlpanel_handle_key('n', 0);
+        for (const char *ch = "Grace Hopper"; *ch; ch++) controlpanel_handle_key((unsigned char)*ch, 0);
+        controlpanel_handle_key(0x09, 0);                       /* Tab -> email */
+        for (const char *ch = "grace@example.org"; *ch; ch++) controlpanel_handle_key((unsigned char)*ch, 0);
+        controlpanel_handle_key(0x0D, 0);                       /* Enter -> save */
+
+        WubuPeople after;
+        wubu_people_load(&after);
+        check(after.count == 2 && strcmp(after.p[1].name, "Grace Hopper") == 0 &&
+              strcmp(after.p[1].email, "grace@example.org") == 0,
+              "typing in the page and pressing Enter persists the contact to the store");
+
+        /* a duplicate typed the same way must be refused, and say so on the page */
+        controlpanel_handle_key('n', 0);
+        for (const char *ch = "grace hopper"; *ch; ch++) controlpanel_handle_key((unsigned char)*ch, 0);
+        controlpanel_handle_key(0x0D, 0);
+        wubu_people_load(&after);
+        check(after.count == 2, "a duplicate typed in the page is refused, case-insensitively");
+
+        /* Escape must leave the store untouched */
+        controlpanel_handle_key('n', 0);
+        for (const char *ch = "Nobody"; *ch; ch++) controlpanel_handle_key((unsigned char)*ch, 0);
+        controlpanel_handle_key(0x1B, 0);
+        wubu_people_load(&after);
+        check(after.count == 2, "Escape cancels without saving");
+
         /* and an empty store says so instead of showing an empty card */
         unlink(pdb);
         cp_people_test_reload();

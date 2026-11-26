@@ -34,6 +34,9 @@
 extern const wubu_world_t *wubu_world_snapshot(void) __attribute__((weak));
 
 #include <stdio.h>
+#include <stdlib.h>   /* getenv: an implicitly-declared getenv returns int, and truncating that pointer to a
+                     * char* is the SIGSEGV that killed the first frame. -Wno-implicit-function-declaration
+                     * let it compile, which is why the crash looked like a bad applet table. */
 #include <string.h>
 
 /* The sync applet is optional at link time: targets that compile this manager
@@ -75,6 +78,9 @@ void controlpanel_init(void)
             g_controlpanel.applets[i].init(&g_controlpanel.applets[i]);
         g_controlpanel.applets[i].initialized = true;
     }
+    /* The registry is a fixed array: a count that can exceed it makes every reader walk off the end (the
+     * env-page lookup below segfaulted on exactly that). Clamp at the source. */
+    if (n > CP_MAX_APPLETS) n = CP_MAX_APPLETS;
     g_controlpanel.applet_count = n;
 
     /* The pages that report machine state resolve the LIVE world themselves (weak wubu_world_snapshot),
@@ -258,6 +264,25 @@ int controlpanel_sidebar_hit(int mx, int my)
 void controlpanel_render_at(uint32_t *fb, int fb_w, int fb_h,
                            int ox, int oy, int ow, int oh)
 {
+    /* $WUBU_CP_PAGE is honoured HERE, on the first frame of the ACTUAL page render, not in init: a capture harness cannot click a
+     * sidebar row, and a page nobody can reach in a screenshot cannot be reviewed. Init-time was too early --
+     * the page was reset before the first frame. */
+    static int env_page_applied;
+    if (!env_page_applied) {
+        env_page_applied = 1;
+        const char *want = getenv("WUBU_CP_PAGE");
+        if (want && *want) {
+            int lim = g_controlpanel.applet_count < CP_MAX_APPLETS ? g_controlpanel.applet_count
+                                                                   : CP_MAX_APPLETS;
+            for (int k = 0; k < lim; k++)
+                if (strcmp(g_controlpanel.applets[k].name, want) == 0) {
+                    g_controlpanel.active_applet = k;
+                    break;
+                }
+        }
+    }
+
+
     if (!fb || ow <= 0 || oh <= 0) return;
     const WubuThemeColors *c = wubu_theme_colors();
 
