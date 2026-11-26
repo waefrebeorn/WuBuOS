@@ -5,19 +5,19 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**20/51 have an owner, 31 missing.**
+**22/50 have an owner, 28 missing.**
 
 | source | feature | owner | note |
 |---|---|---|---|
 | win11 | `StartMenuExperienceHost` | `src/gui/shell/startmenu.c:38` | Start menu |
 | win11 | `SearchHost` | `src/gui/shell/startmenu_search.c:14` | search |
-| win11 | `ShellExperienceHost` | `src/gui/shell/quick_settings.c:28` | quick settings / action centre |
+| win11 | `ShellExperienceHost` | `src/gui/shell/quick_settings.c:29` | quick settings / action centre |
 | win11 | `LockApp` | `src/gui/shell/wubu_lock_screen.c:20` | lock screen |
 | win11 | `Windows.FileExplorer` | `src/gui/explorer.c:43` | file manager |
 | win11 | `Windows.FilePicker` | `src/gui/shell/file_picker.c:19` | open/save dialog |
 | win11 | `Windows.CapturePicker` | `src/gui/wubu_screenshot.c:19` | screenshot (region selector only) |
-| win11 | `Windows.PrintDialog` | **MISSING** | printing |
-| win11 | `Windows.PrintQueueActionCenter` | **MISSING** | print queue |
+| win11 | `Windows.PrintDialog` | `src/gui/shell/print_dialog.c:38` | print dialog over CUPS |
+| win11 | `Windows.PrintQueueActionCenter` | `src/runtime/wubu_print.c:30` | print backend (queue state read from cupsd) |
 | win11 | `Windows.CloudExperienceHost` | `src/gui/shell/wubu_shell_greeter.c:29` | first-run OOBE |
 | win11 | `Windows.PinningConfirmationDialog` | **MISSING** | pin confirmation |
 | win11 | `Windows.PeopleExperienceHost` | **MISSING** | people/contacts flyout |
@@ -30,7 +30,6 @@ the behaviour works -- that is the test suite's job.
 | win11 | `AccountsControl` | **MISSING** | accounts (no account model here) |
 | win11 | `BioEnrollment` | **MISSING** | biometrics |
 | win11 | `ParentalControls` | **MISSING** | parental controls |
-| win11 | `Windows.PrintDialog` | **MISSING** | printing |
 | win11 | `AsyncTextService` | `src/gui/term_ansi.c:41` | text services |
 | win11 | `NcsiUwpApp` | **MISSING** | network connectivity status |
 | win11 | `Windows.OOBENetworkConnectionFlow` | **MISSING** | OOBE network flow |

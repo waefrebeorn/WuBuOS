@@ -190,6 +190,15 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         run_dialog_open();
         return;
     }
+    /* An open Print dialog takes keys first: it is modal. */
+    {
+        extern __attribute__((weak)) int print_dialog_is_open(void);
+        extern __attribute__((weak)) void print_dialog_handle_key(uint32_t, uint32_t);
+        if (print_dialog_is_open && print_dialog_is_open() && print_dialog_handle_key) {
+            print_dialog_handle_key(key, mods);
+            return;
+        }
+    }
     if (run_dialog_is_open()) {
         run_dialog_handle_key(key, mods);
         return;
@@ -238,6 +247,20 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
             extern __attribute__((weak)) int wubu_fp_report(const char *path, void *user);
             file_picker_open(getenv("HOME"), 0,
                              wubu_fp_report ? wubu_fp_report : NULL, NULL);
+        }
+        return;
+    }
+
+    /* Ctrl+P: Print. Win11 binds it inside the app that owns a document; here the shell offers it
+     * globally so a file selected in Explorer can be printed. The dialog asks the real spooler and
+     * reports what it says. Weak: the WM tests link this TU without the dialog or the runtime. */
+    if ((mods & MOD_CTRL) && (key == 'p' || key == 'P')) {
+        extern __attribute__((weak)) void print_dialog_open(const char *path);
+        extern __attribute__((weak)) const char *explorer_selected_path(void);
+        if (print_dialog_open) {
+            const char *sel = NULL;
+            if (explorer_selected_path) sel = explorer_selected_path();
+            print_dialog_open(sel);
         }
         return;
     }
@@ -540,6 +563,16 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
     if (kind == 1 && run_dialog_is_open()) {
         run_dialog_handle_click(x, y);
         return;
+    }
+
+    /* The Print dialog is modal: a press inside is its own, outside dismisses it. */
+    if (kind == 1) {
+        extern __attribute__((weak)) int print_dialog_is_open(void);
+        extern __attribute__((weak)) int print_dialog_handle_click(int, int, int, int);
+        if (print_dialog_is_open && print_dialog_is_open() && print_dialog_handle_click) {
+            print_dialog_handle_click(x, y, g_dwm.screen_w, g_dwm.screen_h);
+            return;
+        }
     }
 
     /* The power-user menu is modal too. */

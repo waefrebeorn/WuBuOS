@@ -371,6 +371,7 @@ void explorer_render(uint32_t *fb, int fb_w, int fb_h);
 /* State accessors */
 ExExplorerState *explorer_state(void);
 const char *explorer_current_path(void);
+const char *explorer_selected_path(void);
 
 /* -- Pick mode: Explorer AS the Open/Save dialog ---------------------------
  * The OS must not carry a second file list. Callers put the real Explorer into pick mode and

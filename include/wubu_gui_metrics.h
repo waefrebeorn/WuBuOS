@@ -39,6 +39,11 @@
 #define WUBU_ANIM_OPEN_FROM_PCT 85   /* opens from 85% of its height */
 
 #define WUBU_METRIC_CONTROL_H   32
+
+/* Modal dialog: the Print dialog's size. Owned here like every other surface number, so the
+ * dialog's layout and the WM's idea of it cannot disagree. */
+#define WUBU_METRIC_DIALOG_W    460
+#define WUBU_METRIC_DIALOG_H    340
 #define WUBU_METRIC_TOUCH_H     40
 #define WUBU_METRIC_TITLEBAR_H  32   /* window caption (Win11-faithful) */
 #define WUBU_METRIC_TASKBAR_H    48   /* taskbar height */

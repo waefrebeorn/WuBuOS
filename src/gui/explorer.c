@@ -166,7 +166,16 @@ typedef struct {
 
 static ExPickState g_pick;
 
-int  explorer_pick_active(void) { return g_pick.active; }
+/* What the user is pointing at: the selected entry's full path, or the directory being shown.
+ * The Print dialog and anything else that acts on "the current file" asks this, so there is one
+ * answer to that question in the whole shell. */
+const char *explorer_selected_path(void) {
+    if (g_explorer.entry_count > 0 && g_explorer.selected_indices[0] >= 0)
+        return g_explorer.entries[g_explorer.selected_indices[0]].full_path;
+    return g_explorer.current_path;
+}
+
+int explorer_pick_active(void) { return g_pick.active; }
 int  explorer_pick_save_mode(void) { return g_pick.save_mode; }
 const char *explorer_pick_typed(void) { return g_pick.typed; }
 

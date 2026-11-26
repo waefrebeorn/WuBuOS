@@ -317,6 +317,13 @@ if (g_dwm.lasso_active) {
 
     /* Win+R run dialog, then the Win+X power menu (both modal overlays). */
     run_dialog_render(fb, fb_w, fb_h);
+
+    /* The Print dialog draws above everything: it is modal. Weak so a WM test graph without the
+     * shell surfaces still links. */
+    {
+        extern __attribute__((weak)) void print_dialog_render(uint32_t *, int, int);
+        if (print_dialog_render) print_dialog_render(fb, fb_w, fb_h);
+    }
     power_menu_render(fb, fb_w, fb_h);
 
     /* The lock screen is the topmost layer: nothing else is visible. */
