@@ -409,16 +409,19 @@ void ex_render_statusbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
      * accepts, Esc cancels, and the typed name is visible. A picker that looks identical to the
      * file manager with no visible contract is how users get stuck. */
     if (explorer_pick_active()) {
-        int sb = ex_statusbar_h();
-        int sy = fb_h - sb;
-        vbe_fill_rect(0, sy, fb_w, sb, tc()->select_bg);
+        /* Draw at the WINDOW's y, not at fb_h - sb: explorer_render is called with window-relative
+         * coordinates, so "fb_h - sb" put this bar behind the taskbar at the bottom of the SCREEN
+         * and the picker looked like it had no contract at all. */
+        int sb = h > 0 ? h : ex_statusbar_h();
+        int sy = y;
+        vbe_fill_rect(x, sy, w, sb, tc()->select_bg);
         char line[320];
         snprintf(line, sizeof line, "%s  %s  ·  Enter accepts  ·  Esc cancels%s%s",
                  explorer_pick_save_mode() ? "Save As" : "Open",
                  ex->current_path,
                  explorer_pick_typed()[0] ? "  ·  name: " : "",
                  explorer_pick_typed());
-        vbe_draw_text(10, sy + (sb - WUBU_FONT_INK_H) / 2, line, tc()->select_text, 1);
+        vbe_draw_text(x + 10, sy + (sb - WUBU_FONT_INK_H) / 2, line, tc()->select_text, 1);
         return;
     }
     (void)fb; (void)fb_w; (void)fb_h; (void)x; (void)h;

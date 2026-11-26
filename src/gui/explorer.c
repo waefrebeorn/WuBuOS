@@ -190,7 +190,14 @@ int explorer_pick_accept(void) {
         snprintf(g_pick.result, sizeof g_pick.result, "%s/%s", base, g_pick.typed);
     } else if (g_explorer.entry_count > 0 && g_explorer.selected_indices[0] >= 0) {
         ExEntry *e = &g_explorer.entries[g_explorer.selected_indices[0]];
-        snprintf(g_pick.result, sizeof g_pick.result, "%s", e->full_path);
+        /* The guest entries carry a root-relative path, so joining it to "/" produced "//cons".
+         * Normalise to exactly one leading slash: a caller must be able to open what we hand it. */
+        const char *p = e->full_path;
+        while (p[0] == '/' && p[1] == '/') p++;
+        if (p[0] != '/')
+            snprintf(g_pick.result, sizeof g_pick.result, "%s/%s", base, p);
+        else
+            snprintf(g_pick.result, sizeof g_pick.result, "%s", p);
         if (e->type == EX_ENTRY_DIR || e->type == EX_ENTRY_DRIVE) {
             explorer_navigate(g_pick.result);   /* a folder is navigation, not a result */
             return 0;
@@ -226,22 +233,43 @@ int explorer_open_pick(const char *start_dir, int save_mode,
     g_pick.user = user;
     g_pick.typed_len = 0;
     g_pick.typed[0] = '\0';
-    if (start_dir && *start_dir) explorer_navigate(start_dir);
+    /* Explorer lists the GUEST filesystem (guest_file_children), not the host's POSIX tree, so a
+     * host path like /home/wubu is simply not there. Fall back to the guest root instead of
+     * opening a pane that can never fill. */
+    {
+        const char *dir = (start_dir && *start_dir) ? start_dir : NULL;
+        if (!dir || !guest_file_is_dir(dir)) dir = "/";
+        explorer_navigate(dir);
+    }
     snprintf(g_explorer.status_text, sizeof g_explorer.status_text,
              save_mode ? "Save As: type a name, Enter to accept, Esc to cancel"
                        : "Open: select a file, Enter to open, Esc to cancel");
     return 0;
 }
 
+/* Adapters: the explorer engine's handlers take no window, the WM's callbacks do. */
+static void ex_win_key(DosGuiWindow *w, uint32_t key, uint32_t mods) {
+    (void)w; explorer_handle_key(key, mods);
+}
+static void ex_win_mouse(DosGuiWindow *w, int x, int y, int btn, int kind) {
+    (void)w; explorer_handle_mouse(x, y, btn, kind);
+}
+
 void explorer_show(void) {
     if (!explorer_is_open()) {
         DosGuiWindow *win = wm_create(100, 100, 900, 600, "File Manager");
         if (win) {
-            static ExExplorerState *ex_ref = &g_explorer;
-            win->user_data = ex_ref;
-            win->on_draw = NULL; /* Custom rendering in WM */
-            win->on_key = NULL;
-            win->on_mouse = NULL;
+            /* The renderer and the input handlers live in the app binding (app_explorer_draw /
+             * explorer_handle_*). This window used to leave all three NULL -- "custom rendering
+             * in WM" -- so a window opened by anything other than the app registry drew an
+             * EMPTY pane with no status bar and took no keys. Weak so a narrow link (the WM
+             * tests, which have no app layer) still builds. */
+            extern void app_explorer_draw(DosGuiWindow *, uint32_t *, int, int)
+                __attribute__((weak));
+            win->user_data = &g_explorer;
+            win->on_draw = app_explorer_draw;
+            win->on_key = ex_win_key;
+            win->on_mouse = ex_win_mouse;
             g_explorer.win_id = win->id;
         }
     }
