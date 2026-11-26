@@ -75,12 +75,10 @@ SHELL = [
                                           "implemented as modules here, not shipped as a servicing package"),
     ("MicrosoftWindows.Client.FileExp", ["src/gui/explorer.c"], "file explorer client"),
     ("Windows.ContentDeliveryManager", ["src/gui/wubu_pkgmgr.c"], "content delivery / packages"),
-    ("AccountsControl",         [],
-                                  "GAP: wubu_userinfo reads the account, but its page lives in the Control Panel "
-                                  "applet engine, which the shipped Settings app (src/apps/control) does not use"),
-    ("BioEnrollment",            [],
-                                  "GAP: wubu_biometric measures reader/service/prints, but its page lives in the "
-                                  "Control Panel applet engine, and nothing in the shell opens that engine"),
+    ("AccountsControl",         ["src/runtime/wubu_userinfo.c", "src/gui/control_panel_account.c"],
+                                  "account page in the Control Panel applet engine, which the Settings icon now opens"),
+    ("BioEnrollment",            ["src/runtime/wubu_biometric.c", "src/gui/control_panel_signin.c"],
+                                  "fingerprint sign-in page in the Control Panel applet engine (reader/service/prints measured)"),
     ("ParentalControls",         ["src/runtime/wubu_parental.c", "src/gui/shell/parental_guard.c"],
                                   "family limits -- the policy is enforced (the session locks outside the hours); "
                                   "the editor page lives in the unwired Control Panel engine"),

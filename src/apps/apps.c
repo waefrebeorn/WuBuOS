@@ -233,7 +233,15 @@ DosGuiWindow* launch_file_manager(void) {
 }
 
 DosGuiWindow* launch_settings(void) {
-    /* Real Control Panel engine (9 tabs: Display, Theme, Desktop, ...). */
+    /* The Control Panel the desktop opens is the APPLET ENGINE (src/gui/control_panel.c): a labelled
+     * sidebar and the ten machine pages. It used to open a second, older panel (control_launch), which
+     * is why every applet page was unreachable in a real session. The old panel stays only as a fallback
+     * for a link that has no WM. */
+    extern DosGuiWindow *control_panel_launch(void) __attribute__((weak));
+    if (control_panel_launch) {
+        DosGuiWindow *w = control_panel_launch();
+        if (w) return w;
+    }
     return control_launch();
 }
 

@@ -35,11 +35,24 @@ so the next person does not repeat it.
   code**: every real install showed "no display snapshot" while the tests injected a fake and passed.
   `controlpanel_init()` now installs `wubu_world_snapshot` when it is linked.
 
+## What was done about it
+
+`src/gui/control_panel.c` grew real chrome and a launcher: a 152-px sidebar with a NAME and a colour mark
+per page, a page area beside it, pointer routing (a sidebar click selects; a press in the page is
+translated into page-relative coordinates) and Up/Down page cycling. `control_panel_launch()` creates the
+WM window and wires it to that engine, and `launch_settings()` in `src/apps/apps.c` now opens it, with the
+old panel kept only as a fallback for links without a WM.
+
+`test_cp_applets` grew the gate that would have caught the original defect: every sidebar row must hit
+itself, the rows must tile without gaps, no row may be wider than the sidebar, a click on row 2 must
+select page 2, Down/Up must move the selection, and a press in the page area must NOT change the page.
+Mutation-proven: shifting the hit-test 40 px down fails four of those checks.
+
 ## The work that remains, and how it should be done
 
-1. Make ONE panel. Either the applet engine grows a real chrome (labelled sidebar with a width of its
-   own, page area beside it, keyboard and pointer routing) and `launch_settings()` points at it, or
-   `control.c` learns to host applet pages and the engine is deleted.
+1. Retire `src/apps/control/control.c`. It is now only a fallback, and the tree's rule is no second copy
+   of a component the OS already ships: either delete it (and its tests) or make it a thin adapter that
+   calls the engine.
 2. Whatever wins, the rule is the tree's own: **no second copy of a component the OS already ships.**
 3. The gate that would have caught this: assert that the function the desktop's Settings icon calls is
    the one that renders the applet registry. Not "the applets render" — that was already true and meant

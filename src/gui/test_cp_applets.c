@@ -229,6 +229,38 @@ int main(void)
         check(arc == 0 && login[0] != '\0', "the page names the signed-in user");
         if (login[0]) printf("  measured: account page names '%s'\n", login);
         check(controlpanel_count() >= 8, "the Control Panel registry holds every applet it ships");
+
+        /* -- The chrome: a labelled sidebar the user can actually click --------------------------- */
+        check(controlpanel_sidebar_w() >= 120, "the sidebar is wide enough for page names");
+        check(controlpanel_header_h() > 0, "the panel reserves a header");
+        int rows_ok = 1, inside = 1;
+        for (int i = 0; i < controlpanel_count(); i++) {
+            int rx, ry, rw, rh;
+            if (!controlpanel_sidebar_row_rect(i, &rx, &ry, &rw, &rh)) { rows_ok = 0; break; }
+            if (rx + rw > controlpanel_sidebar_w()) inside = 0;
+            if (controlpanel_sidebar_hit(rx + rw / 2, ry + rh / 2) != i) rows_ok = 0;
+            if (i > 0) {
+                int px, py, pw, ph;
+                controlpanel_sidebar_row_rect(i - 1, &px, &py, &pw, &ph);
+                if (py + ph != ry) rows_ok = 0;          /* rows tile: no dead gap between pages */
+            }
+        }
+        check(rows_ok, "every sidebar row hits itself and the rows tile");
+        check(inside, "no sidebar row is wider than the sidebar");
+
+        /* Clicking a row selects that page; the pointer handler is the one the window uses. */
+        {
+            int rx, ry, rw, rh;
+            controlpanel_sidebar_row_rect(2, &rx, &ry, &rw, &rh);
+            controlpanel_handle_mouse(rx + rw / 2, ry + rh / 2, 1, 1);
+            check(controlpanel_active_index() == 2, "clicking a sidebar row switches the page");
+            controlpanel_handle_key(0xE050, 0);
+            check(controlpanel_active_index() == 3, "Down moves to the next page");
+            controlpanel_handle_key(0xE048, 0);
+            check(controlpanel_active_index() == 2, "Up moves back");
+            controlpanel_handle_mouse(controlpanel_sidebar_w() + 40, 200, 1, 1);
+            check(controlpanel_active_index() == 2, "a press in the page area does not change pages");
+        }
         controlpanel_shutdown();
         free(afb);
     }

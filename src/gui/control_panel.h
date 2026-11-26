@@ -124,6 +124,18 @@ CpApplet cp_create_signin_applet(void);     /* control_panel_signin.c */
 const void *cp_signin_test_probe(void);
 int      cp_mirror_test_rows(char *first_url, size_t cap);
 int      cp_account_test_login(char *out, size_t cap);
+
+/* The launcher the desktop's Settings icon uses (src/apps/apps.c). Creates a WM window whose draw is
+ * this engine. Returns NULL when there is no window manager in the link. */
+struct DosGuiWindow;
+struct DosGuiWindow *control_panel_launch(void);
+
+/* Chrome geometry: the renderer and the hit-test share these, and tests can ask for them. */
+int  controlpanel_sidebar_w(void);
+int  controlpanel_header_h(void);
+bool controlpanel_sidebar_row_rect(int i, int *x, int *y, int *w, int *h);
+int  controlpanel_sidebar_hit(int mx, int my);
+int  controlpanel_active_index(void);   /* the page the sidebar has selected */
 typedef int (*WorldStateFn)(char *buf, size_t cap);
 void cp_hardware_set_provider(WorldStateFn fn);
 int cp_hardware_test_render(char *out, size_t cap);

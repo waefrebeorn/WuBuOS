@@ -16,7 +16,19 @@
  * C11.
  */
 #include "control_panel.h"
-#include "../kernel/wubu_world.h"   /* the snapshot the Display/Network pages report */
+#include "../kernel/wubu_world.h"
+#include "wubu_theme.h"
+#include "../kernel/vbe.h"
+#include "wubu_gui_metrics.h"
+#include "wm.h"   /* DosGuiWindow: the launcher creates one */
+
+/* The panel's own chrome: a labelled sidebar and a page beside it. */
+#define CP_SIDEBAR_W   152
+#define CP_HEADER_H    32
+#define CP_SIDE_ROW_H  26
+#define CP_SIDE_PAD    10
+
+   /* the snapshot the Display/Network pages report */
 
 /* Weak: a panel test graph has the applets without the world model. */
 extern const wubu_world_t *wubu_world_snapshot(void) __attribute__((weak));
@@ -185,32 +197,94 @@ void controlpanel_toggle(void)
 /* CP13: the input handlers (routed to the active applet). */
 void controlpanel_handle_key(uint32_t key, uint32_t mods)
 {
+    if (key == 0xE050 || key == 0xE048) {          /* Down / Up cycle the pages */
+        int n = g_controlpanel.applet_count;
+        if (n > 0) g_controlpanel.active_applet =
+            (g_controlpanel.active_applet + (key == 0xE050 ? 1 : n - 1)) % n;
+        return;
+    }
     controlpanel_key(key, mods);
 }
 void controlpanel_handle_mouse(int x, int y, int btn, int kind)
 {
-    controlpanel_mouse(x, y, btn, kind);
+    if (kind == 1 && btn == 1) {
+        int hit = controlpanel_sidebar_hit(x, y);
+        if (hit >= 0) { g_controlpanel.active_applet = hit; return; }
+    }
+    /* The page sees coordinates RELATIVE to its own origin: an applet that hit-tests in page space must
+     * not have to know where the sidebar ends. */
+    if (x >= CP_SIDEBAR_W)
+        controlpanel_mouse(x - CP_SIDEBAR_W, y - CP_HEADER_H, btn, kind);
 }
 
-/* CP14: render — the sidebar strip + the active applet's render.
- * The desktop owns the font; this draws the applet color blocks +
- * calls the active applet's render into its region. */
+/* CP14: render -- a real sidebar with NAMES and a page beside it, not colour blocks.
+ *
+ * The old version painted 24-px blocks with no labels and handed every applet the full width, so the
+ * page ran under its own sidebar and a user could not tell a page name from a colour. This is the chrome
+ * the applet pages were always meant to sit inside. */
+#define CP_SIDEBAR_W 152
+#define CP_HEADER_H  32
+#define CP_SIDE_ROW_H 26
+#define CP_SIDE_PAD  10
+
+int controlpanel_sidebar_w(void) { return CP_SIDEBAR_W; }
+int controlpanel_header_h(void) { return CP_HEADER_H; }
+
+/* Where applet row i is, as one expression shared by the renderer and the hit-test. */
+bool controlpanel_sidebar_row_rect(int i, int *x, int *y, int *w, int *h)
+{
+    if (i < 0 || i >= g_controlpanel.applet_count) return false;
+    if (x) *x = 0;
+    if (y) *y = CP_HEADER_H + 4 + i * CP_SIDE_ROW_H;
+    if (w) *w = CP_SIDEBAR_W;
+    if (h) *h = CP_SIDE_ROW_H;
+    return true;
+}
+
+void controlpanel_handle_mouse(int x, int y, int btn, int kind);
+
+int controlpanel_active_index(void) { return g_controlpanel.active_applet; }
+
+int controlpanel_sidebar_hit(int mx, int my)
+{
+    for (int i = 0; i < g_controlpanel.applet_count; i++) {
+        int x, y, w, h;
+        if (!controlpanel_sidebar_row_rect(i, &x, &y, &w, &h)) continue;
+        if (mx >= x && mx < x + w && my >= y && my < y + h) return i;
+    }
+    return -1;
+}
+
 void controlpanel_render(uint32_t *fb, int fb_w, int fb_h)
 {
-    if (!fb) return;
-    /* the sidebar: one color block per applet (the active is
-     * brighter); the active applet's render gets the rest */
+    if (!fb || fb_w <= 0 || fb_h <= 0) return;
+    const WubuThemeColors *c = wubu_theme_colors();
+
+    /* Drawing goes through control_panel_text's helpers, which CLIP to the surface: this renderer is
+     * called with the window's surface and must never write outside it (the canary in the applet gate
+     * exists because a panel once did). */
+    cp_fill(fb, fb_w, fb_h, 0, 0, fb_w, fb_h, c->win_face);
+
+    /* The sidebar: its own surface and a NAME per row. */
+    cp_fill(fb, fb_w, fb_h, 0, 0, CP_SIDEBAR_W, fb_h, c->taskbar_bg);
+    cp_fill(fb, fb_w, fb_h, CP_SIDEBAR_W - 1, 0, 1, fb_h, c->border_dark);
+    cp_draw_text(fb, fb_w, fb_h, CP_SIDE_PAD, 10, "Settings", c->win_title_text, 1);
+
     for (int i = 0; i < g_controlpanel.applet_count; i++) {
-        uint32_t c = g_controlpanel.applets[i].icon_color;
-        if (i == g_controlpanel.active_applet)
-            c = 0xFFFFFFFF;
-        for (int yy = 8; yy < 24 && yy < fb_h; yy++)
-            for (int xx = 8 + i * 24; xx < 24 + i * 24 && xx < fb_w; xx++)
-                fb[yy * fb_w + xx] = c;
+        int x, y, w, h;
+        if (!controlpanel_sidebar_row_rect(i, &x, &y, &w, &h)) continue;
+        bool active = (i == g_controlpanel.active_applet);
+        if (active) cp_fill(fb, fb_w, fb_h, x + 4, y, w - 12, h, c->select_bg);
+        /* The applet's colour becomes a small mark, so the sidebar is not a wall of text. */
+        cp_fill(fb, fb_w, fb_h, x + CP_SIDE_PAD, y + 9, 8, 8, g_controlpanel.applets[i].icon_color);
+        cp_draw_text(fb, fb_w, fb_h, x + CP_SIDE_PAD + 16, y + 9, g_controlpanel.applets[i].name,
+                     active ? c->select_text : c->body_text, 1);
     }
+
     CpApplet *a = controlpanel_active();
     if (a && a->render)
-        a->render(a, fb, fb_w, fb_h, 0, 32, fb_w, fb_h > 32 ? fb_h - 32 : 1);
+        a->render(a, fb, fb_w, fb_h, CP_SIDEBAR_W, CP_HEADER_H,
+                  fb_w - CP_SIDEBAR_W, fb_h > CP_HEADER_H ? fb_h - CP_HEADER_H : 1);
 }
 
 /* CP15: shutdown — cleanup every applet. */
@@ -220,4 +294,43 @@ void controlpanel_shutdown(void)
         if (g_controlpanel.applets[i].cleanup)
             g_controlpanel.applets[i].cleanup(&g_controlpanel.applets[i]);
     g_controlpanel.applet_count = 0;
+}
+
+/* -- The launcher ---------------------------------------------------------------------------------
+ * The engine had no window of its own: the desktop's Settings icon opened a DIFFERENT panel, so every
+ * applet page here was unreachable in a real session. This creates the window, wires the engine to it,
+ * and installs the machine-state providers. Weak wm_create: a panel test graph has the applets without
+ * the window manager. */
+extern DosGuiWindow *wm_create(int x, int y, int w, int h, const char *title) __attribute__((weak));
+
+static void cp_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h)
+{
+    (void)win; (void)x; (void)y;
+    if (!fb) return;
+    (void)w; (void)h;
+    controlpanel_render(fb, fb_w, fb_h);
+}
+
+static void cp_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
+{
+    (void)win;
+    controlpanel_handle_key(key, mods);
+}
+
+static void cp_on_mouse(DosGuiWindow *win, int mx, int my, int btn, int kind)
+{
+    (void)win;
+    controlpanel_handle_mouse(mx, my, btn, kind);
+}
+
+DosGuiWindow *control_panel_launch(void)
+{
+    if (!wm_create) return NULL;
+    DosGuiWindow *win = wm_create(80, 60, 860, 620, "Control Panel");
+    if (!win) return NULL;
+    controlpanel_init();
+    win->on_draw = cp_on_draw;
+    win->on_key = cp_on_key;
+    win->on_mouse = cp_on_mouse;
+    return win;
 }
