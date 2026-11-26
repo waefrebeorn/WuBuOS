@@ -103,6 +103,23 @@ int wubu_ai_link_probe(WubuAiLink *out, int timeout_ms)
     return 0;
 }
 
+int wubu_ai_link_save(const char *endpoint)
+{
+    const char *path = wubu_ai_link_default_path();
+    if (!endpoint || !*endpoint) {
+        remove(path);                       /* an empty endpoint means "none", not a blank line */
+        return 2;
+    }
+    char tmp[512];
+    snprintf(tmp, sizeof tmp, "%s.tmp", path);
+    FILE *f = fopen(tmp, "w");
+    if (!f) return -1;
+    fprintf(f, "# wubu AI endpoint (read by the Control Panel AI page)\nendpoint = %s\n", endpoint);
+    if (fclose(f) != 0) { remove(tmp); return -1; }
+    if (rename(tmp, path) != 0) { remove(tmp); return -1; }
+    return 0;
+}
+
 int wubu_ai_link_line(const WubuAiLink *l, char *out, size_t cap)
 {
     if (!l || !out || cap == 0) return -1;

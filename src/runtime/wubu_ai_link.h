@@ -41,6 +41,11 @@ int wubu_ai_link_read(WubuAiLink *out);
  * reachable, 1 when unreachable or unconfigured (a normal state, not an error), -1 on bad arguments. */
 int wubu_ai_link_probe(WubuAiLink *out, int timeout_ms);
 
+/* Write "endpoint = <url>" to the config path, atomically (temp + rename). An empty endpoint REMOVES the
+ * configuration rather than writing a blank one, so "no brain" is representable. Returns 0 ok, 2 empty
+ * (removed), -1 I/O. */
+int wubu_ai_link_save(const char *endpoint);
+
 /* One line for a page or a log: what is configured and what was measured. */
 int wubu_ai_link_line(const WubuAiLink *l, char *out, size_t cap);
 

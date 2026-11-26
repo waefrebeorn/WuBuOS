@@ -22,7 +22,16 @@ typedef struct {
 } AiAppletData;
 
 static AiAppletData g_ai;
-static char g_last_drawn[512];   /* the rows this page last drew */
+static char g_last_drawn[512];
+
+/* The endpoint editor. A store you can only change with an editor outside the OS is not a settings page:
+ * 'e' starts it, Enter validates + saves + re-probes, Escape cancels. */
+typedef struct {
+    int  active;
+    char buf[WUBU_AI_ENDPOINT_MAX];
+    char status[96];
+} AiEdit;
+static AiEdit g_edit;   /* the rows this page last drew */
 
 #define AI_PROBE_MS 300
 
@@ -42,8 +51,47 @@ static void ai_applet_init(CpApplet *applet)
 static void ai_applet_key(CpApplet *applet, unsigned key, unsigned mods)
 {
     (void)applet; (void)mods;
-    if (key == 0xE034)              /* F5: re-measure on demand */
-        ai_measure();
+
+    if (!g_edit.active) {
+        if (key == 0xE034) { ai_measure(); return; }               /* F5 */
+        if (key == 'e' || key == 'E') {                            /* start editing the endpoint */
+            memset(&g_edit, 0, sizeof g_edit);
+            g_edit.active = 1;
+            snprintf(g_edit.buf, sizeof g_edit.buf, "%s", g_ai.link.endpoint);
+            snprintf(g_edit.status, sizeof g_edit.status, "Enter saves, Esc cancels");
+        }
+        return;
+    }
+
+    if (key == 0x1B) {                                             /* Escape */
+        snprintf(g_edit.status, sizeof g_edit.status, "cancelled");
+        g_edit.active = 0;
+        return;
+    }
+    if (key == 0x08 || key == 0x7F) {                              /* Backspace */
+        size_t n = strlen(g_edit.buf);
+        if (n) g_edit.buf[n - 1] = 0;
+        return;
+    }
+    if (key == 0x0D || key == 0x0A) {                              /* Enter: save + re-probe */
+        int rc = wubu_ai_link_save(g_edit.buf);
+        if (rc == 0) {
+            unsetenv("WUBU_AI_ENDPOINT");      /* the saved config must be what the page reads back */
+            ai_measure();
+            snprintf(g_edit.status, sizeof g_edit.status, "saved; re-measured");
+        } else if (rc == 2) {
+            snprintf(g_edit.status, sizeof g_edit.status, "cleared the endpoint");
+        } else {
+            snprintf(g_edit.status, sizeof g_edit.status, "could not write the config");
+        }
+        g_edit.active = 0;
+        return;
+    }
+    if (key >= 0x20 && key <= 0x7E && strlen(g_edit.buf) + 1 < sizeof g_edit.buf) {
+        size_t n = strlen(g_edit.buf);
+        g_edit.buf[n] = (char)key;
+        g_edit.buf[n + 1] = 0;
+    }
 }
 
 static void ai_render(CpApplet *applet, uint32_t *fb,
@@ -54,6 +102,26 @@ static void ai_render(CpApplet *applet, uint32_t *fb,
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
     cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg, 2);
+
+    if (g_edit.active) {
+        char shown[WUBU_AI_ENDPOINT_MAX + 2];
+        snprintf(shown, sizeof shown, "%s_", g_edit.buf);
+        const char *el[3] = { "Endpoint", "Status", "Keys" };
+        const char *ev[3] = { shown, g_edit.status, "Enter saves, Esc cancels" };
+        g_last_drawn[0] = 0;
+        size_t eo = 0;
+        for (int i = 0; i < 3; i++) {
+            int n = snprintf(g_last_drawn + eo, sizeof g_last_drawn - eo, "%s%s: %s",
+                             i ? "; " : "", el[i], ev[i]);
+            if (n < 0) break;
+            eo += (size_t)n;
+            int ry = y + 44 + i * 26;
+            if (ry + 10 > y + h) break;
+            cp_draw_text(fb, fb_w, fb_h, x + 14, ry, el[i], c->body_text_ina, 1);
+            cp_draw_text(fb, fb_w, fb_h, x + 150, ry, ev[i], c->body_text, 1);
+        }
+        return;
+    }
 
     const WubuAiLink *l = &g_ai.link;
     const char *rows[4][2];

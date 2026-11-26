@@ -151,5 +151,44 @@ int cp_pages_check(uint32_t *dfb, int fb_w, int fb_h)
             }
         }
 
+    /* The AI endpoint EDITOR: type an endpoint through the page's keys, Enter, then read the config file
+     * back. A store you can only change from outside the OS is not a settings page. */
+    {
+        char conf[] = "/tmp/wubu_cp_ai_XXXXXX";
+        int fd = mkstemp(conf);
+        if (fd >= 0) close(fd);
+        setenv("WUBU_AI_CONF", conf, 1);
+        unsetenv("WUBU_AI_ENDPOINT");
+
+        CpApplet ai = cp_create_ai_applet();
+        controlpanel_init();
+        controlpanel_register_applet(&ai);
+        activate_by_name("AI");
+        controlpanel_handle_key('e', 0);
+        for (const char *ch = "127.0.0.1:9"; *ch; ch++)
+            controlpanel_handle_key((unsigned char)*ch, 0);
+        controlpanel_handle_key(0x0D, 0);
+
+        WubuAiLink back;
+        int rc = wubu_ai_link_read(&back);
+        char me[200];
+        snprintf(me, sizeof me, "the AI page saves the endpoint it was told (read back: '%s')",
+                 rc == 0 ? back.endpoint : "(none)");
+        CHECK(rc == 0 && strstr(back.endpoint, "127.0.0.1:9") != NULL, me);
+
+        /* Escape after typing must not save */
+        setenv("WUBU_AI_ENDPOINT", "http://example.invalid/v1", 1);
+        controlpanel_handle_key('e', 0);
+        controlpanel_handle_key('x', 0);
+        controlpanel_handle_key(0x1B, 0);
+        unsetenv("WUBU_AI_ENDPOINT");
+        rc = wubu_ai_link_read(&back);
+        CHECK(rc == 0 && strstr(back.endpoint, "example.invalid") == NULL,
+              "Escape in the endpoint editor changes nothing");
+
+        unsetenv("WUBU_AI_CONF");
+        unlink(conf);
+    }
+
     return page_failures;
 }

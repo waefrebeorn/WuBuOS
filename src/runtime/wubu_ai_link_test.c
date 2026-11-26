@@ -91,6 +91,15 @@ int main(void)
         close(srv);
     }
 
+    /* save -> read back -> clear, because the editor writes through this and "the file is a blank line"
+     * must mean "no endpoint", not "an endpoint that is empty". */
+    unsetenv("WUBU_AI_ENDPOINT");
+    CHECK(wubu_ai_link_save("http://10.0.0.5:8080/v1") == 0, "an endpoint saves");
+    CHECK(wubu_ai_link_read(&l) == 0 && strcmp(l.endpoint, "http://10.0.0.5:8080/v1") == 0,
+          "and reads back exactly");
+    CHECK(wubu_ai_link_save("") == 2, "an empty endpoint is a removal, reported as such");
+    CHECK(wubu_ai_link_read(&l) == 1, "and after clearing there is no endpoint");
+
     unlink(tmp);
     printf("wubu_ai_link: %d failure(s)\n", fails);
     return fails ? 1 : 0;
