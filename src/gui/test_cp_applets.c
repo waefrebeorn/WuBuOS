@@ -180,6 +180,16 @@ int main(void)
         snprintf(m2, sizeof m2, "the Display page draws its body line (drew: '%s')", drawn ? drawn : "");
         check(drawn && drawn[0] && strstr(drawn, "1234x567") != NULL, m2);
 
+        /* A page with ONE line reads as unfinished. It must show several measured facts, and none of them
+         * may be a refresh rate: nothing in this OS measures one, and an invented "@60" already shipped
+         * here once. */
+        int rows = cp_display_row_count();
+        char m5[160];
+        snprintf(m5, sizeof m5, "the Display page shows several measured rows (%d)", rows);
+        check(rows >= 4, m5);
+        check(strstr(drawn, "Hz") == NULL && strstr(drawn, "@60") == NULL,
+              "no invented refresh rate in the Display rows");
+
         /* The Theme page had the same "> 0" defect; the same behavioural check applies. */
         CpApplet thm = cp_create_theme_applet();
         controlpanel_init();

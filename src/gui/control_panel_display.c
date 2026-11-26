@@ -64,6 +64,69 @@ static const char *connector_name(int c)
     }
 }
 
+/* One row per measured fact. The page used to state everything in a single sentence and leave ~500 px of
+ * empty card, which reads as unfinished. The fix is more FACTS, not more decoration -- and every value
+ * here is either measured or says plainly that it is not. */
+#define CP_DISP_MAX_ROWS 4
+typedef struct { const char *label; char value[80]; } CpDispRow;
+static CpDispRow g_rows[CP_DISP_MAX_ROWS];
+static int g_nrows;
+
+/* A value is only showable if it could be true. The live panel proved why: a hosted session reported
+ * "unknown 51325x35144" and "2202583157 MB" straight from the snapshot, because the fields the panel reads
+ * and the fields the kernel fills are not necessarily the same ones -- and a plausible-looking wrong
+ * number is worse than "not reported". */
+#define CP_DISP_MAX_W 16384
+#define CP_DISP_MAX_VRAM_MB 1048576u   /* 1 TB: no machine this runs on exceeds it */
+
+static void disp_build_rows(const wubu_world_t *w)
+{
+    g_nrows = 0;
+    CpDispRow *r;
+
+    r = &g_rows[g_nrows++];
+    r->label = "Display";
+    int mode_ok = (w->screen_w > 0 && w->screen_h > 0 &&
+                   w->screen_w <= CP_DISP_MAX_W && w->screen_h <= CP_DISP_MAX_W);
+    const char *conn = connector_name(w->gpu_connector);
+    if (mode_ok && strcmp(conn, "unknown") != 0)
+        snprintf(r->value, sizeof r->value, "%s %ux%u", conn, w->screen_w, w->screen_h);
+    else if (mode_ok)
+        snprintf(r->value, sizeof r->value, "%ux%u (connector not reported)",
+                 w->screen_w, w->screen_h);
+    else
+        snprintf(r->value, sizeof r->value, "not reported (no usable mode)");
+
+    r = &g_rows[g_nrows++];
+    r->label = "Refresh";
+    snprintf(r->value, sizeof r->value, "not reported by this machine");
+
+    r = &g_rows[g_nrows++];
+    r->label = "Video memory";
+    if (w->vram_mb > 0 && w->vram_mb <= CP_DISP_MAX_VRAM_MB)
+        snprintf(r->value, sizeof r->value, "%u MB", w->vram_mb);
+    else
+        snprintf(r->value, sizeof r->value, "not reported");
+
+    r = &g_rows[g_nrows++];
+    r->label = "Pixel format";
+    snprintf(r->value, sizeof r->value, "32 bpp (uint32 surface)");
+}
+
+/* One join of the rows, so the page and its test can never disagree (they did: the old single-line
+ * builder validated nothing and the renderer's rows printed raw fields). */
+static void disp_join_rows(char *out, size_t cap)
+{
+    size_t off = 0;
+    out[0] = 0;
+    for (int i = 0; i < g_nrows && off < cap; i++) {
+        int n = snprintf(out + off, cap - off, "%s%s: %s",
+                         i ? "; " : "", g_rows[i].label, g_rows[i].value);
+        if (n < 0) break;
+        off += (size_t)n;
+    }
+}
+
 static void display_render(CpApplet *applet, uint32_t *fb,
                            int fb_w, int fb_h, int x, int y, int w, int h)
 {
@@ -79,16 +142,33 @@ static void display_render(CpApplet *applet, uint32_t *fb,
     if (!wd) {
         cp_draw_text(fb, fb_w, fb_h, x + 14, y + 44,
                      "no display snapshot", c->body_text_ina, 1);
+        g_last_drawn[0] = 0;
         return;
     }
-    /* the line the test asserts is the line the user reads: one source */
-    char line[256];
-    /* The line builder returns 0 on success and -1 for bad arguments, so "> 0" was never true and the
-     * page drew its heading and NOTHING ELSE on every install. Ask for "not an error" instead. */
-    if (cp_display_test_line(line, sizeof line) >= 0) {
-        snprintf(g_last_drawn, sizeof g_last_drawn, "%s", line);
-        cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, c->body_text, 1);
+
+    disp_build_rows(wd);
+
+    /* Record exactly what is drawn: the gate reads this, so a row can never exist only in a comment. */
+    disp_join_rows(g_last_drawn, sizeof g_last_drawn);
+    for (int i = 0; i < g_nrows; i++) {
+        int ry = y + 44 + i * 26;
+        if (ry + 10 > y + h) break;                       /* never draw below the card */
+        cp_draw_text(fb, fb_w, fb_h, x + 14, ry, g_rows[i].label, c->body_text_ina, 1);
+        cp_draw_text(fb, fb_w, fb_h, x + 150, ry, g_rows[i].value, c->body_text, 1);
     }
+}
+
+/* How many rows the Display page draws (for the gate: a page with one line reads as unfinished). */
+int cp_display_row_count(void)
+{
+    DisplayAppletData *d = NULL;
+    CpApplet *a = controlpanel_get_applet(CP_APPLET_DISPLAY);
+    if (a && a->user_data) d = (DisplayAppletData *)a->user_data;
+    const wubu_world_t *wd = d ? d->snap : NULL;
+    if (!wd && g_disp.snap) wd = g_disp.snap();
+    if (!wd) return 0;
+    disp_build_rows(wd);
+    return g_nrows;
 }
 
 /* the test hook: the display line the applet would show. */
@@ -99,19 +179,10 @@ int cp_display_test_line(char *out, size_t cap)
     if (a && a->user_data && ((DisplayAppletData *)a->user_data)->snap)
         snap = ((DisplayAppletData *)a->user_data)->snap;
     if (!out || cap == 0) return -1;
-    if (!snap) {
-        snprintf(out, cap, "no display state");
-        return 0;
-    }
+    if (!snap) { snprintf(out, cap, "no display state"); return 0; }
     const wubu_world_t *w = snap();
-    /* NO INVENTED NUMBERS. This used to print "@60" whenever a connector was present -- a refresh rate
-     * nothing in the world snapshot measures (wubu_world_t has no refresh field), so the page stated a
-     * fact the OS never learned. It now reports the mode and says plainly what it does not know. */
-    char vram[48];
-    if (w->vram_mb) snprintf(vram, sizeof vram, "%uMB vram", w->vram_mb);
-    else            snprintf(vram, sizeof vram, "vram not reported");
-    snprintf(out, cap, "display: %s %ux%u, refresh not reported, %s",
-             connector_name(w->gpu_connector), w->screen_w, w->screen_h, vram);
+    disp_build_rows(w);
+    disp_join_rows(out, cap);
     return 0;
 }
 
