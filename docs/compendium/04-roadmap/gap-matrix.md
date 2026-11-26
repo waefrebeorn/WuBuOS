@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**25/50 have an owner, 25 missing.**
+**26/50 have an owner, 24 missing.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -42,7 +42,7 @@ the behaviour works -- that is the test suite's job.
 | cachyos | `power-profiles-daemon` | `src/runtime/wubu_power_profile.c:26` | power profiles -- 3 profiles (power-saver/balanced/performance), live in quick settings |
 | cachyos | `zram-generator` | `src/runtime/wubu_perf_profile.c:27` | compressed swap -- tunables only |
 | cachyos | `systemd-coredump` | `src/runtime/wubu_crashcap.c:31` | crash capture -- fatal-signal report (signal/addr/backtrace/maps) in ~/.local/state/wubuos/crashes |
-| cachyos | `fwupd` | **MISSING** | firmware updates -- none |
+| cachyos | `fwupd` | `src/runtime/wubu_firmware.c:18` | firmware updates -- firmware identity -- BIOS/SMBIOS vendor/version/date read from DMI, update-agent discovery (no flashing) |
 | cachyos | `reflector` | **MISSING** | mirror ranking -- none |
 | cachyos | `pacman` | `src/gui/wubu_pkgmgr.c:16` | package manager -- packages |
 | cachyos | `sudo` | `src/runtime/vsl/exec_guests/guest_copy.c:1` | privilege -- VSL personality |

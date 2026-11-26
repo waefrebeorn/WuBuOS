@@ -33,6 +33,7 @@ typedef enum {
     CP_APPLET_SYSTEM      = 7,  /* System properties */
     CP_APPLET_HARDWARE    = 8,  /* the machine the AGI perceives */
     CP_APPLET_PKG_SYNC    = 9,  /* signed revocation-feed sync control */
+    CP_APPLET_FIRMWARE    = 10, /* BIOS/SMBIOS identity + what can update it (fwupd parity) */
 } CpAppletId;
 
 typedef struct CpApplet CpApplet;
@@ -108,6 +109,8 @@ CpApplet cp_create_network_applet(void);
 CpApplet cp_create_sound_applet(void);
 CpApplet cp_create_theme_applet(void);
 CpApplet cp_create_hardware_applet(void);
+CpApplet cp_create_firmware_applet(void);   /* control_panel_firmware.c */
+int      cp_firmware_test_summary(char *out, size_t cap);
 typedef int (*WorldStateFn)(char *buf, size_t cap);
 void cp_hardware_set_provider(WorldStateFn fn);
 int cp_hardware_test_render(char *out, size_t cap);
