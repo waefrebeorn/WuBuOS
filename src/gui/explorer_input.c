@@ -242,12 +242,18 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
 
             switch (item) {
                 case 0: explorer_open_entry(ex, ex->context_menu_entry); break;
-                case 1: if (ex->context_menu_entry >= 0 &&
-                            ex->context_menu_entry < ex->entry_count &&
-                            ex_launch_with_wcode)
-                            ex_launch_with_wcode(
-                                ex->entries[ex->context_menu_entry].full_path);
-                        break;
+                case 1: {
+                    /* "Open With..." must ASK. It used to launch W-Code unconditionally, which is a
+                     * different promise: the menu said choose-an-app and the code chose one. The
+                     * resolver owns the choice; W-Code stays the fallback when nothing can be offered. */
+                    extern bool open_with_open(const char *path) __attribute__((weak));
+                    if (ex->context_menu_entry >= 0 && ex->context_menu_entry < ex->entry_count) {
+                        const char *p = ex->entries[ex->context_menu_entry].full_path;
+                        if (open_with_open && open_with_open(p)) break;
+                        if (ex_launch_with_wcode) ex_launch_with_wcode(p);
+                    }
+                    break;
+                }
                 case 2: explorer_cut();         break;
                 case 3: explorer_copy();        break;
                 case 4: explorer_paste();       break;

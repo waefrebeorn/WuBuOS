@@ -154,6 +154,30 @@ void wm_handle_key_up(uint32_t key, uint32_t mods) {
 }
 
 void wm_handle_key(uint32_t key, uint32_t mods) {
+    /* The Open-With resolver owns the keyboard while it is up: arrows move, Enter opens, Space ticks
+     * "always use this app", Esc cancels, and every other key is swallowed so a shortcut cannot fire
+     * behind a modal card. Weak + guarded -- this file is in every WM test graph. */
+    {
+        extern __attribute__((weak)) bool open_with_is_open(void);
+        extern __attribute__((weak)) const char *open_with_move(int);
+        extern __attribute__((weak)) void open_with_toggle_remember(void);
+        extern __attribute__((weak)) const char *open_with_accept(void);
+        extern __attribute__((weak)) void open_with_close(void);
+        extern __attribute__((weak)) int open_with_launch_last(void);
+        if (open_with_is_open && open_with_is_open()) {
+            if (key == 0xE048 || key == 0xE050) {          /* Up / Down */
+                if (open_with_move) open_with_move(key == 0xE048 ? -1 : 1);
+            } else if (key == ' ') {
+                if (open_with_toggle_remember) open_with_toggle_remember();
+            } else if (key == 0x1C || key == 0xE01C || key == '\r' || key == '\n') {
+                if (open_with_accept && open_with_accept() && open_with_launch_last)
+                    open_with_launch_last();
+            } else if (key == 27) {
+                if (open_with_close) open_with_close();
+            }
+            return;
+        }
+    }
     {
         extern __attribute__((weak)) bool taskbar_overflow_key(uint32_t);
         if (taskbar_overflow_key && taskbar_overflow_key(key)) return;
@@ -587,6 +611,20 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
 
     /* While locked the pointer is swallowed too. */
     if (wubu_lock_screen_is_locked()) return;
+
+    /* The Open-With resolver is modal: it owns every press while it is up, and the press either picks,
+     * cancels or is swallowed -- a click that leaks through would open the file behind the card.
+     * Weak + guarded, like every shell surface called from this file. */
+    {
+        extern __attribute__((weak)) bool open_with_is_open(void);
+        extern __attribute__((weak)) int open_with_click(int, int, int, int);
+        extern __attribute__((weak)) int open_with_launch_last(void);
+        if (open_with_is_open && open_with_click && open_with_is_open()) {
+            int r = open_with_click(x, y, vbe_width(), vbe_height());
+            if (r == 1 && open_with_launch_last) open_with_launch_last();
+            return;
+        }
+    }
 
     /* A toast card is a control, not decoration: clicking one opens the centre, the way the reference
      * desktop takes you to the notification. Checked BEFORE the shell layers and window dispatch --

@@ -44,7 +44,8 @@ WIN11_VERDICTS = {
     "microsoft.windows.narratorquickstart": ("na", [], "removed by the owner's decision -- the a11y cluster read as jank"),
     # A GAP, not an N/A: the associations exist, the dialog a user picks them in does not. Declaring
     # missing work "not applicable" is the same lie as leaving it unmapped.
-    "appresolverux":                    ("gap", ["src/gui/wubu_mime.c"], "default-app dialog MISSING; associations exist"),
+    "appresolverux":                    ("own", ["src/gui/shell/open_with_dialog.c"],
+                                        "open-with resolver -- candidate list from the mime system, remembered choice"),
 }
 
 # feature -> (globs that would own it here, note)

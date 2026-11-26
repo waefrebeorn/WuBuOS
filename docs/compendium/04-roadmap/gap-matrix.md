@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**31/42 have an owner, 11 missing, 8 declared not applicable.**
+**32/42 have an owner, 10 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -48,7 +48,7 @@ the behaviour works -- that is the test suite's job.
 | cachyos | `sudo` | `src/runtime/vsl/exec_guests/guest_copy.c:1` | privilege -- VSL personality |
 | win11 | `Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy` | `src/runtime/wubu_account.c:13` | account broker -- accounts |
 | win11 | `Microsoft.Windows.AppRep.ChxApp_cw5n1h2txyewy` | `src/runtime/wubu_secmon.c:26` | app reputation -- security monitor |
-| win11 | `Microsoft.Windows.AppResolverUX_cw5n1h2txyewy` | **MISSING** | default-app dialog MISSING; associations exist |
+| win11 | `Microsoft.Windows.AppResolverUX_cw5n1h2txyewy` | `src/gui/shell/open_with_dialog.c:20` | open-with resolver -- candidate list from the mime system, remembered choice |
 | win11 | `Microsoft.XboxGameCallableUI_cw5n1h2txyewy` | `src/gui/wubu_gamelib.c:21` | in-game overlay -- game library |
 | win11 | `microsoft.creddialoghost_cw5n1h2txyewy` | `src/runtime/wubu_auth.c:15` | credential prompt -- auth |
 

@@ -318,6 +318,14 @@ if (g_dwm.lasso_active) {
     /* Win+Tab desktop overview sits above everything except the cursor. */
     wm_overview_render(fb, fb_w, fb_h);
 
+    /* The Open-With resolver is modal: it sits above every shell surface, because while it is up the
+     * desktop behind it is not clickable and must not look as if it were. Weak for the usual reason --
+     * this file is in thirteen WM-linked test graphs that do not link the dialog. */
+    {
+        extern __attribute__((weak)) void open_with_render(uint32_t *, int, int);
+        if (open_with_render) open_with_render(fb, fb_w, fb_h);
+    }
+
     /* Windows 11 shell layers: the widgets board, then the snap flyout.
      * Weak: a build without the shell skips them. */
     if (win11_shell_render) win11_shell_render(fb, fb_w, fb_h);
