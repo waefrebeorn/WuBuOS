@@ -38,6 +38,7 @@ typedef enum {
     CP_APPLET_MIRROR      = 11, /* package mirrorlist, ranked (reflector parity) */
     CP_APPLET_ACCOUNT     = 12, /* the signed-in user (AccountsControl parity) */
     CP_APPLET_LIMITS      = 13, /* family limits: hours and days (ParentalControls parity) */
+    CP_APPLET_SIGNIN      = 14, /* sign-in options: fingerprint state (BioEnrollment parity) */
 } CpAppletId;
 
 typedef struct CpApplet CpApplet;
@@ -119,6 +120,8 @@ int      cp_firmware_test_summary(char *out, size_t cap);
 CpApplet cp_create_account_applet(void);    /* control_panel_account.c */
 CpApplet cp_create_limits_applet(void);     /* control_panel_limits.c */
 const void *cp_limits_test_policy(bool *dirty);
+CpApplet cp_create_signin_applet(void);     /* control_panel_signin.c */
+const void *cp_signin_test_probe(void);
 int      cp_mirror_test_rows(char *first_url, size_t cap);
 int      cp_account_test_login(char *out, size_t cap);
 typedef int (*WorldStateFn)(char *buf, size_t cap);

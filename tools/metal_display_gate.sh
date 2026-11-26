@@ -119,10 +119,19 @@ while time.time() < deadline:
         p.stdin.write(b'exit\n'); p.stdin.flush(); buf = b''; state = 1
     elif state == 1 and b'WuBuOS>' in buf:
         p.stdin.write(b'fbmap\n'); p.stdin.flush(); state = 2
-    elif state == 2 and b'fbmap: WROTE' in buf and b'\n' in buf.split(b'fbmap: WROTE')[-1]:
+    elif state == 2 and b'bytes=' in buf and b'\n' in buf.split(b'bytes=')[-1]:
+        # Wait for the COMPLETE report, not the first newline after the prefix. A serial burst can end
+        # mid-line (seen under suite load: "phys=c000000" then a NUL run), and the old condition accepted
+        # that fragment as the report and then called it unparseable. The tail field is the terminator.
         break
 
-log = buf.decode('latin-1', 'replace')
+# A text protocol should not carry NULs: they are a transport artifact (a burst that ends mid-line, or a
+# UART read of a not-yet-filled FIFO), not information. Strip them but SAY SO, because if this ever
+# happens on every run the writer is broken and the count is the evidence.
+nul_count = buf.count(b'\x00')
+log = buf.replace(b'\x00', b'').decode('latin-1', 'replace')
+if nul_count:
+    print(f'  transport: {nul_count} NUL byte(s) stripped from the serial stream')
 fail = 0
 
 # Console traffic is a first-class number: a self-improve loop that echoes every

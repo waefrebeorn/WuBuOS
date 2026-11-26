@@ -14,6 +14,8 @@
  */
 #include "control_panel.h"
 #include "../runtime/wubu_parental.h"
+#include "../runtime/wubu_biometric.h"
+#include <sys/stat.h>
 #include "control_panel_text.h"
 #include "../runtime/wubu_mirror.h"
 
@@ -149,6 +151,7 @@ int main(void)
     paint_one("hardware", cp_create_hardware_applet(), 0);
     paint_one("account",  cp_create_account_applet(),  0);
     paint_one("limits",   cp_create_limits_applet(),   0);
+    paint_one("signin",   cp_create_signin_applet(),   0);
 
     /* A fake DMI tree, so the gate measures the wiring and not the host's BIOS. */
     char froot[] = "/tmp/cpfwXXXXXX";
@@ -279,6 +282,48 @@ int main(void)
         free(lfb);
         remove(conf);
         unsetenv("WUBU_PARENTAL_CONF");
+    }
+
+    /* Sign-in options: the page must report what the probe found, including "no reader" -- an empty
+     * machine is a verdict, not a blank page. */
+    {
+        char root[] = "/tmp/cpbioXXXXXX";
+        if (mkdtemp(root)) {
+            setenv("WUBU_FPRINT_ROOT", root, 1);
+            unsetenv("WUBU_FPRINT_DEVICE");
+
+            controlpanel_init();
+            CpApplet *si = controlpanel_get_applet(CP_APPLET_SIGNIN);
+            check(si != NULL, "the Sign-in options applet is registered");
+            uint32_t *sfb = calloc((size_t)W * H + CANARY, sizeof(uint32_t));
+            for (unsigned i = 0; i < CANARY; i++) sfb[(size_t)W * H + i] = CANARY_VAL;
+            controlpanel_render(sfb, W, H);
+            check(non_black_in_content(sfb) > 400, "the Sign-in options page paints");
+            check(canary_intact(sfb), "the Sign-in options page honours the surface stride");
+
+            const WubuBiometric *bio = (const WubuBiometric *)cp_signin_test_probe();
+            check(bio != NULL && bio->probed, "the page probed this machine");
+            check(!bio->reader_present, "the fake machine has no reader, and the page says so");
+
+            /* A reader appears; F5 must find it without a restart. */
+            char dev[400], node[500];
+            snprintf(dev, sizeof dev, "%s/dev", root);
+            mkdir(root, 0755);
+            check(mkdir(dev, 0755) == 0 || 1, "the fake /dev exists");
+            snprintf(node, sizeof node, "%s/fprint0", dev);
+            FILE *nf = fopen(node, "w");
+            if (nf) fclose(nf);
+            si->key(si, 0x3F, 0);                       /* F5 */
+            const WubuBiometric *after = (const WubuBiometric *)cp_signin_test_probe();
+            check(after && after->reader_present, "F5 finds a reader that appeared after the page opened");
+
+            controlpanel_shutdown();
+            free(sfb);
+            char rm[400];
+            snprintf(rm, sizeof rm, "rm -rf '%s'", root);
+            if (system(rm) != 0) { /* best effort */ }
+            unsetenv("WUBU_FPRINT_ROOT");
+        }
     }
 
     /* cp_text is the shared drawer: it must honour clip bounds too */

@@ -472,7 +472,7 @@ test_high_bear: test_bear_drivers test_jit test_jit_regalloc test_jit_remat test
 # these ten are green and belong to the suite. test_standards and test_pe_personality are NOT added:
 # see the note under the tier list -- one fails on pre-existing tree-wide placeholders and the other
 # needs a game binary this tree does not ship.
-test_medium_other: runtime gui test_isa_exec test_docs test_gap_matrix test_open_with test_userinfo test_libraries test_parental test_parental_guard test_choice_dialog test_add_to_library test_priority test_print test_firmware test_mirror test_power_profile \
+test_medium_other: runtime gui test_isa_exec test_docs test_gap_matrix test_open_with test_userinfo test_libraries test_parental test_biometric test_parental_guard test_choice_dialog test_add_to_library test_priority test_print test_firmware test_mirror test_power_profile \
 	test_font_aa test_gui_blit test_vsl_nt test_vsl_nt_ext test_screenshot_clipboard test_session_mgr \
 	test_launch test_album test_drivers test_wemu_blob_gate test_pe_personality test_standards test_tray_world test_crashcap test_crash_notice test_toast test_eddsa_build_config test_eddsa_runtime test_default_optin test_ed25519_ladder_guard test_ed25519_fixed_ladder_default test_ed25519_fixed_full test_ed25519_fixed_full_negctl test_ed25519_fixed_ladder_multitoolchain test_ed25519_fixed_ladder_o0 test_ed25519_fixed_timing_crossconfig test_hosted_hw test_agent test_ns_kv test_ns_worldspace test_wubu_swarm test_wubu_boot_attest test_wubu_boot_attest_relay test_wubu_boot_attest_edr test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_guest_import test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_wubu_edid test_wubu_edid_scan test_wubu_edid_xrandr test_wubu_edid_kms test_wubu_gop_modes test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier test_evdev test_audio_backend test_glottis test_glott_network test_glott_voice test_glott_decimator test_glott_speak test_glott_geom test_glott_artic test_kvfs test_vulkan
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
@@ -1860,13 +1860,13 @@ test_effect: $(RT)/wubu_effect.h
 
 test_cp_applets: $(GUI)/test_cp_applets.c $(GUI)/control_panel.c $(GUI)/control_panel_text.c \
                  $(GUI)/control_panel_display.c $(GUI)/control_panel_network.c $(GUI)/control_panel_theme.c \
-                 $(GUI)/control_panel_sound.c $(GUI)/control_panel_hardware.c $(GUI)/control_panel_firmware.c $(GUI)/control_panel_mirror.c $(GUI)/control_panel_account.c $(GUI)/control_panel_limits.c $(RT)/wubu_mirror.c $(RT)/wubu_userinfo.c $(RT)/wubu_parental.c $(GUI)/wubu_sound.c $(RT)/wubu_firmware.c \
+                 $(GUI)/control_panel_sound.c $(GUI)/control_panel_hardware.c $(GUI)/control_panel_firmware.c $(GUI)/control_panel_mirror.c $(GUI)/control_panel_account.c $(GUI)/control_panel_limits.c $(GUI)/control_panel_signin.c $(RT)/wubu_mirror.c $(RT)/wubu_userinfo.c $(RT)/wubu_parental.c $(RT)/wubu_biometric.c $(GUI)/wubu_sound.c $(RT)/wubu_firmware.c \
                  $(GUI)/wubu_theme.c $(KERNEL)/vbe_font.c $(KERNEL)/vbe.h \
                  $(GUI)/control_panel.h $(GUI)/control_panel_text.h
 	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) -I$(KERNEL) -Iinclude \
 	  $(GUI)/test_cp_applets.c $(GUI)/control_panel.c $(GUI)/control_panel_text.c \
 	  $(GUI)/control_panel_display.c $(GUI)/control_panel_network.c $(GUI)/control_panel_theme.c \
-	  $(GUI)/control_panel_sound.c $(GUI)/control_panel_hardware.c $(GUI)/control_panel_firmware.c $(GUI)/control_panel_mirror.c $(GUI)/control_panel_account.c $(GUI)/control_panel_limits.c $(RT)/wubu_mirror.c $(RT)/wubu_userinfo.c $(RT)/wubu_parental.c $(GUI)/wubu_sound.c $(RT)/wubu_firmware.c \
+	  $(GUI)/control_panel_sound.c $(GUI)/control_panel_hardware.c $(GUI)/control_panel_firmware.c $(GUI)/control_panel_mirror.c $(GUI)/control_panel_account.c $(GUI)/control_panel_limits.c $(GUI)/control_panel_signin.c $(RT)/wubu_mirror.c $(RT)/wubu_userinfo.c $(RT)/wubu_parental.c $(RT)/wubu_biometric.c $(GUI)/wubu_sound.c $(RT)/wubu_firmware.c \
 	  $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
 	  $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c $(RT_ALWAYS) \
 	  -o $(GUI)/test_cp_applets -lm
@@ -3910,15 +3910,21 @@ test_perf_profile:
 test_gap_matrix:
 	python3 tools/gap_matrix.py --check
 
+test_biometric:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude -I$(RT) \
+		$(RT)/wubu_biometric.c $(RT)/wubu_biometric_test.c \
+		-o $(RT)/wubu_biometric_test
+	timeout 60 $(RT)/wubu_biometric_test
+
 test_parental_guard:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude -I$(GUI)/shell -I$(RT) \
-		$(GUI)/shell/parental_guard.c $(GUI)/shell/parental_guard_test.c $(RT)/wubu_parental.c \
+		$(GUI)/shell/parental_guard.c $(GUI)/shell/parental_guard_test.c $(RT)/wubu_parental.c $(RT)/wubu_biometric.c \
 		-o $(GUI)/shell/parental_guard_test
 	timeout 60 $(GUI)/shell/parental_guard_test
 
 test_parental:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude -I$(RT) \
-		$(RT)/wubu_parental.c $(RT)/wubu_parental_test.c \
+		$(RT)/wubu_parental.c $(RT)/wubu_biometric.c $(RT)/wubu_parental_test.c \
 		-o $(RT)/wubu_parental_test
 	timeout 60 $(RT)/wubu_parental_test
 
@@ -3947,7 +3953,7 @@ test_add_to_library:
 
 test_userinfo:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude -I$(RT) \
-		$(RT)/wubu_userinfo.c $(RT)/wubu_parental.c $(RT)/wubu_userinfo_test.c \
+		$(RT)/wubu_userinfo.c $(RT)/wubu_parental.c $(RT)/wubu_biometric.c $(RT)/wubu_userinfo_test.c \
 		-o $(RT)/wubu_userinfo_test
 	timeout 60 $(RT)/wubu_userinfo_test
 
