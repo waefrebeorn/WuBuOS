@@ -12,6 +12,7 @@
  */
 #include "control_panel.h"
 #include "control_panel_text.h"
+#include "wubu_theme.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,17 +70,20 @@ static void hw_render(CpApplet *applet, uint32_t *fb,
     else if (g_hw.provider)
         g_hw.provider(world, sizeof(world));
 
-    cp_fill(fb, fb_w, fb_h, x, y, w, h, 0xFFF7F7F7);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 6, applet->name, 0xFF1060B0, 2);
+    /* Theme colours: a near-white card in a dark-only OS was this page's version of the same defect. */
+    const WubuThemeColors *c = wubu_theme_colors();
+    if (!c) return;
+    cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
+    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 6, applet->name, c->select_bg, 2);
     /* the layout: the title bar + the world line + the fields */
-    draw_line(fb, fb_w, fb_h, x + 10, y + 30, w - 20, "Machine: ", "WuBuOS", 0xFF000000, 0xFF0000A0);
-    draw_line(fb, fb_w, fb_h, x + 10, y + 52, w - 20, "World:   ", world, 0xFF000000, 0xFF000000);
+    draw_line(fb, fb_w, fb_h, x + 10, y + 30, w - 20, "Machine: ", "WuBuOS", c->body_text, c->select_bg);
+    draw_line(fb, fb_w, fb_h, x + 10, y + 52, w - 20, "World:   ", world, c->body_text_ina, c->body_text);
     draw_line(fb, fb_w, fb_h, x + 10, y + 74, w - 20,
               "The AGI perceives the machine through this state.",
-              "", 0xFF404040, 0xFF404040);
+              "", c->body_text_ina, c->body_text_ina);
     /* the refresh hint */
     draw_line(fb, fb_w, fb_h, x + 10, y + h - 24, w - 20,
-              "[Refresh]", "F5 or click", 0xFF0000A0, 0xFF0000A0);
+              "[Refresh]", "F5 or click", c->select_bg, c->select_bg);
 }
 
 static void hw_mouse(CpApplet *applet, int x, int y, int btn, int kind)

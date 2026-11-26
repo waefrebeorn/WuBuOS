@@ -8,6 +8,7 @@
  */
 #include "control_panel.h"
 #include "control_panel_text.h"
+#include "wubu_theme.h"
 
 #include <stdio.h>
 #include "wubu_sound.h"
@@ -60,12 +61,16 @@ static void sound_render(CpApplet *applet, uint32_t *fb,
         "Startup", "Click", "Error", "Notify",
         "Shutdown", "Maximize", "Minimize", "Restore"
     };
-    cp_fill(fb, fb_w, fb_h, x, y, w, h, 0xFFF7F7F7);
-    cp_draw_text(fb, fb_w, fb_h, x + 20, y + 12, applet->name, 0xFF1060B0, 2);
+    /* Colours from the theme: this page painted a near-white card with a blue title in a dark-only OS, the
+     * same defect that made the Display and Theme pages read as bootleg next to everything else. */
+    const WubuThemeColors *c = wubu_theme_colors();
+    if (!c) return;
+    cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
+    cp_draw_text(fb, fb_w, fb_h, x + 20, y + 12, applet->name, c->select_bg, 2);
 
     /* the volume bar */
     int bx = x + 20, by = y + 60, bw = w - 40, bh = 18;
-    uint32_t bg = 0xFFE0E0E0, fill = 0xFF1080D0, fg = 0xFF202020;
+    uint32_t bg = c->btn_face, fill = c->select_bg, fg = c->body_text;
     cp_fill(fb, fb_w, fb_h, bx, by, bw, bh, bg);
     int fillw = (bw * g_sound_state.master_volume) / 100;
     cp_fill(fb, fb_w, fb_h, bx, by, fillw, bh, fill);
@@ -76,7 +81,7 @@ static void sound_render(CpApplet *applet, uint32_t *fb,
                  by + 5, vol, fg, 1);
 
     /* the mute toggle */
-    uint32_t mcol = g_sound_state.master_mute ? 0xFFC04040 : 0xFF40A040;
+    uint32_t mcol = g_sound_state.master_mute ? c->body_text_ina : c->select_bg;
     cp_fill(fb, fb_w, fb_h, x + 20, y + 90, 48, 16, mcol);
     cp_draw_text(fb, fb_w, fb_h, x + 74, y + 94,
                  g_sound_state.master_mute ? "muted" : "on", mcol, 1);
@@ -85,7 +90,7 @@ static void sound_render(CpApplet *applet, uint32_t *fb,
     for (i = 0; i < WUBU_SND_COUNT; i++) {
         int col = i / 4, row = i % 4;
         int bx2 = x + 20 + col * 200, by2 = y + 130 + row * 26;
-        cp_fill(fb, fb_w, fb_h, bx2, by2, 170, 18, 0xFFD0D0D0);
+        cp_fill(fb, fb_w, fb_h, bx2, by2, 170, 18, c->btn_face);
         cp_draw_text(fb, fb_w, fb_h, bx2 + 6, by2 + 5, names[i], fg, 1);
     }
 }

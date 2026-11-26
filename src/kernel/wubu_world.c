@@ -23,6 +23,8 @@
  * The AGI trains on the DELTAS between samples — the world's motion.
  * C11.
  */
+#include "libc.h"   /* snprintf lives here in a freestanding TU: without a declaration it was
+                     * implicit, returning int -- the same landmine that segfaulted getenv. */
 #include "wubu_world.h"
 #include "wubu_drv.h"
 #include "wubu_drv_nvme.h"

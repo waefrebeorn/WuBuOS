@@ -16,6 +16,7 @@
  * C11.
  */
 #include "control_panel.h"
+#include "control_panel_text.h"   /* cp_fill/cp_draw_text: without this they were implicit declarations */
 #include "../kernel/wubu_world.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
@@ -151,6 +152,13 @@ CpApplet *controlpanel_find(const char *name)
         if (strcmp(g_controlpanel.applets[i].name, name) == 0)
             return &g_controlpanel.applets[i];
     return NULL;
+}
+
+/* The page at a position. A reader should not reach into g_controlpanel to find one. */
+CpApplet *controlpanel_page_at(int index)
+{
+    if (index < 0 || index >= g_controlpanel.applet_count || index >= CP_MAX_APPLETS) return NULL;
+    return &g_controlpanel.applets[index];
 }
 
 /* CP9: register an applet (returns its index, -1 full). */

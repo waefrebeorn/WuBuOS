@@ -187,7 +187,8 @@ void print_dialog_render(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb;
     if (!g_pd.open) return;
 
-    const WubuThemeColors *c = tc();
+    const WubuThemeColors *c = wubu_theme_colors();   /* tc() is a test-support symbol: calling it here was an
+                                                   * implicit declaration that happened to link. */
     PdRect box, list, copies, print, cancel;
     pd_layout(fb_w, fb_h, &box, &list, &copies, &print, &cancel);
 

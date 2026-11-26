@@ -152,6 +152,7 @@ int  controlpanel_header_h(void);
 bool controlpanel_sidebar_row_rect(int i, int *x, int *y, int *w, int *h);
 int  controlpanel_sidebar_hit(int mx, int my);
 int  controlpanel_active_index(void);   /* the page the sidebar has selected */
+CpApplet *controlpanel_page_at(int index);   /* a page by position (NULL out of range) */
 typedef int (*WorldStateFn)(char *buf, size_t cap);
 void cp_hardware_set_provider(WorldStateFn fn);
 int cp_hardware_test_render(char *out, size_t cap);

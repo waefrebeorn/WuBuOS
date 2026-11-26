@@ -37,6 +37,14 @@ static void activate_page_index(int want)
     }
 }
 static void activate_last_page(void) { activate_page_index(controlpanel_count() - 1); }
+/* By NAME, because a loop that advances and asserts is measuring pages that happen to be under the cursor. */
+static void activate_page_name(const char *name)
+{
+    for (int k = 0; k < controlpanel_count(); k++) {
+        CpApplet *cand = controlpanel_page_at(k);
+        if (cand && strcmp(cand->name, name) == 0) { activate_page_index(k); return; }
+    }
+}
 
 #include <sys/stat.h>
 #include "control_panel_text.h"
@@ -62,6 +70,8 @@ static int failures;
 /* These applets' *render* paths never touch audio; only cp_sound's click
  * handler does. A local stub keeps this test linkable without the audio stack. */
 void wubu_audio_sink_int16(const int16_t *pcm, int n) { (void)pcm; (void)n; }
+
+int cp_pages_check(uint32_t *dfb, int fb_w, int fb_h);   /* the page-level checks, split into their own file */
 
 static void check(int cond, const char *what)
 {
@@ -248,101 +258,7 @@ int main(void)
         snprintf(m7, sizeof m7, "the Network page draws its rows (drew: '%s')", nline ? nline : "");
         check(nline && nline[0] && strstr(nline, "Wi-Fi") != NULL && strstr(nline, "Ethernet") != NULL, m7);
 
-        /* The AI page: reports configuration and a MEASURED reachability, never a guess, and never
-         * probes inside a render. */
-        CpApplet ai = cp_create_ai_applet();
-        setenv("WUBU_AI_ENDPOINT", "127.0.0.1:9", 1);     /* nothing listens here */
-        controlpanel_init();
-        controlpanel_register_applet(&ai);
-        activate_last_page();
-        cp_ai_test_measure();
-        controlpanel_render(dfb, W, H);
-        const char *aline = cp_ai_last_drawn();
-        char m8[260];
-        snprintf(m8, sizeof m8, "the AI page reports the endpoint and a measured reachability (drew: '%s')",
-                 aline ? aline : "");
-        check(aline && strstr(aline, "Endpoint") != NULL && strstr(aline, "Reachable") != NULL &&
-              strstr(aline, "127.0.0.1:9") != NULL && strstr(aline, "not measured") == NULL, m8);
-        check(aline && strstr(aline, "yes,") == NULL, "a dead endpoint is never reported reachable");
-        unsetenv("WUBU_AI_ENDPOINT");
-
-        /* The People page must show contacts that are really in the store, and say so when there are none. */
-        char pdb[] = "/tmp/wubu_cp_people_XXXXXX";
-        int pfd = mkstemp(pdb);
-        if (pfd >= 0) close(pfd);
-        setenv("WUBU_PEOPLE_DB", pdb, 1);
-        unlink(pdb);
-        WubuPeople seed;
-        memset(&seed, 0, sizeof seed);
-        wubu_people_add(&seed, "Ada Lovelace", "ada@example.org", "555-0100");
-        wubu_people_save(&seed);
-
-        CpApplet ppl = cp_create_people_applet();
-        controlpanel_init();
-        controlpanel_register_applet(&ppl);
-        activate_last_page();
-        cp_people_test_reload();
-        controlpanel_render(dfb, W, H);
-        const char *pline = cp_people_last_drawn();
-        char m9[260];
-        snprintf(m9, sizeof m9, "the People page shows the contact from the store (drew: '%s')",
-                 pline ? pline : "");
-        check(pline && strstr(pline, "Ada Lovelace") != NULL && strstr(pline, "1 contact") != NULL, m9);
-
-        /* the EDITOR: typing a person through the page's own keys, then reading the store back. A page you
-         * can only read is not a contacts app, and a test that pokes the store directly would prove nothing
-         * about the page. */
-        controlpanel_handle_key('n', 0);
-        for (const char *ch = "Grace Hopper"; *ch; ch++) controlpanel_handle_key((unsigned char)*ch, 0);
-        controlpanel_handle_key(0x09, 0);                       /* Tab -> email */
-        for (const char *ch = "grace@example.org"; *ch; ch++) controlpanel_handle_key((unsigned char)*ch, 0);
-        controlpanel_handle_key(0x0D, 0);                       /* Enter -> save */
-
-        WubuPeople after;
-        wubu_people_load(&after);
-        check(after.count == 2 && strcmp(after.p[1].name, "Grace Hopper") == 0 &&
-              strcmp(after.p[1].email, "grace@example.org") == 0,
-              "typing in the page and pressing Enter persists the contact to the store");
-
-        /* a duplicate typed the same way must be refused, and say so on the page */
-        controlpanel_handle_key('n', 0);
-        for (const char *ch = "grace hopper"; *ch; ch++) controlpanel_handle_key((unsigned char)*ch, 0);
-        controlpanel_handle_key(0x0D, 0);
-        wubu_people_load(&after);
-        check(after.count == 2, "a duplicate typed in the page is refused, case-insensitively");
-
-        /* Escape must leave the store untouched */
-        controlpanel_handle_key('n', 0);
-        for (const char *ch = "Nobody"; *ch; ch++) controlpanel_handle_key((unsigned char)*ch, 0);
-        controlpanel_handle_key(0x1B, 0);
-        wubu_people_load(&after);
-        check(after.count == 2, "Escape cancels without saving");
-
-        /* and an empty store says so instead of showing an empty card */
-        unlink(pdb);
-        cp_people_test_reload();
-        controlpanel_render(dfb, W, H);
-        const char *empty = cp_people_last_drawn();
-        check(empty && strstr(empty, "no contacts") != NULL, "the People page says there are no contacts");
-        unsetenv("WUBU_PEOPLE_DB");
-
-        /* Programs: the packaged-app runtime must have a surface, not just a test. With no packages the
-         * page says so; the root is always shown so a user can find where to install. */
-        char pkgroot[] = "/tmp/wubu_cp_pkgs_XXXXXX";
-        char *pr = mkdtemp(pkgroot);
-        if (pr) setenv("WUBU_PKGS", pr, 1);
-        CpApplet prog = cp_create_programs_applet();
-        controlpanel_init();
-        controlpanel_register_applet(&prog);
-        activate_last_page();
-        cp_programs_test_reload();
-        controlpanel_render(dfb, W, H);
-        const char *gline = cp_programs_last_drawn();
-        char mA[260];
-        snprintf(mA, sizeof mA, "the Programs page shows the package root and its state (drew: '%s')",
-                 gline ? gline : "");
-        check(gline && strstr(gline, "Installed") != NULL && strstr(gline, pr ? pr : "packages") != NULL, mA);
-        unsetenv("WUBU_PKGS");
+        failures += cp_pages_check(dfb, W, H);
 
         controlpanel_shutdown();
         free(dfb);
