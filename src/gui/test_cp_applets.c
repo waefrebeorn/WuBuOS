@@ -24,6 +24,18 @@ static wubu_world_t fake_world_for_test = { .screen_w = 1234, .screen_h = 567,
                                             .gpu_connector = 1, .vram_mb = 64 };
 static const wubu_world_t *fake_snapshot(void) { return &fake_world_for_test; }
 static const wubu_world_t *junk_snapshot(void) { return &junk_world_for_test; }
+
+/* The panel renders its ACTIVE page. Every gate that wanted a specific page once measured Display
+ * instead; one of them blessed a heading-only page for that reason. Walk to an index, once, here. */
+static void activate_page_index(int want)
+{
+    for (int guard = 0; guard < controlpanel_count() + 1; guard++) {
+        if (controlpanel_active_index() == want) return;
+        controlpanel_handle_key(0xE050, 0);
+    }
+}
+static void activate_last_page(void) { activate_page_index(controlpanel_count() - 1); }
+
 #include <sys/stat.h>
 #include "control_panel_text.h"
 #include "../runtime/wubu_mirror.h"
@@ -215,10 +227,7 @@ int main(void)
         controlpanel_register_applet(&thm);
         /* The panel renders its ACTIVE page: walk to Theme, or this would render Display and the check
          * would pass for the wrong page. */
-        for (int guard = 0; guard < controlpanel_count(); guard++) {
-            if (controlpanel_active_index() == controlpanel_count() - 1) break;   /* Theme is last in */
-            controlpanel_handle_key(0xE050, 0);
-        }
+        activate_last_page();   /* Theme is registered last; the panel renders the ACTIVE page. */
         controlpanel_render(dfb, W, H);
         const char *tline = cp_theme_last_drawn();
         char m3[220];
@@ -230,12 +239,7 @@ int main(void)
         cp_network_set_snapshot(fake_snapshot);
         controlpanel_init();
         controlpanel_register_applet(&net);
-        /* The panel renders the ACTIVE page, so the gate must actually land on Network (this is how the
-         * Theme gate once measured Display twice and blessed a heading-only page). */
-        for (int guard = 0; guard < controlpanel_count(); guard++) {
-            if (controlpanel_active_index() == controlpanel_count() - 1) break;
-            controlpanel_handle_key(0xE050, 0);
-        }
+        activate_last_page();
         controlpanel_render(dfb, W, H);
         const char *nline = cp_network_last_drawn();
         char m7[220];
