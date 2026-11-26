@@ -22,6 +22,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+
+/* The WM does not take input from a callback: it drains the kernel's input queue via
+ * input_key_poll / input_mouse_poll. X events are therefore translated into Set-1 scancodes
+ * (X11 evdev keycode = scancode + 8) and pushed into that same queue -- one input path for
+ * every backend, so the X11 window is as interactive as the Wayland one. */
+#include "input.h"
 
 static Display *g_xdpy;
 static Window   g_xwin;
@@ -30,8 +37,20 @@ static XImage  *g_ximg;
 static int      g_xw, g_xh;
 static int      g_xopen;
 static int      g_xquit;
+static int      g_xbuttons;
+static int      g_xlast_x, g_xlast_y;
+
+/* Xlib's default error handler exits the process. For an OS window that is unacceptable: a
+ * single BadMatch took the whole desktop down. Log and carry on. */
+static int x11_error_handler(Display *d, XErrorEvent *e) {
+    char buf[256];
+    XGetErrorText(d, e->error_code, buf, sizeof buf);
+    fprintf(stderr, "[x11] error %s (opcode %d) ignored\n", buf, e->request_code);
+    return 0;
+}
 
 int hosted_x11_present_open(int width, int height, const char *title) {
+    XSetErrorHandler(x11_error_handler);
     if (width <= 0 || height <= 0) return -1;
     g_xdpy = XOpenDisplay(NULL);
     if (!g_xdpy) return -1;
@@ -81,6 +100,9 @@ int hosted_x11_present_open(int width, int height, const char *title) {
     XSetWMProtocols(g_xdpy, g_xwin, &wm_delete, 1);
 
     XMapWindow(g_xdpy, g_xwin);
+    /* Focus is set on MapNotify, never here: X_SetInputFocus on a window that is not yet
+     * viewable is a BadMatch, and an unhandled X error kills the client outright (the OS
+     * died the first time this ran). */
     g_xgc = XCreateGC(g_xdpy, g_xwin, 0, NULL);
 
     /* Zero-copy view of our framebuffer. XDestroyImage would free data, so it is never called;
@@ -98,13 +120,66 @@ int hosted_x11_present_open(int width, int height, const char *title) {
 
 /* Copy the OS framebuffer into the X image and put it on screen. Called once per presented
  * frame; caller decides whether anything changed. */
+/* Frame pacing + zero copy.
+ *
+ * The first version memcpy'd 3 MB and flushed on EVERY render callback. Under X11 that is a
+ * full-screen transfer per iteration with no vsync anywhere, so the window lagged behind the
+ * pointer and the WM's own input felt sluggish. Two rules now:
+ *   - the XImage points straight at the OS framebuffer (no copy at all);
+ *   - at most one put+flush per display frame (16 ms), which is what a compositor would pace.
+ */
 void hosted_x11_present_frame(const void *fb) {
     if (!g_xopen || !g_ximg || !fb) return;
-    size_t bytes = (size_t)g_xw * (size_t)g_xh * 4;
-    memcpy(g_ximg->data, fb, bytes);
+
+    static const void *last_fb;
+    if (last_fb != fb) {
+        /* Re-point the XImage at this buffer. XDestroyImage would free data, so it is never
+         * called: detach the pointer first and let the OS own its memory. */
+        if (g_ximg->data) { g_ximg->data = NULL; }
+        g_ximg->data = (char *)fb;
+        last_fb = fb;
+    }
+
+    static struct timespec last;
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    long dt_us = (now.tv_sec - last.tv_sec) * 1000000L + (now.tv_nsec - last.tv_nsec) / 1000L;
+    if (last.tv_sec && dt_us < 16000L) return;   /* cap at ~60 Hz */
+    last = now;
+
     XPutImage(g_xdpy, g_xwin, g_xgc, g_ximg, 0, 0, 0, 0,
               (unsigned)g_xw, (unsigned)g_xh);
     XFlush(g_xdpy);
+}
+
+/* X11 evdev keycode -> Set-1 scancode. Extended keys carry the 0xE0 prefix, which is how the
+ * kernel's input_scancode_to_key tells Left from keypad 4. */
+static uint32_t x11_scancode(unsigned kc) {
+    switch (kc) {                      /* extended (E0-prefixed) keys */
+    case 111: return 0xE048u;          /* Up    */
+    case 116: return 0xE050u;          /* Down  */
+    case 113: return 0xE04Bu;          /* Left  */
+    case 114: return 0xE04Du;          /* Right */
+    case 110: return 0xE047u;          /* Home  */
+    case 115: return 0xE04Fu;          /* End   */
+    case 112: return 0xE049u;          /* PgUp  */
+    case 117: return 0xE051u;          /* PgDn  */
+    case 118: return 0xE052u;          /* Ins   */
+    case 119: return 0xE053u;          /* Del   */
+    case 105: return 0xE04Du;          /* keypad right (same arrow) */
+    default: break;
+    }
+    if (kc >= 8) return kc - 8;        /* everything else is a plain Set-1 code */
+    return 0;
+}
+
+static uint32_t x11_mods(unsigned state) {
+    uint32_t m = 0;
+    if (state & ShiftMask)   m |= MOD_SHIFT;
+    if (state & ControlMask) m |= MOD_CTRL;
+    if (state & Mod1Mask)    m |= MOD_ALT;
+    if (state & Mod4Mask)    m |= MOD_WIN;
+    return m;
 }
 
 /* Drain X events without blocking. Returns non-zero when the window was closed. */
@@ -114,6 +189,9 @@ int hosted_x11_present_pump(void) {
         XEvent ev;
         XNextEvent(g_xdpy, &ev);
         switch (ev.type) {
+        case MapNotify:
+            XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
+            break;
         case Expose:
             if (g_ximg) {
                 XPutImage(g_xdpy, g_xwin, g_xgc, g_ximg, 0, 0, 0, 0,
@@ -127,9 +205,73 @@ int hosted_x11_present_pump(void) {
         case DestroyNotify:
             g_xquit = 1;
             break;
-        case KeyPress: {
+        case KeyPress:
+        case KeyRelease: {
             KeySym ks = XLookupKeysym(&ev.xkey, 0);
-            if (ks == XK_Escape) g_xquit = 1;
+            /* Escape closes the OS only with Alt held; plain Escape belongs to the WM
+             * (menus, the Alt+Tab switcher, dialogs). */
+            if (ev.type == KeyPress && ks == XK_Escape && (ev.xkey.state & Mod1Mask)) {
+                g_xquit = 1;
+                break;
+            }
+            uint32_t sc = x11_scancode(ev.xkey.keycode);
+            if (!sc) break;
+            if (getenv("WUBU_DBG_X11"))
+                fprintf(stderr, "[x11] key %s kc=%u -> sc=0x%X state=0x%X\n",
+                        ev.type == KeyPress ? "down" : "up",
+                        ev.xkey.keycode, sc, ev.xkey.state);
+            KeyEvent kev;
+            memset(&kev, 0, sizeof(kev));
+            kev.scancode  = sc;
+            /* keycode is the TRANSLATED key (ASCII for printable, control codes for
+             * Enter/Backspace, passthrough for arrows/modifiers). Handing the WM the raw
+             * scancode made "hello" arrive as "0.#&&" -- five keys, wrong glyphs. */
+            kev.modifiers = x11_mods(ev.xkey.state);
+            kev.keycode   = input_scancode_to_key(sc, kev.modifiers);
+            kev.kind      = (ev.type == KeyPress) ? KEY_EVENT_DOWN : KEY_EVENT_UP;
+            input_key_push(kev);
+            break;
+        }
+        case ButtonPress: {
+            /* A real keyboard only reaches the window that holds X input focus. Without this
+             * the app could be clicked but every physical keystroke went to whatever else the
+             * window manager had focused -- which read as "the keyboard does not work". */
+            XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
+            MouseEvent mev;
+            memset(&mev, 0, sizeof(mev));
+            mev.x = ev.xbutton.x;
+            mev.y = ev.xbutton.y;
+            int bit = (ev.xbutton.button == 1) ? 1 : (ev.xbutton.button == 3) ? 2 : 4;
+            g_xbuttons |= bit;
+            mev.buttons = g_xbuttons;
+            mev.kind = 1;
+            input_mouse_push(mev);
+            break;
+        }
+        case ButtonRelease: {
+            MouseEvent mev;
+            memset(&mev, 0, sizeof(mev));
+            mev.x = ev.xbutton.x;
+            mev.y = ev.xbutton.y;
+            int bit = (ev.xbutton.button == 1) ? 1 : (ev.xbutton.button == 3) ? 2 : 4;
+            g_xbuttons &= ~bit;
+            mev.buttons = g_xbuttons;
+            mev.kind = 2;
+            input_mouse_push(mev);
+            break;
+        }
+        case MotionNotify: {
+            MouseEvent mev;
+            memset(&mev, 0, sizeof(mev));
+            mev.x = ev.xmotion.x;
+            mev.y = ev.xmotion.y;
+            mev.dx = ev.xmotion.x - g_xlast_x;
+            mev.dy = ev.xmotion.y - g_xlast_y;
+            g_xlast_x = ev.xmotion.x;
+            g_xlast_y = ev.xmotion.y;
+            mev.buttons = g_xbuttons;
+            mev.kind = 0;                 /* a move is not a press */
+            input_mouse_push(mev);
             break;
         }
         default:

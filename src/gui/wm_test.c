@@ -545,6 +545,10 @@ static void test_icon_click_selects_then_opens(void) {
 
     /* Right-clicking a taskbar button opens a jump list (Windows parity). The bar used to
      * ignore the right button entirely. */
+    /* A TEST MUST NOT WRITE THE USER'S DOCK. This pin went into the live
+     * ~/.config/wubuos/taskbar, so the user's taskbar grew a "Jump Test" tile whose exec was
+     * "wubu-app Calculator" -- clicking it launched the calculator. Tests get their own file. */
+    setenv("WUBU_TASKBAR_CONF", "/tmp/wubu-test-taskbar.conf", 1);
     wubu_taskbar_pin("jumptest", "Jump Test", "wubu-app Calculator");
     taskbar_show_jump_list(0, 200, 700);
     CHECK(ctx_menu_visible(), "right-click on a taskbar task opens a jump list");
@@ -2625,6 +2629,8 @@ static void test_rim_beads_are_opt_in(void) {
 
 
 int main(void) {
+    /* BEFORE any taskbar call: this suite must never read or write the user's dock file. */
+    setenv("WUBU_TASKBAR_CONF", "/tmp/wubu-test-taskbar.conf", 1);
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
     printf("+========================================================+\n\n");

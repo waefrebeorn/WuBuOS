@@ -33,9 +33,19 @@ static const char *home_dir(void) {
 }
 
 const char *wubu_taskbar_config_path(void) {
+    /* WUBU_TASKBAR_CONF lets a TEST redirect the dock file. Without it a test that pins an
+     * app writes the user's real ~/.config/wubuos/taskbar -- which is exactly how a "Jump
+     * Test" tile pointing at Calculator ended up on a live desktop.
+     * The override is checked on EVERY call, not only when g_path is empty: the path is
+     * cached on first use, which happens before a test gets to set the variable, so a
+     * cache-only check silently kept writing the user's file. */
+    const char *override = getenv("WUBU_TASKBAR_CONF");
+    if (override && *override) {
+        snprintf(g_path, sizeof g_path, "%s", override);
+        return g_path;
+    }
     if (!g_path[0])
-        snprintf(g_path, sizeof g_path, "%s/.config/wubuos/taskbar",
-                 home_dir());
+        snprintf(g_path, sizeof g_path, "%s/.config/wubuos/taskbar", home_dir());
     return g_path;
 }
 
