@@ -68,7 +68,11 @@ SHELL = [
     ("WindowsAppRuntime",       [], "packaged-app runtime"),
     ("Win32WebViewHost",        ["src/lua/www"], "embedded web view (WorldSpace)"),
     ("MicrosoftWindows.Client.AIX", [], "AI actions"),
-    ("MicrosoftWindows.Client.CBS", [], "core shell services"),
+    ("MicrosoftWindows.Client.CBS", ["src/runtime/wubu_account.c", "src/runtime/wubu_userinfo.c",
+                                           "src/gui/shell/startmenu_search.c", "src/gui/wm_input.c",
+                                           "src/gui/shell/wubu_shell_greeter.c"],
+                                          "core shell services: accounts, search/spotlight, input UX, first-run setup -- "
+                                          "implemented as modules here, not shipped as a servicing package"),
     ("MicrosoftWindows.Client.FileExp", ["src/gui/explorer.c"], "file explorer client"),
     ("Windows.ContentDeliveryManager", ["src/gui/wubu_pkgmgr.c"], "content delivery / packages"),
     ("AccountsControl",         ["src/runtime/wubu_userinfo.c", "src/gui/control_panel_account.c"],

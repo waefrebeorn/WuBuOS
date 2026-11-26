@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**38/42 have an owner, 4 missing, 8 declared not applicable.**
+**39/42 have an owner, 3 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -24,7 +24,7 @@ the behaviour works -- that is the test suite's job.
 | win11 | `WindowsAppRuntime` | **MISSING** | packaged-app runtime |
 | win11 | `Win32WebViewHost` | `src/lua/www/~WuBu~/examples/wb_character_demo.c:1` | embedded web view (WorldSpace) |
 | win11 | `MicrosoftWindows.Client.AIX` | **MISSING** | AI actions |
-| win11 | `MicrosoftWindows.Client.CBS` | **MISSING** | core shell services |
+| win11 | `MicrosoftWindows.Client.CBS` | `src/runtime/wubu_account.c:13` | core shell services: accounts, search/spotlight, input UX, first-run setup -- implemented as modules here, not shipped as a servicing package |
 | win11 | `MicrosoftWindows.Client.FileExp` | `src/gui/explorer.c:43` | file explorer client |
 | win11 | `Windows.ContentDeliveryManager` | `src/gui/wubu_pkgmgr.c:16` | content delivery / packages |
 | win11 | `AccountsControl` | `src/runtime/wubu_userinfo.c:14` | account surface -- signed-in user, home, picture, password tool (read from passwd) |
