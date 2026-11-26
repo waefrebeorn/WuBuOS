@@ -226,6 +226,22 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         }
     }
 
+    /* Ctrl+Shift+O: the Open dialog. WuBuOS convenience (Win11 has no global binding); the
+     * point is that the OS finally HAS a file picker for callers that need one. */
+    if ((mods & MOD_CTRL) && (mods & MOD_SHIFT) && (key == 'o' || key == 'O')) {
+        extern __attribute__((weak)) int file_picker_open(const char *, int,
+            int (*)(const char *, void *), void *);
+        extern __attribute__((weak)) void wubu_notify_simple(const char *, const char *,
+            const char *, const char *, int, int);
+        if (file_picker_open) {
+            /* Also weak: the WM tests link this TU without the picker module. */
+            extern __attribute__((weak)) int wubu_fp_report(const char *path, void *user);
+            file_picker_open(getenv("HOME"), 0,
+                             wubu_fp_report ? wubu_fp_report : NULL, NULL);
+        }
+        return;
+    }
+
     /* Ctrl+Shift+Esc: Task Manager -- a Windows norm that was simply missing. Weak so the
      * headless WM tests (no applet stack) still link. */
     if ((mods & MOD_CTRL) && (mods & MOD_SHIFT) && (key == 0x01 || key == 0x1B)) {

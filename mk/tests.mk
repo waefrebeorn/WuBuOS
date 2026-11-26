@@ -3859,6 +3859,12 @@ test_pkgmgr:
 # registry must hold a GUARDED ADAPTER, not the symbol itself, or clicking
 # "VWS Designer" jumps to address 0.  This is the only gate that exercises the
 # weak case; test_apps links the real designer and cannot see it.
+test_perf_profile:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude \
+		$(RT)/wubu_perf_profile.c $(RT)/test_perf_profile.c \
+		-o $(RT)/test_perf_profile
+	timeout 60 $(RT)/test_perf_profile
+
 test_apps_weak:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED  -Iinclude  $(RT_ALWAYS) \
 		-I$(APPS) -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) \

@@ -16,7 +16,8 @@
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
-#include "shell/window_chrome.h"   /* caption metrics under test */
+#include "shell/window_chrome.h"
+#include "shell/win11_snap.h"   /* win11_snap_assist_click: the click contract */   /* caption metrics under test */
 #include "shell/wm_shadow.h"       /* elevation shadow blur-count oracle */
 #include "wubu_tokens.h"   /* the geometry scale they must come from */
 #include "shell/startmenu.h"
