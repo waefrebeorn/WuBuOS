@@ -126,6 +126,7 @@ int      cp_mirror_test_rows(char *first_url, size_t cap);
 int      cp_account_test_login(char *out, size_t cap);
 const char *cp_display_last_drawn(void);   /* the body line the Display page actually drew */
 int  cp_display_row_count(void);           /* measured facts the Display page shows */
+const char *cp_network_last_drawn(void);   /* the rows the Network page actually drew */
 const char *cp_theme_last_drawn(void);     /* and the Theme page */
 
 /* The launcher the desktop's Settings icon uses (src/apps/apps.c). Creates a WM window whose draw is

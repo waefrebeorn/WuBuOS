@@ -225,6 +225,23 @@ int main(void)
         snprintf(m3, sizeof m3, "the Theme page draws its body line (drew: '%s')", tline ? tline : "");
         check(tline && tline[0], m3);
 
+        /* The Network page had the same one-line shape; it must draw rows too. */
+        CpApplet net = cp_create_network_applet();
+        cp_network_set_snapshot(fake_snapshot);
+        controlpanel_init();
+        controlpanel_register_applet(&net);
+        /* The panel renders the ACTIVE page, so the gate must actually land on Network (this is how the
+         * Theme gate once measured Display twice and blessed a heading-only page). */
+        for (int guard = 0; guard < controlpanel_count(); guard++) {
+            if (controlpanel_active_index() == controlpanel_count() - 1) break;
+            controlpanel_handle_key(0xE050, 0);
+        }
+        controlpanel_render(dfb, W, H);
+        const char *nline = cp_network_last_drawn();
+        char m7[220];
+        snprintf(m7, sizeof m7, "the Network page draws its rows (drew: '%s')", nline ? nline : "");
+        check(nline && nline[0] && strstr(nline, "Wi-Fi") != NULL && strstr(nline, "Ethernet") != NULL, m7);
+
         controlpanel_shutdown();
         free(dfb);
     }

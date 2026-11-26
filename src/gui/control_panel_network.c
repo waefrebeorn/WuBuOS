@@ -31,6 +31,7 @@ typedef struct {
 } NetworkAppletData;
 
 static NetworkAppletData g_net;
+static char g_last_drawn[256];   /* the rows this page last drew */
 
 /* set the provider (the desktop wires wubu_world_snapshot). */
 void cp_network_set_snapshot(NetworkSnapFn fn)
@@ -71,11 +72,37 @@ static void network_render(CpApplet *applet, uint32_t *fb,
                      "no network snapshot", c->body_text_ina, 1);
         return;
     }
-    char line[256];
-    /* The line builder returns 0 on success and -1 for bad arguments, so "> 0" was never true and the
-     * page drew its heading and NOTHING ELSE on every install. Ask for "not an error" instead. */
-    if (cp_network_test_line(line, sizeof line) >= 0)
-        cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, c->body_text, 1);
+    /* Rows, like the Display page: one sentence and a large empty card reads as unfinished. Every value
+     * is either measured or says it is not -- and a link is only claimed when the world says so. */
+    const char *rows[3][2];
+    char v0[80], v1[80], v2[80];
+    snprintf(v0, sizeof v0, "%s", wd->has_wifi ? (wd->wifi_link ? "present, link up" : "present, no link")
+                                               : "not reported");
+    snprintf(v1, sizeof v1, "%s", wd->has_eth ? (wd->eth_link ? "present, link up" : "present, no link")
+                                              : "not reported");
+    /* "down" is a measurement; "we cannot see any interface" is not. Say which one it is. */
+    if ((wd->has_wifi && wd->wifi_link) || (wd->has_eth && wd->eth_link))
+        snprintf(v2, sizeof v2, "up");
+    else if (wd->has_wifi || wd->has_eth)
+        snprintf(v2, sizeof v2, "down");
+    else
+        snprintf(v2, sizeof v2, "not reported");
+    rows[0][0] = "Wi-Fi";   rows[0][1] = v0;
+    rows[1][0] = "Ethernet"; rows[1][1] = v1;
+    rows[2][0] = "Link";    rows[2][1] = v2;
+
+    size_t off = 0;
+    g_last_drawn[0] = 0;
+    for (int i = 0; i < 3; i++) {
+        int n = snprintf(g_last_drawn + off, sizeof g_last_drawn - off, "%s%s: %s",
+                         i ? "; " : "", rows[i][0], rows[i][1]);
+        if (n < 0) break;
+        off += (size_t)n;
+        int ry = y + 44 + i * 26;
+        if (ry + 10 > y + h) break;
+        cp_draw_text(fb, fb_w, fb_h, x + 14, ry, rows[i][0], c->body_text_ina, 1);
+        cp_draw_text(fb, fb_w, fb_h, x + 150, ry, rows[i][1], c->body_text, 1);
+    }
 }
 
 /* the test hook: the network line the applet would show. */
@@ -116,3 +143,6 @@ CpApplet cp_create_network_applet(void)
     a.initialized = false;
     return a;
 }
+
+/* Test hook: the rows the Network page last drew. */
+const char *cp_network_last_drawn(void) { return g_last_drawn; }
