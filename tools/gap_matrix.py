@@ -67,7 +67,12 @@ SHELL = [
     ("Windows.PeopleExperienceHost", [], "people/contacts flyout"),
     ("WindowsAppRuntime",       [], "packaged-app runtime"),
     ("Win32WebViewHost",        ["src/lua/www"], "embedded web view (WorldSpace)"),
-    ("MicrosoftWindows.Client.AIX", [], "AI actions"),
+    ("MicrosoftWindows.Client.AIX", ["src/runtime/wubu_ai_link.c", "src/gui/control_panel_ai.c",
+                                     "src/runtime/wubu_ai_link_test.c"],
+                                    "AI actions: the Control Panel AI page reports the configured model endpoint, "
+                                    "reaches it with a bounded probe (reusing wubu_mirror_probe, one TCP probe in "
+                                    "the tree) and never claims reachability it did not measure. The page does NOT "
+                                    "probe inside a render -- a measurement runs at init and on F5."),
     ("MicrosoftWindows.Client.CBS", ["src/runtime/wubu_account.c", "src/runtime/wubu_userinfo.c",
                                            "src/gui/shell/startmenu_search.c", "src/gui/wm_input.c",
                                            "src/gui/shell/wubu_shell_greeter.c"],

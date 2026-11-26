@@ -246,6 +246,24 @@ int main(void)
         snprintf(m7, sizeof m7, "the Network page draws its rows (drew: '%s')", nline ? nline : "");
         check(nline && nline[0] && strstr(nline, "Wi-Fi") != NULL && strstr(nline, "Ethernet") != NULL, m7);
 
+        /* The AI page: reports configuration and a MEASURED reachability, never a guess, and never
+         * probes inside a render. */
+        CpApplet ai = cp_create_ai_applet();
+        setenv("WUBU_AI_ENDPOINT", "127.0.0.1:9", 1);     /* nothing listens here */
+        controlpanel_init();
+        controlpanel_register_applet(&ai);
+        activate_last_page();
+        cp_ai_test_measure();
+        controlpanel_render(dfb, W, H);
+        const char *aline = cp_ai_last_drawn();
+        char m8[260];
+        snprintf(m8, sizeof m8, "the AI page reports the endpoint and a measured reachability (drew: '%s')",
+                 aline ? aline : "");
+        check(aline && strstr(aline, "Endpoint") != NULL && strstr(aline, "Reachable") != NULL &&
+              strstr(aline, "127.0.0.1:9") != NULL && strstr(aline, "not measured") == NULL, m8);
+        check(aline && strstr(aline, "yes,") == NULL, "a dead endpoint is never reported reachable");
+        unsetenv("WUBU_AI_ENDPOINT");
+
         controlpanel_shutdown();
         free(dfb);
     }

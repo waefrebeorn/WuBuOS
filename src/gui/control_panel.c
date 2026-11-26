@@ -63,6 +63,7 @@ void controlpanel_init(void)
     applets[n++] = cp_create_account_applet();
     applets[n++] = cp_create_limits_applet();
     applets[n++] = cp_create_signin_applet();
+    applets[n++] = cp_create_ai_applet();
     if (cp_create_pkg_sync_applet && n < CP_MAX_APPLETS)
         applets[n++] = cp_create_pkg_sync_applet();
 

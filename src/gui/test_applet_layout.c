@@ -191,6 +191,7 @@ int main(void)
         { "account",  cp_create_account_applet },
         { "limits",   cp_create_limits_applet },
         { "signin",   cp_create_signin_applet },
+        { "ai",       cp_create_ai_applet },
     };
 
     for (unsigned s = 0; s < sizeof(sizes) / sizeof(sizes[0]); s++) {

@@ -1,5 +1,4 @@
 test_account
-test_album
 test_all
 test_app_bundle
 test_as
@@ -15,7 +14,6 @@ test_density
 test_deskenv
 test_dos_emu
 test_dos_proc
-test_drivers
 test_drv
 test_drv_install
 test_ec_control
@@ -39,7 +37,6 @@ test_ed25519_ir_ct_negctl
 test_ed25519_native
 test_ed25519_timing
 test_fat2
-test_font_aa
 test_font_case
 test_formal_ct_tool_probe
 test_fs_crash_safe
@@ -49,7 +46,6 @@ test_game_launch
 test_game_session
 test_gamemode
 test_gauntlet
-test_gui_blit
 test_gui_screenshot
 test_heap_stress
 test_hive
@@ -284,7 +280,6 @@ test_kernel_bar_v2
 test_kernel_cap
 test_kernel_irq_cap
 test_kvfs_route
-test_launch
 test_lfn
 test_libc_string
 test_linux_product
@@ -316,9 +311,9 @@ test_pe_iat
 test_pe_import
 test_pe_load
 test_pe_modsym
-test_pe_personality
 test_pe_program
 test_pe_reloc
+test_perf_profile
 test_pkg_ed25519
 test_pkg_ed25519_fixed
 test_pkg_ed25519_legacy
@@ -337,12 +332,10 @@ test_recovery
 test_revolver
 test_rtc
 test_runtime
-test_screenshot_clipboard
 test_secmon
 test_session
 test_session_boot
 test_session_daemon
-test_session_mgr
 test_sha256
 test_smbios
 test_spd_parity
@@ -350,7 +343,6 @@ test_spell_resolve
 test_spell_scan
 test_spellmod
 test_spellmod_fuzz
-test_standards
 test_startmenu_files
 test_steaminput
 test_steamrt
@@ -378,14 +370,11 @@ test_vkd3d_live_uav
 test_vmm
 test_vsl_mac
 test_vsl_macho
-test_vsl_nt
 test_vsl_nt_collision
 test_vsl_nt_contract
-test_vsl_nt_ext
 test_w9pc
 test_wdt
 test_wemu_app
-test_wemu_blob_gate
 test_wemu_crash
 test_wemu_fs
 test_wemu_kbd
