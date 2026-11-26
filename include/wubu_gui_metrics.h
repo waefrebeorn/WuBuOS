@@ -52,6 +52,13 @@
 #define WUBU_METRIC_SCROLLBAR_W 12
 #define WUBU_METRIC_BORDER_W      2   /* hairline frame width */
 #define WUBU_METRIC_RADIUS_CONTROL 4
+
+/* Toast cards: the reference desktop's notification popup. Wide enough for a summary plus two body
+ * lines, tall enough for both -- a card that clips the message is a card that says nothing. */
+#define WUBU_METRIC_TOAST_W 360
+#define WUBU_METRIC_TOAST_H 84
+#define WUBU_METRIC_TOAST_BODY_DY 46
+#define WUBU_METRIC_TOAST_BODY_LINE 14
 #define WUBU_METRIC_RADIUS_WINDOW  8
 
 /* Motion and pointer thresholds. These are Win11's numbers, not preferences:

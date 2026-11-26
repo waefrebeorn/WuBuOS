@@ -303,6 +303,14 @@ if (g_dwm.lasso_active) {
     if (!(skip & 8)) taskbar_render(fb, fb_w, fb_h);
     notif_center_render(fb, fb_w, fb_h);
 
+    /* The toast cards: the notification has to be VISIBLE on arrival, not only inside the centre.
+     * Drawn after the centre so a card never hides the panel it belongs to. Weak for the same reason
+     * as the snap flyout above: a WM-only test graph links this renderer without the toast module. */
+    {
+        extern __attribute__((weak)) void wm_toast_render(uint32_t *, int, int);
+        if (wm_toast_render) wm_toast_render(fb, fb_w, fb_h);
+    }
+
     /* Clock popup menu (Win98 parity): the clock's own calendar panel. */
     if (g_dwm.clock_menu_open)
         clock_menu_render(fb, fb_w, fb_h);

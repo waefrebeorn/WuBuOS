@@ -253,6 +253,11 @@ int  notif_center_add(const char *app_name, const char *summary,
 void notif_center_mark_read(uint32_t id);
 void notif_center_clear(void);
 void notif_center_render(uint32_t *fb, int fb_w, int fb_h);
+
+/* Transient toast cards (the reference desktop shows the notification, not just its centre). */
+void wm_toast_render(uint32_t *fb, int fb_w, int fb_h);
+void wm_toast_rect(int index, int fb_w, int fb_h, int *x, int *y, int *w, int *h);
+int  wm_toast_at(int mx, int my, int fb_w, int fb_h);
 bool notif_center_is_open(void);
 void notif_center_toggle(void);
 

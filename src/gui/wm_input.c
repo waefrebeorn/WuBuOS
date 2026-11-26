@@ -588,6 +588,21 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
     /* While locked the pointer is swallowed too. */
     if (wubu_lock_screen_is_locked()) return;
 
+    /* A toast card is a control, not decoration: clicking one opens the centre, the way the reference
+     * desktop takes you to the notification. Checked BEFORE the shell layers and window dispatch --
+     * the cards float above everything, and win11_shell_click() owns presses in that corner. */
+    /* The same dimensions the RENDERER used: wm_render passes the live framebuffer, so a hit-test
+     * against g_dwm's cached screen size can be a whole resize out of date. */
+    {
+        /* Weak like the toast renderer: this input file is compiled into test graphs that do not
+         * link the toast module, and a missing card must not be a link error. */
+        extern __attribute__((weak)) int wm_toast_at(int, int, int, int);
+        if (kind == 1 && wm_toast_at && wm_toast_at(x, y, vbe_width(), vbe_height()) >= 0) {
+            notif_center_toggle();
+            return;
+        }
+    }
+
     /* Win11 shell layers own the press while the snap flyout or widgets
      * board is open (weak: absent in builds without the shell). */
     if (kind == 1 && win11_shell_click && win11_shell_click(x, y)) return;
