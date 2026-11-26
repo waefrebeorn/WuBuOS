@@ -21,6 +21,10 @@
 #include <string.h>
 #include "../wubu_tokens.h"
 #include "../wubu_theme.h"
+/* tc() is declared in wm_internal.h, not wubu_theme.h. Without this include the compiler assumed
+ * an implicit int return and every `tc()->field` was a hard error -- the file only built at all
+ * because CFLAGS carries -Wno-implicit-function-declaration. */
+#include "../wm_internal.h"
 
 /* The slerm-Lua sources live in the WWW submodule. */
 #define WB_LV_DIR   "../../../lua/www/~WuBu~/src/lv"

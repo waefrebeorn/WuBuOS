@@ -61,16 +61,35 @@ static void test_xp_sidebar_gradient_and_orb(void) {
     startmenu_open();
     startmenu_render(NULL, 640, 480);
 
-    /* Scan the VBE buffer for signature XP colours (stored as-is, no swap). */
-    int found_blue = 0, found_orb_red = 0;
-    for (int y = 0; y < 480 && !(found_blue && found_orb_red); y++)
+    /* Scan the VBE buffer for the XP sidebar signature and the mark itself. The mark is FOUR
+     * PANES OF THE THEME ACCENT: the old red/green/blue/yellow flag was Microsoft's logo, and this
+     * test asserting it was asserting borrowed brand art the product removed. What must hold now is
+     * that the accent panes are drawn and the borrowed colours are NOT. */
+    int found_blue = 0, accent_px = 0, found_brand = 0;
+    uint32_t accent = tc()->select_bg;
+    for (int y = 0; y < 480; y++)
         for (int x = 0; x < 640; x++) {
             uint32_t p = vbe_get_pixel(x, y);
-            if (p == 0x00539E) { found_blue = 1; break; }      /* Luna sidebar blue */
-            if (p == 0xF24C3E) { found_orb_red = 1; break; }    /* orb red quadrant */
+            if (p == 0x00539E) found_blue = 1;                 /* Luna sidebar blue */
+            if (p == accent)   accent_px++;
+            if (p == 0xF24C3E || p == 0x7DB700 || p == 0x1F79EE || p == 0xFFB900) found_brand = 1;
         }
     CHECK(found_blue, "XP sidebar gradient (Luna blue) drawn");
-    CHECK(found_orb_red, "XP orb logo (red quadrant) drawn");
+    CHECK(!found_brand, "no borrowed Microsoft flag colours");
+    (void)accent_px;
+
+    /* Measure the MARK, not "accent pixels somewhere": the render reports the rect it used, and
+     * each of the four panes must be accent with the 1px gap between them left clear. This gate
+     * fails if the mark stops drawing -- the pixel-count version above could not, because the
+     * selection background uses the same accent. */
+    int lx = 0, ly = 0, lw = 0, lh = 0;
+    startmenu_logo_rect(&lx, &ly, &lw, &lh);
+    CHECK(lw == 16 && lh == 16, "logo rect is 16x16");
+    for (int pane = 0; pane < 4; pane++) {
+        int px = lx + (pane & 1) * 8 + 3, py = ly + (pane >> 1) * 8 + 3;
+        CHECK(vbe_get_pixel(px, py) == accent, "each quadrant pane is the theme accent");
+    }
+    CHECK(vbe_get_pixel(lx + 7, ly + 3) != accent, "1px gap between panes is not accent");
 
     startmenu_close();
     vbe_shutdown();
@@ -80,6 +99,10 @@ static void test_xp_sidebar_gradient_and_orb(void) {
 static void test_multiple_toggles(void) {
     TEST("Multiple open/close/toggle cycles");
     startmenu_init();
+    /* Each test owns its starting state. This one used to inherit an OPEN menu from the
+     * open/close test, so its first toggle closed an already-open menu and the gate failed on
+     * ordering rather than on behaviour. */
+    startmenu_close();
     for (int i = 0; i < 10; i++) {
         startmenu_toggle();
         CHECK(startmenu_is_open() == 1, "toggle opens");

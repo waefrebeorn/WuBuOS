@@ -64,6 +64,8 @@ void startmenu_shutdown(void);
 /* -- State ------------------------------------------------------- */
 
 int  startmenu_is_open(void);
+/* Rect the Start mark was drawn into (set during render; 0 until the XP chrome renders). */
+void startmenu_logo_rect(int *x, int *y, int *w, int *h);
 void startmenu_toggle(void);
 void startmenu_open(void);
 void startmenu_close(void);

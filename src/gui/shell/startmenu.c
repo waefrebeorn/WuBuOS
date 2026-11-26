@@ -88,6 +88,15 @@ MainMenuItem g_main_items[16] = {0};
 int g_main_count = 0;
 
 int g_open = 0;
+/* Where the Start mark was actually drawn, so a test measures the mark and not "some accent
+ * pixels somewhere on the menu". Render and test share this one expression. */
+static int g_logo_x, g_logo_y, g_logo_w, g_logo_h;
+void startmenu_logo_rect(int *x, int *y, int *w, int *h) {
+    if (x) *x = g_logo_x;
+    if (y) *y = g_logo_y;
+    if (w) *w = g_logo_w;
+    if (h) *h = g_logo_h;
+}
 int g_hovered = -1;
 int g_submenu_open = -1;
 int g_sub_hovered = -1;
@@ -540,6 +549,7 @@ void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
         /* Orb: four coloured quadrants (Windows-flag style) inside a 16x16
          * box. The quadrant colours are brand-art, not theme surface. */
         int ox = MENU_X + WUBU_SPACE_SM, oy = menu_y + WUBU_SPACE_SM;
+        g_logo_x = ox; g_logo_y = oy; g_logo_w = 16; g_logo_h = 16;
         /* Four panes of ONE accent. This was Microsoft's red/green/blue/yellow flag -- a
          * borrowed OS logo, the same defect as the Win95 flag that used to sit on Start. */
         for (int pane = 0; pane < 4; pane++) {

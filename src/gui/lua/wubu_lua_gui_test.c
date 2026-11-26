@@ -9,6 +9,11 @@
 #include "wubu_lua_gui.h"
 
 #include "../kernel/vbe.h"
+#include "../wubu_theme.h"
+
+/* tc() lives in wm.c in the product. A GUI-lua test has no window manager and must not drag one
+ * in, so it provides the same one-line answer: the current theme's colours. */
+const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
 
 #include <stdio.h>
 #include <stdlib.h>

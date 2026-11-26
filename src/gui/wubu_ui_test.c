@@ -14,6 +14,7 @@
 #include "../gui/wubu_theme.h"
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static int g_run = 0, g_pass = 0;
 #define T(cond, msg) do { g_run++; if (cond) { g_pass++; printf("  ✅ %s\n", msg); } \
@@ -63,6 +64,16 @@ int main(void) {
     printf("\n[Close window via synthetic key]\n");
     DosGuiWindow *c = spawn_at(500, 200, 180, 120, "Bye");
     wubu_ui_key(0x3E, MOD_ALT);  /* Alt+F4 -> close focused */
+    /* Closing is ANIMATED now (wm_request_close starts a shrink; wm_close_tick finishes it after
+     * WUBU_ANIM_OPEN_MS). Asserting !alive straight away was asserting the pre-animation contract,
+     * so this gate failed against correct behaviour. The contract is: the key STARTS a close, and
+     * the window is gone once the animation's time is up. */
+    T(c->close_t0 != 0 || !c->alive, "Alt+F4 starts the close animation");
+    for (int frame = 0; frame < 200 && c->alive; frame++) {
+        struct timespec ts = { 0, 5 * 1000 * 1000 };   /* 5ms, 1s ceiling */
+        nanosleep(&ts, NULL);
+        wm_close_tick();
+    }
     T(!c->alive, "window closed via synthetic key event");
 
     /* -- 4. Type into the focused window -- */

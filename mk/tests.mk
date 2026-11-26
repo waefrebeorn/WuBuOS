@@ -6426,11 +6426,13 @@ test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws
 	$(TEST_BIN)/test_vws_designer
 
 test_lua_gui: $(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c \
-		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c
+		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_theme.c \
+		$(RT)/wubu_palette.c
 	@mkdir -p $(TEST_BIN)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(RT) -I$(GUI) -I$(RT)/lua -I$(LUAWWW) -I$(KERNEL)  -Iinclude  $(RT_ALWAYS) \
 		$(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c \
-		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c -lm -o $(TEST_BIN)/test_lua_gui
+		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_theme.c \
+		$(RT)/wubu_palette.c -lm -o $(TEST_BIN)/test_lua_gui
 	$(TEST_BIN)/test_lua_gui
 
 test_hw_gesture: $(KERNEL)/test/wubu_gesture_selftest.c $(KERNEL)/wubu_gesture.c $(KERNEL)/wubu_test_stubs.c $(CACHE)/libc.o $(CACHE)/libc_string.o $(CACHE)/memory.o $(CACHE)/klog.o $(CACHE)/wubu_pci.o
