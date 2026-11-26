@@ -49,7 +49,13 @@ SHELL = [
     ("BioEnrollment",           [], "biometrics"),
     ("ParentalControls",        [], "parental controls"),
     ("AsyncTextService",        ["src/gui/term_ansi.c"], "text services"),
-    ("NcsiUwpApp",              [], "network connectivity status"),
+    # The connectivity surface exists twice over and neither was mapped: quick settings draws
+    # "WiFi: connected/off" and "Ethernet: connected/off" from the real link state, and the tray's
+    # network indicator now opens that panel on click. What is still absent is the SSID list a
+    # Windows flyout shows -- the control panel owns scanning.
+    ("NcsiUwpApp",              ["src/gui/shell/quick_settings.c", "src/gui/shell/wm_tray_world.c",
+                                 "src/gui/control_panel_network.c"],
+     "status rows + tray click opens the panel; SSID scan in control panel"),
     ("Windows.OOBENetworkConnectionFlow", [], "OOBE network flow"),
     ("Windows.UndockedDevKit",  ["src/gui/shell/win11_widgets.c"], "widgets"),
     ("Windows.AddSuggestedFoldersToLibraryDialog", [], "libraries"),

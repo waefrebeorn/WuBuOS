@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**22/50 have an owner, 28 missing.**
+**24/50 have an owner, 26 missing.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -15,7 +15,7 @@ the behaviour works -- that is the test suite's job.
 | win11 | `LockApp` | `src/gui/shell/wubu_lock_screen.c:20` | lock screen |
 | win11 | `Windows.FileExplorer` | `src/gui/explorer.c:43` | file manager |
 | win11 | `Windows.FilePicker` | `src/gui/shell/file_picker.c:19` | open/save dialog |
-| win11 | `Windows.CapturePicker` | `src/gui/wubu_screenshot.c:19` | screenshot (region selector only) |
+| win11 | `Windows.CapturePicker` | `src/gui/wubu_screenshot.c:20` | screenshot: full/window/region, PNG that decodes, clipboard |
 | win11 | `Windows.PrintDialog` | `src/gui/shell/print_dialog.c:38` | print dialog over CUPS |
 | win11 | `Windows.PrintQueueActionCenter` | `src/runtime/wubu_print.c:30` | print backend (queue state read from cupsd) |
 | win11 | `Windows.CloudExperienceHost` | `src/gui/shell/wubu_shell_greeter.c:29` | first-run OOBE |
@@ -31,7 +31,7 @@ the behaviour works -- that is the test suite's job.
 | win11 | `BioEnrollment` | **MISSING** | biometrics |
 | win11 | `ParentalControls` | **MISSING** | parental controls |
 | win11 | `AsyncTextService` | `src/gui/term_ansi.c:41` | text services |
-| win11 | `NcsiUwpApp` | **MISSING** | network connectivity status |
+| win11 | `NcsiUwpApp` | `src/gui/shell/quick_settings.c:29` | status rows + tray click opens the panel; SSID scan in control panel |
 | win11 | `Windows.OOBENetworkConnectionFlow` | **MISSING** | OOBE network flow |
 | win11 | `Windows.UndockedDevKit` | `src/gui/shell/win11_widgets.c:27` | widgets |
 | win11 | `Windows.AddSuggestedFoldersToLibraryDialog` | **MISSING** | libraries |
@@ -39,7 +39,7 @@ the behaviour works -- that is the test suite's job.
 | cachyos | `ananicy-cpp` | `src/runtime/wubu_perf_profile.c:27` | per-process priority daemon -- profile only (no live priority daemon) |
 | cachyos | `pipewire` | `src/gui/wubu_sound.c:10` | audio server -- audio |
 | cachyos | `NetworkManager` | `src/gui/control_panel_network.c:26` | network management -- network panel |
-| cachyos | `power-profiles-daemon` | **MISSING** | power profiles -- game mode only |
+| cachyos | `power-profiles-daemon` | `src/runtime/wubu_power_profile.c:26` | power profiles -- 3 profiles (power-saver/balanced/performance), live in quick settings |
 | cachyos | `zram-generator` | `src/runtime/wubu_perf_profile.c:27` | compressed swap -- tunables only |
 | cachyos | `systemd-coredump` | **MISSING** | crash capture -- none |
 | cachyos | `fwupd` | **MISSING** | firmware updates -- none |
