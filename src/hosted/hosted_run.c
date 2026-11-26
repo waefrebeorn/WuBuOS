@@ -107,6 +107,9 @@ struct timespec last_input;
         hosted_wl_dispatch();
 
         int had_input = hosted_input_dispatch();
+        /* An X event is input even if the same frame's dispatch already drained the queue: without this the
+         * loop dropped to the 30 fps idle rate mid-drag (measured). */
+        if (hosted_x11_present_activity()) had_input = 1;
         if (had_input) {
             clock_gettime(CLOCK_MONOTONIC, &last_input);
             last_input_ms = last_input.tv_sec * 1000L +
@@ -209,6 +212,10 @@ struct timespec last_input;
         long now_ms = now.tv_sec * 1000L + now.tv_nsec / 1000000L;
         long frame_ns = (now_ms - last_input_ms < 1500) ? frame_ns_active
                                                        : frame_ns_idle;
+        if (getenv("WUBU_FPS_DEBUG") && (frame_count % 30) == 0)
+            fprintf(stderr, "[fpsdbg] frame=%d had_input=%d since_input=%ldms -> %s\n",
+                    frame_count, had_input, now_ms - last_input_ms,
+                    frame_ns == frame_ns_active ? "ACTIVE" : "idle");
         long elapsed = (now.tv_sec - last.tv_sec) * 1000000000L +
                        (now.tv_nsec - last.tv_nsec);
         if (elapsed < frame_ns) {

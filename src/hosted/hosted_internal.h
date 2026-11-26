@@ -123,6 +123,8 @@ void hosted_wl_frame_render(void);
 int  hosted_x11_present_open(int width, int height, const char *title);
 void hosted_x11_present_frame(const void *fb);
 int  hosted_x11_present_pump(void);
+/* 1 when new X events arrived since the last call (activity for the frame-rate decision). */
+int  hosted_x11_present_activity(void);
 int  hosted_x11_present_active(void);
 void hosted_x11_present_close(void);
 int  hosted_x11_present_fd(void);

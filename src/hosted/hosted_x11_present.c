@@ -47,6 +47,15 @@ static int      g_xopen;
 static int      g_xquit;
 static int      g_xbuttons;
 static int      g_xlast_x, g_xlast_y;
+/* Every X event we consume is EVIDENCE OF ACTIVITY. The loop decides 60 fps vs 30 fps from "was there
+ * input", and a motion event that the pump pushed into the input queue can be drained by the same frame's
+ * dispatch -- so the queue reads empty and the loop falls back to the idle rate WHILE THE POINTER IS MOVING.
+ * Measured as fps dipping to ~30 mid-drag with only 2 ms of render work. */
+static unsigned long g_xevents;
+/* The window's origin, cached. XTranslateCoordinates is a ROUND TRIP to the X server, and it was being made
+ * for EVERY motion event -- measured as the frame missing its deadline while the pointer moved, with only
+ * 2 ms of render work. Refreshed on Configure/Map and never per motion. */
+static int      g_origin_ok, g_origin_x, g_origin_y;
 
 /* Xlib's default error handler exits the process. For an OS window that is unacceptable: a
  * single BadMatch took the whole desktop down. Log and carry on. */
@@ -303,13 +312,22 @@ void hosted_x11_grab_win_keys(void) {
 }
 
 /* Drain X events without blocking. Returns non-zero when the window was closed. */
+/* 1 when new X events arrived since the last call. */
+int hosted_x11_present_activity(void) {
+    static unsigned long seen;
+    if (g_xevents != seen) { seen = g_xevents; return 1; }
+    return 0;
+}
+
 int hosted_x11_present_pump(void) {
     if (!g_xopen) return 1;
     while (XPending(g_xdpy) > 0) {
         XEvent ev;
         XNextEvent(g_xdpy, &ev);
+        g_xevents++;
         switch (ev.type) {
         case MapNotify:
+            g_origin_ok = 0;   /* the window moved or was remapped: re-read the origin once */
             XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
             /* PARITY: a guest OS is the session while it is the focused window, so it must see the
              * Win key. Without a keyboard grab the HOST window manager resolves Super+Shift+S and
@@ -320,6 +338,7 @@ int hosted_x11_present_pump(void) {
             hosted_x11_sync_kbd_capture();
             break;
         case ConfigureNotify:
+            g_origin_ok = 0;   /* the window moved or was remapped: re-read the origin once */
             hosted_x11_sync_kbd_capture();
             break;
         case FocusOut:
@@ -432,9 +451,14 @@ int hosted_x11_present_pump(void) {
         case MotionNotify: {
             MouseEvent mev;
             memset(&mev, 0, sizeof(mev));
-            Window child; int ox = 0, oy = 0;
-            XTranslateCoordinates(g_xdpy, g_xwin, DefaultRootWindow(g_xdpy), 0, 0, &ox, &oy, &child);
-            int tx = ev.xmotion.x_root - ox, ty = ev.xmotion.y_root - oy;
+            if (!g_origin_ok) {
+                Window child;
+                if (XTranslateCoordinates(g_xdpy, g_xwin, DefaultRootWindow(g_xdpy), 0, 0,
+                                          &g_origin_x, &g_origin_y, &child))
+                    g_origin_ok = 1;
+            }
+            int tx = ev.xmotion.x_root - g_origin_x;
+            int ty = ev.xmotion.y_root - g_origin_y;
             mev.x = tx;
             mev.y = ty;
             mev.dx = tx - g_xlast_x;
