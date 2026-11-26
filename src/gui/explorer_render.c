@@ -88,9 +88,36 @@ void ex_render_tree(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x
     }
 }
 
+/* ONE owner for segment geometry: the renderer paints with it and the click handler hit-tests with
+ * it. They disagreed before -- the bar is drawn BELOW the toolbar (y = toolbar height) while the
+ * hit-test tested y < breadcrumb height, i.e. the top 28px of the window, so a click on "Computer"
+ * went to the file list and the address bar looked decorative. */
+bool ex_breadcrumb_segment_rect(const ExExplorerState *ex, int i,
+                               int origin_x, int origin_y, int *out_x, int *out_y, int *out_w) {
+    if (!ex || i < 0 || i >= ex->breadcrumb_count) return false;
+    int seg_x = origin_x + 10;
+    for (int k = 0; k < ex->breadcrumb_count; k++) {
+        int seg_w = vbe_text_width(ex->breadcrumb_segments[k], 1) + 12;
+        if (k == i) {
+            if (out_x) *out_x = seg_x;
+            if (out_y) *out_y = origin_y + 2;
+            if (out_w) *out_w = seg_w;
+            return true;
+        }
+        seg_x += seg_w + 4;
+        if (k < ex->breadcrumb_count - 1) seg_x += WUBU_METRIC_MARGIN_MD;   /* the ">" separator */
+    }
+    return false;
+}
+
 void ex_render_breadcrumbs(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h) {
     (void)fb; (void)fb_w; (void)fb_h; (void)h;
 
+    if (getenv("WUBU_EX_PROBE")) {
+        static int once;
+        if (!once++) fprintf(stderr, "[ex] breadcrumb at %d,%d %dx%d count=%d path='%s'\n",
+                             x, y, w, ex_breadcrumb_h(), ex->breadcrumb_count, ex->current_path);
+    }
     vbe_fill_rect(x, y, w, ex_breadcrumb_h(), tc()->win_face);
     vbe_hline(x, x + w, y + ex_breadcrumb_h() - 1, tc()->border_dark);
 

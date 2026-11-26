@@ -73,6 +73,10 @@ typedef struct DosGuiWindow {
     /* Close animation stamp (0 = not closing). A closing window is still DRAWN for the
      * transition but is no longer hit-testable, focused or listed -- it is on its way out. */
     uint32_t      close_t0;
+    /* Content rect the chrome actually clipped to, in SCREEN coordinates, written by
+     * chrome_draw_window(). An app's on_draw must paint inside this; recomputing it from a guessed
+     * caption height is how Explorer's toolbar and address bar ended up underneath the title bar. */
+    int           content_x, content_y, content_w, content_h;
 } DosGuiWindow;
 
 /* -- Lifecycle ---------------------------------------------------- */

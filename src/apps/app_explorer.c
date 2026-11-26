@@ -15,6 +15,7 @@
 
 #include "apps.h"
 #include "../gui/wm.h"
+#include "../gui/shell/window_chrome.h"   /* chrome_caption_metrics: the caption's real height */
 #include "../gui/explorer.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
@@ -39,7 +40,16 @@ void app_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     ExExplorerState *ex = explorer_state();
     if (!ex) return;
 
-    int wx = win->x, wy = win->y, ww = win->w, wh = win->h;
+    /* CONTENT ORIGIN, not window origin: the WM clips on_draw to the region below the caption, so
+     * anything drawn at win->y is painted UNDERNEATH the title bar and never seen. That is why the
+     * toolbar and the address/breadcrumb bar were invisible while the file list looked fine --
+     * every strip was one caption-height too high, and the caption swallowed the top two. */
+    /* The chrome stores the rect it clipped to; a caller that never drew chrome leaves it zero,
+     * in which case the whole window is the content. */
+    int wx = win->content_w > 0 ? win->content_x : win->x;
+    int wy = win->content_w > 0 ? win->content_y : win->y;
+    int ww = win->content_w > 0 ? win->content_w : win->w;
+    int wh = win->content_w > 0 ? win->content_h : win->h;
 
     int ty = wy + EX_TOOLBAR_H + EX_BREADCRUMB_H;
     int th = wh - EX_TOOLBAR_H - EX_BREADCRUMB_H - EX_STATUSBAR_H;

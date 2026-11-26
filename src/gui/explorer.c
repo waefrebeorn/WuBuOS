@@ -261,7 +261,13 @@ static void ex_win_key(DosGuiWindow *w, uint32_t key, uint32_t mods) {
     (void)w; explorer_handle_key(key, mods);
 }
 static void ex_win_mouse(DosGuiWindow *w, int x, int y, int btn, int kind) {
-    (void)w; explorer_handle_mouse(x, y, btn, kind);
+    (void)w;
+    /* The WM reports window-relative coordinates INCLUDING the caption; the explorer layout speaks
+     * content-relative (its first row starts under the caption). Without this subtraction every
+     * click landed one caption-height too high -- it selected the row above the one under the
+     * pointer, which reads as "the file manager is inaccurate" rather than as an offset bug. */
+    int oy = w->content_w > 0 ? (w->content_y - w->y) : 0;   /* content origin inside the window */
+    explorer_handle_mouse(x, y - oy, btn, kind);
 }
 
 void explorer_show(void) {

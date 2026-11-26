@@ -159,6 +159,9 @@ static inline void ex_dirname_safe(const char *path, char *out, size_t out_size)
 /* -- Render layer (implemented in explorer_render.c) -------- */
 void ex_render_tree(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
 void ex_render_breadcrumbs(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
+/* Segment geometry shared by that renderer and the click handler. */
+bool ex_breadcrumb_segment_rect(const ExExplorerState *ex, int i,
+                               int origin_x, int origin_y, int *out_x, int *out_y, int *out_w);
 void ex_render_toolbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
 void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
 void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);

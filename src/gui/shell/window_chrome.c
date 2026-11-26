@@ -349,6 +349,20 @@ static void chrome_glyph_min(int x, int y, int w, int h, uint32_t fg) {
     for (int i = 0; i < s; i++) vbe_set_pixel(gx + i, mid, fg);
 }
 
+ChromeContentRect chrome_content_rect(const DosGuiWindow *win) {
+    ChromeContentRect empty = {0, 0, 0, 0};
+    if (!win) return empty;
+    int tbh = chrome_title_bar_height();
+    int bw  = chrome_border_width();
+    ChromeContentRect content = {
+        .x = win->x + bw,
+        .y = win->y + bw + tbh,
+        .w = win->w - 2 * bw,
+        .h = win->h - tbh - bw
+    };
+    return content;
+}
+
 ChromeContentRect chrome_draw_window(DosGuiWindow *win,
                                             uint32_t *fb, int fb_w, int fb_h) {
     if (!win || !win->alive) {
@@ -512,13 +526,9 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
     }
 
     /* -- Content rect for app to draw within -- */
-    ChromeContentRect content = {
-        .x = win->x + bw,
-        .y = win->y + bw + tbh,
-        .w = win->w - 2 * bw,
-        .h = win->h - tbh - bw
-    };
-
+    ChromeContentRect content = chrome_content_rect(win);
+    win->content_x = content.x; win->content_y = content.y;
+    win->content_w = content.w; win->content_h = content.h;
     return content;
 }
 

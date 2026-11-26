@@ -46,6 +46,11 @@ typedef struct {
 
 ChromeCaptionMetrics chrome_caption_metrics(void);
 
+/* The rect an app's on_draw may paint in, in SCREEN coordinates: exactly what
+ * chrome_draw_window clips to. Apps used to guess (win->y + 22, win->y + caption) and drew their
+ * top strips underneath the caption, where the clip threw them away. */
+ChromeContentRect chrome_content_rect(const DosGuiWindow *win);
+
 /* The frame border width for the current theme (1 or 2). */
 int chrome_border_width(void);
 

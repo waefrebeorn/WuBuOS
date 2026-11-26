@@ -328,28 +328,33 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
         return;
     }
 
-    if (y < ex_breadcrumb_h()) {
-        /* Click in breadcrumbs area - handle segment clicks */
-        if (kind == 1 && btn == 1) {
-            int seg_x = 10;
-            for (int i = 0; i < ex->breadcrumb_count; i++) {
-                int seg_w = vbe_text_width(ex->breadcrumb_segments[i], 1) + 12;
-                if (x >= seg_x && x < seg_x + seg_w) {
-                    /* Navigate to this breadcrumb segment */
-                    char path[EX_MAX_PATH] = "/";
-                    for (int j = 0; j <= i; j++) {
-                        if (j > 0) {
-                            strcat(path, "/");
+    {
+        /* The address bar sits BELOW the toolbar, and its segment geometry comes from
+         * ex_breadcrumb_segment_rect() -- the same function the renderer paints with. Testing
+         * `y < breadcrumb height` here meant the top 28px of the window, where no chip is ever
+         * drawn, so every click on "Computer" fell through to the file list. */
+        int bar_y = ex->toolbar_visible ? ex_toolbar_h() : 0;
+        if (y >= bar_y && y < bar_y + ex_breadcrumb_h()) {
+            if (kind == 1 && btn == 1) {
+                for (int i = 0; i < ex->breadcrumb_count; i++) {
+                    int sx = 0, sy = 0, sw = 0;
+                    if (!ex_breadcrumb_segment_rect(ex, i, 0, bar_y, &sx, &sy, &sw)) continue;
+                    if (x >= sx && x < sx + sw) {
+                        /* Segment 0 is the ROOT chip ("Computer") and stands for "/" itself.
+                         * Appending it built "/Computer", a path that does not exist, so clicking
+                         * the address bar navigated into nothing. Components start at 1. */
+                        char path[EX_MAX_PATH] = "/";
+                        for (int j = 1; j <= i; j++) {
+                            strcat(path, ex->breadcrumb_segments[j]);
+                            if (j < i) strcat(path, "/");
                         }
-                        strcat(path, ex->breadcrumb_segments[j]);
+                        explorer_navigate(path);
+                        break;
                     }
-                    explorer_navigate(path);
-                    break;
                 }
-                seg_x += seg_w + 4;
             }
+            return;
         }
-        return;
     }
 
     int tree_x = 0;
@@ -403,12 +408,19 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
                                 child = child->first_child;
                                 continue;
                             }
-                            child = child->next_sibling;
-                            if (!child) {
-                                ExTreeNode *p = child->parent;
-                                while (p && !p->next_sibling) p = p->parent;
-                                if (p) child = p->next_sibling;
-                                else break;
+                            /* Walk UP from the node we just finished, not from the NULL sibling we
+                             * just found: `child->parent` inside `if (!child)` dereferenced NULL and
+                             * segfaulted the whole desktop on a click past the last visible row. */
+                            {
+                                ExTreeNode *from = child;
+                                child = child->next_sibling;
+                                while (!child && from) {
+                                    ExTreeNode *p = from->parent;
+                                    if (!p) break;
+                                    from = p;
+                                    child = p->next_sibling;
+                                }
+                                if (!child) break;
                             }
                         }
                     }
@@ -417,7 +429,9 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
                 return;
             }
 
-            /* Check breadcrumbs */
+            /* Toolbar strip: this range is the TOOLBAR (below the address bar), not the
+             * breadcrumbs -- the label was wrong, which is how the real breadcrumb hit-test ended up
+             * testing the wrong rows. No toolbar buttons are wired here yet. */
             if (y >= ex_breadcrumb_h() && y < ex_breadcrumb_h() + ex_toolbar_h()) {
                 /* Toolbar buttons */
                 return;
