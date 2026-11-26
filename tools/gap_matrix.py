@@ -78,7 +78,8 @@ CACHYOS_FEATURES = [
      "fatal-signal report (signal/addr/backtrace/maps) in ~/.local/state/wubuos/crashes"),
     ("fwupd", "firmware updates", ["src/runtime/wubu_firmware.c"],
      "firmware identity -- BIOS/SMBIOS vendor/version/date read from DMI, update-agent discovery (no flashing)"),
-    ("reflector", "mirror ranking", [], "none"),
+    ("reflector", "mirror ranking", ["src/runtime/wubu_mirror.c", "src/gui/control_panel_mirror.c"],
+     "mirror ranking -- mirrorlist parse, TCP-connect latency with a deadline, ranked rewrite"),
     ("pacman", "package manager", ["src/gui/wubu_pkgmgr.c"], "packages"),
     ("sudo", "privilege", ["src/runtime/vsl"], "VSL personality"),
 ]

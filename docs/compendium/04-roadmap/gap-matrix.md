@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**26/50 have an owner, 24 missing.**
+**27/50 have an owner, 23 missing.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -43,7 +43,7 @@ the behaviour works -- that is the test suite's job.
 | cachyos | `zram-generator` | `src/runtime/wubu_perf_profile.c:27` | compressed swap -- tunables only |
 | cachyos | `systemd-coredump` | `src/runtime/wubu_crashcap.c:31` | crash capture -- fatal-signal report (signal/addr/backtrace/maps) in ~/.local/state/wubuos/crashes |
 | cachyos | `fwupd` | `src/runtime/wubu_firmware.c:18` | firmware updates -- firmware identity -- BIOS/SMBIOS vendor/version/date read from DMI, update-agent discovery (no flashing) |
-| cachyos | `reflector` | **MISSING** | mirror ranking -- none |
+| cachyos | `reflector` | `src/runtime/wubu_mirror.c:25` | mirror ranking -- mirror ranking -- mirrorlist parse, TCP-connect latency with a deadline, ranked rewrite |
 | cachyos | `pacman` | `src/gui/wubu_pkgmgr.c:16` | package manager -- packages |
 | cachyos | `sudo` | `src/runtime/vsl/exec_guests/guest_copy.c:1` | privilege -- VSL personality |
 | win11 | `Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |

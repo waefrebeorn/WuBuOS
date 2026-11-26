@@ -14,6 +14,7 @@
  */
 #include "control_panel.h"
 #include "control_panel_text.h"
+#include "../runtime/wubu_mirror.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -158,6 +159,50 @@ int main(void)
         rmdir(froot);
     }
     unsetenv("WUBU_DMI_ROOT");
+
+    /* Software sources: the page must read the mirrorlist it is pointed at, and say when there is
+     * none -- not draw an empty ranked table as if every mirror were fine. */
+    {
+        char mfile[] = "/tmp/cpmirXXXXXX";
+        int fd = mkstemp(mfile);
+        if (fd >= 0) {
+            FILE *f = fdopen(fd, "w");
+            if (f) {
+                fputs("# test mirrorlist\nServer = https://a.example/cachyos/$repo/os/$arch\n"
+                      "Server = http://b.example/cachyos/$repo/os/$arch\n", f);
+                fclose(f);
+            }
+            setenv("WUBU_MIRRORLIST", mfile, 1);
+
+            uint32_t *mfb = calloc((size_t)W * H + CANARY, sizeof(uint32_t));
+            for (unsigned i = 0; i < CANARY; i++) mfb[(size_t)W * H + i] = CANARY_VAL;
+            controlpanel_init();
+            CpApplet *m = controlpanel_get_applet(CP_APPLET_MIRROR);
+            check(m != NULL, "the Software sources applet is registered");
+            controlpanel_render(mfb, W, H);
+            check(non_black_in_content(mfb) > 400, "the Software sources page paints");
+            check(canary_intact(mfb), "the Software sources page honours the surface stride");
+
+            char first[WUBU_MIRROR_URL_MAX] = {0};
+            int rows = cp_mirror_test_rows(first, sizeof first);
+            check(rows == 2, "the page read both mirrors");
+            check(strcmp(first, "https://a.example/cachyos/$repo/os/$arch") == 0,
+                  "the page reports the mirrorlist's first entry");
+            controlpanel_shutdown();
+            free(mfb);
+
+            /* No mirrorlist: the applet must report zero, not invent one. */
+            setenv("WUBU_MIRRORLIST", "/nonexistent/mirrorlist", 1);
+            controlpanel_init();
+            char none[WUBU_MIRROR_URL_MAX] = {0};
+            check(cp_mirror_test_rows(none, sizeof none) == 0,
+                  "a missing mirrorlist reads as zero servers");
+            controlpanel_shutdown();
+
+            unlink(mfile);
+        }
+        unsetenv("WUBU_MIRRORLIST");
+    }
 
     /* cp_text is the shared drawer: it must honour clip bounds too */
     {
