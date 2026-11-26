@@ -23,6 +23,30 @@ ROOT = Path(__file__).resolve().parent.parent
 WIN11_SYSAPPS = Path("/home/wubu/opt/refos/win11/ext/Windows/SystemApps")
 CACHYOS = Path("/home/wubu/opt/refos/cachyos/rootfs")
 
+# Reference packages whose parity is DECIDED. Two honest outcomes are possible, and both beat the
+# "IN THE REFERENCE, NOT MAPPED HERE" placeholder that used to sit on every one of them:
+#   ("own", [globs], note)  -- the feature exists here under a name Windows does not use;
+#   ("na",  [],      note)  -- the feature is deliberately not built here, WITH the reason.
+# An "na" row leaves the ratio entirely (it is excluded from both sides and listed separately), because
+# counting a decided non-feature as a gap is how a gap list stops being read.
+WIN11_VERDICTS = {
+    "aad.brokerplugin":                 ("own", ["src/runtime/wubu_account.c"], "account broker -- accounts"),
+    "apprep.chxapp":                    ("own", ["src/runtime/wubu_secmon.c"], "app reputation -- security monitor"),
+    "xboxgamecallableui":               ("own", ["src/gui/wubu_gamelib.c"], "in-game overlay -- game library"),
+    "microsoft.creddialoghost":         ("own", ["src/runtime/wubu_auth.c"], "credential prompt -- auth"),
+    "ui.xaml.cbs":                      ("na", [], "our UI is the C11 compositor; there is no XAML runtime to service"),
+    "ecapp":                            ("na", [], "commerce/store host; WuBuOS ships packages, not a store"),
+    "microsoftedgedevtoolsclient":       ("na", [], "browser devtools, not an OS feature"),
+    "augloop.cbs":                      ("na", [], "no component servicing stack: the OS is built from this tree"),
+    "cbspreview":                       ("na", [], "same: components are compiled here, not downloaded"),
+    "secureassessmentbrowser":          ("na", [], "exam-lockdown browser; nothing to lock down"),
+    "xgpuejectdialog":                  ("na", [], "no eGPU hot-plug path exists to eject"),
+    "microsoft.windows.narratorquickstart": ("na", [], "removed by the owner's decision -- the a11y cluster read as jank"),
+    # A GAP, not an N/A: the associations exist, the dialog a user picks them in does not. Declaring
+    # missing work "not applicable" is the same lie as leaving it unmapped.
+    "appresolverux":                    ("gap", ["src/gui/wubu_mime.c"], "default-app dialog MISSING; associations exist"),
+}
+
 # feature -> (globs that would own it here, note)
 SHELL = [
     ("StartMenuExperienceHost", ["src/gui/shell/startmenu.c"], "Start menu"),
@@ -112,7 +136,7 @@ def _norm(name):
 
 
 def main():
-    rows, missing = [], 0
+    rows, missing, not_applicable = [], 0, []
 
     for name, globs, note in SHELL:
         hit = find(globs)
@@ -138,7 +162,22 @@ def main():
             if d.name in IGNORE or key in known:
                 continue
             if not any(key.startswith(k[:12]) or k.startswith(key[:12]) for k in known):
-                rows.append(("win11", d.name, "IN THE REFERENCE, NOT MAPPED HERE", None))
+                verdict = WIN11_VERDICTS.get(key)
+                if verdict:
+                    kind, globs, note = verdict
+                    if kind == "na":
+                        not_applicable.append((d.name, note))
+                        continue
+                    if kind == "gap":
+                        rows.append(("win11", d.name, note, None))
+                        missing += 1
+                        continue
+                    hit = find(globs)
+                    rows.append(("win11", d.name, note, hit))
+                    if not hit:
+                        missing += 1
+                    continue
+                rows.append(("win11", d.name, "unmapped: no verdict recorded", None))
                 missing += 1
 
     print(f"{'SOURCE':9} {'FEATURE':44} {'OWNER':40} NOTE")
@@ -147,6 +186,20 @@ def main():
 
     present = sum(1 for r in rows if r[3])
     print(f"\n{present}/{len(rows)} reference features have an owning module; {missing} missing")
+    if not_applicable:
+        print(f"{len(not_applicable)} declared not applicable (decided, not unmapped):")
+        for name, why in not_applicable:
+            print(f"  {name}: {why}")
+
+    # --check: the matrix must never go back to placeholders. A row without a verdict is an undecided
+    # feature posing as a documented one, so it fails the gate rather than scrolling past.
+    if "--check" in sys.argv:
+        undecided = [r for r in rows if not r[3] and r[2].startswith("unmapped")]
+        for src, name, note, _ in undecided:
+            print(f"UNDECIDED: {name} ({src}) -- {note}")
+        print(f"gap matrix: {present} owned, {missing} missing, {len(not_applicable)} not applicable, "
+              f"{len(undecided)} undecided")
+        return 1 if undecided else 0
 
     if "--write" in sys.argv:
         out = ROOT / "docs/compendium/04-roadmap/gap-matrix.md"
@@ -159,13 +212,22 @@ def main():
             "file:line so the claim can be checked in one command; it says nothing about whether",
             "the behaviour works -- that is the test suite's job.",
             "",
-            f"**{present}/{len(rows)} have an owner, {missing} missing.**",
+            f"**{present}/{len(rows)} have an owner, {missing} missing, "
+            f"{len(not_applicable)} declared not applicable.**",
             "",
             "| source | feature | owner | note |",
             "|---|---|---|---|",
         ]
         for src, name, note, hit in rows:
             lines.append(f"| {src} | `{name}` | {('`'+hit+'`') if hit else '**MISSING**'} | {note} |")
+        if not_applicable:
+            lines += ["", "## Declared not applicable", "",
+                      "Each of these is a reference package with a DECISION behind it, not an unmapped",
+                      "row: either the feature does not exist in this design, or it was removed on",
+                      "purpose. They are excluded from the ratio above.", "",
+                      "| reference package | why it is not here |", "|---|---|"]
+            for name, why in not_applicable:
+                lines.append(f"| `{name}` | {why} |")
         out.write_text("\n".join(lines) + "\n")
         print(f"wrote {out.relative_to(ROOT)}")
 

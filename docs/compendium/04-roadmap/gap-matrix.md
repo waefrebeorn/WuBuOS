@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**27/50 have an owner, 23 missing.**
+**31/42 have an owner, 11 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -46,16 +46,25 @@ the behaviour works -- that is the test suite's job.
 | cachyos | `reflector` | `src/runtime/wubu_mirror.c:25` | mirror ranking -- mirror ranking -- mirrorlist parse, TCP-connect latency with a deadline, ranked rewrite |
 | cachyos | `pacman` | `src/gui/wubu_pkgmgr.c:16` | package manager -- packages |
 | cachyos | `sudo` | `src/runtime/vsl/exec_guests/guest_copy.c:1` | privilege -- VSL personality |
-| win11 | `Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.ECApp_8wekyb3d8bbwe` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.MicrosoftEdgeDevToolsClient_8wekyb3d8bbwe` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.UI.Xaml.CBS_8wekyb3d8bbwe` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.Windows.AppRep.ChxApp_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.Windows.AppResolverUX_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.Windows.AugLoop.CBS_8wekyb3d8bbwe` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.Windows.SecureAssessmentBrowser_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.Windows.XGpuEjectDialog_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Microsoft.XboxGameCallableUI_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `Windows.CBSPreview_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `microsoft.creddialoghost_cw5n1h2txyewy` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
-| win11 | `microsoft.windows.narratorquickstart_8wekyb3d8bbwe` | **MISSING** | IN THE REFERENCE, NOT MAPPED HERE |
+| win11 | `Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy` | `src/runtime/wubu_account.c:13` | account broker -- accounts |
+| win11 | `Microsoft.Windows.AppRep.ChxApp_cw5n1h2txyewy` | `src/runtime/wubu_secmon.c:26` | app reputation -- security monitor |
+| win11 | `Microsoft.Windows.AppResolverUX_cw5n1h2txyewy` | **MISSING** | default-app dialog MISSING; associations exist |
+| win11 | `Microsoft.XboxGameCallableUI_cw5n1h2txyewy` | `src/gui/wubu_gamelib.c:21` | in-game overlay -- game library |
+| win11 | `microsoft.creddialoghost_cw5n1h2txyewy` | `src/runtime/wubu_auth.c:15` | credential prompt -- auth |
+
+## Declared not applicable
+
+Each of these is a reference package with a DECISION behind it, not an unmapped
+row: either the feature does not exist in this design, or it was removed on
+purpose. They are excluded from the ratio above.
+
+| reference package | why it is not here |
+|---|---|
+| `Microsoft.ECApp_8wekyb3d8bbwe` | commerce/store host; WuBuOS ships packages, not a store |
+| `Microsoft.MicrosoftEdgeDevToolsClient_8wekyb3d8bbwe` | browser devtools, not an OS feature |
+| `Microsoft.UI.Xaml.CBS_8wekyb3d8bbwe` | our UI is the C11 compositor; there is no XAML runtime to service |
+| `Microsoft.Windows.AugLoop.CBS_8wekyb3d8bbwe` | no component servicing stack: the OS is built from this tree |
+| `Microsoft.Windows.SecureAssessmentBrowser_cw5n1h2txyewy` | exam-lockdown browser; nothing to lock down |
+| `Microsoft.Windows.XGpuEjectDialog_cw5n1h2txyewy` | no eGPU hot-plug path exists to eject |
+| `Windows.CBSPreview_cw5n1h2txyewy` | same: components are compiled here, not downloaded |
+| `microsoft.windows.narratorquickstart_8wekyb3d8bbwe` | removed by the owner's decision -- the a11y cluster read as jank |
