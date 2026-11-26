@@ -183,6 +183,38 @@ static uint32_t x11_mods(unsigned state) {
     return m;
 }
 
+/* PARITY WITHOUT HOSTAGE-TAKING.
+ * The guest must receive Win+Shift+S, but grabbing the WHOLE keyboard takes every host shortcut
+ * with it -- a window that silently swallows Super is worse than one that lacks the binding. So we
+ * grab exactly the combinations the shell implements, in every modifier variant a real keyboard can
+ * produce (Lock/NumLock set or not). A grab that fails means the host WM already owns that
+ * combination; our error handler logs and continues, and every other host shortcut keeps working. */
+static int      g_kbd_capture;     /* Ctrl+Alt+G: the guest owns every key while it is on */
+static unsigned g_grabbed_keys[32];
+static int      g_grabbed_count;
+
+static void grab_one(KeyCode kc, unsigned mods) {
+    XGrabKey(g_xdpy, (int)kc, mods, g_xwin, True, GrabModeAsync, GrabModeAsync);
+    if (g_grabbed_count < (int)(sizeof g_grabbed_keys / sizeof g_grabbed_keys[0]))
+        g_grabbed_keys[g_grabbed_count++] = kc;
+}
+
+void hosted_x11_grab_win_keys(void) {
+    if (getenv("WUBU_NO_KBD_GRAB")) return;
+    static const KeySym syms[] = {
+        XK_s, XK_e, XK_d, XK_a, XK_i, XK_l, XK_r, XK_x, XK_Tab, XK_space,
+    };
+    const unsigned lock_variants[] = { 0u, LockMask, Mod2Mask, LockMask | Mod2Mask };
+    for (unsigned i = 0; i < sizeof syms / sizeof syms[0]; i++) {
+        KeyCode kc = XKeysymToKeycode(g_xdpy, syms[i]);
+        if (!kc) continue;
+        for (unsigned v = 0; v < sizeof lock_variants / sizeof lock_variants[0]; v++) {
+            grab_one(kc, Mod4Mask | lock_variants[v]);
+            grab_one(kc, Mod4Mask | ShiftMask | lock_variants[v]);
+        }
+    }
+}
+
 /* Drain X events without blocking. Returns non-zero when the window was closed. */
 int hosted_x11_present_pump(void) {
     if (!g_xopen) return 1;
@@ -197,16 +229,10 @@ int hosted_x11_present_pump(void) {
              * Super+E before the OS is ever handed the event -- measured: no key event arrived at
              * all, which is why a Win-key binding could never work here. Grabbed on focus, released
              * on focus loss, and switchable off with WUBU_NO_KBD_GRAB=1. */
-            if (!getenv("WUBU_NO_KBD_GRAB"))
-                XGrabKeyboard(g_xdpy, g_xwin, False, GrabModeAsync, GrabModeAsync, CurrentTime);
-            break;
-        case FocusIn:
-            if (!getenv("WUBU_NO_KBD_GRAB"))
-                XGrabKeyboard(g_xdpy, g_xwin, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+            hosted_x11_grab_win_keys();
             break;
         case FocusOut:
-            XUngrabKeyboard(g_xdpy, CurrentTime);
-            break;
+            if (g_kbd_capture) { g_kbd_capture = 0; XUngrabKeyboard(g_xdpy, CurrentTime); }
             break;
         case Expose:
             if (g_ximg) {
@@ -224,6 +250,24 @@ int hosted_x11_present_pump(void) {
         case KeyPress:
         case KeyRelease: {
             KeySym ks = XLookupKeysym(&ev.xkey, 0);
+
+            /* Ctrl+Alt+G toggles KEYBOARD CAPTURE: with capture on the guest receives every key,
+             * Win combos included, exactly as an OS that owns the session would. That is the only
+             * way a Win-key binding can work while the host WM keeps its own Super shortcuts --
+             * passive grabs lose to a pre-existing WM grab, and a permanent whole-keyboard grab
+             * would hold the host hostage. Off by default, released by the same key. */
+            if (ev.type == KeyPress && ks == XK_g &&
+                (ev.xkey.state & (Mod1Mask | ControlMask)) == (Mod1Mask | ControlMask)) {
+                g_kbd_capture = !g_kbd_capture;
+                if (g_kbd_capture)
+                    XGrabKeyboard(g_xdpy, g_xwin, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+                else
+                    XUngrabKeyboard(g_xdpy, CurrentTime);
+                fprintf(stderr, "[x11] keyboard capture %s%s\n",
+                        g_kbd_capture ? "ON" : "OFF",
+                        g_kbd_capture ? " (Ctrl+Alt+G again to release)" : "");
+                break;
+            }
             /* Escape closes the OS only with Alt held; plain Escape belongs to the WM
              * (menus, the Alt+Tab switcher, dialogs). */
             if (ev.type == KeyPress && ks == XK_Escape && (ev.xkey.state & Mod1Mask)) {
@@ -266,8 +310,7 @@ int hosted_x11_present_pump(void) {
              * the app could be clicked but every physical keystroke went to whatever else the
              * window manager had focused -- which read as "the keyboard does not work". */
             XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
-            if (!getenv("WUBU_NO_KBD_GRAB"))
-                XGrabKeyboard(g_xdpy, g_xwin, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+            hosted_x11_grab_win_keys();
             MouseEvent mev;
             memset(&mev, 0, sizeof(mev));
             mev.x = tx;

@@ -49,6 +49,11 @@ const WubuTheme *theme(void) { return wubu_theme_get(); }
  * ================================================================ */
 
 int wm_init(int screen_w, int screen_h) {
+    if (getenv("WUBU_ICON_PROBE")) {
+        static int calls;
+        fprintf(stderr, "[probe] wm_init #%d (icons before wipe: %d)\n",
+                ++calls, g_dwm.icon_count);
+    }
     memset(&g_dwm, 0, sizeof(g_dwm));
     g_dwm.screen_w = screen_w;
     g_dwm.screen_h = screen_h;
