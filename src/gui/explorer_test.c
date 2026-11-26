@@ -7,6 +7,9 @@
 #include "wubu_theme.h"         /* colours come from the theme, not from the test */
 
 #include "explorer_internal.h"   /* shared context-menu geometry */
+#include "../runtime/wubu_libraries.h"
+#include <sys/stat.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -852,6 +855,144 @@ static void test_tabs(void) {
     explorer_shutdown();
 }
 
+/* -- Libraries: a merged list over several real folders -------------------------------- */
+static void test_library(void) {
+    printf("\n-- Libraries --\n");
+
+    char root[] = "/tmp/extestXXXXXX";
+    if (!mkdtemp(root)) { TEST_ASSERT(0, "temp dir for the library fixture"); return; }
+    char home[300], conf[400], pics[400], albums[400], f1[500], f2[500];
+    snprintf(home, sizeof home, "%s/home", root);
+    snprintf(conf, sizeof conf, "%s/libraries.conf", root);
+    snprintf(pics, sizeof pics, "%s/Pictures", home);
+    snprintf(albums, sizeof albums, "%s/Albums", home);
+    snprintf(f1, sizeof f1, "%s/one.txt", pics);
+    snprintf(f2, sizeof f2, "%s/two.txt", albums);
+    mkdir(home, 0755); mkdir(pics, 0755); mkdir(albums, 0755);
+    FILE *g = fopen(f1, "w"); if (g) { fputs("one", g); fclose(g); }
+    g = fopen(f2, "w"); if (g) { fputs("two", g); fclose(g); }
+    setenv("HOME", home, 1);
+    setenv("WUBU_LIBRARIES_CONF", conf, 1);
+
+    explorer_init();
+    TEST_ASSERT(!explorer_in_library(), "a fresh Explorer is not in a library");
+
+    /* Put a second folder in Pictures so the view has to merge two directories. */
+    {
+        WubuLibraries libs;
+        wubu_libraries_load(&libs);
+        (void)wubu_library_add(&libs, WUBU_LIB_PICTURES, albums);
+        (void)wubu_libraries_save(&libs);
+    }
+
+    TEST_ASSERT(explorer_open_library(WUBU_LIB_PICTURES), "the Pictures library opens");
+    TEST_ASSERT(explorer_in_library(), "the Explorer knows it is in a library");
+    TEST_ASSERT(explorer_library_id() == WUBU_LIB_PICTURES, "the open library is Pictures");
+
+    ExExplorerState *ex = explorer_state();
+    TEST_ASSERT(ex->entry_count >= 2, "the merged list holds the files from both folders");
+    bool saw_one = false, saw_two = false;
+    for (int i = 0; i < ex->entry_count; i++) {
+        if (strcmp(ex->entries[i].name, "one.txt") == 0) saw_one = true;
+        if (strcmp(ex->entries[i].name, "two.txt") == 0) saw_two = true;
+        TEST_ASSERT(ex->entries[i].full_path[0] == '/', "every merged entry has an absolute path");
+        TEST_ASSERT(ex->entries[i].type_str[0] != '\0', "every merged entry names its source folder");
+    }
+    TEST_ASSERT(saw_one && saw_two, "files from both library folders are listed");
+
+    char status[160];
+    ex_library_status(ex, status, sizeof status);
+    TEST_ASSERT(strstr(status, "Pictures library") != NULL, "the status bar names the library");
+    TEST_ASSERT(strstr(status, "2 folder") != NULL, "the status bar counts the library's folders");
+
+    /* The nav-pane shortcuts: the hit-test must agree with the block the renderer draws. */
+    int block = ex_library_block_h();
+    int tree_y = ex_content_top();
+    for (int i = 0; i < 4; i++) {
+        int sy = tree_y + i * (block / 4);
+        TEST_ASSERT(ex_hit_library_shortcut(ex, tree_y, 10, sy + 5) == i,
+                    "each shortcut row hits its own library");
+    }
+    TEST_ASSERT(ex_hit_library_shortcut(ex, tree_y, 10, tree_y + block) == -1,
+                "below the block is the tree, not a shortcut");
+
+    /* Navigating to a real folder leaves library mode: a merged list that survives navigation would
+     * show a folder's contents under another folder's name. */
+    explorer_navigate(pics);
+    TEST_ASSERT(!explorer_in_library(), "navigating to a real path leaves library mode");
+    /* This graph scans through the stub filesystem, so the count is not asserted here -- what matters
+     * is that the merged entries are GONE, not what a stubbed directory scan returns. */
+    bool leaked = false;
+    for (int i = 0; i < ex->entry_count; i++)
+        if (strcmp(ex->entries[i].name, "two.txt") == 0) leaked = true;
+    TEST_ASSERT(!leaked, "a real folder does not keep showing the library's other files");
+
+    /* Refresh inside a library re-merges instead of scanning the anchor folder. */
+    TEST_ASSERT(explorer_open_library(WUBU_LIB_PICTURES), "the library reopens");
+    explorer_refresh();
+    TEST_ASSERT(explorer_in_library(), "refresh keeps library mode");
+    TEST_ASSERT(explorer_state()->entry_count >= 2, "refresh re-merges both folders");
+
+    /* The pseudo-path is what the nav pane navigates to, so it must route to the library. */
+    explorer_navigate("//lib:2");
+    TEST_ASSERT(explorer_library_id() == WUBU_LIB_MUSIC, "the //lib:<id> path opens that library");
+
+    explorer_shutdown();
+    char rm[500];
+    snprintf(rm, sizeof rm, "rm -rf '%s'", root);
+    if (system(rm) != 0) { /* best effort */ }
+}
+
+/* -- Toolbar: every painted button must be a target ------------------------------------ */
+static void test_toolbar(void) {
+    printf("\n-- Toolbar buttons --\n");
+    explorer_init();
+    ExExplorerState *ex = explorer_state();
+
+    TEST_ASSERT(ex_toolbar_button_count(ex) == 5, "a plain folder has five toolbar buttons");
+    TEST_ASSERT(strcmp(ex_toolbar_button_label(ex, 0), "Back") == 0, "button 0 is Back");
+    TEST_ASSERT(strcmp(ex_toolbar_button_label(ex, 4), "New Folder") == 0, "button 4 is New Folder");
+    TEST_ASSERT(ex_toolbar_button_label(ex, 5) == NULL, "there is no sixth button in a folder");
+
+    int last_r = -1;
+    for (int i = 0; i < ex_toolbar_button_count(ex); i++) {
+        int bx, by, bw, bh;
+        TEST_ASSERT(ex_toolbar_button_rect(ex, i, 0, 0, &bx, &by, &bw, &bh), "every button has a rect");
+        TEST_ASSERT(by >= 0 && by + bh <= ex_toolbar_h(), "every button sits inside the toolbar strip");
+        TEST_ASSERT(bx > last_r, "buttons do not overlap and are laid out left to right");
+        last_r = bx + bw;
+    }
+
+    /* Pixels: the rect the click handler uses must be the rect that was PAINTED. */
+    vbe_init(1024, 768);
+    vbe_reset_clip();
+    wubu_theme_set(THEME_DARK);
+    ex->library = -1;
+    ex_render_toolbar(ex, NULL, 1024, 768, 0, 0, 1024, ex_toolbar_h());
+    for (int i = 0; i < ex_toolbar_button_count(ex); i++) {
+        int bx, by, bw, bh;
+        ex_toolbar_button_rect(ex, i, 0, 0, &bx, &by, &bw, &bh);
+        /* The centre of a button can be glyph ink; the strip behind it is dark but NOT black, so
+         * "!= 0" would pass for a button that was never painted. Compare the button's own face colour
+         * at a point the label cannot cover. */
+        uint32_t p = vbe_get_pixel(bx + bw - 6, by + bh / 2);
+        TEST_ASSERT(p == tc()->btn_face, "the button is painted with its own face where it is clickable");
+    }
+
+    /* In a library the strip grows by one button, and the hit-test follows. */
+    ex->library = WUBU_LIB_PICTURES;
+    TEST_ASSERT(ex_toolbar_button_count(ex) == 6, "a library has a sixth button");
+    /* The label is allowed to be NULL (that is what "no sixth button" looks like); strcmp(NULL, ...) is
+     * how a mutant SEGFAULTED instead of failing this gate. */
+    const char *l5 = ex_toolbar_button_label(ex, 5);
+    TEST_ASSERT(l5 != NULL && strcmp(l5, "Add folders") == 0, "the sixth button is Add folders");
+    int bx, by, bw, bh;
+    TEST_ASSERT(ex_toolbar_button_rect(ex, 5, 0, 0, &bx, &by, &bw, &bh), "it has a rect");
+    TEST_ASSERT(bx >= 390, "it sits after the five folder buttons, where the strip has room");
+    ex->library = -1;
+    explorer_shutdown();
+}
+
 int main(void) {
     printf("╔══════════════════════════════════════════════════════════╗\n");
     printf("║  explorer Test Suite                              ║\n");
@@ -876,6 +1017,8 @@ int main(void) {
     test_shift_select();
     test_image_preview();
     test_ctx_menu_rows();
+    test_library();
+    test_toolbar();
 
     printf("\n╔══════════════════════════════════════════════════════════╗\n");
     printf("║  Results: %d passed, %d failed                          ║\n", tests_passed, tests_failed);

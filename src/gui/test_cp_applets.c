@@ -146,6 +146,7 @@ int main(void)
     paint_one("theme",    cp_create_theme_applet(),    1);
     paint_one("sound",    cp_create_sound_applet(),    0);
     paint_one("hardware", cp_create_hardware_applet(), 0);
+    paint_one("account",  cp_create_account_applet(),  0);
 
     /* A fake DMI tree, so the gate measures the wiring and not the host's BIOS. */
     char froot[] = "/tmp/cpfwXXXXXX";
@@ -202,6 +203,25 @@ int main(void)
             unlink(mfile);
         }
         unsetenv("WUBU_MIRRORLIST");
+    }
+
+    /* Your account: the page must name the user the machine names. */
+    {
+        controlpanel_init();
+        uint32_t *afb = calloc((size_t)W * H + CANARY, sizeof(uint32_t));
+        for (unsigned i = 0; i < CANARY; i++) afb[(size_t)W * H + i] = CANARY_VAL;
+        CpApplet *acct = controlpanel_get_applet(CP_APPLET_ACCOUNT);
+        check(acct != NULL, "the Your account applet is registered");
+        controlpanel_render(afb, W, H);
+        check(non_black_in_content(afb) > 400, "the Your account page paints");
+        check(canary_intact(afb), "the Your account page honours the surface stride");
+        char login[64] = {0};
+        int arc = cp_account_test_login(login, sizeof login);
+        check(arc == 0 && login[0] != '\0', "the page names the signed-in user");
+        if (login[0]) printf("  measured: account page names '%s'\n", login);
+        check(controlpanel_count() >= 8, "the Control Panel registry holds every applet it ships");
+        controlpanel_shutdown();
+        free(afb);
     }
 
     /* cp_text is the shared drawer: it must honour clip bounds too */

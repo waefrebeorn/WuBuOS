@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**32/42 have an owner, 10 missing, 8 declared not applicable.**
+**35/42 have an owner, 7 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -27,14 +27,14 @@ the behaviour works -- that is the test suite's job.
 | win11 | `MicrosoftWindows.Client.CBS` | **MISSING** | core shell services |
 | win11 | `MicrosoftWindows.Client.FileExp` | `src/gui/explorer.c:43` | file explorer client |
 | win11 | `Windows.ContentDeliveryManager` | `src/gui/wubu_pkgmgr.c:16` | content delivery / packages |
-| win11 | `AccountsControl` | **MISSING** | accounts (no account model here) |
+| win11 | `AccountsControl` | `src/runtime/wubu_userinfo.c:14` | account surface -- signed-in user, home, picture, password tool (read from passwd) |
 | win11 | `BioEnrollment` | **MISSING** | biometrics |
 | win11 | `ParentalControls` | **MISSING** | parental controls |
 | win11 | `AsyncTextService` | `src/gui/term_ansi.c:41` | text services |
 | win11 | `NcsiUwpApp` | `src/gui/shell/quick_settings.c:29` | status rows + tray click opens the panel; SSID scan in control panel |
-| win11 | `Windows.OOBENetworkConnectionFlow` | **MISSING** | OOBE network flow |
+| win11 | `Windows.OOBENetworkConnectionFlow` | `src/gui/shell/wubu_shell_greeter.c:29` | setup network step -- the interfaces WuBuOS can see |
 | win11 | `Windows.UndockedDevKit` | `src/gui/shell/win11_widgets.c:27` | widgets |
-| win11 | `Windows.AddSuggestedFoldersToLibraryDialog` | **MISSING** | libraries |
+| win11 | `Windows.AddSuggestedFoldersToLibraryDialog` | `src/gui/shell/add_to_library_dialog.c:12` | offer the folders on this machine that a library lacks |
 | win11 | `Windows.FilePickerDialog` | `src/gui/shell/file_picker.c:19` | picker dialog |
 | cachyos | `ananicy-cpp` | `src/runtime/wubu_perf_profile.c:27` | per-process priority daemon -- profile only (no live priority daemon) |
 | cachyos | `pipewire` | `src/gui/wubu_sound.c:10` | audio server -- audio |

@@ -328,11 +328,18 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
 
     if (kind == 1) { /* Mouse down */
         if (btn == 1) { /* Left click */
-            /* Check tree view first */
+            /* The library shortcuts own the top of the nav pane; a click there opens the library. */
             if (x >= tree_x && x < tree_x + tree_w && y >= tree_y && y < tree_y + list_h) {
+                int lib = ex_hit_library_shortcut(ex, tree_y, x, y);
+                if (lib >= 0) { explorer_open_library(lib); return; }
+            }
+
+            /* Check tree view first (below the library block) */
+            if (x >= tree_x && x < tree_x + tree_w &&
+                y >= tree_y + ex_library_block_h() && y < tree_y + list_h) {
                 /* Tree view click - find node at position */
                 ExTreeNode *node = ex->tree_root;
-                int rel_y = y - tree_y - 4;
+                int rel_y = y - tree_y - ex_library_block_h() - 4;
                 while (node && rel_y >= 0) {
                     int node_h = ex_row_h();
                     if (node->is_drive || node->parent == ex->tree_root) {
@@ -381,18 +388,42 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
                 return;
             }
 
-            /* Toolbar strip: this range is the TOOLBAR (below the address bar), not the
-             * breadcrumbs -- the label was wrong, which is how the real breadcrumb hit-test ended up
-             * testing the wrong rows. No toolbar buttons are wired here yet. */
+            /* Toolbar strip: this range is the TOOLBAR (below the address bar), not the breadcrumbs.
+             * The buttons were painted and never wired; they now hit-test through
+             * ex_toolbar_button_rect(), the same function the renderer paints them with. */
             if (y >= 0 && y < ex_toolbar_h()) {
-                /* The search field first: its box comes from ex_search_rect(), the same function the
-                 * renderer paints it with, using the width the toolbar was DRAWN at. */
+                /* The search field first: its box comes from ex_search_rect(). */
                 if (kind == 1 && btn == 1) {
                     int sx, sy, sw, sh;
                     if (ex_search_rect(ex, 0, 0, ex->toolbar_w, ex_toolbar_h(), &sx, &sy, &sw, &sh) &&
                         x >= sx && x < sx + sw && y >= sy && y < sy + sh) {
                         ex->search_active = true;
                         return;
+                    }
+                }
+                if (kind == 1 && btn == 1) {
+                    int n_btns = ex_toolbar_button_count(ex);
+                    for (int i = 0; i < n_btns; i++) {
+                        int bx, by, bw, bh;
+                        if (!ex_toolbar_button_rect(ex, i, 0, 0, &bx, &by, &bw, &bh)) continue;
+                        if (x < bx || x >= bx + bw || y < by || y >= by + bh) continue;
+                        switch (i) {
+                        case 0: explorer_go_back(); return;
+                        case 1: explorer_go_forward(); return;
+                        case 2: explorer_go_up(); return;
+                        case 3: explorer_refresh(); return;
+                        case 4: explorer_new_folder(); return;
+                        case 5: {
+                            /* "Add folders" belongs to the library card, not to Explorer: weak so a
+                             * WM-less test graph still links. */
+                            extern __attribute__((weak)) bool add_to_library_open(int, int, int);
+                            if (add_to_library_open)
+                                (void)add_to_library_open(ex->library, vbe_state()->width,
+                                                          vbe_state()->height);
+                            return;
+                        }
+                        default: return;
+                        }
                     }
                 }
                 return;

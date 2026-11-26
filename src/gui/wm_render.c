@@ -325,6 +325,10 @@ if (g_dwm.lasso_active) {
         extern __attribute__((weak)) void open_with_render(uint32_t *, int, int);
         if (open_with_render) open_with_render(fb, fb_w, fb_h);
     }
+    {
+        extern __attribute__((weak)) void add_to_library_render(uint32_t *, int, int);
+        if (add_to_library_render) add_to_library_render(fb, fb_w, fb_h);
+    }
 
     /* Windows 11 shell layers: the widgets board, then the snap flyout.
      * Weak: a build without the shell skips them. */

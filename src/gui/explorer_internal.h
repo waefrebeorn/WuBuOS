@@ -84,6 +84,18 @@ void explorer_update_drive_list(void);
 /* Update breadcrumbs (called by zip module after populating entries) */
 void ex_update_breadcrumbs(ExExplorerState *ex);
 
+/* explorer_library.c */
+int  ex_load_library(ExExplorerState *ex, int lib_id);
+int  ex_toolbar_button_count(const ExExplorerState *ex);
+const char *ex_toolbar_button_label(const ExExplorerState *ex, int i);
+bool ex_toolbar_button_rect(const ExExplorerState *ex, int i, int x, int y,
+                            int *bx, int *by, int *bw, int *bh);
+int  ex_library_block_h(void);
+void ex_library_status(ExExplorerState *ex, char *out, size_t cap);
+void ex_render_library_shortcuts(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h,
+                                 int x, int y, int w, int *drawn_h);
+int  ex_hit_library_shortcut(ExExplorerState *ex, int tree_y, int mx, int my);
+
 /* -- Global state (defined in explorer.c) ------------------- */
 extern ExExplorerState g_explorer;
 extern ExExplorerState *g_sort_ctx;

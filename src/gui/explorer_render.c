@@ -280,6 +280,13 @@ void ex_render_statusbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
     /* Left: status text */
     vbe_draw_text(10, sb_y + (ex_statusbar_h() - 8) / 2, ex->status_text[0] ? ex->status_text : "Ready", tc()->body_text, 1);
 
+    /* In a library the count is a MERGED count, so the bar names the library: a merged list that looks
+     * like one folder is the lie this whole feature exists to avoid. */
+    char lib_line[160];
+    ex_library_status(ex, lib_line, sizeof lib_line);
+    if (lib_line[0])
+        vbe_draw_text(10 + 120, sb_y + (ex_statusbar_h() - 8) / 2, lib_line, tc()->select_bg, 1);
+
     /* Center: item count and total size */
     char count_str[128];
     if (ex->selection_count > 0) {
@@ -391,7 +398,11 @@ void explorer_render(uint32_t *fb, int fb_w, int fb_h) {
 
     ex_render_tabs(ex, fb_w, tab_y, ex_tab_h());
 
-    ex_render_tree(ex, fb, fb_w, fb_h, tree_x, tree_y, tree_w, list_h);
+    /* The library shortcuts sit at the top of the nav pane, where Windows puts them, and the folder
+     * tree starts below them -- same block height in the renderer and the hit-test. */
+    int lib_h = ex_library_block_h();
+    ex_render_library_shortcuts(ex, fb, fb_w, fb_h, tree_x, tree_y, tree_w, &lib_h);
+    ex_render_tree(ex, fb, fb_w, fb_h, tree_x, tree_y + lib_h, tree_w, list_h - lib_h);
     ex_render_file_list(ex, fb, fb_w, fb_h, list_x, list_y, list_w, list_h);
 
     if (ex->preview_visible) {

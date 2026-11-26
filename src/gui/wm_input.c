@@ -158,6 +158,21 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
      * "always use this app", Esc cancels, and every other key is swallowed so a shortcut cannot fire
      * behind a modal card. Weak + guarded -- this file is in every WM test graph. */
     {
+        extern __attribute__((weak)) bool add_to_library_is_open(void);
+        extern __attribute__((weak)) bool add_to_library_key(uint32_t, int, int);
+        extern __attribute__((weak)) void wubu_notify_simple(const char *, const char *, const char *, const char *, int, int);
+        extern __attribute__((weak)) const char *add_to_library_status(void);
+        if (add_to_library_is_open && add_to_library_is_open()) {
+            bool was_open = true;
+            (void)was_open;
+            if (add_to_library_key) (void)add_to_library_key(key, vbe_width(), vbe_height());
+            if (add_to_library_is_open && !add_to_library_is_open() && wubu_notify_simple &&
+                add_to_library_status)
+                wubu_notify_simple("Libraries", "Updated", add_to_library_status(), NULL, 1, 2400);
+            return;
+        }
+    }
+    {
         extern __attribute__((weak)) bool open_with_is_open(void);
         extern __attribute__((weak)) const char *open_with_move(int);
         extern __attribute__((weak)) void open_with_toggle_remember(void);
@@ -619,6 +634,21 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         extern __attribute__((weak)) bool open_with_is_open(void);
         extern __attribute__((weak)) int open_with_click(int, int, int, int);
         extern __attribute__((weak)) int open_with_launch_last(void);
+        /* The library card is modal too. Checked before Open-With because a library card is opened
+         * from Explorer, which can never have an Open-With card up at the same time. */
+        {
+            extern __attribute__((weak)) bool add_to_library_is_open(void);
+            extern __attribute__((weak)) int add_to_library_click(int, int, int, int);
+            extern __attribute__((weak)) void wubu_notify_simple(const char *, const char *, const char *, const char *, int, int);
+            extern __attribute__((weak)) const char *add_to_library_status(void);
+            if (add_to_library_is_open && add_to_library_click && add_to_library_is_open()) {
+                int rr = add_to_library_click(x, y, vbe_width(), vbe_height());
+                if (rr != 0 && wubu_notify_simple && add_to_library_status)
+                    wubu_notify_simple("Libraries", rr == 1 ? "Updated" : "Cancelled",
+                                       add_to_library_status(), NULL, 1, 2400);
+                return;
+            }
+        }
         if (open_with_is_open && open_with_click && open_with_is_open()) {
             int r = open_with_click(x, y, vbe_width(), vbe_height());
             if (r == 1 && open_with_launch_last) open_with_launch_last();

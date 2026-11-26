@@ -82,6 +82,7 @@ int str_contains_nocase(const char *haystack, const char *needle) {
 
 int explorer_init(void) {
     memset(&g_explorer, 0, sizeof(g_explorer));
+    g_explorer.library = -1;   /* plain folder; explorer_open_library() changes it */
 
     /* Context menu starts hidden (memset sets 0, but 0 >= 0 triggers the check) */
     g_explorer.context_menu_x = -1;
@@ -141,6 +142,7 @@ void explorer_shutdown(void) {
         g_explorer.preview.img_pixels = NULL;
     }
     memset(&g_explorer, 0, sizeof(g_explorer));
+    g_explorer.library = -1;   /* plain folder; explorer_open_library() changes it */
 }
 
 /* -- Window Management -------------------------------------------- */
@@ -315,6 +317,13 @@ void explorer_toggle(void) {
 void explorer_navigate(const char *path) {
     if (!path) return;
 
+    /* The nav-pane shortcuts navigate to "//lib:<id>": a library is not a directory, so it cannot go
+     * through the scanner at all -- it is a merged list over several directories. */
+    if (strncmp(path, "//lib:", 6) == 0) {
+        explorer_open_library(atoi(path + 6));
+        return;
+    }
+
     char resolved[EX_MAX_PATH];
     if (realpath(path, resolved)) {
         strncpy(g_explorer.current_path, resolved, EX_MAX_PATH - 1);
@@ -322,6 +331,7 @@ void explorer_navigate(const char *path) {
         strncpy(g_explorer.current_path, path, EX_MAX_PATH - 1);
     }
 
+    g_explorer.library = -1;           /* navigating to a real path leaves library mode */
     ex_scan_directory(g_explorer.current_path);
     if (g_explorer.tree_selected) {
         ex_tree_free(g_explorer.tree_root);
@@ -369,6 +379,7 @@ void explorer_go_forward(void) {
 }
 
 void explorer_refresh(void) {
+    if (g_explorer.library >= 0) { (void)explorer_open_library(g_explorer.library); return; }
     explorer_navigate(g_explorer.current_path);
 }
 
@@ -490,6 +501,9 @@ void explorer_set_sort(ExSortColumn col, bool ascending) {
 
 void explorer_toggle_hidden(void) {
     g_explorer.show_hidden = !g_explorer.show_hidden;
+    /* Hidden-file filtering applies to a library too: re-merge instead of re-scanning an anchor folder,
+     * which would silently replace the merged list with one directory. */
+    if (g_explorer.library >= 0) { (void)ex_load_library(&g_explorer, g_explorer.library); return; }
     ex_scan_directory(g_explorer.current_path);
 }
 

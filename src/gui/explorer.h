@@ -293,6 +293,7 @@ typedef struct {
     int                 visible_count;
     bool                visible_dirty;
     int                 visible_stamp;   /* entry_count the view was built from: catches a missed invalidate */
+    int                 library;          /* -1 = a plain folder; else the library whose folders are merged */
 } ExExplorerState;
 
 /* -- Search / filtered view (explorer_search.c) ------------------- */
@@ -405,6 +406,13 @@ void explorer_render(uint32_t *fb, int fb_w, int fb_h);
 
 /* State accessors */
 ExExplorerState *explorer_state(void);
+
+/* Libraries (src/gui/explorer_library.c): Documents/Pictures/Music/Videos as one merged list over
+ * every folder the library holds. Opening one anchors the breadcrumb on the library's first existing
+ * folder, so Up and the address bar stay real paths. */
+bool explorer_open_library(int lib_id);
+bool explorer_in_library(void);
+int  explorer_library_id(void);
 const char *explorer_current_path(void);
 const char *explorer_selected_path(void);
 
