@@ -438,6 +438,12 @@ static void ctx_action_pin_taskbar(void) {
     const char *nm = g_dwm.icons[idx].name;
     char exec[256];
     snprintf(exec, sizeof exec, "wubu-app %s", nm);
+
+    /* Ask first (PinningConfirmationDialog), unless the user has answered before. The dialog performs the
+     * pin itself on accept, so there is exactly one place that knows how to pin. */
+    extern bool pin_confirm_ask(const char *, const char *, const char *, int, int) __attribute__((weak));
+    if (pin_confirm_ask && pin_confirm_ask(nm, nm, exec, g_dwm.screen_w, g_dwm.screen_h)) return;
+
     if (wubu_taskbar_pin(nm, nm, exec) == 0)
         wubu_notify_simple("Taskbar", "Pinned", nm, NULL, 1, 2000);
     else
@@ -687,9 +693,16 @@ static void ctx_action_jump_close(void) {
 static void ctx_action_jump_pin(void) {
     const WubuTask *t = jump_task();
     if (!t) return;
-    if (t->pinned) wubu_taskbar_unpin(t->key);
-    else           wubu_taskbar_pin(t->key, t->title, t->exec);
-    wubu_notify_simple("Taskbar", t->pinned ? "Unpinned" : "Pinned", t->title, NULL, 1, 1800);
+    if (t->pinned) {
+        wubu_taskbar_unpin(t->key);
+        wubu_notify_simple("Taskbar", "Unpinned", t->title, NULL, 1, 1800);
+        return;
+    }
+    extern bool pin_confirm_ask(const char *, const char *, const char *, int, int) __attribute__((weak));
+    if (pin_confirm_ask && pin_confirm_ask(t->key, t->title, t->exec, g_dwm.screen_w, g_dwm.screen_h))
+        return;
+    wubu_taskbar_pin(t->key, t->title, t->exec);
+    wubu_notify_simple("Taskbar", "Pinned", t->title, NULL, 1, 1800);
 }
 
 void taskbar_show_jump_list(int task_idx, int mx, int my) {

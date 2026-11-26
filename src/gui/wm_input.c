@@ -162,6 +162,14 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         extern __attribute__((weak)) bool add_to_library_key(uint32_t, int, int);
         extern __attribute__((weak)) void wubu_notify_simple(const char *, const char *, const char *, const char *, int, int);
         extern __attribute__((weak)) const char *add_to_library_status(void);
+        {
+            extern __attribute__((weak)) bool pin_confirm_is_open(void);
+            extern __attribute__((weak)) bool pin_confirm_key(uint32_t, int, int);
+            if (pin_confirm_is_open && pin_confirm_key && pin_confirm_is_open()) {
+                (void)pin_confirm_key(key, vbe_width(), vbe_height());
+                return;
+            }
+        }
         if (add_to_library_is_open && add_to_library_is_open()) {
             bool was_open = true;
             (void)was_open;
@@ -634,6 +642,14 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         extern __attribute__((weak)) bool open_with_is_open(void);
         extern __attribute__((weak)) int open_with_click(int, int, int, int);
         extern __attribute__((weak)) int open_with_launch_last(void);
+        {
+            extern __attribute__((weak)) bool pin_confirm_is_open(void);
+            extern __attribute__((weak)) int pin_confirm_click(int, int, int, int);
+            if (pin_confirm_is_open && pin_confirm_click && pin_confirm_is_open()) {
+                (void)pin_confirm_click(x, y, vbe_width(), vbe_height());
+                return;
+            }
+        }
         /* The library card is modal too. Checked before Open-With because a library card is opened
          * from Explorer, which can never have an Open-With card up at the same time. */
         {

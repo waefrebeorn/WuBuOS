@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**37/42 have an owner, 5 missing, 8 declared not applicable.**
+**38/42 have an owner, 4 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -19,7 +19,7 @@ the behaviour works -- that is the test suite's job.
 | win11 | `Windows.PrintDialog` | `src/gui/shell/print_dialog.c:38` | print dialog over CUPS |
 | win11 | `Windows.PrintQueueActionCenter` | `src/runtime/wubu_print.c:30` | print backend (queue state read from cupsd) |
 | win11 | `Windows.CloudExperienceHost` | `src/gui/shell/wubu_shell_greeter.c:29` | first-run OOBE |
-| win11 | `Windows.PinningConfirmationDialog` | **MISSING** | pin confirmation |
+| win11 | `Windows.PinningConfirmationDialog` | `src/gui/shell/pin_confirm.c:16` | ask before pinning to the taskbar, with a remembered answer |
 | win11 | `Windows.PeopleExperienceHost` | **MISSING** | people/contacts flyout |
 | win11 | `WindowsAppRuntime` | **MISSING** | packaged-app runtime |
 | win11 | `Win32WebViewHost` | `src/lua/www/~WuBu~/examples/wb_character_demo.c:1` | embedded web view (WorldSpace) |
