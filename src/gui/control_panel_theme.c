@@ -26,7 +26,8 @@ typedef struct {
     int pending_theme;   /* -1 = none */
 } ThemeAppletData;
 
-static ThemeAppletData g_thm = { -1 };
+static ThemeAppletData g_thm;
+static char g_last_drawn[256];   /* the body line the page last drew ("" = none) */
 
 /* set the pending theme (the test hook). */
 void cp_theme_set_pending(int theme_id)
@@ -57,16 +58,23 @@ static void theme_mouse(CpApplet *applet, int x, int y, int btn, int kind)
 static void theme_render(CpApplet *applet, uint32_t *fb,
                          int fb_w, int fb_h, int x, int y, int w, int h)
 {
-    cp_fill(fb, fb_w, fb_h, x, y, w, h, 0xFFF7F7F7);
-    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, 0xFF1060B0, 2);
-
-    char line[256];
-    if (cp_theme_test_line(line, sizeof line) > 0)
-        cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, 0xFF202020, 1);
-
-    /* the palette, drawn: a theme page that shows no colour is a lie */
+    /* Colours from the theme, like every other page: this one painted a near-white card (0xFFF7F7F7) in
+     * a dark-only OS, which is the "one page looks bootleg" complaint with a line number. */
     const WubuThemeColors *c = wubu_theme_colors();
     if (!c) return;
+
+    cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
+    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg, 2);
+
+    char line[256];
+    /* The builder returns 0 on SUCCESS and -1 on bad arguments; "> 0" was never true, so this page drew
+     * its heading and nothing else. Same defect the Display page had. */
+    if (cp_theme_test_line(line, sizeof line) >= 0) {
+        snprintf(g_last_drawn, sizeof g_last_drawn, "%s", line);
+        cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, c->body_text, 1);
+    }
+
+    /* the palette, drawn: a theme page that shows no colour is a lie */
     const uint32_t sw[6] = {
         c->desktop_bg, c->win_face, c->win_title_active,
         c->border_light, c->border_dark, c->win_title_text
@@ -109,3 +117,6 @@ CpApplet cp_create_theme_applet(void)
     a.initialized = false;
     return a;
 }
+
+/* Test hook: the body line the Theme page last drew. */
+const char *cp_theme_last_drawn(void) { return g_last_drawn; }

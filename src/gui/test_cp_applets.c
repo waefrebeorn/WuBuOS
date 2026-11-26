@@ -179,6 +179,23 @@ int main(void)
         char m2[220];
         snprintf(m2, sizeof m2, "the Display page draws its body line (drew: '%s')", drawn ? drawn : "");
         check(drawn && drawn[0] && strstr(drawn, "1234x567") != NULL, m2);
+
+        /* The Theme page had the same "> 0" defect; the same behavioural check applies. */
+        CpApplet thm = cp_create_theme_applet();
+        controlpanel_init();
+        controlpanel_register_applet(&thm);
+        /* The panel renders its ACTIVE page: walk to Theme, or this would render Display and the check
+         * would pass for the wrong page. */
+        for (int guard = 0; guard < controlpanel_count(); guard++) {
+            if (controlpanel_active_index() == controlpanel_count() - 1) break;   /* Theme is last in */
+            controlpanel_handle_key(0xE050, 0);
+        }
+        controlpanel_render(dfb, W, H);
+        const char *tline = cp_theme_last_drawn();
+        char m3[220];
+        snprintf(m3, sizeof m3, "the Theme page draws its body line (drew: '%s')", tline ? tline : "");
+        check(tline && tline[0], m3);
+
         controlpanel_shutdown();
         free(dfb);
     }

@@ -964,8 +964,13 @@ tools/wemu_kernel_gate: tools/wemu_kernel_gate.c $(WEMU_LIB)
 	$(CC) $(WEMU_CFLAGS) -I$(WEMU_BUILD)/include -I$(WEMU_BUILD)/src \
 		tools/wemu_kernel_gate.c $(WEMU_LIB) -lm -o $@
 
+# ONE EMULATOR AT A TIME. metal_display_gate.sh takes this lock; the other QEMU users did not, so under
+# -j24 several emulators booted together and the metal gate lost its pmemsave dump ("no dump: qemu rc=0,
+# temp file absent") -- twice in one suite run, while passing standalone. Measured, not guessed.
+QEMU_GATE_LOCK := /tmp/wubu-qemu-gates.lock
+
 test_wemu_kernel: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
-	./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
+	flock $(QEMU_GATE_LOCK) ./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 
 
 # Pixel truth about the metal desktop. Every render change until now was
@@ -976,7 +981,7 @@ test_wemu_kernel: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 # asserts the desktop is really there. On-demand only, so the boot pays nothing.
 test_deskshot: tools/wemu_kernel_gate $(WEMU_KERNEL_ELF)
 	@mkdir -p build
-	@WEMU_KERNEL_STEPS=40000000 WEMU_KERNEL_MARKER='WuBuOS>' WEMU_KERNEL_SEND=deskshot \
+	@flock $(QEMU_GATE_LOCK) env WEMU_KERNEL_STEPS=40000000 WEMU_KERNEL_MARKER='WuBuOS>' WEMU_KERNEL_SEND=deskshot \
 	 WEMU_KERNEL_EXPECT='colours=' ./tools/wemu_kernel_gate $(WEMU_KERNEL_ELF) \
 	 > build/deskshot.log 2>&1 || { cat build/deskshot.log; exit 1; }
 	@DS=$$(grep -ao 'deskshot: [0-9]*x[0-9]* nonblack=[0-9a-f]* colours=[0-9a-f]* hash=[0-9a-f]*' build/deskshot.log | tail -1); \
