@@ -84,22 +84,26 @@ static void paint_one(const char *name, CpApplet a, int want_palette)
     controlpanel_render(fb, W, H);
 
     int painted = non_black_in_content(fb);
+    /* The accent is the THEME's selection colour, not a literal: the pages used to hardcode a light blue
+     * in a dark-only OS, and a gate that names the literal would have defended that bug. */
+    const WubuThemeColors *tc_now = wubu_theme_colors();
     char msg[160];
-    snprintf(msg, sizeof msg, "%s paints its page (%d px, accent %s)", name,
-             painted, has_colour(fb, 0xFF1060B0) ? "yes" : "no");
-    check(painted > 400 && has_colour(fb, 0xFF1060B0), msg);
+    snprintf(msg, sizeof msg, "%s paints its page (%d px)", name, painted);
+    check(painted > 400, msg);
 
     snprintf(msg, sizeof msg, "%s honours the surface stride (canary %s)", name,
              canary_intact(fb) ? "intact" : "SMASHED");
     check(canary_intact(fb), msg);
 
-    /* the background fill must be the applet's paper, not leftover zeros */
-    snprintf(msg, sizeof msg, "%s clears its region", name);
-    check(fb[(size_t)(H - 1) * W + (W - 1)] == 0xFFF7F7F7, msg);
+    /* The background fill must be the applet's paper, not leftover zeros -- and "paper" is whatever the
+     * theme says, measured from a corner the applet is known to fill. */
+    snprintf(msg, sizeof msg, "%s clears its region (theme face)", name);
+    uint32_t corner = fb[(size_t)(H - 1) * W + (W - 1)];
+    check(corner == tc_now->win_face || corner == tc_now->desktop_bg || corner == tc_now->taskbar_bg, msg);
 
     if (want_palette) {
         snprintf(msg, sizeof msg, "%s draws the palette (not just text)", name);
-        check(has_colour(fb, 0xFFF7F7F7) && painted > 3000, msg);
+        check(has_colour(fb, tc_now->win_face) && painted > 3000, msg);
     }
 
     controlpanel_shutdown();

@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**39/42 have an owner, 3 missing, 8 declared not applicable.**
+**37/42 have an owner, 5 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -27,9 +27,9 @@ the behaviour works -- that is the test suite's job.
 | win11 | `MicrosoftWindows.Client.CBS` | `src/runtime/wubu_account.c:13` | core shell services: accounts, search/spotlight, input UX, first-run setup -- implemented as modules here, not shipped as a servicing package |
 | win11 | `MicrosoftWindows.Client.FileExp` | `src/gui/explorer.c:43` | file explorer client |
 | win11 | `Windows.ContentDeliveryManager` | `src/gui/wubu_pkgmgr.c:16` | content delivery / packages |
-| win11 | `AccountsControl` | `src/runtime/wubu_userinfo.c:14` | account surface -- signed-in user, home, picture, password tool (read from passwd) |
-| win11 | `BioEnrollment` | `src/runtime/wubu_biometric.c:15` | fingerprint sign-in -- reader/service/enrolled prints, each measured |
-| win11 | `ParentalControls` | `src/runtime/wubu_parental.c:14` | family limits -- allowed hours/days, enforced by locking the session |
+| win11 | `AccountsControl` | **MISSING** | GAP: wubu_userinfo reads the account, but its page lives in the Control Panel applet engine, which the shipped Settings app (src/apps/control) does not use |
+| win11 | `BioEnrollment` | **MISSING** | GAP: wubu_biometric measures reader/service/prints, but its page lives in the Control Panel applet engine, and nothing in the shell opens that engine |
+| win11 | `ParentalControls` | `src/runtime/wubu_parental.c:14` | family limits -- the policy is enforced (the session locks outside the hours); the editor page lives in the unwired Control Panel engine |
 | win11 | `AsyncTextService` | `src/gui/term_ansi.c:41` | text services |
 | win11 | `NcsiUwpApp` | `src/gui/shell/quick_settings.c:29` | status rows + tray click opens the panel; SSID scan in control panel |
 | win11 | `Windows.OOBENetworkConnectionFlow` | `src/gui/shell/wubu_shell_greeter.c:29` | setup network step -- the interfaces WuBuOS can see |
@@ -38,7 +38,7 @@ the behaviour works -- that is the test suite's job.
 | win11 | `Windows.FilePickerDialog` | `src/gui/shell/file_picker.c:19` | picker dialog |
 | cachyos | `ananicy-cpp` | `src/runtime/wubu_perf_profile.c:27` | per-process priority daemon -- profile only (no live priority daemon) |
 | cachyos | `pipewire` | `src/gui/wubu_sound.c:10` | audio server -- audio |
-| cachyos | `NetworkManager` | `src/gui/control_panel_network.c:26` | network management -- network panel |
+| cachyos | `NetworkManager` | `src/gui/control_panel_network.c:27` | network management -- network panel |
 | cachyos | `power-profiles-daemon` | `src/runtime/wubu_power_profile.c:26` | power profiles -- 3 profiles (power-saver/balanced/performance), live in quick settings |
 | cachyos | `zram-generator` | `src/runtime/wubu_perf_profile.c:27` | compressed swap -- tunables only |
 | cachyos | `systemd-coredump` | `src/runtime/wubu_crashcap.c:31` | crash capture -- fatal-signal report (signal/addr/backtrace/maps) in ~/.local/state/wubuos/crashes |

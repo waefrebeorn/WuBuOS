@@ -75,12 +75,15 @@ SHELL = [
                                           "implemented as modules here, not shipped as a servicing package"),
     ("MicrosoftWindows.Client.FileExp", ["src/gui/explorer.c"], "file explorer client"),
     ("Windows.ContentDeliveryManager", ["src/gui/wubu_pkgmgr.c"], "content delivery / packages"),
-    ("AccountsControl",         ["src/runtime/wubu_userinfo.c", "src/gui/control_panel_account.c"],
-                                  "account surface -- signed-in user, home, picture, password tool (read from passwd)"),
-    ("BioEnrollment",            ["src/runtime/wubu_biometric.c", "src/gui/control_panel_signin.c"],
-                                  "fingerprint sign-in -- reader/service/enrolled prints, each measured"),
-    ("ParentalControls",         ["src/runtime/wubu_parental.c", "src/gui/control_panel_limits.c"],
-                                  "family limits -- allowed hours/days, enforced by locking the session"),
+    ("AccountsControl",         [],
+                                  "GAP: wubu_userinfo reads the account, but its page lives in the Control Panel "
+                                  "applet engine, which the shipped Settings app (src/apps/control) does not use"),
+    ("BioEnrollment",            [],
+                                  "GAP: wubu_biometric measures reader/service/prints, but its page lives in the "
+                                  "Control Panel applet engine, and nothing in the shell opens that engine"),
+    ("ParentalControls",         ["src/runtime/wubu_parental.c", "src/gui/shell/parental_guard.c"],
+                                  "family limits -- the policy is enforced (the session locks outside the hours); "
+                                  "the editor page lives in the unwired Control Panel engine"),
     ("AsyncTextService",        ["src/gui/term_ansi.c"], "text services"),
     # The connectivity surface exists twice over and neither was mapped: quick settings draws
     # "WiFi: connected/off" and "Ethernet: connected/off" from the real link state, and the tray's

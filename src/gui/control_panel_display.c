@@ -19,6 +19,7 @@
 #include "control_panel.h"
 #include "control_panel_text.h"
 #include "wubu_world.h"
+#include "wubu_theme.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,17 +67,20 @@ static void display_render(CpApplet *applet, uint32_t *fb,
     const wubu_world_t *wd = d ? d->snap : NULL;
     if (!wd && g_disp.snap) wd = g_disp.snap();
 
-    cp_fill(fb, fb_w, fb_h, x, y, w, h, 0xFFF7F7F7);
-    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, 0xFF1060B0, 2);
+    /* Colours come from the theme: this page used to paint a near-white card in a dark-only OS,
+     * which is exactly how one panel read as bootleg next to every other. */
+    const WubuThemeColors *c = wubu_theme_colors();
+    cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
+    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg, 2);
     if (!wd) {
         cp_draw_text(fb, fb_w, fb_h, x + 14, y + 44,
-                     "no display snapshot", 0xFF802020, 1);
+                     "no display snapshot", c->body_text_ina, 1);
         return;
     }
     /* the line the test asserts is the line the user reads: one source */
     char line[256];
     if (cp_display_test_line(line, sizeof line) > 0)
-        cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, 0xFF202020, 1);
+        cp_text_wrapped(fb, fb_w, fb_h, x + 14, y + 44, w - 28, line, c->body_text, 1);
 }
 
 /* the test hook: the display line the applet would show. */

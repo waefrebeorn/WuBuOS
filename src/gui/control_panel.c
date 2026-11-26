@@ -16,6 +16,10 @@
  * C11.
  */
 #include "control_panel.h"
+#include "../kernel/wubu_world.h"   /* the snapshot the Display/Network pages report */
+
+/* Weak: a panel test graph has the applets without the world model. */
+extern const wubu_world_t *wubu_world_snapshot(void) __attribute__((weak));
 
 #include <stdio.h>
 #include <string.h>
@@ -57,6 +61,14 @@ void controlpanel_init(void)
         g_controlpanel.applets[i].initialized = true;
     }
     g_controlpanel.applet_count = n;
+
+    /* The pages that report machine state need a provider, and nothing in the shell ever installed one:
+     * Display and Network rendered "no snapshot" on every real install while the tests injected fakes and
+     * passed. Wire the real snapshot once, here, where the panel is set up. */
+    if (wubu_world_snapshot) {
+        cp_display_set_snapshot(wubu_world_snapshot);
+        cp_network_set_snapshot(wubu_world_snapshot);
+    }
     g_controlpanel.active_applet = 0;
 }
 
