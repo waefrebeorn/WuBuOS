@@ -46,6 +46,11 @@ void wubu_world_sample(void);
 /* W3: the snapshot (the AGI's in-process read). */
 const wubu_world_t *wubu_world_snapshot(void);
 
+/* W3b: publish the display the CURRENT session presents. A hosted session has no GPU probe to fill the
+ * display fields, so without this the snapshot says "not reported" forever -- or, worse, an applet reads
+ * fields nothing wrote. Values are what the compositor actually presents, not what hardware might have. */
+void wubu_world_set_display(uint16_t w, uint16_t h, int connector, uint32_t vram_mb);
+
 /* W4: the one-line world state (the /n read). */
 int wubu_world_state_str(char *out, size_t cap);
 

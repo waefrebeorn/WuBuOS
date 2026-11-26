@@ -93,6 +93,7 @@ static int g_hosted_x11;   /* presenting on the real X11 display */
 #include "../runtime/wubu_container.h"
 #include "../audio/wubu_audio.h"
 #include "wubu_holyd.h"
+#include "../kernel/wubu_world.h"
 
 /* Launcher-core global: the live hosted state, set in hosted_init and
  * read by the Wayland subsystem (hosted_wayland.c). */
@@ -180,6 +181,13 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
 
     mem_init(8 * 1024 * 1024);
     vbe_init(state->width, state->height);
+
+    /* The panel's world snapshot was never sampled in a hosted session -- only a hardware test ever called
+     * this -- so the Display page had no true values to show. Sample it, then publish the surface this
+     * session actually presents (the size the compositor draws into, not what a GPU probe might report). */
+    wubu_world_init();
+    wubu_world_sample();
+    wubu_world_set_display((uint16_t)state->width, (uint16_t)state->height, 0, 0);
     input_init();
     /* Steam Input owns the controller->key/mouse map; the evdev pipeline
        feeds it. Both are best-effort: no pad, no permission, a device that

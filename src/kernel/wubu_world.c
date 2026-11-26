@@ -36,6 +36,10 @@
 #include <string.h>
 
 static wubu_world_t g_world;
+
+/* The display a session published (0 = none). Survives re-sampling, see wubu_world_set_display(). */
+static uint16_t g_published_w, g_published_h;
+static int      g_published_conn;
 static int g_initialized;
 
 /* W1: init. */
@@ -72,8 +76,14 @@ void wubu_world_sample(void)
      * primes the GPU state from /dev/dxg and returns nonzero. */
     g_world.has_gpu = wubu_gpu_present_wsl() || wubu_gpu_present();
     g_world.gpu_connector = wubu_gpu_connector();
-    g_world.screen_w = (uint16_t)wubu_gpu_width();
-    g_world.screen_h = (uint16_t)wubu_gpu_height();
+    /* A session that PUBLISHED its display (wubu_world_set_display) outranks a probe that reports nothing:
+     * re-sampling used to zero the hosted surface back to 0x0 and the Display page then read "not reported"
+     * on a machine whose compositor was presenting 1400x880. The probe only wins when it has an answer. */
+    uint16_t pw = (uint16_t)wubu_gpu_width(), ph = (uint16_t)wubu_gpu_height();
+    if (pw && ph) { g_published_w = pw; g_published_h = ph; g_published_conn = g_world.gpu_connector; }
+    g_world.screen_w = g_published_w;
+    g_world.screen_h = g_published_h;
+    if (g_published_conn) g_world.gpu_connector = g_published_conn;
     g_world.vram_mb = (uint32_t)wubu_gpu_vram_mb();
 
     /* the power */
@@ -92,6 +102,15 @@ void wubu_world_sample(void)
 const wubu_world_t *wubu_world_snapshot(void)
 {
     return &g_world;
+}
+
+/* W3b: the display this session presents (see the header). */
+void wubu_world_set_display(uint16_t w, uint16_t h, int connector, uint32_t vram_mb)
+{
+    if (w) g_published_w = g_world.screen_w = w;
+    if (h) g_published_h = g_world.screen_h = h;
+    g_published_conn = g_world.gpu_connector = connector;
+    g_world.vram_mb = vram_mb;
 }
 
 /* W4: the one-line world state (the /n read). */
