@@ -22,8 +22,20 @@ static void write_chunk(FILE *f, const char *type, const void *data, int len) {
     fwrite(len_bytes, 1, 4, f);
     fwrite(type, 1, 4, f);
     fwrite(data, 1, len, f);
-    unsigned char crc[4] = {0,0,0,0};
-    fwrite(crc, 1, 4, f);
+    /* CRC-32 over the type AND the data, as PNG requires. This used to write four zero bytes, so
+     * every chunk in every screenshot this OS saved had a false checksum: `file` called them valid
+     * while PIL and every strict decoder refused them. Two separate placeholder bugs (this and a
+     * hardcoded Adler-32) each made the output unopenable on its own. */
+    /* zlib's crc32, chained: type then data. Our own wubu_crc32_run() chains with a different
+     * convention, and using it here produced correct CRCs for an empty chunk and wrong ones for a
+     * chunk with data -- the exact kind of near-miss that looks like it works. */
+    uint32_t crc = (uint32_t)crc32(0L, (const Bytef *)type, 4);
+    crc = (uint32_t)crc32((uLong)crc, (const Bytef *)data, (uInt)len);
+    unsigned char crc_bytes[4] = {
+        (unsigned char)((crc >> 24) & 0xFF), (unsigned char)((crc >> 16) & 0xFF),
+        (unsigned char)((crc >> 8) & 0xFF),  (unsigned char)(crc & 0xFF)
+    };
+    fwrite(crc_bytes, 1, 4, f);
 }
 
 bool wubu_screenshot_save(wubu_sshot_t *sshot, const char *filename) {
@@ -85,7 +97,23 @@ bool wubu_screenshot_save(wubu_sshot_t *sshot, const char *filename) {
         zp += block_size;
     }
 
-    *zp++ = 0; *zp++ = 0; *zp++ = 0; *zp++ = 0x01;
+    /* ADLER-32 over the UNCOMPRESSED filtered stream. This line used to write 0x00000001 -- the
+     * algorithm's initial value, never updated -- so every PNG this OS saved had a checksum that
+     * did not match its data. `file` and libpng-preflight called the files valid; PIL and every
+     * strict decoder refused them ("incorrect data check"). A screenshot nobody can open is a
+     * screenshot that was never taken. */
+    {
+        uint32_t a = 1, b = 0;
+        for (int i = 0; i < uncompressed_size; i++) {
+            a = (a + idat[i]) % 65521u;
+            b = (b + a) % 65521u;
+        }
+        uint32_t adler = (b << 16) | a;
+        *zp++ = (adler >> 24) & 0xFF;
+        *zp++ = (adler >> 16) & 0xFF;
+        *zp++ = (adler >> 8) & 0xFF;
+        *zp++ = adler & 0xFF;
+    }
 
     write_chunk(f, "IDAT", zlib, zp - zlib);
     write_chunk(f, "IEND", "", 0);

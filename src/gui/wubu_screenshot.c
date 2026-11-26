@@ -167,9 +167,18 @@ const char *wubu_screenshot_get_dir(void) {
     if (!home) home = ".";
     snprintf(g_screenshot_dir, sizeof(g_screenshot_dir), "%s/Pictures/WuBuOS", home);
 
-    struct stat st;
-    if (stat(g_screenshot_dir, &st) != 0) {
-        mkdir(g_screenshot_dir, 0755);
+    /* mkdir -p, not mkdir: a fresh HOME has no ~/Pictures, so the single mkdir on the LEAF always
+     * failed and every saved capture was silently lost (measured: save=0, capture=ok). */
+    {
+        char partial[sizeof g_screenshot_dir];
+        snprintf(partial, sizeof partial, "%s", g_screenshot_dir);
+        for (char *s = partial + 1; *s; s++) {
+            if (*s != '/') continue;
+            *s = '\0';
+            mkdir(partial, 0755);          /* EEXIST is fine and expected */
+            *s = '/';
+        }
+        mkdir(partial, 0755);
     }
     return g_screenshot_dir;
 }
@@ -398,11 +407,18 @@ const uint8_t *wubu_screenshot_clipboard_data(size_t *out_len) {
 static void region_complete_cb(int x, int y, int w, int h, void *user) {
     (void)user;
     wubu_sshot_t *sshot = capture_framebuffer(x, y, w, h);
+    if (getenv("WUBU_CAP_PROBE"))
+        fprintf(stderr, "[cap] rect %d,%d %dx%d capture=%s\n", x, y, w, h,
+                sshot ? "ok" : "NULL");
     g_region_result = sshot;
     /* A capture the user cannot find is a capture that did not happen: save it and say where. */
     if (sshot) {
         char path[PATH_MAX];
-        if (wubu_screenshot_save_auto(sshot, path, sizeof path)) {
+        int saved = wubu_screenshot_save_auto(sshot, path, sizeof path);
+        if (getenv("WUBU_CAP_PROBE"))
+            fprintf(stderr, "[cap] save=%d path=%s dir=%s\n", saved,
+                    saved ? path : "(none)", wubu_screenshot_get_dir());
+        if (saved) {
             wubu_notify_simple("WuBuOS", "Region Captured", path, NULL, NOTIFY_URGENCY_LOW, 5000);
             wubu_screenshot_to_clipboard(sshot);
         }
@@ -438,7 +454,10 @@ void wubu_screenshot_handle_shift_printscr(void) {
     /* The region picker must work wherever the desktop works, so it asks the same source the
      * capture does instead of testing for Wayland. */
     int w = 0, h = 0;
-    if (!sshot_source(&w, &h)) return;
+    const uint32_t *src = sshot_source(&w, &h);
+    if (getenv("WUBU_CAP_PROBE"))
+        fprintf(stderr, "[cap] begin source=%s %dx%d\n", src ? "ok" : "NULL", w, h);
+    if (!src) return;
 
     if (g_region_selector) {
         wubu_region_selector_end(g_region_selector);
