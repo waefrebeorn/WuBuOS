@@ -148,6 +148,91 @@ void explorer_shutdown(void) {
 
 /* -- Window Management -------------------------------------------- */
 
+/* -- Pick mode ---------------------------------------------------------------
+ * Explorer IS the file picker. The first version of the picker grew its own file list, which is
+ * a second copy of a component this OS already has: same directory walk, same selection, same
+ * navigation, twice the bugs. Callers now put the REAL Explorer into pick mode and read the
+ * selection back through a completion callback.
+ */
+typedef struct {
+    int      active;
+    int      save_mode;
+    char     typed[256];
+    int      typed_len;
+    char     result[EX_MAX_PATH + 64];
+    void   (*cb)(const char *path, void *user);
+    void    *user;
+} ExPickState;
+
+static ExPickState g_pick;
+
+int  explorer_pick_active(void) { return g_pick.active; }
+int  explorer_pick_save_mode(void) { return g_pick.save_mode; }
+const char *explorer_pick_typed(void) { return g_pick.typed; }
+
+void explorer_pick_typed_char(char c) {
+    if (!g_pick.active) return;
+    if (g_pick.typed_len < (int)sizeof g_pick.typed - 1) {
+        g_pick.typed[g_pick.typed_len++] = c;
+        g_pick.typed[g_pick.typed_len] = '\0';
+    }
+}
+void explorer_pick_typed_backspace(void) {
+    if (g_pick.active && g_pick.typed_len > 0)
+        g_pick.typed[--g_pick.typed_len] = '\0';
+}
+
+/* Accept the current selection (or the typed name) and report it. */
+int explorer_pick_accept(void) {
+    if (!g_pick.active) return 0;
+    const char *base = explorer_current_path();
+    if (g_pick.typed_len) {
+        snprintf(g_pick.result, sizeof g_pick.result, "%s/%s", base, g_pick.typed);
+    } else if (g_explorer.entry_count > 0 && g_explorer.selected_indices[0] >= 0) {
+        ExEntry *e = &g_explorer.entries[g_explorer.selected_indices[0]];
+        snprintf(g_pick.result, sizeof g_pick.result, "%s", e->full_path);
+        if (e->type == EX_ENTRY_DIR || e->type == EX_ENTRY_DRIVE) {
+            explorer_navigate(g_pick.result);   /* a folder is navigation, not a result */
+            return 0;
+        }
+    } else {
+        snprintf(g_explorer.status_text, sizeof g_explorer.status_text, "Pick something first");
+        return 0;
+    }
+    if (g_pick.cb) g_pick.cb(g_pick.result, g_pick.user);
+    g_pick.active = 0;
+    g_pick.typed_len = 0;
+    g_pick.typed[0] = '\0';
+    return 1;
+}
+
+void explorer_pick_cancel(void) {
+    g_pick.active = 0;
+    g_pick.typed_len = 0;
+    g_pick.typed[0] = '\0';
+}
+
+int explorer_open_pick(const char *start_dir, int save_mode,
+                       void (*cb)(const char *path, void *user), void *user) {
+    /* explorer_init() is what builds the columns, the tree and the path history; without it the
+     * window opens on uninitialised state and lists NOTHING. It was only ever called from the
+     * app registry, so a caller that reached Explorer directly got an empty pane. */
+    if (g_explorer.column_count == 0) explorer_init();
+    explorer_show();
+    if (!explorer_is_open()) return -1;
+    g_pick.active = 1;
+    g_pick.save_mode = save_mode ? 1 : 0;
+    g_pick.cb = cb;
+    g_pick.user = user;
+    g_pick.typed_len = 0;
+    g_pick.typed[0] = '\0';
+    if (start_dir && *start_dir) explorer_navigate(start_dir);
+    snprintf(g_explorer.status_text, sizeof g_explorer.status_text,
+             save_mode ? "Save As: type a name, Enter to accept, Esc to cancel"
+                       : "Open: select a file, Enter to open, Esc to cancel");
+    return 0;
+}
+
 void explorer_show(void) {
     if (!explorer_is_open()) {
         DosGuiWindow *win = wm_create(100, 100, 900, 600, "File Manager");

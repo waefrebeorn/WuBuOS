@@ -53,6 +53,9 @@ int icon_add_ex(const char *name, DeskIconType type,
     if (target) strncpy(icon->target, target, sizeof(icon->target) - 1);
     icon->on_execute = on_execute;
     icon->alive = true;
+    if (getenv("WUBU_ICON_PROBE"))
+        fprintf(stderr, "[probe] icon_add_ex: &g_dwm=%p count now %d\n",
+                (void *)&g_dwm, g_dwm.icon_count + 1);
     return g_dwm.icon_count++;
 }
 

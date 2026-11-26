@@ -1,29 +1,23 @@
 /*
- * file_picker.h -- Open/Save dialog (Win11 parity: Windows.FilePicker).
+ * file_picker.h -- Open/Save API. The dialog IS Explorer in pick mode.
  *
- * One modal picker at a time. It lists a real directory, navigates into folders, accepts a
- * typed name, and reports the chosen absolute path through a callback. Cancel (Esc / the
- * Cancel button) reports nothing.
+ * Kept as a thin facade so call sites do not know which component draws the list, and so the OS
+ * has exactly ONE file list implementation.
  */
 #ifndef WUBU_FILE_PICKER_H
 #define WUBU_FILE_PICKER_H
 
-#define WUBU_FILE_PICKER_W 560
-#define WUBU_FILE_PICKER_H 420
-
-/* Returns 0 when the dialog is up, -1 when it could not open (no window or no readable dir). */
-int file_picker_open(const char *start_dir, int save_mode,
-                     int (*on_done)(const char *path, void *user), void *user);
+/* Returns 0 when the picker is up, -1 when it could not open. */
+int  file_picker_open(const char *start_dir, int save_mode,
+                      int (*on_done)(const char *path, void *user), void *user);
 
 int         file_picker_active(void);
-const char *file_picker_result(void);      /* NULL until something was accepted */
-const char *file_picker_dir(void);
-int         file_picker_count(void);
-const char *file_picker_entry(int i);
-int         file_picker_entry_is_dir(int i);
-int         file_picker_selected(void);
+int         file_picker_save_mode(void);
+int         file_picker_accept(void);
+void        file_picker_cancel(void);
+const char *file_picker_typed(void);
 
-/* Default completion sink: notifies the chosen path (weak notify, so a narrow link still works). */
+/* Default completion sink: notifies the chosen path. */
 int         wubu_fp_report(const char *path, void *user);
 
 #endif /* WUBU_FILE_PICKER_H */

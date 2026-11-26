@@ -405,6 +405,22 @@ void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
 }
 
 void ex_render_statusbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h) {
+    /* PICK MODE: Explorer is doubling as the Open/Save dialog, and the bar says so -- Enter
+     * accepts, Esc cancels, and the typed name is visible. A picker that looks identical to the
+     * file manager with no visible contract is how users get stuck. */
+    if (explorer_pick_active()) {
+        int sb = ex_statusbar_h();
+        int sy = fb_h - sb;
+        vbe_fill_rect(0, sy, fb_w, sb, tc()->select_bg);
+        char line[320];
+        snprintf(line, sizeof line, "%s  %s  ·  Enter accepts  ·  Esc cancels%s%s",
+                 explorer_pick_save_mode() ? "Save As" : "Open",
+                 ex->current_path,
+                 explorer_pick_typed()[0] ? "  ·  name: " : "",
+                 explorer_pick_typed());
+        vbe_draw_text(10, sy + (sb - WUBU_FONT_INK_H) / 2, line, tc()->select_text, 1);
+        return;
+    }
     (void)fb; (void)fb_w; (void)fb_h; (void)x; (void)h;
 
     int sb_y = fb_h - ex_statusbar_h();

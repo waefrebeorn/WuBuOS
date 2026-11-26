@@ -24,6 +24,21 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
     g_shift_pressed = (mods & 0x01) != 0;
     g_ctrl_pressed  = (mods & 0x02) != 0;
 
+    /* PICK MODE first: Enter accepts, Esc cancels, typing fills the name field. Arrows and
+     * navigation fall through to the normal handler so the picker navigates like Explorer. */
+    if (explorer_pick_active()) {
+        if (key == 0x1C || key == 0xE01C || key == '\r' || key == '\n') {
+            explorer_pick_accept();
+            return;
+        }
+        if (key == 0x01 || key == 27) {
+            explorer_pick_cancel();
+            return;
+        }
+        if (key == 8) { explorer_pick_typed_backspace(); return; }
+        if (key >= 32 && key < 127) { explorer_pick_typed_char((char)key); return; }
+    }
+
     if (g_explorer.context_menu_x >= 0) {
         ex_hide_context_menu(&g_explorer);
         return;

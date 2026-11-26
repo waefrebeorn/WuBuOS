@@ -372,6 +372,20 @@ void explorer_render(uint32_t *fb, int fb_w, int fb_h);
 ExExplorerState *explorer_state(void);
 const char *explorer_current_path(void);
 
+/* -- Pick mode: Explorer AS the Open/Save dialog ---------------------------
+ * The OS must not carry a second file list. Callers put the real Explorer into pick mode and
+ * get the chosen absolute path back through the callback; a folder navigates, a file completes,
+ * Cancel (Esc) reports nothing. */
+int  explorer_open_pick(const char *start_dir, int save_mode,
+                        void (*cb)(const char *path, void *user), void *user);
+int  explorer_pick_active(void);
+int  explorer_pick_save_mode(void);
+int  explorer_pick_accept(void);
+void explorer_pick_cancel(void);
+const char *explorer_pick_typed(void);
+void explorer_pick_typed_char(char c);
+void explorer_pick_typed_backspace(void);
+
 /* Helpers */
 const char *explorer_type_str(ExEntryType type);
 const char *explorer_view_mode_name(ExViewMode mode);
