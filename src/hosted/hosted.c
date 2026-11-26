@@ -208,6 +208,14 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     wubu_holyd_set_pointer_handler(wm_handle_mouse);
     desktop_init();
 
+    /* A crash report nobody opens is a file, not a feature: the boot hook posts ONE notification per
+     * new crash with the report directory in the body. Weak so a hosted variant without the shell's
+     * notification centre still boots. */
+    {
+        extern void crash_notice_on_boot(void) __attribute__((weak));
+        if (crash_notice_on_boot) crash_notice_on_boot();
+    }
+
     /* OPT-IN per-process priority pass (the reference desktop's ananicy-cpp half). Off by
      * default: it re-nices live processes, which is not something a test harness should do to the
      * user's machine behind their back. Rule data lives in /etc/wubuos/ananicy.d; WUBU_ANICY_DIR

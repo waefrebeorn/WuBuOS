@@ -224,7 +224,7 @@ void wubu_crashcap_prune(int keep)
     while ((e = readdir(d)) != NULL && n < 64) {
         size_t l = strlen(e->d_name);
         if (l > 4 && strcmp(e->d_name + l - 4, ".txt") == 0)
-            snprintf(names[n++], sizeof names[0], "%s", e->d_name);
+            snprintf(names[n++], sizeof names[0], "%.63s", e->d_name);
     }
     closedir(d);
     /* insertion sort: at most 64 entries, and the handler must never see a crash in a sort */

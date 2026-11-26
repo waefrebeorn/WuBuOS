@@ -86,6 +86,10 @@ const NotifyServerCaps *wubu_notify_get_caps(void);
 /* Send notification (returns notification ID) */
 uint32_t wubu_notify_send(const Notification *n);
 
+/* How many notifications the centre currently holds. A poster that cannot be asked whether its
+ * notification arrived is untestable without screenshotting a panel. */
+int wubu_notify_active_count(void);
+
 /* Close notification by ID */
 void wubu_notify_close(uint32_t id);
 
