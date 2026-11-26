@@ -53,12 +53,28 @@ int main(void)
 {
     printf("=== wubu_pe_personality_test (the kernel answers the real DLLs) ===\n");
     char dlls[32][64]; int n = 0;
-    if (!collect_imports("vendor/games/openarena_extract/openarena-0.8.8/openarena.exe",
-                         dlls, &n))
-        FAIL("load openarena.exe");
+    /* The fixtures are real game binaries that this repo does not ship (and must
+     * not). Failing with "load openarena.exe" made the gate look broken on every
+     * clean checkout, which is why it was left out of the suite for months.
+     * Distinguish the two cases: absent fixture = SKIPPED (nothing to test), a
+     * fixture that exists but will not parse = a real failure. */
+    FILE *fa = fopen("vendor/games/openarena_extract/openarena-0.8.8/openarena.exe", "rb");
+    FILE *fb2 = fopen("vendor/games/halo_pc_trial_setup.exe", "rb");
+    int have_a = fa != NULL, have_b = fb2 != NULL;
+    if (fa) fclose(fa);
+    if (fb2) fclose(fb2);
+    if (!have_a && !have_b) {
+        printf("  SKIPPED: PE fixtures absent (vendor/games/openarena.exe, vendor/games/halo_pc_trial_setup.exe)\n");
+        printf("  (this gate parses REAL game binaries on purpose; fetch them to run it)\n");
+        printf("=== wubu_pe_personality_test SKIPPED (0 checks)\n");
+        return 0;
+    }
+    if (have_a && !collect_imports("vendor/games/openarena_extract/openarena-0.8.8/openarena.exe",
+                                   dlls, &n))
+        FAIL("load openarena.exe (fixture present but did not parse)");
     int n1 = n;
-    if (!collect_imports("vendor/games/halo_pc_trial_setup.exe", dlls, &n))
-        FAIL("load halo_pc");
+    if (have_b && !collect_imports("vendor/games/halo_pc_trial_setup.exe", dlls, &n))
+        FAIL("load halo_pc (fixture present but did not parse)");
     printf("  real import count: %d (openarena=%d + halo=%d)\n",
            n, n1, n - n1);
 

@@ -18,6 +18,7 @@ void tray_world_wire(void);
 
 /* TW3: refresh the indicators from the world state. */
 void tray_world_refresh(void);
+void tray_world_tick(void);
 
 /* TW4: the test hooks. */
 typedef struct {

@@ -19,6 +19,16 @@ struct wubu_wl_stub { int dummy; };
 struct wubu_wl_stub g_wl;
 void *wm_get_focused(void) { return NULL; }
 
+/* The capture source consolidated "where are the pixels" into vbe_framebuffer/
+ * vbe_width/vbe_height, so the old 4-symbol stub set no longer links. This test
+ * only drives the PNG/clipboard path, so a small REAL buffer is right here: an
+ * 8x8 dummy (not a NULL and not a 1x1 lie) so any accidental read stays in
+ * bounds and still yields a decodable image. */
+static uint32_t g_fb_stub[8 * 8];
+uint32_t *vbe_framebuffer(void) { return g_fb_stub; }
+int vbe_width(void)  { return 8; }
+int vbe_height(void) { return 8; }
+
 static uint32_t rd_be32(const uint8_t *b) {
     return ((uint32_t)b[0] << 24) | ((uint32_t)b[1] << 16) |
            ((uint32_t)b[2] << 8)  | (uint32_t)b[3];

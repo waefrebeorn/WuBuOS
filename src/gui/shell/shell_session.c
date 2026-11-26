@@ -61,6 +61,13 @@ static int g_launched_count = 0;
 /* -- Setup Icons ---------------------------------------------------- */
 
 int desktop_init(void) {
+    /* The live hardware indicators (battery / network / heat). This module existed but was
+     * in NO build list and called by nothing, so the tray never had them: a SteamOS-parity
+     * surface that was written, compiled by hand and unreachable. Weak so a test graph that
+     * never links it still boots. */
+    extern void tray_world_wire(void) __attribute__((weak));
+    if (tray_world_wire) tray_world_wire();
+
     /* Register desktop icons from the single app registry. */
     for (int i = 0; i < g_app_def_count; i++) {
         const DosGuiAppDef *d = &g_app_defs[i];

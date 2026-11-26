@@ -279,6 +279,11 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
                       L.overflow_y + L.overflow_h / 2 - 7, chip, tc()->btn_text, 1);
     }
 
+    /* Keep the live indicators current (throttled to once a second inside). Weak: the
+     * taskbar is compiled into test graphs that do not link the tray-world module. */
+    extern void tray_world_tick(void) __attribute__((weak));
+    if (tray_world_tick) tray_world_tick();
+
     int tx = L.tray_x;
     for (int i = 0; i < g_dwm.systray_count; i++) {
         if (!g_dwm.systray_icons[i].visible) continue;

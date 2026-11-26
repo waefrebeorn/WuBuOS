@@ -182,6 +182,14 @@ def audit_theme_colors(sources, root):
             if not re.search(r"vbe_|\bbg\s*=|\bfg\s*=|color", line):
                 continue
             for m in COLOR_LITERAL_RE.finditer(line):
+                # A MASK is not a colour. `ic->icon_color & 0xFFFFFF` extracts the
+                # low three bytes; flagging it made the gate report a correct line
+                # as a theme bypass (the kind of false hit that teaches people to
+                # ignore the metric). Only a literal that is not the right-hand
+                # side of a bitwise AND can be a colour.
+                before = line[:m.start()].rstrip()
+                if before.endswith("&"):
+                    continue
                 hits.append((rel, lineno, m.group(0), stripped[:70]))
                 break
     return hits
