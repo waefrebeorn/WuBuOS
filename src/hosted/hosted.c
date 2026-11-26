@@ -125,9 +125,11 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     state->mode = HMODE_GUI;
     state->running = true;
 
+    bool size_explicit = false;     /* -w wins over everything the host reports */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-w") == 0 && i + 2 < argc) {
             state->width = atoi(argv[++i]); state->height = atoi(argv[++i]);
+            size_explicit = true;
         } else if (strcmp(argv[i], "-t") == 0) state->mode = HMODE_TEMPLE;
         else if (strcmp(argv[i], "-c") == 0) state->mode = HMODE_CONSOLE;
         else if (strcmp(argv[i], "-h") == 0) state->mode = HMODE_HEADLESS;
@@ -153,12 +155,21 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
      * directly into the compositor buffer (zero-copy path). */
     {
         int native_w = 0, native_h = 0;
-        if (vbe_probe_native_mode(&native_w, &native_h) == 0
+        if (!size_explicit
+            && vbe_probe_native_mode(&native_w, &native_h) == 0
             && native_w > 0 && native_h > 0) {
             state->width  = native_w;
             state->height = native_h;
+        } else if (!size_explicit) {
+            /* No fbdev, no Wayland: on X11 ask the X server. Rendering 1024x768 inside a
+             * 1920x1080 screen is what made every window look like it floated in dead space. */
+            if (hosted_x11_screen_size(&native_w, &native_h) == 0
+                && native_w > 0 && native_h > 0) {
+                state->width  = native_w;
+                state->height = native_h;
+                fprintf(stderr, "[hosted] screen %dx%d from X11\n", native_w, native_h);
+            }
         }
-        /* else: keep the -w flag or HOSTED_DEFAULT */
     }
 
     state->depth = 32;

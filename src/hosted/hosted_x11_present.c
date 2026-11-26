@@ -199,6 +199,52 @@ static void grab_one(KeyCode kc, unsigned mods) {
         g_grabbed_keys[g_grabbed_count++] = kc;
 }
 
+/* The real screen size, for the layer that decides the framebuffer size. On X11 there is no
+ * /dev/fb0 and no Wayland output, so the native-mode probe used to fall through to a 1024x768
+ * default on a 1920x1080 panel -- the OS then rendered into a window smaller than the screen and
+ * every "maximise" left dead pixels around it. One short connection answers it. */
+int hosted_x11_screen_size(int *out_w, int *out_h) {
+    Display *d = XOpenDisplay(NULL);
+    if (!d) return -1;
+    Window root = DefaultRootWindow(d), child;
+    int x = 0, y = 0;
+    unsigned w = 0, h = 0, bw = 0, depth = 0;
+    int ok = XGetGeometry(d, root, &child, &x, &y, &w, &h, &bw, &depth);
+    XCloseDisplay(d);
+    if (!ok || w == 0 || h == 0) return -1;
+    if (out_w) *out_w = (int)w;
+    if (out_h) *out_h = (int)h;
+    return 0;
+}
+
+/* The guest owns the session when its framebuffer covers the screen. With the framebuffer sized
+ * from the X11 root geometry that is now a real state, not an aspiration: 1024x768 in a 1920x1080
+ * panel never covered anything, which is why the automatic policy was impossible before. */
+static int hosted_x11_owns_screen(void) {
+    if (!g_xopen || !g_xwin) return 0;
+    Window root = DefaultRootWindow(g_xdpy), child;
+    int rx = 0, ry = 0, ox = 0, oy = 0;
+    unsigned rw = 0, rh = 0, ww = 0, wh = 0, bw = 0, depth = 0;
+    if (!XGetGeometry(g_xdpy, root, &child, &rx, &ry, &rw, &rh, &bw, &depth)) return 0;
+    if (!XGetGeometry(g_xdpy, g_xwin, &child, &ox, &oy, &ww, &wh, &bw, &depth)) return 0;
+    return (int)ww >= (int)rw && (int)wh >= (int)rh;
+}
+
+/* auto (default): capture exactly when the guest fills the screen; WUBU_KBD_CAPTURE=on|off forces
+ * it either way. Ctrl+Alt+G remains the manual override. */
+static void hosted_x11_sync_kbd_capture(void) {
+    const char *mode = getenv("WUBU_KBD_CAPTURE");
+    int want = mode && strcmp(mode, "on") == 0  ? 1
+             : mode && strcmp(mode, "off") == 0 ? 0
+             : hosted_x11_owns_screen();
+    if (want == g_kbd_capture) return;
+    g_kbd_capture = want;
+    if (want) XGrabKeyboard(g_xdpy, g_xwin, False, GrabModeAsync, GrabModeAsync, CurrentTime);
+    else      XUngrabKeyboard(g_xdpy, CurrentTime);
+    fprintf(stderr, "[x11] keyboard capture %s (%s)\n", want ? "ON" : "OFF",
+            want ? "the guest fills the screen" : "windowed: host keeps its shortcuts");
+}
+
 void hosted_x11_grab_win_keys(void) {
     if (getenv("WUBU_NO_KBD_GRAB")) return;
     static const KeySym syms[] = {
@@ -230,6 +276,10 @@ int hosted_x11_present_pump(void) {
              * all, which is why a Win-key binding could never work here. Grabbed on focus, released
              * on focus loss, and switchable off with WUBU_NO_KBD_GRAB=1. */
             hosted_x11_grab_win_keys();
+            hosted_x11_sync_kbd_capture();
+            break;
+        case ConfigureNotify:
+            hosted_x11_sync_kbd_capture();
             break;
         case FocusOut:
             if (g_kbd_capture) { g_kbd_capture = 0; XUngrabKeyboard(g_xdpy, CurrentTime); }
@@ -311,6 +361,7 @@ int hosted_x11_present_pump(void) {
              * window manager had focused -- which read as "the keyboard does not work". */
             XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
             hosted_x11_grab_win_keys();
+            hosted_x11_sync_kbd_capture();
             MouseEvent mev;
             memset(&mev, 0, sizeof(mev));
             mev.x = tx;

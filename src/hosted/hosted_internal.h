@@ -127,6 +127,7 @@ int  hosted_x11_present_active(void);
 void hosted_x11_present_close(void);
 int  hosted_x11_present_fd(void);
 void hosted_x11_grab_win_keys(void);
+int  hosted_x11_screen_size(int *out_w, int *out_h);
 int  hosted_x11_wait_ms(int ms);
 
 /* ── Sub-module lifecycle hooks (declared so the facade can orchestrate) ── */
