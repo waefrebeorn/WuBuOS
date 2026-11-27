@@ -629,6 +629,68 @@ static void aa_draw_text_scaled(int x, int y, const char *s, uint32_t color, int
     }
 }
 
+/* Blend one AA pixel into a CALLER's surface (the Control Panel draws into a window buffer, not g_vbe.back). */
+static void blend_on_surface(uint32_t *fb, int fb_w, int fb_h, int x, int y, uint32_t color, int cov) {
+    if (!fb || x < 0 || y < 0 || x >= fb_w || y >= fb_h || cov <= 0) return;
+    if (cov >= 255) { fb[y * fb_w + x] = color; return; }
+    uint32_t dst = fb[y * fb_w + x];
+    int r = (int)((dst >> 16) & 0xFF), g = (int)((dst >> 8) & 0xFF), b = (int)(dst & 0xFF);
+    int sr = (int)((color >> 16) & 0xFF), sg = (int)((color >> 8) & 0xFF), sb = (int)(color & 0xFF);
+    r = (sr * cov + r * (255 - cov)) / 255;
+    g = (sg * cov + g * (255 - cov)) / 255;
+    b = (sb * cov + b * (255 - cov)) / 255;
+    fb[y * fb_w + x] = 0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+}
+
+void vbe_draw_text_on(uint32_t *fb, int fb_w, int fb_h, int x, int y, const char *s,
+                      uint32_t color, int scale, int bold) {
+    if (!fb || !s) return;
+    const WubuGlyphAA *prev = g_face;
+    int prev_n = g_face_count;
+    if (bold) {
+        g_face = g_font_glyphs_bold_;
+        g_face_count = (int)(sizeof(g_font_glyphs_bold_) / sizeof(g_font_glyphs_bold_[0]));
+    }
+    const int mag = (scale < 1 ? 1 : scale) * (g_text_scale < 1 ? 1 : g_text_scale);
+    const int baseline = y + AA_BASELINE_OFF * (mag > 0 ? mag : 1);
+    const unsigned char *p = (const unsigned char *)s;
+    int px = x;
+    while (*p) {
+        int cp = utf8_next(&p);
+        unsigned char c = (cp >= 0 && cp <= 0xFF) ? (unsigned char)cp : (unsigned char)'?';
+        const WubuGlyphAA *g = aa_char_ok(c) ? aa_glyph(c) : NULL;
+        if (g && g->cov) {
+            int dw = g->w * mag, dh = g->h * mag;
+            for (int dy = 0; dy < dh; dy++) {
+                int sy8 = (dh == g->h) ? (dy << 8) : (((2 * dy + 1) * g->h * 128) / dh - 128);
+                int y0 = sy8 >> 8, fy = sy8 & 255;
+                if (y0 < 0) { y0 = 0; fy = 0; }
+                if (y0 > g->h - 1) { y0 = g->h - 1; fy = 0; }
+                int y1 = (y0 + 1 < g->h) ? y0 + 1 : y0;
+                const unsigned char *r0 = g->cov + (size_t)y0 * (size_t)g->w;
+                const unsigned char *r1 = g->cov + (size_t)y1 * (size_t)g->w;
+                for (int dx = 0; dx < dw; dx++) {
+                    int sx8 = (dw == g->w) ? (dx << 8) : (((2 * dx + 1) * g->w * 128) / dw - 128);
+                    int x0 = sx8 >> 8, fx = sx8 & 255;
+                    if (x0 < 0) { x0 = 0; fx = 0; }
+                    if (x0 > g->w - 1) { x0 = g->w - 1; fx = 0; }
+                    int x1 = (x0 + 1 < g->w) ? x0 + 1 : x0;
+                    int top = (r0[x0] * (256 - fx) + r0[x1] * fx) >> 8;
+                    int bot = (r1[x0] * (256 - fx) + r1[x1] * fx) >> 8;
+                    int cov = (top * (256 - fy) + bot * fy) >> 8;
+                    if (cov) blend_on_surface(fb, fb_w, fb_h, px + dx,
+                                              baseline + g->yoff * mag + dy, color, cov);
+                }
+            }
+            px += aa_advance(g) * mag;
+        } else {
+            px += GLYPH_ADVANCE * mag;
+        }
+    }
+    g_face = prev;
+    g_face_count = prev_n;
+}
+
 static void aa_draw_text(int x, int y, const char *s, uint32_t color) {
     /* y is the TOP of a bitmap-font line; the golden cap box starts AA_BASELINE_OFF below
      * it, so a title drawn the old way keeps its optical position. */

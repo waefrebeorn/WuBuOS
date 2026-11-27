@@ -143,10 +143,19 @@ int cp_pages_check(uint32_t *dfb, int fb_w, int fb_h)
                 for (int y = 0; y < H; y++)
                     for (int xx = 0; xx < W; xx++) dfb[(size_t)y * W + xx] = 0;
                 controlpanel_render(dfb, W, H);
+                /* COUNT CONTIGUOUS RUNS, not pixels. The panel now draws antialiased text, and a glyph edge can
+                 * land on exactly 0xFFF7F7F7 -- 21 such pixels on the Sound page, from text, not a card. A CARD
+                 * is a long horizontal run; a glyph edge is a few pixels wide. Anything under a card's run
+                 * length is text. */
                 int light = 0;
-                for (int y = 0; y < H; y++)
-                    for (int xx = 0; xx < W; xx++)
-                        if (dfb[(size_t)y * W + xx] == 0xFFF7F7F7u) light++;
+                for (int y = 0; y < H; y++) {
+                    int run = 0;
+                    for (int xx = 0; xx < W; xx++) {
+                        if (dfb[(size_t)y * W + xx] == 0xFFF7F7F7u) run++;
+                        else { if (run >= 40) light += run; run = 0; }
+                    }
+                    if (run >= 40) light += run;
+                }
                 char mL[200];
                 snprintf(mL, sizeof mL, "no page paints the retired light card (%s: %d px)", pages[pi], light);
                 CHECK(light == 0, mL);

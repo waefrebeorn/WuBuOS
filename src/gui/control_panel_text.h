@@ -21,6 +21,9 @@ void cp_fill(uint32_t *fb, int fb_w, int fb_h,
 
 /* Draw one line of text with the kernel's 8x8 font (ASCII 32..127, upper and
  * lower case). Returns the pixel width drawn. Clipped to fb_w/fb_h. */
+int cp_text_line_h(void);
+int cp_draw_text_bold(uint32_t *fb, int fb_w, int fb_h,
+                      int x, int y, const char *s, uint32_t colour, int scale);
 int cp_draw_text(uint32_t *fb, int fb_w, int fb_h,
                  int x, int y, const char *s, uint32_t colour, int scale);
 

@@ -11,6 +11,7 @@
  * C11.
  */
 #include "control_panel.h"
+#include "wubu_tokens.h"
 #include "control_panel_text.h"
 #include "wubu_theme.h"
 
@@ -82,7 +83,7 @@ static void hw_render(CpApplet *applet, uint32_t *fb,
               "The AGI perceives the machine through this state.",
               "", c->body_text_ina, c->body_text_ina);
     /* the refresh hint */
-    draw_line(fb, fb_w, fb_h, x + 10, y + h - 24, w - 20,
+    draw_line(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM, w - 20,
               "[Refresh]", "F5 or click", c->select_bg, c->select_bg);
 }
 

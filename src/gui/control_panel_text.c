@@ -47,31 +47,50 @@ static void cp_glyph(uint32_t *fb, int fb_w, int fb_h, int x, int y,
     }
 }
 
+/* ONE TYPE STACK: the same baked AA face (Latin-1 included) every other window uses. The panel used to draw
+ * with the 8x8 bitmap tables, so it was literally a different typeface from the rest of the shell. */
 int cp_draw_text(uint32_t *fb, int fb_w, int fb_h,
                  int x, int y, const char *s, uint32_t colour, int scale)
 {
     if (!s) return 0;
     if (scale < 1) scale = 1;
-    int cx = x;
-    for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
-        if (*p == ' ') { cx += 8 * scale; continue; }
-        if (*p == '\n') { y += 10 * scale; cx = x; continue; }
-        const uint8_t *g = NULL;
-        int ex = vbe_font_extra_index(*p);
-        if (ex >= 0)                    g = vbe_font_extra_8x8[ex];
-        else if (*p >= 32 && *p <= 95)  g = vbe_font_8x8[*p - 32];
-        else if (*p >= 'a' && *p <= 'z') g = vbe_font_lower_8x8[*p - 'a'];
-        if (g) cp_glyph(fb, fb_w, fb_h, cx, y, g, colour, scale);
-        cx += 8 * scale;
+    int cy = y;
+    const char *start = s;
+    while (*start) {
+        const char *nl = strchr(start, '\n');
+        int len = nl ? (int)(nl - start) : (int)strlen(start);
+        if (len > 0) {
+            char line[256];
+            int n = len < (int)sizeof(line) - 1 ? len : (int)sizeof(line) - 1;
+            memcpy(line, start, (size_t)n);
+            line[n] = '\0';
+            vbe_draw_text_on(fb, fb_w, fb_h, x, cy, line, colour, scale, 0);
+        }
+        if (!nl) break;
+        cy += cp_text_line_h() * scale;
+        start = nl + 1;
     }
-    return cx - x;
+    return cp_text_width(s, scale);
 }
+
+int cp_draw_text_bold(uint32_t *fb, int fb_w, int fb_h,
+                      int x, int y, const char *s, uint32_t colour, int scale)
+{
+    if (!s) return 0;
+    if (scale < 1) scale = 1;
+    vbe_draw_text_on(fb, fb_w, fb_h, x, y, s, colour, scale, 1);
+    return cp_text_width(s, scale);
+}
+
+/* The line box a page must reserve for one line of the CURRENT text. Pages used bottom-anchored footers at a
+ * fixed 20 px, which a taller face pushed off the pane. */
+int cp_text_line_h(void) { return vbe_line_height(); }
 
 int cp_text_width(const char *s, int scale)
 {
     if (!s) return 0;
     if (scale < 1) scale = 1;
-    return (int)strlen(s) * 8 * scale;
+    return vbe_text_width(s, scale);   /* the face's own advances */
 }
 
 void cp_text_wrapped(uint32_t *fb, int fb_w, int fb_h, int x, int y, int max_w,

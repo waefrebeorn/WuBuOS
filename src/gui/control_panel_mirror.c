@@ -11,6 +11,7 @@
  * C11.
  */
 #include "control_panel.h"
+#include "wubu_tokens.h"
 #include "control_panel_text.h"
 #include "../runtime/wubu_mirror.h"
 #include "wubu_theme.h"
@@ -112,7 +113,7 @@ static void mirror_render(CpApplet *applet, uint32_t *fb,
         }
     }
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 20,
+    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_XS,
                  "Read from the mirrorlist file; latency measured by TCP connect.",
                  c->body_text_ina, 1);
 }

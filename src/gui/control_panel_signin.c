@@ -11,6 +11,7 @@
  * C11.
  */
 #include "control_panel.h"
+#include "wubu_tokens.h"
 #include "control_panel_text.h"
 #include "../runtime/wubu_biometric.h"
 #include "wubu_theme.h"
@@ -87,7 +88,7 @@ static void signin_render(CpApplet *applet, uint32_t *fb,
         cp_draw_text(fb, fb_w, fb_h, x + 20, ry, cmd, c->select_bg, 1);
     }
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 20,
+    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_XS,
                  "Nothing here is simulated: each line is a device or a file that was found. F5 re-checks.",
                  c->body_text_ina, 1);
 }

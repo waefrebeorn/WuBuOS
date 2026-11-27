@@ -192,6 +192,10 @@ void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale);
 int vbe_text_width(const char *s, int scale);
 /* Titles use the 700-weight face (Windows: "use Semibold for titles"); body text stays regular. */
 void vbe_draw_text_bold(int x, int y, const char *s, uint32_t color, int scale);
+/* Draw into a CALLER'S surface with the same face/metrics (the Control Panel draws into a window buffer).
+ * bold != 0 selects the 700-weight face. */
+void vbe_draw_text_on(uint32_t *fb, int fb_w, int fb_h, int x, int y, const char *s,
+                      uint32_t color, int scale, int bold);
 /* (ascent + descent) at the current text scale: the line box layout code must reserve. */
 int vbe_line_height(void);
 

@@ -8,6 +8,7 @@
  * C11.
  */
 #include "control_panel.h"
+#include "wubu_tokens.h"
 #include "control_panel_text.h"
 #include "../runtime/wubu_userinfo.h"
 #include "wubu_theme.h"
@@ -82,7 +83,7 @@ static void acct_render(CpApplet *applet, uint32_t *fb,
             u->can_change_password ? u->passwd_tool : "no password tool on this machine");
     }
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 20,
+    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_XS,
                  "Read from /etc/passwd and the home directory; nothing here is simulated.",
                  c->body_text_ina, 1);
 }

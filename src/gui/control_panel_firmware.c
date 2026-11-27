@@ -10,6 +10,7 @@
  * C11.
  */
 #include "control_panel.h"
+#include "wubu_tokens.h"
 #include "control_panel_text.h"
 #include "../runtime/wubu_firmware.h"
 #include "wubu_theme.h"
@@ -103,7 +104,7 @@ static void fw_render(CpApplet *applet, uint32_t *fb,
     }
 
     /* The provenance line: the user must be able to tell a measurement from a decoration. */
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 20,
+    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_XS,
                  "Read from SMBIOS/DMI; nothing here is simulated.",
                  c->body_text_ina, 1);
 }
