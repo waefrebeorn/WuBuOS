@@ -391,15 +391,33 @@ static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
         vbe_draw_text(L.px + WUBU_SPACE_LG, ry,
                       nres ? "Best match" : "No results", c->startmenu_text, 1);
         ry += WUBU_START_RESULT_LABEL_DY;
-        int shown = nres < 8 ? nres : 8;
+        /* How many results fit is a MEASUREMENT (panel height / row pitch), not the literal 8 that was here, and
+         * the list scrolls to keep the SELECTED row visible -- the arrow keys move a highlight the user can
+         * actually see. */
+        int room = (int)((L.ph - (ry - L.py) - WUBU_SPACE_LG) / WUBU_START_RESULT_PITCH);
+        if (room < 1) room = 1;
+        int sel = startmenu_search_selected();
+        if (sel < 0) sel = 0;
+        if (sel >= nres && nres > 0) sel = nres - 1;
+        if (sel < g_search.scroll) g_search.scroll = sel;
+        if (sel >= g_search.scroll + room) g_search.scroll = sel - room + 1;
+        int maxscroll = nres - room;
+        if (g_search.scroll > maxscroll) g_search.scroll = maxscroll > 0 ? maxscroll : 0;
+        if (g_search.scroll < 0) g_search.scroll = 0;
+
+        int shown = nres - g_search.scroll;
+        if (shown > room) shown = room;
         for (int i = 0; i < shown; i++) {
+            int idx = i + g_search.scroll;
             int rx = L.px + WUBU_SPACE_LG;
+            bool is_sel = (idx == sel);
             vbe_fill_rect_rounded(rx, ry, L.pw - 2 * WUBU_SPACE_LG,
-                                  WUBU_START_RESULT_H, WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
+                                  WUBU_START_RESULT_H, WUBU_METRIC_RADIUS_CONTROL,
+                                  is_sel ? c->select_bg : c->btn_face);
             vbe_rect_rounded(rx, ry, L.pw - 2 * WUBU_SPACE_LG,
                              WUBU_START_RESULT_H, WUBU_METRIC_RADIUS_CONTROL, c->border_light);
-            vbe_draw_text(rx + WUBU_SPACE_MD, ry + WUBU_SPACE_LG, results[i]->name,
-                          c->startmenu_text, 1);
+            vbe_draw_text(rx + WUBU_SPACE_MD, ry + WUBU_SPACE_LG, results[idx]->name,
+                          is_sel ? c->select_text : c->startmenu_text, 1);
             ry += WUBU_START_RESULT_PITCH;
         }
     } else {
@@ -469,12 +487,18 @@ static void startmenu_win11_click(int x, int y) {
         if (startmenu_search_get_results(&results, &nres) == 0) {
             int ry = L.search_y + L.search_h + WUBU_START_RESULT_DY +
                      WUBU_START_RESULT_LABEL_DY;
-            int shown = nres < 8 ? nres : 8;
+            /* same rows the renderer drew: the scroll offset is shared, so a click cannot land on a row that is
+             * not under the pointer. */
+            int room_m = (int)((L.ph - (ry - L.py) - WUBU_SPACE_LG) / WUBU_START_RESULT_PITCH);
+            if (room_m < 1) room_m = 1;
+            int shown = nres - g_search.scroll;
+            if (shown > room_m) shown = room_m;
             for (int i = 0; i < shown; i++) {
+                int idx = i + g_search.scroll;
                 if (x >= L.px + WUBU_SPACE_LG &&
                     x < L.px + L.pw - WUBU_SPACE_LG &&
                     y >= ry && y < ry + WUBU_START_RESULT_H) {
-                    startmenu_activate(results[i]);
+                    startmenu_activate(results[idx]);
                     startmenu_close();
                     return;
                 }
@@ -1023,9 +1047,16 @@ void startmenu_handle_key(int key, uint32_t mods) {
             startmenu_search_update(g_search.query);
         }
     }
+    else if ((key == 0xE048 || key == 0xE050) && g_search.active) {
+        /* Up/Down walk the results, as they do on Windows. Launches the SELECTED one, not always the first. */
+        int step = (key == 0xE048) ? -1 : +1;
+        startmenu_search_select(startmenu_search_selected() + step);
+    }
     else if (key == 13 && g_search.active) {
         if (g_search.result_count > 0) {
-            launch_app(g_search.results[0]->name);
+            int sel = startmenu_search_selected();
+            if (sel < 0 || sel >= g_search.result_count) sel = 0;
+            launch_app(g_search.results[sel]->name);
             startmenu_close();
             g_search_mode = false;
         }

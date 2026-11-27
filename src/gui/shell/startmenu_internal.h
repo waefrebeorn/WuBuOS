@@ -26,6 +26,8 @@ void startmenu_search_init(void);
 void startmenu_search_update(const char *query);
 void startmenu_search_clear(void);
 int  startmenu_search_get_results(SmProgramEntry ***out_results, int *out_count);
+void startmenu_search_select(int idx);
+int  startmenu_search_selected(void);
 void startmenu_recent_add(const char *app_name);
 int  startmenu_recent_get(SmProgramEntry **out_entries, int max);
 

@@ -11,6 +11,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Selection, for the arrow keys and for tests. Resets whenever the query changes: a stale index would launch a
+ * different app than the one highlighted. */
+void startmenu_search_select(int idx) {
+    if (idx < 0) idx = 0;
+    if (g_search.result_count > 0 && idx > g_search.result_count - 1) idx = g_search.result_count - 1;
+    g_search.selected = idx;
+}
+int startmenu_search_selected(void) { return g_search.selected; }
+
 void startmenu_search_init(void) {
     memset(&g_search, 0, sizeof(g_search));
     g_search.cursor_pos = 0;
@@ -21,6 +30,8 @@ void startmenu_search_update(const char *query) {
         g_search.query[0] = '\0';
         g_search.cursor_pos = 0;
         g_search.result_count = 0;
+        g_search.selected = 0;
+        g_search.scroll = 0;
         g_search.active = false;
         return;
     }
@@ -49,6 +60,8 @@ void startmenu_search_update(const char *query) {
      * ("File Manager") returned "File Renamer" first because it sits earlier in the database, and pressing
      * Enter opened the wrong entry -- measured in a live session, where the name the user could read on the
      * desktop found something that was not it. Ranking is only parity if the exact answer cannot lose. */
+    g_search.selected = 0;      /* a new query starts at the best match (which is now ranked first) */
+    g_search.scroll = 0;
     static unsigned char taken[DOSGUI_MAX_PROGRAM_ENTRIES];
     memset(taken, 0, sizeof taken);
     for (int pass = 0; pass < 3; pass++) {

@@ -120,6 +120,17 @@ int main(void)
         TEST(n > 0 && strcmp(r[0]->name, "File") == 0, "the exact short name ranks first");
         TEST(j_mgr > 0 && j_ren > 0, "both prefix matches follow it, in database order");
         TEST(j_ren < j_mgr, "and they keep their database order (Renamer was added first)");
+
+        /* Arrow-key selection: a second match must be reachable. Before this the search could only ever launch
+         * results[0], so with 'File' typed you could not choose "File Manager" at all. */
+        startmenu_search_select(1);
+        TEST(startmenu_search_selected() == 1, "Down moves the selection");
+        startmenu_search_select(99);
+        TEST(startmenu_search_selected() == n - 1, "and it clamps to the last result");
+        startmenu_search_select(-5);
+        TEST(startmenu_search_selected() == 0, "and to the first");
+        startmenu_search_update("Fil");             /* a NEW query starts at the best match again */
+        TEST(startmenu_search_selected() == 0, "a changed query resets the selection to the top match");
         startmenu_search_clear();
 
         g_program_db.count = base;   /* the fixture leaves the database as it found it */

@@ -127,6 +127,10 @@ typedef struct {
     bool active;
     SmProgramEntry *results[DOSGUI_MAX_PROGRAM_ENTRIES];
     int result_count;
+    /* Windows lets you walk the results with the arrow keys; this switch only ever launched results[0], so a
+     * second match was unreachable unless you typed more of its name. */
+    int selected;
+    int scroll;      /* first visible result row, for lists taller than the panel */
 } SmSearchState;
 
 void startmenu_search_init(void);
