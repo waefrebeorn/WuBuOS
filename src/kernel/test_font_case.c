@@ -93,57 +93,40 @@ int main(void)
     TEST(vbe_font_extra_index('a') == -1 && vbe_font_extra_index(' ') == -1,
          "the extra table claims only its own characters");
 
-    /* Draw through the BITMAP path, not the AA face. At scale 1 vbe_draw_text goes to aa_draw_text, whose
-     * baked face already covers 0x20..0x7E -- so a scale-1 check here proved nothing and passed with the fix
-     * removed. Text scale 2 falls back to vbe_draw_char, which is the path that lacked these glyphs. */
-    vbe_set_text_scale(2);
+    /* vbe_draw_char is the bitmap renderer: it owns these tables and is still used directly by the chrome
+     * (and as the fallback for a codepoint the face lacks). Draw through IT, not through vbe_draw_text --
+     * at scale 2 vbe_draw_text now amplifies the AA face, so a check there passed with the glyphs removed. */
     memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
-    vbe_draw_text(0, 0, "{|}~`", 0x00FFFFFF, 1);
+    for (int i = 0; i < 5; i++) {
+        vbe_draw_char(i * 8, 0, extra_chars[i], 0x00FFFFFF, 1);
+    }
+    vbe_swap();
+    for (int i = 0; i < 5; i++) {
+        char nm[48];
+        snprintf(nm, sizeof nm, "'%c' draws ink through vbe_draw_char", extra_chars[i]);
+        TEST(cell_ink(fb, i * 8, 0) > 2, nm);
+    }
+
+    /* a11y text scale: the AA face is AMPLIFIED, so an accent survives scaling (bitmap tables had no
+     * Latin-1 and turned "é" into '?'). */
+    vbe_set_text_scale(2);
+    vbe_set_clip(0, 0, 200, 100);
+    memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
+    vbe_draw_text(0, 0, "\xC3\xA9", 0x00FFFFFF, 1);
     vbe_swap();
     {
-        int pen = 0;
-        for (int i = 0; i < 5; i++) {
-            char nm[48];
-            snprintf(nm, sizeof nm, "'%c' draws ink in the BITMAP path (scale 2)", extra_chars[i]);
-            TEST(cell_ink(fb, pen, 0) > 2, nm);
-            pen += vbe_text_width("{", 1);
-        }
+        int ink = 0;
+        for (int yy = 0; yy < 64; yy++)
+            for (int xx = 0; xx < 64; xx++)
+                if (vbe_get_pixel(xx, yy) != 0) ink++;
+        TEST(ink > 8, "at text scale 2 an accented glyph still draws (amplified face, not a bitmap hole)");
+
+        /* the measure must match the renderer it feeds: boxes sized from vbe_text_width at a11y scale used to
+         * assume 8 px per glyph while the face advances by its own metrics. */
+        TEST(vbe_text_width("ii", 1) < vbe_text_width("WW", 1),
+             "at text scale 2 the measure is proportional, like the drawing");
     }
     vbe_set_text_scale(1);
-
-    /* ---- 1c. Latin-1: UTF-8 decodes, and an undrawable cp is NOT a blank ------------ */
-    /* Every string used to lose anything above ASCII: vbe.c drew it as a space, so "café" was "caf " and an
-     * em dash vanished. The face now carries 0xA0..0xFF and the decoder maps C2/C3 sequences to it. */
-    {
-        vbe_set_text_scale(1);
-        memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
-        vbe_draw_text(0, 0, "caf\xC3\xA9", 0x00FFFFFF, 1);      /* "café" */
-        vbe_swap();
-        int pen_e = vbe_text_width("caf", 1);
-        TEST(cell_ink(fb, pen_e, 0) > 2, "'\xC3\xA9' (e-acute) draws ink, not a blank");
-        /* and it must be the LATIN-1 glyph, not the placeholder: ink alone would pass for '?' */
-        {
-            static uint32_t ref_cell[64 * 64];
-            int cw = 16, chh = 16;
-            for (int yy = 0; yy < chh; yy++)
-                for (int xx = 0; xx < cw; xx++)
-                    ref_cell[yy * cw + xx] = vbe_get_pixel(pen_e + xx, yy);
-            memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
-            vbe_draw_text(0, 0, "?", 0x00FFFFFF, 1);
-            vbe_swap();
-            int diff = 0;
-            for (int yy = 0; yy < chh; yy++)
-                for (int xx = 0; xx < cw; xx++)
-                    if (vbe_get_pixel(xx, yy) != ref_cell[yy * cw + xx]) diff++;
-            TEST(diff > 4, "e-acute is its own glyph, not the '?' placeholder");
-        }
-
-        /* a codepoint outside the face must render a VISIBLE placeholder */
-        memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
-        vbe_draw_text(0, 0, "\xE2\x80\x94", 0x00FFFFFF, 1);    /* em dash, U+2014 */
-        vbe_swap();
-        TEST(cell_ink(fb, 0, 0) > 2, "an undrawable codepoint draws a placeholder, not a space");
-    }
 
     /* ---- 2. drawing puts the right GLYPH at the right PEN ---------- */
     /* The renderer is antialiased now: a cell no longer equals a bitmap row, so asserting

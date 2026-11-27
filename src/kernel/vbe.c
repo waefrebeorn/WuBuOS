@@ -551,8 +551,11 @@ static int utf8_next(const unsigned char **p) {
     return '?';
 }
 
+/* The face is usable at EVERY text scale now: the scaled path amplifies the coverage instead of falling back
+ * to 8x8 bitmaps (which had no Latin-1). The old `g_text_scale == 1` guard is what made an accessibility font
+ * scale turn "é" into '?'. */
 static int aa_char_ok(unsigned char c) {
-    return g_text_scale == 1 && c >= WUBU_FONT_TEXT_FIRST && c <= WUBU_FONT_TEXT_LAST;
+    return c >= WUBU_FONT_TEXT_FIRST && c <= WUBU_FONT_TEXT_LAST;
 }
 
 static const WubuGlyphAA *aa_glyph(unsigned char c) {
@@ -572,6 +575,34 @@ static int aa_text_width(const char *s) {
         w += aa_char_ok(c) ? aa_advance(aa_glyph(c)) : GLYPH_ADVANCE * g_text_scale;
     }
     return w;
+}
+
+/* Draw the AA face at an integer magnification. The scaled text path used 8x8 BITMAP tables, which have no
+ * Latin-1 (so "é" at a11y text scale became '?') and look blocky; amplifying the face we already bake gives
+ * one look at every scale, with the accents, and adds no table that can develop holes. */
+static void aa_draw_text_scaled(int x, int y, const char *s, uint32_t color, int scale) {
+    /* the same optical offset as the 1x path, magnified: the glyph's yoff is negative, so a baseline of
+     * plain y put the whole word ABOVE the origin and the clip erased it. */
+    const int baseline = y + AA_BASELINE_OFF * scale;
+    const unsigned char *p = (const unsigned char *)s;
+    while (*p) {
+        int cp = utf8_next(&p);
+        unsigned char c = (cp >= 0 && cp <= 0xFF) ? (unsigned char)cp : (unsigned char)'?';
+        const WubuGlyphAA *g = aa_char_ok(c) ? aa_glyph(c) : NULL;
+        if (!g || !g->cov) { vbe_draw_char(x, y, (char)c, color, scale); x += GLYPH_ADVANCE * scale; continue; }
+        for (int gy = 0; gy < g->h; gy++) {
+            const unsigned char *row = g->cov + (size_t)gy * (size_t)g->w;
+            for (int gx = 0; gx < g->w; gx++) {
+                int cov = row[gx];
+                if (!cov) continue;
+                int bx = x + g->xoff * scale, by = baseline + g->yoff * scale;
+                for (int sy = 0; sy < scale; sy++)
+                    for (int sx = 0; sx < scale; sx++)
+                        vbe_blend_pixel_cov(bx + gx * scale + sx, by + gy * scale + sy, color, cov);
+            }
+        }
+        x += aa_advance(g) * scale;
+    }
 }
 
 static void aa_draw_text(int x, int y, const char *s, uint32_t color) {
@@ -603,7 +634,9 @@ static void aa_draw_text(int x, int y, const char *s, uint32_t color) {
 }
 
 void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale) {
-    if (scale == 1 && g_text_scale == 1) { aa_draw_text(x, y, s, color); return; }
+    const int mag = scale * g_text_scale;
+    if (mag == 1) { aa_draw_text(x, y, s, color); return; }
+    if (mag > 1) { aa_draw_text_scaled(x, y, s, color, mag); return; }
     int adv = GLYPH_ADVANCE * scale * g_text_scale;
     for (; *s; s++) {
         vbe_draw_char(x, y, *s, color, scale);
@@ -611,11 +644,27 @@ void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale) {
     }
 }
 
+/* One line's height at the CURRENT text scale, from the face's own metrics. Layout code asks this instead of
+ * assuming 19 px: at an accessibility scale a fixed row height clips the labels it is supposed to hold. */
+int vbe_line_height(void) {
+    return (WUBU_FONT_TEXT_ASCENT + WUBU_FONT_TEXT_DESCENT) * g_text_scale;
+}
+
 int vbe_text_width(const char *s, int scale) {
-    if (scale == 1 && g_text_scale == 1) return aa_text_width(s);
-    int n = 0;
-    while (s[n]) n++;
-    return n * GLYPH_ADVANCE * scale * g_text_scale;
+    const int mag = scale * g_text_scale;
+    if (mag == 1) return aa_text_width(s);
+    /* The scaled DRAW now advances by the face's own advance, so the measure must too -- otherwise every box
+     * sized from this number at an accessibility scale is wrong by the difference between 8 px per glyph and
+     * the real advances ("ii" and "WW" stopped being the same width). */
+    int w = 0;
+    const unsigned char *p = (const unsigned char *)s;
+    while (*p) {
+        int cp = utf8_next(&p);
+        unsigned char c = (cp >= 0 && cp <= 0xFF) ? (unsigned char)cp : (unsigned char)'?';
+        const WubuGlyphAA *g = aa_char_ok(c) ? aa_glyph(c) : NULL;
+        w += (g && g->cov) ? aa_advance(g) * mag : GLYPH_ADVANCE * mag;
+    }
+    return w;
 }
 
 /* ================================================================

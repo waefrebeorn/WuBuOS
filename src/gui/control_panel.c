@@ -236,28 +236,78 @@ void controlpanel_handle_mouse(int x, int y, int btn, int kind)
  * The old version painted 24-px blocks with no labels and handed every applet the full width, so the
  * page ran under its own sidebar and a user could not tell a page name from a colour. This is the chrome
  * the applet pages were always meant to sit inside. */
-#define CP_SIDEBAR_W 152
-#define CP_HEADER_H  32
-#define CP_SIDE_ROW_H 26
-#define CP_SIDE_PAD  10
-
 int controlpanel_sidebar_w(void) { return CP_SIDEBAR_W; }
 int controlpanel_header_h(void) { return CP_HEADER_H; }
+
+/* The line box the rows must hold, from the renderer's own metrics. Weak: a panel test graph has the applets
+ * without the kernel's vbe unit; the fallback is the shipped 19-px face at scale 1. */
+extern int vbe_line_height(void) __attribute__((weak));
+static int g_test_line_h;   /* TEST SEAM: the panel graph has no vbe unit, so a gate cannot set the real one */
+static int cp_line_h(void)
+{
+    if (g_test_line_h > 0) return g_test_line_h;
+    if (vbe_line_height) return vbe_line_height();
+    return 19;
+}
+
+/* Test-only: pretend the text scale changed so the row-height/scroll contract can be gated without the
+ * kernel unit. 0 restores the real metrics. */
+void controlpanel_test_line_h(int h) { g_test_line_h = h; }
+
+/* A row is as tall as a line of the CURRENT text plus padding. 26 px was a constant that fit 13-px text and
+ * clipped everything else: at a 2x accessibility scale the last sidebar entry was cut in half by the panel
+ * edge. Clamped so a huge scale cannot make one row taller than the pane. */
+static int cp_side_row_h(void)
+{
+    int h = cp_line_h() + 8;
+    if (h < CP_SIDE_ROW_H) h = CP_SIDE_ROW_H;
+    if (h > 64) h = 64;
+    return h;
+}
+
+/* The list scrolls when it does not fit, and always keeps the ACTIVE row on screen -- Windows' nav pane
+ * does exactly this; a list that silently drops its tail is how a page becomes unreachable. */
+static int g_side_scroll;
+
+static int cp_side_viewport(int oh)
+{
+    int v = oh - CP_HEADER_H - 4;
+    return v > 0 ? v : 0;
+}
+
+static void cp_side_scroll_clamp(int oh)
+{
+    int row = cp_side_row_h();
+    int total = g_controlpanel.applet_count * row;
+    int view = cp_side_viewport(oh);
+    int maxtop = total - view;
+    if (maxtop < 0) maxtop = 0;
+    if (g_side_scroll > maxtop) g_side_scroll = maxtop;
+    if (g_side_scroll < 0) g_side_scroll = 0;
+    /* keep the active row fully visible */
+    int top = g_controlpanel.active_applet * row;
+    int bot = top + row;
+    if (top < g_side_scroll) g_side_scroll = top;
+    if (bot > g_side_scroll + view) g_side_scroll = bot - view;
+    if (g_side_scroll > maxtop) g_side_scroll = maxtop;
+}
 
 /* Where applet row i is, as one expression shared by the renderer and the hit-test. */
 bool controlpanel_sidebar_row_rect(int i, int *x, int *y, int *w, int *h)
 {
     if (i < 0 || i >= g_controlpanel.applet_count) return false;
+    int row = cp_side_row_h();
     if (x) *x = 0;
-    if (y) *y = CP_HEADER_H + 4 + i * CP_SIDE_ROW_H;
+    if (y) *y = CP_HEADER_H + 4 + i * row - g_side_scroll;
     if (w) *w = CP_SIDEBAR_W;
-    if (h) *h = CP_SIDE_ROW_H;
+    if (h) *h = row;
     return true;
 }
 
 void controlpanel_handle_mouse(int x, int y, int btn, int kind);
 
 int controlpanel_active_index(void) { return g_controlpanel.active_applet; }
+int controlpanel_applet_count(void) { return g_controlpanel.applet_count; }
 
 int controlpanel_sidebar_hit(int mx, int my)
 {
@@ -304,14 +354,20 @@ void controlpanel_render_at(uint32_t *fb, int fb_w, int fb_h,
     cp_fill(fb, fb_w, fb_h, ox + sw - 1, oy, 1, oh, c->border_dark);
     cp_draw_text(fb, fb_w, fb_h, ox + CP_SIDE_PAD, oy + 10, "Settings", c->win_title_text, 1);
 
+    cp_side_scroll_clamp(oh);
+    const int line_h = cp_line_h();
     for (int i = 0; i < g_controlpanel.applet_count; i++) {
         int x, y, w, h;
         if (!controlpanel_sidebar_row_rect(i, &x, &y, &w, &h)) continue;
+        /* the viewport is the sidebar below the header: a row outside it is not painted at all, so a
+         * scrolled list cannot leak its text over the header or the page. */
+        if (y + h <= CP_HEADER_H || y >= oh) continue;
         bool active = (i == g_controlpanel.active_applet);
         if (active) cp_fill(fb, fb_w, fb_h, ox + x + 4, oy + y, w - 12, h, c->select_bg);
-        cp_fill(fb, fb_w, fb_h, ox + x + CP_SIDE_PAD, oy + y + 9, 8, 8,
+        const int text_y = y + (h - line_h) / 2;   /* centred in the row, not a fixed 9 px */
+        cp_fill(fb, fb_w, fb_h, ox + x + CP_SIDE_PAD, oy + text_y + (line_h - 8) / 2, 8, 8,
                 g_controlpanel.applets[i].icon_color);
-        cp_draw_text(fb, fb_w, fb_h, ox + x + CP_SIDE_PAD + 16, oy + y + 9,
+        cp_draw_text(fb, fb_w, fb_h, ox + x + CP_SIDE_PAD + 16, oy + text_y,
                      g_controlpanel.applets[i].name,
                      active ? c->select_text : c->body_text, 1);
     }

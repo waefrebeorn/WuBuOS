@@ -31,6 +31,8 @@ static void activate_by_name(const char *name)
     }
 }
 
+static int cp_sidebar_check(uint32_t *dfb, int fb_w, int fb_h);
+
 int cp_pages_check(uint32_t *dfb, int fb_w, int fb_h)
 {
     const int W = fb_w, H = fb_h;   /* the moved checks speak in W/H */
@@ -190,5 +192,44 @@ int cp_pages_check(uint32_t *dfb, int fb_w, int fb_h)
         unlink(conf);
     }
 
+    /* the sidebar: rows sized from the renderer's line height, and it scrolls to the active page */
+    page_failures += cp_sidebar_check(dfb, fb_w, fb_h);
+
     return page_failures;
+}
+
+/* -- the sidebar must hold the text it is sized for -------------------
+ * A fixed 26-px row fit 13-px labels and clipped everything else: at a 2x accessibility scale the last
+ * entry was cut in half by the panel edge. Rows now derive from the renderer's line height and the list
+ * scrolls to keep the ACTIVE row on screen. */
+static int cp_sidebar_check(uint32_t *dfb, int fb_w, int fb_h)
+{
+    int fails = 0;
+    int n = controlpanel_applet_count();
+
+    controlpanel_test_line_h(19);                       /* 1x: the shipped look */
+    controlpanel_select(0);
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, 300);
+    int x, y, w, h;
+    if (!controlpanel_sidebar_row_rect(0, &x, &y, &w, &h)) { CHECK(0, "row 0 exists"); return fails; }
+    CHECK(h >= 26 && h <= 64, "a row is bounded at 1x");
+    const int h_1x = h;
+
+    controlpanel_test_line_h(38);                       /* 2x: labels twice as tall */
+    controlpanel_select(n - 1);                         /* ...and the LAST page, the one that was clipped */
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, 300);
+    if (!controlpanel_sidebar_row_rect(n - 1, &x, &y, &w, &h)) { CHECK(0, "last row exists"); return fails; }
+    CHECK(h > h_1x, "a row GROWS with the text scale (26 px fixed was what clipped 2x labels)");
+    CHECK(y >= controlpanel_header_h(), "the active row starts below the header");
+    CHECK(y + h <= 300, "the ACTIVE row is fully on screen at 2x (it was clipped at the panel edge)");
+    CHECK(y + h > 300 - h, "and it sits at the bottom edge, not floating mid-list");
+
+    controlpanel_select(0);                             /* selecting the first page scrolls back up */
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, 300);
+    controlpanel_sidebar_row_rect(0, &x, &y, &w, &h);
+    CHECK(y >= controlpanel_header_h() && y < controlpanel_header_h() + 40,
+          "selecting page 1 scrolls the list back to the top");
+
+    controlpanel_test_line_h(0);                        /* restore real metrics */
+    return fails;
 }

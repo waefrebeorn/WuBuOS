@@ -150,8 +150,11 @@ void controlpanel_render_at(uint32_t *fb, int fb_w, int fb_h, int ox, int oy, in
 int  controlpanel_sidebar_w(void);
 int  controlpanel_header_h(void);
 bool controlpanel_sidebar_row_rect(int i, int *x, int *y, int *w, int *h);
+/* Test-only: override the line height the sidebar rows are sized from (0 = real metrics). */
+void controlpanel_test_line_h(int h);
 int  controlpanel_sidebar_hit(int mx, int my);
-int  controlpanel_active_index(void);   /* the page the sidebar has selected */
+int controlpanel_active_index(void);
+int controlpanel_applet_count(void);   /* the page the sidebar has selected */
 CpApplet *controlpanel_page_at(int index);   /* a page by position (NULL out of range) */
 typedef int (*WorldStateFn)(char *buf, size_t cap);
 void cp_hardware_set_provider(WorldStateFn fn);

@@ -189,7 +189,9 @@ void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale);
 void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale);
 
 /* Measure string width in pixels (count * 6 * scale * text_scale). */
-int  vbe_text_width(const char *s, int scale);
+int vbe_text_width(const char *s, int scale);
+/* (ascent + descent) at the current text scale: the line box layout code must reserve. */
+int vbe_line_height(void);
 
 /* -- Global UI text scale (accessibility font scaling) -------------
  * Multiplies EVERY glyph drawn through this layer, so one call rescales
