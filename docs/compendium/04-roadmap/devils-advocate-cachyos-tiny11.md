@@ -28,11 +28,13 @@ under `/home/wubu/opt/refos/` on 2026-11-26.
 
 ## OPEN, with the measurement that makes each one a gap
 
-4. **No non-ASCII text.** `src/kernel/vbe.c:511` draws any byte outside the tables as a space, and the AA face
-   covers only `0x20..0x7E`. An accented filename, an em dash, or any non-English string renders BLANK — not
-   mojibake, absent. CachyOS ships 235 locales and 870 font files. Smallest real increment: a UTF-8 decoder
-   plus one Latin-1 supplement range in the baked face, gated by drawing every code point 0xA0..0xFF and
-   asserting ink for each; then a locale table for the ~40 languages the OS's own strings would need.
+4. **~~No non-ASCII text.~~ CLOSED.** The face now carries Latin-1 (`0xA0..0xFF`), the draw path decodes
+   UTF-8 `C2`/`C3` sequences, and a codepoint the face cannot draw renders a visible `?` instead of a silent
+   space. Gated by `font_case` (72 checks, mutation-proven: shrinking the range back to `0x7E` fails, and
+   making the decoder return a space instead of `?` fails). CachyOS still ships 235 locales to our 0; what is
+   closed here is *Latin-1 text renders*, not *the OS is localised* — a locale table is separate work.
+   Remaining in this line: the bitmap path (text scale ≠ 1) has no Latin-1, so an accessibility scale shows
+   `?` where an accent belongs.
 5. **The text stack is one face.** No font selection, no bold/italic, no kerning, integer scaling only. The
    settings already carry `font_family` and `font_size`; neither reaches a renderer — same class as `dpi` was.
    Smallest increment: make `font_size` select between two baked sizes and gate that the rendered cap height

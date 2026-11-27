@@ -508,7 +508,7 @@ void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale) {
     } else if (ch >= 32 && ch <= 95) {
         glyph = vbe_font_8x8[(unsigned char)ch - 32];
     } else {
-        ch = ' ';                       /* unrepresentable: draw a space */
+        ch = '?';                       /* unrepresentable: a VISIBLE placeholder, not a silent space */
         glyph = vbe_font_8x8[0];
     }
     int s = scale * g_text_scale;
@@ -536,6 +536,21 @@ void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale) {
 /* Per CHARACTER, not per string: if a line contains one symbol the face cannot draw,
  * falling back for the whole line would make an otherwise clean title blocky again. The
  * chars outside the baked range keep the bitmap glyph at the same pen. */
+/* Decode one UTF-8 character. Latin-1 (U+00A0..U+00FF) is what the baked face carries, so the two-byte
+ * forms C2 xx / C3 xx are decoded properly; anything wider becomes '?' -- a VISIBLE placeholder, because a
+ * silent space is how "café" and "—" became blanks in every string the OS drew. */
+static int utf8_next(const unsigned char **p) {
+    unsigned char c = **p;
+    if (c < 0x80) { (*p)++; return c; }
+    if ((c == 0xC2 || c == 0xC3) && (*p)[1] >= 0x80 && (*p)[1] <= 0xBF) {
+        int cp = ((c & 0x1F) << 6) | ((*p)[1] & 0x3F);
+        *p += 2;
+        return cp;
+    }
+    (*p)++;
+    return '?';
+}
+
 static int aa_char_ok(unsigned char c) {
     return g_text_scale == 1 && c >= WUBU_FONT_TEXT_FIRST && c <= WUBU_FONT_TEXT_LAST;
 }
@@ -550,8 +565,10 @@ static int aa_advance(const WubuGlyphAA *g) {
 
 static int aa_text_width(const char *s) {
     int w = 0;
-    for (; *s; s++) {
-        unsigned char c = (unsigned char)*s;
+    const unsigned char *p = (const unsigned char *)s;
+    while (*p) {
+        int cp = utf8_next(&p);
+        unsigned char c = (cp >= 0 && cp <= 0xFF) ? (unsigned char)cp : (unsigned char)'?';
         w += aa_char_ok(c) ? aa_advance(aa_glyph(c)) : GLYPH_ADVANCE * g_text_scale;
     }
     return w;
@@ -561,10 +578,12 @@ static void aa_draw_text(int x, int y, const char *s, uint32_t color) {
     /* y is the TOP of a bitmap-font line; the golden cap box starts AA_BASELINE_OFF below
      * it, so a title drawn the old way keeps its optical position. */
     const int baseline = y + AA_BASELINE_OFF;
-    for (; *s; s++) {
-        unsigned char c = (unsigned char)*s;
+    const unsigned char *p = (const unsigned char *)s;
+    while (*p) {
+        int cp = utf8_next(&p);
+        unsigned char c = (cp >= 0 && cp <= 0xFF) ? (unsigned char)cp : (unsigned char)'?';
         if (!aa_char_ok(c)) {          /* one glyph the face lacks: bitmap, same line */
-            vbe_draw_char(x, y, *s, color, 1);
+            vbe_draw_char(x, y, (char)c, color, 1);
             x += GLYPH_ADVANCE * g_text_scale;
             continue;
         }

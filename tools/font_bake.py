@@ -30,13 +30,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_FONT = os.path.join(ROOT, "docs/reference/win11/fonts/segoeuil.ttf")
 DEFAULT_OUT = os.path.join(ROOT, "src/gui/fonts/wubu_font_text.h")
 
-FIRST, LAST = 0x20, 0x7E
+FIRST, LAST = 0x20, 0xFF
 
 
 def render(font, ch):
     """Return (w, h, xoff, yoff, bytes) with yoff relative to the baseline."""
     ascent, descent = font.getmetrics()
-    mask = font.getmask(ch, mode="L")
+    try:
+        mask = font.getmask(ch, mode="L")
+    except RuntimeError:
+        # raqm cannot lay out a codepoint this face has no mapping for (soft hyphen, some format
+        # characters). Treat it as an empty glyph: the caller decides whether empty is acceptable.
+        return 0, 0, 0, 0, b""
     w, h = mask.size
     if w == 0 or h == 0:
         return 0, 0, 0, 0, b""
@@ -45,6 +50,38 @@ def render(font, ch):
     yoff = -(ascent - font.getbbox(ch)[1]) if ch.strip() else -ascent
     data = bytes(mask)
     return w, h, 0, yoff, data
+
+
+def parse_existing(path):
+    """Reuse the glyphs an existing header already carries: cp -> (w, h, xoff, yoff, bytes).
+
+    Why: re-baking with a newer Pillow changes EVERY glyph's coverage (ASCII 'A' went 182 -> 127 at the same
+    pixel), so a "just add Latin-1" bake silently restyled all existing text -- it changed a layout enough to
+    fail an unrelated GUI gate. Extending a table must not restyle what is already shipped.
+    """
+    import re
+    try:
+        with open(path) as f:
+            text = f.read()
+    except OSError:
+        return {}
+    m = re.search(r"#define WUBU_FONT_TEXT_FIRST\s+0x([0-9A-Fa-f]+)", text)
+    first = int(m.group(1), 16) if m else 0x20
+
+    arrays = {}
+    for m in re.finditer(r"static const uint8_t g_glyph_([0-9a-f]{2})\s*\[\d+\]\s*=\s*\{(.*?)\};",
+                         text, re.S):
+        cp = int(m.group(1), 16)
+        arrays[cp] = bytes(int(v) for v in re.findall(r"\b(\d+)\b", m.group(2)))
+
+    out = {}
+    for m in re.finditer(r"\[\s*(\d+)\s*\]\s*=\s*\{\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*"
+                         r"(-?\d+)\s*,\s*(-?\d+)\s*,\s*(?:g_glyph_([0-9a-f]{2})|NULL)\s*\}", text):
+        cp = first + int(m.group(1))
+        w, h, xoff, yoff = (int(m.group(i)) for i in range(2, 6))
+        cov = arrays.get(int(m.group(6), 16), b"") if m.group(6) else b""
+        out[cp] = (w, h, xoff, yoff, cov)
+    return out
 
 
 def ascii_preview(glyphs, ascent, text):
@@ -96,6 +133,8 @@ def main():
     ap.add_argument("--font", default=DEFAULT_FONT)
     ap.add_argument("--size", type=int, default=13)
     ap.add_argument("--out", default=DEFAULT_OUT)
+    ap.add_argument("--preserve", default=None,
+                    help="existing header whose glyphs must be REUSED unchanged (only new codepoints bake)")
     a = ap.parse_args()
 
     if not os.path.isfile(a.font):
@@ -107,10 +146,26 @@ def main():
     for cp in range(FIRST, LAST + 1):
         ch = chr(cp)
         w, h, xoff, yoff, data = render(font, ch)
-        if w == 0 and ch.strip():
+        # NBSP and soft hyphen are invisible BY DESIGN; everything else that renders empty is a hole.
+        if w == 0 and ch.strip() and cp not in (0x00A0, 0x00AD):
             sys.exit(f"font_bake: U+{cp:04X} '{ch}' rendered empty -- refusing to ship a "
                      f"table with a hole in it")
         glyphs.append((cp, ch, w, h, xoff, yoff, data))
+
+    if a.preserve:
+        old = parse_existing(a.preserve)
+        kept = 0
+        merged = []
+        for cp, ch, w, h, xoff, yoff, data in glyphs:
+            if cp in old:
+                ow, oh, ox, oy, od = old[cp]
+                merged.append((cp, ch, ow, oh, ox, oy, od))
+                kept += 1
+            else:
+                merged.append((cp, ch, w, h, xoff, yoff, data))
+        glyphs = merged
+        print(f"font_bake: preserved {kept} glyph(s) from {os.path.basename(a.preserve)} "
+              f"(their coverage is NOT re-rendered)")
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "w") as f:

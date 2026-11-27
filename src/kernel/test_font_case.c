@@ -111,6 +111,40 @@ int main(void)
     }
     vbe_set_text_scale(1);
 
+    /* ---- 1c. Latin-1: UTF-8 decodes, and an undrawable cp is NOT a blank ------------ */
+    /* Every string used to lose anything above ASCII: vbe.c drew it as a space, so "café" was "caf " and an
+     * em dash vanished. The face now carries 0xA0..0xFF and the decoder maps C2/C3 sequences to it. */
+    {
+        vbe_set_text_scale(1);
+        memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
+        vbe_draw_text(0, 0, "caf\xC3\xA9", 0x00FFFFFF, 1);      /* "café" */
+        vbe_swap();
+        int pen_e = vbe_text_width("caf", 1);
+        TEST(cell_ink(fb, pen_e, 0) > 2, "'\xC3\xA9' (e-acute) draws ink, not a blank");
+        /* and it must be the LATIN-1 glyph, not the placeholder: ink alone would pass for '?' */
+        {
+            static uint32_t ref_cell[64 * 64];
+            int cw = 16, chh = 16;
+            for (int yy = 0; yy < chh; yy++)
+                for (int xx = 0; xx < cw; xx++)
+                    ref_cell[yy * cw + xx] = vbe_get_pixel(pen_e + xx, yy);
+            memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
+            vbe_draw_text(0, 0, "?", 0x00FFFFFF, 1);
+            vbe_swap();
+            int diff = 0;
+            for (int yy = 0; yy < chh; yy++)
+                for (int xx = 0; xx < cw; xx++)
+                    if (vbe_get_pixel(xx, yy) != ref_cell[yy * cw + xx]) diff++;
+            TEST(diff > 4, "e-acute is its own glyph, not the '?' placeholder");
+        }
+
+        /* a codepoint outside the face must render a VISIBLE placeholder */
+        memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
+        vbe_draw_text(0, 0, "\xE2\x80\x94", 0x00FFFFFF, 1);    /* em dash, U+2014 */
+        vbe_swap();
+        TEST(cell_ink(fb, 0, 0) > 2, "an undrawable codepoint draws a placeholder, not a space");
+    }
+
     /* ---- 2. drawing puts the right GLYPH at the right PEN ---------- */
     /* The renderer is antialiased now: a cell no longer equals a bitmap row, so asserting
      * exact bits would assert the old rasteriser instead of the behaviour. What must stay
