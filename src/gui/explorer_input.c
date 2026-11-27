@@ -254,6 +254,15 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
 }
 
 void explorer_handle_mouse(int x, int y, int btn, int kind) {
+    /* WHEEL over the TREE pane scrolls the tree; over the list it scrolls the list. */
+    if ((btn == 4 || btn == 5) && x < g_explorer.tree_w && g_explorer.tree_view_h > 0) {
+        WubuScroll ts;
+        ts.view = g_explorer.tree_view_h;
+        ts.content = g_explorer.tree_content_h;   /* measured by the renderer, not assumed */
+        ts.offset = g_explorer.tree_scroll_y;
+        g_explorer.tree_scroll_y = wubu_scroll_wheel(&ts, btn == 4 ? -1 : +1, ex_row_h());
+        return;
+    }
     /* WHEEL: three rows per notch, the same rule as every other list in the OS. */
     if ((btn == 4 || btn == 5) && g_explorer.list_view_h > 0) {
         int row = ex_row_h();

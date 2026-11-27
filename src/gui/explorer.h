@@ -219,7 +219,10 @@ typedef struct {
     /* Tree view (sidebar) */
     ExTreeNode         *tree_root;
     ExTreeNode         *tree_selected;
-    int                 tree_scroll_y;
+    int                 tree_scroll_y;    /* pixels, wired to wubu_scroll */
+    int                 tree_view_h;      /* viewport height, recorded by the renderer */
+    int                 tree_content_h;   /* what the renderer actually drew, so the wheel cannot scroll into
+                                           * blank space (a guessed node count would) */
     int                 tree_w;                      /* Sidebar width */
 
     /* Breadcrumbs */

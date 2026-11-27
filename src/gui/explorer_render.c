@@ -12,6 +12,7 @@
 #include "wubu_gui_metrics.h"   /* layout comes from one owner */
 #include "wubu_tokens.h"
 #include "explorer_internal.h"
+#include "gfx/wubu_scroll.h"
 #include "wm.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
@@ -20,74 +21,6 @@
 
 /* -- Tree node draw (recursive, local to this module) -------------- */
 
-static void ex_draw_tree_node(ExTreeNode *node, int x, int y, int w, int *drawn_y, int depth, ExExplorerState *ex) {
-    if (!node) return;
-
-    int mh = ex_row_h();
-    int indent = ex_tree_indent();
-    int node_x = x + 4 + depth * indent;
-    int node_w = w - 4 - depth * indent;
-
-    if (node == ex->tree_selected) {
-        vbe_fill_rect(node_x, *drawn_y, node_w, mh, tc()->select_bg);
-    }
-
-    /* Expand/collapse indicator for non-leaf nodes */
-    if (node->first_child || node->is_drive) {
-        if (node->expanded) {
-            vbe_draw_text(node_x, *drawn_y + (mh - 8) / 2, "\x1b[B", tc()->icon_text, 1); /* Down arrow */
-        } else {
-            vbe_draw_text(node_x, *drawn_y + (mh - 8) / 2, "\x1b[C", tc()->icon_text, 1); /* Right arrow */
-        }
-    }
-
-    /* Icon */
-    vbe_fill_rect(node_x + 16, *drawn_y + (mh - 16) / 2, 16, 16, node->icon_color);
-    vbe_rect(node_x + 16, *drawn_y + (mh - 16) / 2, 16, 16, tc()->icon_border);
-
-    /* Name */
-    vbe_draw_text(node_x + 36, *drawn_y + (mh - 8) / 2, node->display_name, tc()->icon_text, 1);
-
-    *drawn_y += mh;
-
-    if (node->expanded && node->first_child) {
-        ExTreeNode *child = node->first_child;
-        while (child) {
-            ex_draw_tree_node(child, x, y, w, drawn_y, depth + 1, ex);
-            child = child->next_sibling;
-        }
-    }
-}
-
-/* -- Render sub-sections ------------------------------------------- */
-
-void ex_render_tree(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h) {
-    (void)fb; (void)fb_w; (void)fb_h;
-
-    if (!ex->tree_root) return;
-
-    int task_h = taskbar_height();
-    (void)task_h;
-    int list_h = fb_h - y - ex_statusbar_h();
-
-    /* Background */
-    vbe_fill_rect(x, y, w, list_h, tc()->win_face);
-    vbe_rect(x + w - 1, y, 1, list_h, tc()->border_dark);
-
-    /* Tree header */
-    vbe_fill_rect(x, y, w, ex_title_h(), tc()->win_title_inactive);
-    vbe_draw_text(x + 8, y + (ex_title_h() - 8) / 2, "Folders", tc()->body_text, 1);
-
-    int drawn_y = y + ex_title_h() + 2;
-
-    if (ex->tree_root->first_child) {
-        ExTreeNode *child = ex->tree_root->first_child;
-        while (child) {
-            ex_draw_tree_node(child, x, y, w, &drawn_y, 0, ex);
-            child = child->next_sibling;
-        }
-    }
-}
 
 /* ONE owner for segment geometry: the renderer paints with it and the click handler hit-tests with
  * it. They disagreed before -- the bar is drawn BELOW the toolbar (y = toolbar height) while the
@@ -480,6 +413,17 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
                 col_x2 += col_w;
             }
             row_y += row_h;
+        }
+        /* list scrollbar thumb, over the right edge of the list pane */
+        {
+            WubuScroll s = { .content = ex_view_count(ex) * row_h, .view = ex->list_view_h,
+                             .offset = ex->list_scroll_y };
+            if (wubu_scroll_max(&s) > 0) {
+                int tl = 0, tp = 0;
+                wubu_scroll_thumb(&s, ex->list_view_h, &tl, &tp);
+                vbe_fill_rect(x + w - WUBU_SCROLL_THUMB_W - 2, y + ex_title_h() + tp,
+                              WUBU_SCROLL_THUMB_W, tl, tc()->scroll_thumb);
+            }
         }
     } else if (ex->view_mode == EX_VIEW_ICONS) {
         /* Large icons grid */
