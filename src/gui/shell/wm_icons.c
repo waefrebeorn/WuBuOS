@@ -50,6 +50,7 @@ int shortcut_create_url(const char *name, const char *url, int grid_x, int grid_
 }
 
 int icon_hit_test(int mx, int my) {
+    if (g_dwm.icons_hidden) return -1;   /* hidden is not clickable */
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *ic = &g_dwm.icons[i];
         /* The clickable box is the WHOLE cell -- icon and the label beneath it -- from the same functions the
@@ -72,6 +73,7 @@ DosGuiIcon *icon_get(int idx) {
  * selection, then select every live icon whose 32x32 box intersects the
  * (possibly inverted) rect.  Returns the number selected. */
 int icon_select_in_rect(int x0, int y0, int x1, int y1) {
+    if (g_dwm.icons_hidden) return 0;   /* nothing to lasso over */
     if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
     if (y0 > y1) { int t = y0; y0 = y1; y1 = t; }
     int n = 0;

@@ -118,15 +118,15 @@ void reflow_all_icons_column(void) {
     reflow_icons_column();
 }
 
-/* Live show/hide of all desktop icons (Control Panel "Show desktop icons"). */
+/* Live show/hide of all desktop icons (Control Panel "Show desktop icons").
+ * Hiding is a visibility state: the registry survives, so showing them again
+ * restores exactly the icons the user had. It used to set every icon dead and
+ * zero icon_count, which destroyed the app-registry icons permanently -- a
+ * refresh can only re-read the Desktop directory, not re-register apps. */
 void wm_set_icons_visible(bool show) {
     if (!wm_is_initialized()) return;
-    if (show) {
-        wm_refresh_desktop();
-    } else {
-        for (int i = 0; i < g_dwm.icon_count; i++) g_dwm.icons[i].alive = false;
-        g_dwm.icon_count = 0;
-    }
+    g_dwm.icons_hidden = !show;
+    if (show) wm_refresh_desktop();   /* pick up files added while hidden */
 }
 
 /* Resolve the user's Desktop directory.

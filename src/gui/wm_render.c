@@ -176,7 +176,7 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         fprintf(stderr, "[probe] render sees icon_count=%d &g_dwm=%p off=%zu size=%zu\n",
                 g_dwm.icon_count, (void *)&g_dwm, offsetof(DosGuiWM, icon_count),
                 sizeof(DosGuiWM)); } }
-    for (int i = 0; i < ((skip & 2) ? 0 : g_dwm.icon_count); i++) {
+    for (int i = 0; i < ((skip & 2) || g_dwm.icons_hidden ? 0 : g_dwm.icon_count); i++) {
         DosGuiIcon *icon = &g_dwm.icons[i];
         if (!icon->alive) continue;
 

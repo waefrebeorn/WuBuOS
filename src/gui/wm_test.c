@@ -509,6 +509,53 @@ static void test_systray_lifecycle(void) {
     PASS();
 }
 
+static void test_tray_glyph_is_a_shape(void) {
+    TEST("tray indicator paints a glyph, not a solid status square");
+    wm_init(1024, 768);
+    vbe_fill_rect(0, 0, 48, 24, 0xFF101010);          /* known background */
+    systray_draw_glyph("tray-battery", 2, 2, 12, 0xFFFFFFFF);
+    systray_draw_glyph("tray-network", 20, 2, 12, 0xFFFFFFFF);
+
+    int ink = 0, bg = 0;
+    for (int y = 2; y < 14; y++)
+        for (int x = 2; x < 14; x++) {
+            if (vbe_get_pixel(x, y) == 0xFFFFFFFF) ink++; else bg++;
+        }
+    CHECK(ink > 0, "the battery indicator painted something");
+    CHECK(bg > 0, "and background shows through: a swatch would fill the whole box");
+
+    int nink = 0;
+    for (int y = 2; y < 14; y++)
+        for (int x = 20; x < 32; x++)
+            if (vbe_get_pixel(x, y) == 0xFFFFFFFF) nink++;
+    CHECK(nink > 0, "the network indicator painted signal bars");
+    CHECK(nink != ink, "battery and network are DIFFERENT shapes, not one shared square");
+    wm_shutdown();
+    PASS();
+}
+
+static void test_ellipsize(void) {
+    TEST("vbe_ellipsize: fits, marks the cut, never splits a UTF-8 sequence");
+    char buf[64];
+    vbe_ellipsize("Short", 200, buf, sizeof buf);
+    CHECK(strcmp(buf, "Short") == 0, "a label that fits is untouched");
+
+    const int room = vbe_text_width("HolyC Term", 1);
+    vbe_ellipsize("HolyC Terminal", room, buf, sizeof buf);
+    size_t n = strlen(buf);
+    CHECK(n >= 3 && strcmp(buf + n - 3, "...") == 0, "an overlong label ends in \"...\"");
+    CHECK(vbe_text_width(buf, 1) <= room, "and it fits the room it was given");
+    CHECK(strncmp(buf, "HolyC", 5) == 0, "the prefix is the real start of the title");
+    CHECK(strcmp(buf, "HolyC Termina") != 0, "it is not the old unmarked chop");
+
+    /* A 2-byte character at the cut must not leave a lone lead byte behind. */
+    vbe_ellipsize("caf\xC3\xA9 au lait", vbe_text_width("caf", 1) + vbe_text_width("...", 1) + 4,
+                  buf, sizeof buf);
+    for (size_t i = 0; buf[i]; i++)
+        CHECK(!((unsigned char)buf[i] >= 0xC0), "no dangling multi-byte lead at the cut");
+    PASS();
+}
+
 static void test_window_state_transitions(void) {
     TEST("window state: resize/move clamps + maximize/minimize/restore");
     int sw = 1024, sh = 768;
@@ -648,6 +695,27 @@ static void test_icon_hit_test(void) {
     /* Miss */
     hit = icon_hit_test(900, 700);
     CHECK(hit == -1, "should miss");
+    wm_shutdown();
+    PASS();
+}
+
+static void test_icon_hide_is_reversible(void) {
+    TEST("\"show desktop icons\" off/on keeps the registry (hide is not a purge)");
+    wm_init(1024, 768);
+    icon_add("App0", 0, 0, NULL);
+    icon_add("App1", 0, 1, NULL);
+    int before = wm_icon_count();
+    CHECK(before == 2, "two icons registered");
+
+    wm_set_icons_visible(false);
+    CHECK(wm_icon_count() == before, "hiding does not destroy the registry");
+    CHECK(icon_hit_test(g_dwm.icons[0].x + 4, g_dwm.icons[0].y + 4) == -1,
+          "a hidden icon is not clickable");
+
+    wm_set_icons_visible(true);
+    CHECK(wm_icon_count() >= before, "showing them again brings them back");
+    CHECK(icon_hit_test(g_dwm.icons[0].x + 4, g_dwm.icons[0].y + 4) >= 0,
+          "and they are clickable again");
     wm_shutdown();
     PASS();
 }
@@ -2878,6 +2946,8 @@ int main(void) {
     test_render_window_clipped_above_taskbar();
     test_add_icon();
     test_systray_lifecycle();
+    test_tray_glyph_is_a_shape();
+    test_ellipsize();
     test_window_state_transitions();
     test_snap_zones();
 
@@ -2897,6 +2967,7 @@ int main(void) {
     test_gesture_actions();
     test_icon_click_selects_then_opens();
     test_icon_hit_test();
+    test_icon_hide_is_reversible();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();
     test_fable_font();

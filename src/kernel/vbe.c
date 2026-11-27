@@ -765,6 +765,30 @@ int vbe_text_width(const char *s, int scale) {
     return w;
 }
 
+/* Fit `s` into `max_w` pixels, marking the cut with "..." so a shortened label
+ * reads as shortened. One owner for every place that used to chop bytes off the
+ * end and draw the stump: a taskbar button titled "HolyC Terminal" rendered
+ * "HolyC Termina", which reads as a bug rather than a truncation. */
+void vbe_ellipsize(const char *s, int max_w, char *out, size_t cap) {
+    if (!out || cap == 0) return;
+    out[0] = '\0';
+    if (!s || max_w <= 0) return;
+    if (vbe_text_width(s, 1) <= max_w) { snprintf(out, cap, "%s", s); return; }
+
+    int dots = vbe_text_width("...", 1);
+    size_t n = strlen(s);
+    if (n > cap - 1) n = cap - 1;
+    memcpy(out, s, n);
+    out[n] = '\0';
+    while (n > 0 && vbe_text_width(out, 1) > max_w - dots) {
+        out[--n] = '\0';
+        /* Never leave half a UTF-8 sequence: it would draw as '?'. */
+        while (n > 0 && ((unsigned char)out[n - 1] & 0xC0) == 0x80) out[--n] = '\0';
+    }
+    if (n > 0 && n + 3 < cap) memcpy(out + n, "...", 4);
+    else out[0] = '\0';   /* not even the ellipsis fits: draw nothing, not a lie */
+}
+
 /* ================================================================
  * FABLE WINDOWING AGENT — Extended Primitives
  * ================================================================ */

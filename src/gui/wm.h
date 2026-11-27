@@ -231,6 +231,8 @@ int  systray_add(const char *name, uint32_t color,
 void systray_remove(const char *name);
 int systray_update_color(const char *name, uint32_t color);
 uint32_t systray_color(const char *name);
+/* Paint an indicator's shape (battery / network / heat) in its status colour. */
+void systray_draw_glyph(const char *name, int x, int y, int size, uint32_t color);
 /* Tray hit-test against the well the taskbar renderer publishes; returns
  * the icon's array index at (px, py), or -1. One layout owner. */
 int  systray_icon_at(int px, int py);

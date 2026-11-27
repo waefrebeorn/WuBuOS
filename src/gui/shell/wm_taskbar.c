@@ -318,9 +318,11 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
         vbe_fill_rect_rounded(tx, L.tray_y, DOSGUI_SYSTRAY_SIZE,
                               DOSGUI_SYSTRAY_SIZE, WUBU_METRIC_RADIUS_CONTROL,
                               tc()->btn_face);
-        vbe_fill_rect(tx + WUBU_SPACE_XS, L.tray_y + WUBU_SPACE_XS,
-                      WUBU_TASKBAR_TRAY_ICON, WUBU_TASKBAR_TRAY_ICON,
-                      g_dwm.systray_icons[i].icon_color);
+        /* Shape, not swatch: the indicator's own glyph in its status colour. */
+        systray_draw_glyph(g_dwm.systray_icons[i].name,
+                           tx + WUBU_SPACE_XS, L.tray_y + WUBU_SPACE_XS,
+                           WUBU_TASKBAR_TRAY_ICON,
+                           g_dwm.systray_icons[i].icon_color);
         /* Notification badge — same art as the classic era (one owner:
          * WUBU_TASKBAR_BADGE*). The modern bar used to drop it silently. */
         if (g_dwm.systray_icons[i].notification_count > 0) {
@@ -775,12 +777,10 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         int bh = WUBU_TASKBAR_CLASSIC_BTN_H;
         int bby = ty + (th - bh) / 2;
         char truncated[64];
-        strncpy(truncated, w->title, sizeof(truncated) - 1);
-        truncated[sizeof(truncated) - 1] = '\0';
-        while (strlen(truncated) > 1 &&
-               vbe_text_width(truncated, 1) > bw - WUBU_TASKBAR_CLASSIC_TEXT_RESERVE) {
-            truncated[strlen(truncated) - 1] = '\0';
-        }
+        /* Ellipsised, not chopped: "HolyC Termina" was a title losing its last
+         * letter with nothing to say it had been cut. */
+        vbe_ellipsize(w->title, bw - WUBU_TASKBAR_CLASSIC_TEXT_RESERVE,
+                      truncated, sizeof truncated);
 
         if (focused && !minimized) {
             vbe_fill_rect(bx, bby, bw, bh, tc()->select_bg);
@@ -823,8 +823,11 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         vbe_3d_raised_colors(bx, bby, WUBU_TASKBAR_CLASSIC_PIN_W, bh,
                              tc()->border_light, tc()->btn_face,
                              tc()->border_dark, tc()->border_darkest);
+        char pin_label[64];
+        vbe_ellipsize(t->title, WUBU_TASKBAR_CLASSIC_PIN_W - WUBU_TASKBAR_CLASSIC_TEXT_RESERVE,
+                      pin_label, sizeof pin_label);
         vbe_draw_text(bx + WUBU_SPACE_SM, bby + (bh - WUBU_FONT_INK_H) / 2,
-                      t->title, tc()->btn_text, 1);
+                      pin_label, tc()->btn_text, 1);
         /* A pin marker: a small raised square at the button's right edge. */
         vbe_fill_rect(bx + WUBU_TASKBAR_CLASSIC_PIN_W - 2 * WUBU_TASKBAR_CLASSIC_PIN_MARK,
                       bby + WUBU_TASKBAR_CLASSIC_PIN_MARK,
@@ -883,9 +886,11 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                                  tc()->border_light, tc()->border_face,
                                  tc()->border_dark, tc()->border_darkest);
 
-            vbe_fill_rect(x + WUBU_SPACE_XS, y + WUBU_SPACE_XS,
-                          WUBU_TASKBAR_TRAY_ICON, WUBU_TASKBAR_TRAY_ICON,
-                          g_dwm.systray_icons[i].icon_color);
+            /* Shape, not swatch (one owner: systray_draw_glyph). */
+            systray_draw_glyph(g_dwm.systray_icons[i].name,
+                               x + WUBU_SPACE_XS, y + WUBU_SPACE_XS,
+                               WUBU_TASKBAR_TRAY_ICON,
+                               g_dwm.systray_icons[i].icon_color);
 
             /* Draw notification badge if count > 0 */
             if (g_dwm.systray_icons[i].notification_count > 0) {

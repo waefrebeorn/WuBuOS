@@ -86,6 +86,11 @@ typedef struct {
 
     /* Desktop view options (Stream 3) */
     bool            auto_arrange;   /* Snap icons into a top-left column/grid */
+    /* "Show desktop icons" off is a VISIBILITY state, not a delete: hiding used
+     * to mark every icon dead and zero the count, so turning the setting back on
+     * could never restore them (a refresh only re-reads files, never the app
+     * registry). The icons stay registered; render and hit-test skip them. */
+    bool            icons_hidden;
 
     /* Virtual desktops */
     int             current_desktop;

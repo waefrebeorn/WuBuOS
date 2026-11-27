@@ -136,6 +136,17 @@ void settings_rebuild_sync_url_list(WubuSettings *s) {
 
 /* Save all settings to file */
 int wubu_settings_save(void) {
+    /* A store that never got its defaults is not a configuration: writing it
+     * produces version 0, dpi 0, font_scale 0.00 and every toggle false. One
+     * such file turned a live desktop light-themed, icon-less and double-sized.
+     * Refuse, and say so once, instead of persisting garbage over the user's
+     * real settings. */
+    if (!g_settings_ready) {
+        static int warned;
+        if (!warned) { warned = 1;
+            fprintf(stderr, "[settings] save refused: settings were never initialised\n"); }
+        return -1;
+    }
     if (!ensure_config_dir()) return -1;
     settings_rebuild_sync_url_list(&g_settings);
     FILE *f = fopen(wubu_settings_path(), "w");
@@ -262,7 +273,16 @@ int wubu_settings_load(void) {
     const char *p = buf;
     JsonToken *root = json_parse_value(&p);
     int ret = 0;
+    /* Schema version 0 is impossible from an initialised store (defaults stamp
+     * version 1), so a file claiming it was written by a process that never
+     * called settings_apply_defaults. Its values are not the user's choices --
+     * every one of them is zero -- so refuse the file and let defaults win.
+     * This is also the migration that heals such a file on the next boot. */
     if (root && !g_json_parse_error) {
+        JsonToken *v = json_find(root, "version");
+        if (v && v->type == JSON_TYPE_NUMBER && v->int_value == 0) ret = -1;
+    }
+    if (root && !g_json_parse_error && ret == 0) {
         JsonToken *v;
         if ((v = json_find(root, "version")) && v->type == JSON_TYPE_NUMBER) g_settings.version = v->int_value;
         if ((v = json_find(root, "last_modified")) && v->type == JSON_TYPE_NUMBER) g_settings.last_modified = v->int_value;

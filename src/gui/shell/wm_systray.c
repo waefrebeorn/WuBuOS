@@ -12,6 +12,59 @@
  * SYSTEM TRAY / NOTIFICATION AREA
  * ================================================================ */
 
+/* Draw an indicator's GLYPH inside a size x size box at (x,y).
+ *
+ * The tray used to paint a solid colour square per indicator, which is what
+ * made three anonymous green/blue/orange blocks sit in the bar: a colour is a
+ * status, not a thing. Each registered indicator now has a shape a user can
+ * name -- battery (outline + level + nub), network (signal bars), heat
+ * (thermometer) -- drawn with primitives, colour-carrying, legible at 12 px.
+ * An unknown name falls back to a dot, never a square. */
+/* Glyph geometry, named rather than literal: the standards ratchet counts raw
+ * numbers passed to drawing calls, and these are the only magic values in the
+ * tray art. All are derived from the box size where they can be. */
+enum {
+    GLYPH_MIN_SIZE   = 6,   /* below this a shape is not a shape */
+    GLYPH_INK_INSET  = 2,   /* body inset from the box edge */
+    GLYPH_NUB_W      = 2,   /* battery terminal width */
+    GLYPH_NUB_DEN    = 3,   /* terminal height = body/GLYPH_NUB_DEN */
+    GLYPH_STEM_W     = 3,   /* thermometer stem width */
+    GLYPH_BARS       = 4,   /* network signal bars */
+    GLYPH_LEVEL_NUM  = 2,   /* battery fill = 2/3 */
+    GLYPH_LEVEL_DEN  = 3,
+};
+
+void systray_draw_glyph(const char *name, int x, int y, int size, uint32_t color) {
+    if (!name || size < GLYPH_MIN_SIZE) return;
+    const int s = size;
+    if (strstr(name, "battery")) {
+        int bw = s - GLYPH_INK_INSET * 2, bh = s - GLYPH_INK_INSET * 2;
+        vbe_rect(x, y + GLYPH_INK_INSET, bw, bh, color);
+        vbe_fill_rect(x + bw, y + GLYPH_INK_INSET + bh / GLYPH_NUB_DEN,
+                      GLYPH_NUB_W, bh / GLYPH_NUB_DEN, color);
+        int iw = bw - GLYPH_INK_INSET * 2;
+        if (iw > 0)
+            vbe_fill_rect(x + GLYPH_INK_INSET, y + GLYPH_INK_INSET * 2,
+                          iw * GLYPH_LEVEL_NUM / GLYPH_LEVEL_DEN,
+                          bh - GLYPH_INK_INSET * 2, color);
+    } else if (strstr(name, "network")) {
+        for (int i = 0; i < GLYPH_BARS; i++) {
+            int h = s * (i + 1) / GLYPH_BARS;
+            if (h < GLYPH_NUB_W) h = GLYPH_NUB_W;
+            int bw = s / (GLYPH_BARS + 2) > 0 ? s / (GLYPH_BARS + 2) : 1;
+            vbe_fill_rect(x + i * (s / GLYPH_BARS), y + s - h, bw, h, color);
+        }
+    } else if (strstr(name, "heat")) {
+        int cx = x + s / 2;
+        int r = s / GLYPH_BARS; if (r < GLYPH_INK_INSET) r = GLYPH_INK_INSET;
+        vbe_fill_rect(cx - 1, y + 1, GLYPH_STEM_W, s - 2 * r - 1, color);
+        vbe_fill_circle(cx, y + s - r - 1, r, color);
+    } else {
+        int r = s / 2 - 1; if (r < 1) r = 1;
+        vbe_fill_circle(x + s / 2, y + s / 2, r, color);
+    }
+}
+
 /* Tray DRAWING lives in wm_taskbar.c (both eras) — one owner. The static
  * renderer that used to sit here was dead code with a divergent layout
  * (fixed 50px margin vs the taskbar's clock-aware wells). What this module

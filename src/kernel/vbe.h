@@ -190,6 +190,9 @@ void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale);
 
 /* Measure string width in pixels (count * 6 * scale * text_scale). */
 int vbe_text_width(const char *s, int scale);
+/* Fit `s` into max_w pixels, ending the visible text with "..." when it does not
+ * fit. The one truncation helper: callers used to chop bytes and draw stumps. */
+void vbe_ellipsize(const char *s, int max_w, char *out, size_t cap);
 /* Titles use the 700-weight face (Windows: "use Semibold for titles"); body text stays regular. */
 void vbe_draw_text_bold(int x, int y, const char *s, uint32_t color, int scale);
 /* Draw into a CALLER'S surface with the same face/metrics (the Control Panel draws into a window buffer).

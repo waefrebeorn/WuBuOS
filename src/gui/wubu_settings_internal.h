@@ -20,6 +20,9 @@
 /* Live settings state (defined once, in wubu_settings_defaults.c). */
 extern WubuSettings g_settings;
 extern bool          g_settings_dirty;
+/* True once settings_apply_defaults() has run. A save before that would persist
+ * a zeroed store, so wubu_settings_save() refuses it. */
+extern bool          g_settings_ready;
 
 /* -- Default factories (wubu_settings_defaults.c) -- */
 void settings_default_theme(ThemeSettings *t);

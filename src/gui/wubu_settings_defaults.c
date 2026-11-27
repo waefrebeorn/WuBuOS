@@ -18,21 +18,28 @@
 
 /* -- Config Path -------------------------------------------------- */
 
-static char g_config_path[512] = {0};
-
+/* Resolved on EVERY call, never cached. A cached path survived a later
+ * XDG_CONFIG_HOME change, which is how a test that sandboxes itself after
+ * startup still read and rewrote the live user's settings file: the path was
+ * already frozen at $HOME/.config by the first access. WUBU_SETTINGS_PATH
+ * names one file explicitly (tests, alternate profiles). */
 const char *wubu_settings_path(void) {
-    if (g_config_path[0] == '\0') {
-        const char *home = getenv("HOME");
-        const char *xdg = getenv("XDG_CONFIG_HOME");
-        if (xdg && xdg[0]) {
-            snprintf(g_config_path, sizeof(g_config_path), "%s/wubu/settings.conf", xdg);
-        } else if (home) {
-            snprintf(g_config_path, sizeof(g_config_path), "%s/.config/wubu/settings.conf", home);
-        } else {
-            strcpy(g_config_path, "/tmp/wubu/settings.conf");
-        }
+    static char path[512];
+    const char *explicit_file = getenv("WUBU_SETTINGS_PATH");
+    if (explicit_file && explicit_file[0]) {
+        snprintf(path, sizeof(path), "%s", explicit_file);
+        return path;
     }
-    return g_config_path;
+    const char *home = getenv("HOME");
+    const char *xdg = getenv("XDG_CONFIG_HOME");
+    if (xdg && xdg[0]) {
+        snprintf(path, sizeof(path), "%s/wubu/settings.conf", xdg);
+    } else if (home) {
+        snprintf(path, sizeof(path), "%s/.config/wubu/settings.conf", home);
+    } else {
+        strcpy(path, "/tmp/wubu/settings.conf");
+    }
+    return path;
 }
 
 bool ensure_config_dir(void) {
@@ -50,6 +57,11 @@ bool ensure_config_dir(void) {
 
 WubuSettings g_settings = {0};
 bool          g_settings_dirty = false;
+/* Set once defaults have been laid down. Until then the store holds a zeroed
+ * struct, and writing it out produces a settings file in which every boolean is
+ * false, dpi is 0, font_scale 0.00 and the theme is 0 -- exactly the file that
+ * made a live desktop boot light-themed with hidden icons and doubled text. */
+bool          g_settings_ready = false;
 
 void settings_default_theme(ThemeSettings *t) {
     /* Product default: the Win11-class dark theme.  The classic Win98 theme
@@ -149,4 +161,5 @@ void settings_apply_defaults(WubuSettings *s) {
     s->sync_backoff_jitter_pct = WUBU_SETTINGS_SYNC_BACKOFF_DEFAULT_JITTER;
     s->version = 1;
     s->last_modified = (uint64_t)time(NULL);
+    g_settings_ready = true;
 }

@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 /* -- Minimal host stubs --------------------------------------------
  * This test drives the settings/theme/notify layers directly, so there is
@@ -203,16 +204,78 @@ static void test_dark_theme(void) {
           "the dark palette is what renders");
 }
 
+/* -- the store may not persist a configuration it never built -------- */
+
+/* Internal store flag (wubu_settings_internal.h); this gate drives the
+ * public API, so it declares the one internal it needs. */
+extern bool g_settings_ready;
+
+static void test_save_guards(void) {
+    printf("\n[settings integrity]\n");
+
+    /* A save before defaults is how the live settings file got zeroed: version
+     * 0, dpi 0, font_scale 0.00, every toggle false. It must be refused. */
+    g_settings_ready = false;
+    CHECK(wubu_settings_save() == -1, "an uninitialised store refuses to save");
+    g_settings_ready = true;
+
+    /* Schema version 0 cannot come from an initialised store (defaults stamp
+     * 1), so such a file is refused on load and defaults win. */
+    char path[512];
+    snprintf(path, sizeof path, "%s", wubu_settings_path());
+    FILE *f = fopen(path, "w");
+    CHECK(f != NULL, "the sandbox settings file is writable");
+    if (f) {
+        fprintf(f, "{\n  \"version\": 0,\n  \"theme\": {\n "
+                   "\"theme_id\": 0,\n \"show_desktop_icons\": false\n  },\n"
+                   "  \"fonts\": {\n \"dpi\": 0\n  }\n}\n");
+        fclose(f);
+    }
+    CHECK(wubu_settings_load() == -1, "a version-0 settings file is refused");
+
+    /* And a version-1 file still loads: the guard must not reject real ones. */
+    f = fopen(path, "w");
+    if (f) {
+        fprintf(f, "{\n  \"version\": 1,\n  \"fonts\": {\n \"dpi\": 144\n  }\n}\n");
+        fclose(f);
+    }
+    CHECK(wubu_settings_load() == 0, "a version-1 settings file still loads");
+    CHECK(wubu_settings_get()->fonts.dpi == 144, "the loaded value reaches the store");
+}
+
 int main(void) {
     printf("=== wubu_settings_test ===\n");
+    /* SANDBOX FIRST. This gate saves settings (font_scale 2.0, dpi 192, font_size
+     * 26) and used to do it into the live user's settings.conf on every `make
+     * test` -- which is exactly how a real desktop came up light-themed, hidden
+     * icons and double-sized text. The path resolver no longer caches, so setting
+     * XDG_CONFIG_HOME here is enough to keep the whole run in a scratch dir. */
+    {
+        const char *base = getenv("TMPDIR");
+        if (!base || !*base) base = "/tmp";
+        char sandbox[512];
+        snprintf(sandbox, sizeof sandbox, "%s/wubu_settings_test_cfg", base);
+        (void)mkdir(sandbox, 0755);
+        setenv("XDG_CONFIG_HOME", sandbox, 1);
+        /* Fresh file every run: a leftover sandbox file from a previous run would
+         * be LOADED at init and change the baseline these checks assume (a persisted
+         * dpi 144 turns "font_scale 2.0 -> scale 2" into 3). */
+        char cfg[600];
+        snprintf(cfg, sizeof cfg, "%s/wubu/settings.conf", sandbox);
+        (void)remove(cfg);
+    }
     wubu_theme_init();
     wubu_settings_init();
+    CHECK(strncmp(wubu_settings_path(), getenv("XDG_CONFIG_HOME"),
+                  strlen(getenv("XDG_CONFIG_HOME"))) == 0,
+          "the gate writes to its sandbox, never the live settings file");
 
     test_font_scale();
     test_init_applies_saved_settings();
     test_high_contrast();
     test_reduce_motion();
     test_dark_theme();
+    test_save_guards();
 
     printf("\n=== wubu_settings: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
