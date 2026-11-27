@@ -68,35 +68,36 @@ int desktop_init(void) {
     extern void tray_world_wire(void) __attribute__((weak));
     if (tray_world_wire) tray_world_wire();
 
-    /* Register desktop icons from the single app registry. */
-    for (int i = 0; i < g_app_def_count; i++) {
-        const DosGuiAppDef *d = &g_app_defs[i];
-        /* Skip duplicate entries that map to the same launch (e.g. Paint==Canvas). */
-        bool dup = false;
-        for (int j = 0; j < i; j++)
-            if (g_app_defs[j].launch == d->launch && g_app_defs[j].icon_type == d->icon_type) { dup = true; break; }
-        if (dup) continue;
-        icon_add_ex(d->name, DESK_ICON_APP, NULL,
-                    i % 6, i / 6, d->icon_color, NULL);
+    /* DESKTOP = A FEW PINS, NOT THE WHOLE REGISTRY.
+     * Every app used to land on the desktop (26 tiles of them), because until
+     * the Start menu learned to read the registry the desktop was the only
+     * complete launcher. It is not any more (startmenu_build_programs_db takes
+     * g_app_defs, gated by startmenu_test), so the desktop can be what a
+     * desktop is: a handful of things the user reaches for. Files and folders
+     * still appear below from the live Desktop directory. */
+    static const char *const pinned[] = {
+        "My Computer", "File Manager", "Terminal", "Notes", "Getting Started",
+    };
+    {
+        int slot = 0;
+        for (size_t p = 0; p < sizeof pinned / sizeof pinned[0]; p++) {
+            for (int i = 0; i < g_app_def_count; i++) {
+                const DosGuiAppDef *d = &g_app_defs[i];
+                if (!d->name || strcmp(d->name, pinned[p]) != 0) continue;
+                icon_add_ex(d->name, DESK_ICON_APP, NULL, 0, slot++, d->icon_color, NULL);
+                break;
+            }
+        }
     }
 
-    /* A program is a file.  Anything .wet in the applet directory becomes a
-     * desktop icon and a startmenu entry -- written by hand, edited in the
-     * IDE, or created from a VWS template -- with no C change and no rebuild. */
-    char apdir[512];
-    /* Scan BOTH sources: the user dir (app_wet_dir) and the applets that ship
-     * with the OS. Scanning only the former made every committed .wet file
-     * invisible at runtime -- a program that could never be launched. */
-    app_wet_dir(apdir, sizeof apdir);
-    extern int app_scan_wet_all(void);
-    if (app_scan_wet_all() > 0) {
-        for (int i = 0; i < app_wet_count(); i++) {
-            const DosGuiAppDef *d = app_wet_at(i);
-            if (!d) continue;
-            icon_add_ex(d->name, DESK_ICON_APP, NULL,
-                        (g_app_def_count + i) % 6, (g_app_def_count + i) / 6,
-                        d->icon_color, NULL);
-        }
+    /* A program is a file: still SCAN the .wet applet dirs, because the scan is
+     * what registers those applets at runtime (an applet that is never scanned
+     * cannot be launched at all). They no longer each get a desktop tile. */
+    {
+        char apdir[512];
+        app_wet_dir(apdir, sizeof apdir);
+        extern int app_scan_wet_all(void);
+        (void)app_scan_wet_all();
     }
 
     /* ReactOS explorer/desktop.cpp lesson: the desktop is a LIVE namespace.
