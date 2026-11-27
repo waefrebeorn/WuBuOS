@@ -58,6 +58,8 @@ int chrome_border_width(void);
  * chrome_app_icon_draw returns 0 when no master matches, so a caller can fall back. */
 const unsigned char *chrome_app_icon_for(const char *title);
 int chrome_app_icon_draw(const char *title, int x, int y, int w, int h, uint32_t ink);
+/* Blit any baked master (app or file-type) into a box, same scaled blit. */
+void chrome_icon_draw_mask(const unsigned char *mask, int x, int y, int w, int h, uint32_t ink);
 
 /* True when the Windows 11 caption treatment is active: flush full-height
  * buttons at the top-right corner rather than inset square ones. */

@@ -2585,7 +2585,7 @@ $(RT)/wubu_effect.c \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
-		$(GUI)/shell/window_chrome.c \
+		$(GUI)/shell/window_chrome.c $(GUI)/shell/file_type_icons.c \
 		$(GUI)/shell/wm_shadow.c $(GUI)/gfx/gfx_surface.c $(GUI)/gfx/gfx_blend.c $(GUI)/gfx/gfx_shape.c $(GUI)/gfx/gfx_blur.c \
 		$(GUI)/wm_test.c -o $(GUI)/wm_test -lm
 	$(GUI)/wm_test
@@ -2772,7 +2772,7 @@ test_hosted_pe: $(HOSTED)/hosted_pe.c $(HOSTED)/hosted_pe_test.c $(GUI)/wubu_pro
 	flock $(CT_GATE_LOCK) $(HOSTED)/hosted_pe_test
 
 test_explorer:
-		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/explorer.c $(GUI)/explorer_input.c $(GUI)/gfx/wubu_scroll.c $(GUI)/explorer_ops.c $(GUI)/file_assoc.c $(GUI)/explorer_info.c $(GUI)/explorer_zip.c $(GUI)/explorer_format.c $(GUI)/explorer_drives.c $(GUI)/explorer_tree.c $(GUI)/explorer_preview.c $(GUI)/explorer_render.c $(GUI)/explorer_tree_render.c $(GUI)/explorer_search.c $(GUI)/explorer_toolbar.c $(GUI)/explorer_library.c $(GUI)/explorer_fs.c $(GUI)/explorer_fsops.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/explorer_test_stub.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(RT)/wubu_libraries.c $(GUI)/explorer_test.c -lm -o $(GUI)/explorer_test -Iinclude $(RT_ALWAYS) 
+		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/explorer.c $(GUI)/explorer_input.c $(GUI)/gfx/wubu_scroll.c $(GUI)/explorer_ops.c $(GUI)/file_assoc.c $(GUI)/explorer_info.c $(GUI)/explorer_zip.c $(GUI)/explorer_format.c $(GUI)/explorer_drives.c $(GUI)/explorer_tree.c $(GUI)/explorer_preview.c $(GUI)/explorer_render.c $(GUI)/shell/file_type_icons.c $(GUI)/explorer_tree_render.c $(GUI)/explorer_search.c $(GUI)/explorer_toolbar.c $(GUI)/explorer_library.c $(GUI)/explorer_fs.c $(GUI)/explorer_fsops.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/explorer_test_stub.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(RT)/wubu_libraries.c $(GUI)/explorer_test.c -lm -o $(GUI)/explorer_test -Iinclude $(RT_ALWAYS) 
 	$(GUI)/explorer_test
 # Arbitrary-program PTY spawn: an exec (not a shell) must run and produce output.
 test_pty_exec:

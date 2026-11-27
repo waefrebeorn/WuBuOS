@@ -18,6 +18,7 @@
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
 #include "shell/window_chrome.h"
+#include "shell/file_type_icons.h"
 #include "shell/win11_snap.h"   /* win11_snap_assist_click: the click contract */   /* caption metrics under test */
 #include "shell/wm_shadow.h"       /* elevation shadow blur-count oracle */
 #include "wubu_tokens.h"   /* the geometry scale they must come from */
@@ -2954,6 +2955,35 @@ static void test_theme_palette_invariants(void) {
     wubu_theme_set(THEME_DARK);
 }
 
+/* A folder, a source file and an image must LOOK different in a 16 px row: the
+ * list used to draw one tinted square for every entry. */
+static void test_file_type_glyphs_differ(void) {
+    TEST("file-type glyphs are distinct shapes (folder / source / image)");
+    vbe_init(256, 256);
+    wm_init(256, 256);
+    vbe_fill_rect(0, 0, 256, 256, 0xFF000000);
+
+    wubu_file_icon_draw("Projects", 1,  8, 8, 24, 24, 0xFFFFFFFF);
+    wubu_file_icon_draw("main.c",   0, 40, 8, 24, 24, 0xFFFFFFFF);
+    wubu_file_icon_draw("shot.png", 0, 72, 8, 24, 24, 0xFFFFFFFF);
+
+    int ink[3] = {0,0,0}, asym = 0;
+    for (int y = 0; y < 24; y++) {
+        for (int x = 0; x < 24; x++) {
+            int a = (vbe_get_pixel(8 + x, 8 + y) & 0x00FFFFFFu) != 0;
+            int b = (vbe_get_pixel(40 + x, 8 + y) & 0x00FFFFFFu) != 0;
+            int c = (vbe_get_pixel(72 + x, 8 + y) & 0x00FFFFFFu) != 0;
+            ink[0] += a; ink[1] += b; ink[2] += c;
+            if (a != b) asym++;
+            if (b != c) asym++;
+        }
+    }
+    CHECK(ink[0] > 0 && ink[1] > 0 && ink[2] > 0, "all three glyphs painted");
+    CHECK(asym > 20, "the three types are different shapes, not one tile re-tinted");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     /* BEFORE any taskbar call: this suite must never read or write the user's dock file. */
     setenv("WUBU_TASKBAR_CONF", "/tmp/wubu-test-taskbar.conf", 1);
@@ -2997,6 +3027,7 @@ int main(void) {
     test_buddy_states_render_differently();
     test_render_draws_glyphs_and_selection();
     test_app_icons_are_distinct();
+    test_file_type_glyphs_differ();
     test_every_registered_app_has_an_icon();
     test_render_window_drop_shadow();
     test_render_win98_title_bar_is_theme_navy();

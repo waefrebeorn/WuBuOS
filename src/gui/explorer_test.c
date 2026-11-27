@@ -3,6 +3,7 @@
  */
 
 #include "explorer.h"
+#include "shell/file_type_icons.h"
 #include "../kernel/vbe.h"      /* pixel gate for the tab strip */
 #include "wubu_theme.h"         /* colours come from the theme, not from the test */
 
@@ -1092,11 +1093,37 @@ static void test_file_association(void)
                 "and double-clicking that file really takes the Notepad path");
 }
 
+/* The list must not draw one tinted square for every entry: a .c file, a .png and
+ * a folder are different THINGS, and at 16 px the icon is the only thing saying so. */
+static void test_file_type_icons(void) {
+    printf("\\n[file-type icons]\\n");
+
+    TEST_ASSERT(wubu_file_type_for("main.c", 0) == WUBU_FT_CODE, "a .c file is CODE");
+    TEST_ASSERT(wubu_file_type_for("shot.PNG", 0) == WUBU_FT_IMAGE, "extension match is case-insensitive");
+    TEST_ASSERT(wubu_file_type_for("hello.wubu", 0) == WUBU_FT_ARCHIVE, ".wubu is an ARCHIVE");
+    TEST_ASSERT(wubu_file_type_for("cons", 0) == WUBU_FT_GENERIC, "no extension is GENERIC");
+    TEST_ASSERT(wubu_file_type_for("anything", 1) == WUBU_FT_FOLDER, "a directory is FOLDER");
+    TEST_ASSERT(wubu_file_type_for(".bashrc", 0) == WUBU_FT_GENERIC, "a leading dot is a name, not an extension");
+    TEST_ASSERT_STR_EQ(wubu_file_type_label(WUBU_FT_CODE), "Source File", "the Type column label is owned here");
+
+    /* The GLYPHS themselves are pinned in test_wm, which links the chrome blit
+     * this module draws through; the classification above is this gate's job. */
+}
+
+/* This graph links the file-type owner for its CLASSIFICATION. The glyph blit it
+ * draws through belongs to the chrome (one rasteriser in the product build), so
+ * stub it here -- the same pattern the other lean test graphs use. The glyphs
+ * themselves are pinned in test_wm, which does link the chrome. */
+void chrome_icon_draw_mask(const unsigned char *mask, int x, int y, int w, int h, uint32_t ink) {
+    (void)mask; (void)x; (void)y; (void)w; (void)h; (void)ink;
+}
+
 int main(void) {
     printf("╔══════════════════════════════════════════════════════════╗\n");
     printf("║  explorer Test Suite                              ║\n");
     printf("╚══════════════════════════════════════════════════════════╝\n");
 
+    test_file_type_icons();
     test_init_shutdown();
     test_guest_store_visible();
     test_guest_file_ops();

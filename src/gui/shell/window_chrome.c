@@ -246,6 +246,13 @@ const unsigned char *chrome_app_icon_for(const char *title) {
     return NULL;
 }
 
+/* Blit a baked coverage mask into a box. Public so the one file-type icon owner
+ * (file_type_icons.c) uses the SAME scaled, area-averaged blit as the chrome --
+ * a second rasteriser would draw a second, slightly different icon set. */
+void chrome_icon_draw_mask(const unsigned char *mask, int x, int y, int w, int h, uint32_t ink) {
+    chrome_icon_blit(x, y, w, h, mask, WUBU_ICON_SIZE, ink);
+}
+
 /* Draw an app icon in a box, in one ink colour. Returns 0 when there is no icon for the title. */
 int chrome_app_icon_draw(const char *title, int x, int y, int w, int h, uint32_t ink) {
     const unsigned char *mask = chrome_app_icon_for(title);

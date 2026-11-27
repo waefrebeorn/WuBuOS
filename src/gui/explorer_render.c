@@ -12,6 +12,7 @@
 #include "wubu_gui_metrics.h"   /* layout comes from one owner */
 #include "wubu_tokens.h"
 #include "explorer_internal.h"
+#include "shell/file_type_icons.h"
 #include "gfx/wubu_scroll.h"
 #include "wm.h"
 #include "../kernel/vbe.h"
@@ -394,9 +395,15 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
                     vbe_fill_rect(col_x2, row_y, col_w, row_h, tc()->select_bg);
                 }
 
-                if (c == 0) { /* Name with icon */
-                    vbe_fill_rect(col_x2 + 4, row_y + (row_h - 16) / 2, 16, 16, entry->icon_color);
-                    vbe_rect(col_x2 + 4, row_y + (row_h - 16) / 2, 16, 16, tc()->icon_border);
+                if (c == 0) { /* Name with the TYPE's icon */
+                    /* A glyph per file type, not a tinted square: every row used to be
+                     * the same 16 px block in the entry's colour, so a .c file, a .png
+                     * and a folder were one icon in three tints. One owner decides the
+                     * glyph (file_type_icons.c); it draws with the chrome's own blit. */
+                    int ix = col_x2 + 4, iy = row_y + (row_h - 16) / 2;
+                    wubu_file_icon_draw(entry->name, entry->type == EX_ENTRY_DIR || entry->type == EX_ENTRY_DRIVE,
+                                        ix, iy, 16, 16,
+                                        entry->is_selected ? tc()->select_text : tc()->icon_text);
                     vbe_draw_text(col_x2 + 24, row_y + (row_h - 8) / 2, entry->name, entry->is_selected ? tc()->select_text : tc()->icon_text, 1);
                 } else if (c == 1) { /* Size */
                     char size_str[32];

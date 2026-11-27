@@ -82,10 +82,14 @@ int main(void) {
     printf("\n[Desktop Tab — Show/Hide Icons]\n");
     wm_refresh_desktop();
     int before_hide = wm_get_icon_count();
+    /* Hiding is a VISIBILITY state, not a purge: the registry must survive, or
+     * turning the setting back on can never restore the app icons (a refresh only
+     * re-reads the Desktop directory). This check used to pin count==0 -- the
+     * destructive behaviour that left real desktops permanently empty. */
     control_set_show_icons(false);
-    T(wm_get_icon_count() == 0, "icons hidden (count 0)");
+    T(wm_get_icon_count() == before_hide, "hiding keeps the registry (hide is not a purge)");
     control_set_show_icons(true);
-    T(wm_get_icon_count() == before_hide, "icons shown again (count restored)");
+    T(wm_get_icon_count() >= before_hide, "icons shown again (registry intact)");
 
     /* -- Control Panel two-pane (XP category view) render -- */
     printf("\n[Control Panel — XP two-pane render]\n");

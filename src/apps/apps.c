@@ -224,12 +224,9 @@ void terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
 }
 
 DosGuiWindow* launch_file_manager(void) {
-    /* ONE File Manager: the explorer ENGINE owns the window id, the path, the
-     * tree, the tabs and the input handlers. This used to build its own window
-     * with app_* callbacks, which left g_explorer.win_id at 0 -- so
-     * explorer_is_open() was false for the window the user was looking at, and
-     * every engine guard (navigate, back, and the rescan once the Styx namespace
-     * is built) silently did nothing. The pane therefore stayed empty. */
+    /* ONE File Manager: the engine owns the window id, path, tree and handlers.
+     * Building a lookalike window here left g_explorer.win_id at 0, so the engine
+     * thought nothing was open and its navigation silently did nothing. */
     extern void explorer_show(void) __attribute__((weak));
     extern DosGuiWindow *explorer_window(void) __attribute__((weak));
     if (explorer_show) {
