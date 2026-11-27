@@ -379,6 +379,9 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
             if (hosted_x11_present_open(state->width, state->height, "WuBuOS") == 0) {
                 g_hosted_x11 = 1;
                 fprintf(stderr, "WuBuOS: presenting on the X11 display %s\n", xd);
+                /* `-f` used to be parsed and then ignored. It now means what it says, through the same
+                 * path as the F11 / Ctrl+Shift+F toggle, so there is one fullscreen implementation. */
+                if (state->fullscreen) hosted_x11_toggle_fullscreen();
             } else {
                 fprintf(stderr, "WuBuOS: X11 display %s unavailable; use -h for headless.\n", xd);
                 free(state->framebuffer);

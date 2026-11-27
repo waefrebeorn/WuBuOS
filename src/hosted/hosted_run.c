@@ -256,6 +256,26 @@ struct timespec last_input;
                 nanosleep(&slp, NULL);
             }
         }
+        /* FULLSCREEN / resize: the surface changed size, so the guest must re-init at that size. Passing the
+         * new size is the difference between a fullscreen session and a 1400x880 letterbox stretched over the
+         * panel -- the guest reflows its desktop, panels and windows to the real surface. */
+        {
+            int nw = 0, nh = 0;
+            if (hosted_x11_take_resize(&nw, &nh) && nw > 0 && nh > 0 &&
+                (nw != state->width || nh != state->height)) {
+                vbe_shutdown();
+                state->width = nw;
+                state->height = nh;
+                state->fb_pitch = nw * 4;
+                vbe_init(nw, nh);
+                wubu_world_set_display((uint16_t)nw, (uint16_t)nh, 0, 0);
+                if (hosted_x11_resize_surface(nw, nh) != 0)
+                    fprintf(stderr, "[hosted] could not resize the surface to %dx%d\n", nw, nh);
+                else
+                    fprintf(stderr, "[hosted] surface re-init %dx%d (same window, focus kept)\n", nw, nh);
+            }
+        }
+
         perf_frame_tick();
         clock_gettime(CLOCK_MONOTONIC, &last);
     }

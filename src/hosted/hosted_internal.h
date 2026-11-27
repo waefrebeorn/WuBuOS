@@ -127,6 +127,12 @@ int  hosted_x11_present_pump(void);
 int  hosted_x11_present_activity(void);
 int  hosted_x11_present_active(void);
 void hosted_x11_present_close(void);
+/* F11 / Ctrl+Shift+F: EWMH fullscreen + a re-init request for the guest framebuffer. */
+int  hosted_x11_toggle_fullscreen(void);
+int  hosted_x11_fullscreen_on(void);
+int  hosted_x11_take_resize(int *w, int *h);
+/* rebuild the presented surface at a new size, keeping the same X window */
+int  hosted_x11_resize_surface(int w, int h);
 int  hosted_x11_present_fd(void);
 void hosted_x11_grab_win_keys(void);
 int  hosted_x11_screen_size(int *out_w, int *out_h);

@@ -35,15 +35,8 @@
  * (X11 evdev keycode = scancode + 8) and pushed into that same queue -- one input path for
  * every backend, so the X11 window is as interactive as the Wayland one. */
 #include "input.h"
+#include "hosted_x11_private.h"
 
-static Display *g_xdpy;
-static Window   g_xwin;
-static GC       g_xgc;
-static XImage  *g_ximg;
-static int      g_xw, g_xh;
-static int      g_shm_ok;                 /* the server accepted a shared segment */
-static XShmSegmentInfo g_shm;
-static int      g_xopen;
 static int      g_xquit;
 static int      g_xbuttons;
 static int      g_xlast_x, g_xlast_y;
@@ -78,6 +71,7 @@ int hosted_x11_present_open(int width, int height, const char *title) {
 
     g_xw = width;
     g_xh = height;
+    g_win_w = width; g_win_h = height;
 
     /* A borderless, override-redirect window is deliberately NOT used: the OS should behave
      * like an application on the desktop (movable, closable) rather than seizing the screen.
@@ -86,6 +80,7 @@ int hosted_x11_present_open(int width, int height, const char *title) {
     int x = (sw - width) / 2, y = (sh - height) / 2;
     if (x < 0) x = 0;
     if (y < 0) y = 0;
+    g_win_x = x; g_win_y = y;   /* the size to return to when fullscreen goes off */
 
     XSetWindowAttributes attrs;
     memset(&attrs, 0, sizeof(attrs));
@@ -127,34 +122,7 @@ int hosted_x11_present_open(int width, int height, const char *title) {
     /* Prefer a shared-memory image: the server then reads the pixels straight out of our memory instead of
      * receiving them over the socket. Fall back to the plain XImage if the extension is missing or a segment
      * cannot be attached -- a fallback path that has never been taken is not a fallback. */
-    g_shm_ok = 0;
-    if (XShmQueryExtension(g_xdpy)) {
-        g_ximg = XShmCreateImage(g_xdpy, vis, (unsigned)depth, ZPixmap, NULL, &g_shm,
-                                 (unsigned)width, (unsigned)height);
-        if (g_ximg) {
-            size_t bytes = (size_t)width * (size_t)height * 4u;
-            g_shm.shmid = shmget(IPC_PRIVATE, bytes, IPC_CREAT | 0600);
-            if (g_shm.shmid >= 0) {
-                g_shm.shmaddr = g_ximg->data = (char *)shmat(g_shm.shmid, NULL, 0);
-                if (g_shm.shmaddr != (char *)-1) {
-                    g_shm.readOnly = False;
-                    if (XShmAttach(g_xdpy, &g_shm)) {
-                        XSync(g_xdpy, False);
-                        shmctl(g_shm.shmid, IPC_RMID, NULL);   /* the segment dies with us */
-                        g_shm_ok = 1;
-                    }
-                }
-            }
-            if (!g_shm_ok) { fprintf(stderr, "[x11] MIT-SHM unavailable, using socket present\n"); }
-        }
-    }
-    if (!g_shm_ok) {
-        char *data = (char *)calloc((size_t)width * (size_t)height, 4);
-        if (!data) return -1;
-        g_ximg = XCreateImage(g_xdpy, vis, (unsigned)depth, ZPixmap, 0, data,
-                              (unsigned)width, (unsigned)height, 32, 0);
-        if (!g_ximg) return -1;
-    }
+    if (x11_create_image_surface(width, height) != 0) return -1;
 
     g_xopen = 1;
     XFlush(g_xdpy);
@@ -246,6 +214,7 @@ static int      g_kbd_capture;     /* Ctrl+Alt+G: the guest owns every key while
 static unsigned g_grabbed_keys[32];
 static int      g_grabbed_count;
 
+
 static void grab_one(KeyCode kc, unsigned mods) {
     XGrabKey(g_xdpy, (int)kc, mods, g_xwin, True, GrabModeAsync, GrabModeAsync);
     if (g_grabbed_count < (int)(sizeof g_grabbed_keys / sizeof g_grabbed_keys[0]))
@@ -312,6 +281,18 @@ void hosted_x11_grab_win_keys(void) {
             grab_one(kc, Mod4Mask | ShiftMask | lock_variants[v]);
         }
     }
+
+    /* Alt+F4 belongs to the GUEST, not to the host window manager.
+     *
+     * Without this grab, pressing Alt+F4 on the desktop (no guest window focused, so nothing for the guest to
+     * close) was handled by the host WM, which closed the hosted window -- the whole OS disappeared. Measured
+     * in a live session: nine clicks and one Alt+F4 left an empty desktop with the guest process gone. The
+     * guest's own handler already refuses to close anything when no window is focused (wm_input.c), so the
+     * key simply does nothing, which is what Windows does on an empty desktop. */
+    KeyCode f4 = XKeysymToKeycode(g_xdpy, XK_F4);
+    if (f4)
+        for (unsigned v = 0; v < sizeof lock_variants / sizeof lock_variants[0]; v++)
+            grab_one(f4, Mod1Mask | lock_variants[v]);
 }
 
 /* Drain X events without blocking. Returns non-zero when the window was closed. */
@@ -354,8 +335,20 @@ int hosted_x11_present_pump(void) {
             }
             break;
         case ClientMessage:
-            if ((Atom)ev.xclient.data.l[0] == XInternAtom(g_xdpy, "WM_DELETE_WINDOW", False))
-                g_xquit = 1;
+            if ((Atom)ev.xclient.data.l[0] == XInternAtom(g_xdpy, "WM_DELETE_WINDOW", False)) {
+                /* The host WM sends this for Alt+F4 and for its title-bar X. It means "close what is
+                 * focused", not "destroy the OS": with no guest window focused it must do NOTHING (Windows
+                 * behaves exactly that way on an empty desktop). Alt+F4 used to close the hosted window --
+                 * the entire session disappeared. Ctrl+Alt+Q is the explicit way out. */
+                extern int wm_close_focused(void) __attribute__((weak));
+                if (wm_close_focused && wm_close_focused()) break;
+                static int said;
+                if (!said) {
+                    said = 1;
+                    fprintf(stderr, "[hosted] close request ignored: no OS window is focused. Ctrl+Alt+Q quits.\n");
+                }
+                break;
+            }
             break;
         case DestroyNotify:
             g_xquit = 1;
@@ -363,6 +356,22 @@ int hosted_x11_present_pump(void) {
         case KeyPress:
         case KeyRelease: {
             KeySym ks = XLookupKeysym(&ev.xkey, 0);
+
+            /* FULLSCREEN: F11, and Ctrl+Shift+F because that is what a remote-desktop client uses. The
+             * guest is a fixed-size window by design (the WM is not allowed to resize it), so fullscreen is
+             * a request to us: EWMH + a framebuffer re-init at the new size. */
+            if (ev.type == KeyPress &&
+                (ks == XK_F11 ||
+                 (ks == XK_f && (ev.xkey.state & ControlMask) && (ev.xkey.state & ShiftMask)))) {
+                hosted_x11_toggle_fullscreen();
+                break;
+            }
+
+            /* the explicit escape hatch, since a close request no longer ends the session */
+            if (ev.type == KeyPress && ks == XK_q && (ev.xkey.state & ControlMask) && (ev.xkey.state & Mod1Mask)) {
+                g_xquit = 1;
+                break;
+            }
 
             /* Ctrl+Alt+G toggles KEYBOARD CAPTURE: with capture on the guest receives every key,
              * Win combos included, exactly as an OS that owns the session would. That is the only
