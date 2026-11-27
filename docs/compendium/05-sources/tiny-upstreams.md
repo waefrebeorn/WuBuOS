@@ -38,6 +38,28 @@ three properties, and a fourth that this session proved is necessary:
 
 Total for every code entry: **~2.3 MB**, and any single one can be taken alone.
 
+
+## Policy: every entry is a slerm goal (enforced)
+
+A vendored file is a **SCAFFOLD and a test oracle, never a shipped dependency**.
+Every mechanism in the table has exactly one goal in `docs/GOAL-SLERM.json`
+(`n >= 2001`, kept outside `GOALS-1000.json` so the 1000-goal / 16-domain
+invariant survives), and `tools/slerm_backlog.py` (`make test_slerm_backlog`)
+fails when a vendored id has no goal, a goal has no module/gate/criterion, or a
+goal is marked DONE while `mk/tests.mk` has no `test_<stem>` target.
+
+State: **20 goals — 1 DONE, 1 SCAFFOLD (miniz, installed as an oracle), 18 OPEN.**
+
+### First closure: SLERM-2012, the expression evaluator
+
+`tinyexpr` was never installed. `src/runtime/wubu_expr.c` is our own
+recursive-descent parser and evaluator, and `make test_wubu_expr` prints
+`28 passed, 0 failed`: 16 value oracles computed in Python at double precision,
+2 variable-binding cases, 10 refusal cases. A parser that returns `0.0` for
+`1/0` instead of naming the error is the fail-open shape the refusal half stops.
+
+`status: DONE` is a check that a target exists, builds and passes — never a sentence.
+
 ## Case study: what "single file library" cost us
 
 `miniz` is described as a single-file library. It is **ten files**: `miniz.h`
