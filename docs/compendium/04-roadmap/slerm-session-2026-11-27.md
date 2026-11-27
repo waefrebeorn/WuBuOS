@@ -3,7 +3,7 @@
 This is the handoff for the next session: the state of the slerm backlog, the defects the
 new gates found, and the three next steps in the order they should be taken.
 
-## Closures (8 of 23 goals, every one with a gate that compares to a foreign oracle)
+## Closures (10 of 24 goals, every one with a gate that compares to a foreign oracle)
 
 | Goal | Module | Gate | Oracle | Mutation |
 |---|---|---|---|---|
@@ -15,6 +15,8 @@ new gates found, and the three next steps in the order they should be taken.
 | SLERM-2008 BLAKE2b | `src/runtime/wubu_blake2b.c` | `test_wubu_blake2b` 14/14 | Python hashlib + RFC 7693 | — |
 | SLERM-2022 ChaCha20-Poly1305 | `src/runtime/wubu_aead.c` | `test_wubu_aead` 41/41 | Python cryptography + RFC 8439 | AAD dropped → 8 fail |
 | SLERM-2023 X25519 | `src/runtime/wubu_x25519.c` | `test_wubu_x25519` 12/12 | RFC 7748 §5.2 + iterated 1/1000 + cryptography | cswap off → 10 fail |
+| SLERM-2021 GIF (2A) | `src/runtime/wubu_gif.c` | `test_wubu_gif` 8/8 | own Python GIF writer + Pillow cross-check | interlace off → 1 fail |
+| SLERM-2017 WAV | `src/runtime/wubu_wav.c` | `test_wubu_wav` 11/11 | Python `wave` + edge-byte hand-built RIFF | 24-bit sign shift off → 1 fail |
 
 Independent proofs beyond the test files: a real ZIP entry (312 → 2 071 bytes exact) and
 a real PNG (8 258 IDAT → 9 264 scanline bytes exact) through our own inflate.
@@ -36,7 +38,10 @@ a real PNG (8 258 IDAT → 9 264 scanline bytes exact) through our own inflate.
    pointer when the length arrived without a key.
 6. **X25519** had two silent-wrong-answer bugs: `E*(E*AA)` instead of `E*(AA+a24*E)`, and
    `(uint64_t)wide >> 51`, which discards every carry above bit 63.
-7. **Gates that lied**: `scripts/owned_surface.py` printed `GATE FAILED` and exited 0
+7. **GIF** had a hidden 64x64 cap (4 KB scratch buffers) and read the graphic-control
+   extension as `packed, transparent_index` when the layout is `packed, delay(2),
+   transparent_index` -- so the transparent index was always 0.
+8. **Gates that lied**: `scripts/owned_surface.py` printed `GATE FAILED` and exited 0
    (`__main__` dropped `main()`'s return), and `mk/tests.mk`'s `test` target echoed
    "All tests passed" unconditionally under `-k`. Both fixed and mutation-proven; `make
    test` now prints the verdict from a sub-make's exit status and exits with it.
@@ -52,9 +57,10 @@ a real PNG (8 258 IDAT → 9 264 scanline bytes exact) through our own inflate.
 
 ## Next three steps (in order)
 
-1. **SLERM-2021 JPEG/GIF** (`src/runtime/wubu_jpeg.c`): the only image gap left; the
-   file manager still cannot preview a photo. Baseline JPEG first, progressive second,
-   with `cryptography`-independent decoding to compare against.
+1. **SLERM-2024 JPEG + GIF animation** (`src/runtime/wubu_jpeg.c`): the only image gap
+   left; the file manager still cannot preview a photo, and GIF decoding is first-frame
+   only. Baseline JPEG first (4:2:0/4:2:2/4:4:4), progressive second, compared against
+   Pillow within a stated tolerance rather than asserted exactly.
 2. **SLERM-2003 TrueType** (`src/runtime/wubu_truetype.c`): the tree ships one bitmap
    face while Win11 ships 336 fonts. Rasterising a real TTF at any size is the whole
    aesthetics gap in one module.
