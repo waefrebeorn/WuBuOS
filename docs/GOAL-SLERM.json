@@ -1,7 +1,7 @@
 {
  "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
  "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
- "next_n": 2025,
+ "next_n": 2026,
  "goals": [
   {
    "n": 2001,
@@ -245,11 +245,11 @@
   {
    "n": 2016,
    "id": "SLERM-2016",
-   "status": "OPEN",
-   "title": "WubuClip with MIME types",
+   "status": "DONE",
+   "title": "WubuClip stage A: a clipboard of typed representations with a preference rule",
    "replaces": "D4",
    "module": "src/bridge/wubu_clip.c",
-   "criterion": "src/bridge/wubu_clip.c implements wubuclip with mime types with a behaviour gate that fails on the pre-fix tree; the gate is wired into the default tier and asserts a refusal path, not only the happy path.",
+   "criterion": "src/bridge/wubu_clip.c holds several MIME-typed representations of one clipboard item, replaces rather than duplicates a repeated type, answers 'first type I can accept' from a caller-supplied preference list, refuses malformed MIME types and NULL data with a length, and reports its capacity by name; test_wubu_clip pins every one of those decisions. [verified 2026-11-27: make test_wubu_clip prints '26 passed, 0 failed'. Cases: three representations of one item, preference order for a rich app (html first), a terminal (plain only) and an image request; an unsatisfiable request returns nothing rather than a wrong type; replacing a type keeps one entry and bumps the generation; a MIME parameter ('text/plain;charset=utf-8') is refused as a type; capacity refused by name; clear bumps the generation so 'cleared' differs from 'never set'. Mutation: ignoring the preference list leaves failures. STAGE A ONLY: the host transport (bridge.c's single string and a Wayland data device) is the goal below, so 'clipboard has types' is not claimed yet.]",
    "gate": "make test_wubu_clip",
    "source": "devils-advocate-2026-11-27",
    "licence": "n/a",
@@ -382,6 +382,21 @@
     "media",
     "files",
     "aesthetics"
+   ]
+  },
+  {
+   "n": 2025,
+   "id": "SLERM-2025",
+   "status": "OPEN",
+   "title": "WubuClip stage B: wire typed clipboard into the bridge and the data device",
+   "replaces": "D4:host",
+   "module": "src/bridge/bridge.c",
+   "criterion": "src/bridge/bridge.c carries the WubuClip model across the host boundary so a copy in one app is pastable in another with its type intact, and test_wubu_clip_bridge proves a round trip for text/plain, text/html and image/png plus a fallback when the consumer accepts only plain text.",
+   "gate": "make test_wubu_clip_bridge",
+   "source": "devils-advocate-2026-11-27",
+   "licence": "n/a",
+   "fills": [
+    "gui"
    ]
   }
  ]

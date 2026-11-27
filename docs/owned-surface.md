@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 4311
+- product source modules: 4312
 - OWNED (appear in a test target recipe): 952
-- VENDORED / unproven (no test-target recipe reference): 3359
+- VENDORED / unproven (no test-target recipe reference): 3360
 
 ## OWNED modules (tested)
 
@@ -3720,6 +3720,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_cid.c`
 - `wubu_cla.c`
 - `wubu_cli.c`
+- `wubu_clip.c`
 - `wubu_clipboard_wl.c`
 - `wubu_codeexec.c`
 - `wubu_codesynth.c`
