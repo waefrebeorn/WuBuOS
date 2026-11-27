@@ -435,13 +435,18 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
         }
 
         /* Entries */
-        int row_y = y + ex_title_h();
         int row_h = ex_row_h();
-        int max_rows = (h - ex_title_h()) / row_h;
+        /* SCROLL: the list offset is in pixels (Microsoft's ScrollViewer model, same as the Control Panel's
+         * sidebar), and rows are painted from the first one that is at least partly visible. Before this the
+         * list was always drawn from entry 0, so anything past the pane simply did not exist. */
+        ex->list_view_h = h - ex_title_h();
+        int max_rows = (h - ex_title_h()) / row_h + 1;
+        int skip = row_h > 0 ? ex->list_scroll_y / row_h : 0;
+        int row_y = y + ex_title_h() - (row_h > 0 ? ex->list_scroll_y % row_h : 0);
 
         /* Rows come from the filtered view: the search field decides what the list SHOWS, and the
          * hit-test reads the same array, so a click cannot land on an undrawn entry. */
-        for (int r = 0; r < ex_view_count(ex) && r < max_rows; r++) {
+        for (int r = skip; r < ex_view_count(ex) && r < skip + max_rows; r++) {
             int i = ex_view_entry(ex, r);
             if (i < 0) break;
             ExEntry *entry = &ex->entries[i];
@@ -486,7 +491,7 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
         if (cols < 1) cols = 1;
         int start_x = x + (w - cols * cell_w) / 2;
         int cur_x = start_x;
-        int cur_y = y + 10;
+        int cur_y = y + 10 - ex->list_scroll_y;   /* the icon grid scrolls with the same offset */
 
         for (int r = 0; r < ex_view_count(ex); r++) {
             int i = ex_view_entry(ex, r);

@@ -7,6 +7,7 @@
  */
 
 #include "explorer_internal.h"
+#include "gfx/wubu_scroll.h"    /* the same scroll arithmetic the Control Panel uses */
 #include "explorer.h"
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"   /* MOD_* -- the real modifier bits */
@@ -19,7 +20,29 @@
 
 
 
-void explorer_handle_key(uint32_t key, uint32_t mods) {
+/* One place that keeps the selection on screen. Windows scrolls a list when the keyboard moves the focus, and
+ * NOT otherwise -- which is exactly why the Control Panel's clamp had to learn the same distinction. */
+static void ex_ensure_focus_visible(void)
+{
+    if (g_explorer.list_view_h <= 0) return;
+    int row = ex_row_h();
+    if (row <= 0) return;
+    /* the focus index is into the FILTERED view; translate, because that is what the list draws */
+    int r = -1;
+    for (int k = 0; k < ex_view_count(&g_explorer); k++)
+        if (ex_view_entry(&g_explorer, k) == g_explorer.focus_idx) { r = k; break; }
+    if (r < 0) return;
+    WubuScroll s;
+    s.view = g_explorer.list_view_h;
+    s.content = ex_view_count(&g_explorer) * row;
+    s.offset = g_explorer.list_scroll_y;
+    int top = r * row, bot = top + row;
+    if (top < s.offset) s.offset = top;
+    if (bot > s.offset + s.view) s.offset = bot - s.view;
+    g_explorer.list_scroll_y = wubu_scroll_clamp(&s);
+}
+
+static void explorer_handle_key_impl(uint32_t key, uint32_t mods) {
     /* Track modifier state for mouse handler */
     g_shift_pressed = (mods & 0x01) != 0;
     g_ctrl_pressed  = (mods & 0x02) != 0;
@@ -225,7 +248,22 @@ void explorer_handle_key(uint32_t key, uint32_t mods) {
     }
 }
 
+void explorer_handle_key(uint32_t key, uint32_t mods) {
+    explorer_handle_key_impl(key, mods);
+    ex_ensure_focus_visible();     /* Windows scrolls the list to the keyboard's focus, not on paint */
+}
+
 void explorer_handle_mouse(int x, int y, int btn, int kind) {
+    /* WHEEL: three rows per notch, the same rule as every other list in the OS. */
+    if ((btn == 4 || btn == 5) && g_explorer.list_view_h > 0) {
+        int row = ex_row_h();
+        WubuScroll s;
+        s.view = g_explorer.list_view_h;
+        s.content = ex_view_count(&g_explorer) * row;
+        s.offset = g_explorer.list_scroll_y;
+        g_explorer.list_scroll_y = wubu_scroll_wheel(&s, btn == 4 ? -1 : +1, row);
+        return;
+    }
     /* kind: 0=move, 1=down, 2=up */
     ExExplorerState *ex = &g_explorer;
     

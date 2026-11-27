@@ -273,6 +273,51 @@ static void test_selection(void) {
     explorer_shutdown();
 }
 
+/* Scrolling: the list had a `list_scroll_y` field that NOTHING read, so a folder with more rows than the pane
+ * could not be scrolled at all. Windows' rule is the one implemented: the wheel moves three rows, and the
+ * KEYBOARD scrolls the list to wherever the focus went -- not on paint. */
+static void test_list_scrolling(void) {
+    printf("\n=== Test: List scrolling ===\n");
+    explorer_init();
+    ExExplorerState *ex = explorer_state();
+    ex->list_view_h = 160;                       /* eight-ish rows visible */
+    ex->list_scroll_y = 0;
+    const int row = ex_row_h();
+
+    /* this session's folder is empty, so build the list the scroll code actually reads */
+    if (ex_view_count(ex) == 0) {
+        for (int k = 0; k < 40 && k < EX_MAX_ENTRIES; k++) {
+            snprintf(ex->entries[k].name, sizeof ex->entries[k].name, "file_%02d.txt", k);
+            ex->entries[k].size = 1;
+            ex->visible[k] = k;
+        }
+        ex->entry_count = 40;
+        ex->visible_count = 40;
+    }
+    explorer_handle_mouse(10, 100, 5, 1);        /* wheel down */
+    TEST_ASSERT(ex->list_scroll_y == 3 * row, "one wheel notch moves three rows (Windows default)");
+    explorer_handle_mouse(10, 100, 4, 1);        /* wheel up */
+    TEST_ASSERT(ex->list_scroll_y == 0, "wheel up returns to the top");
+    explorer_handle_mouse(10, 100, 4, 1);        /* and cannot go past it */
+    TEST_ASSERT(ex->list_scroll_y == 0, "the wheel cannot scroll above the first row");
+
+    /* keyboard: move the focus to the last entry and the list must follow it */
+    if (ex_view_count(ex) > 0) {
+        int last = ex_view_count(ex) - 1;
+        explorer_clear_selection();
+        ex->focus_idx = ex_view_entry(ex, last);
+        ex->list_scroll_y = 0;
+        explorer_handle_key(0xE050, 0);          /* Down: re-asserts the focus, then ensures visible */
+        int need_bottom = last * row + row;
+        TEST_ASSERT(ex->list_scroll_y + ex->list_view_h >= need_bottom &&
+                    ex->list_scroll_y <= last * row,
+                    "the keyboard scrolls the focused row into view (and does not overshoot it)");
+    } else {
+        printf("  ℹ no entries to focus; skipping the keyboard check\n");
+    }
+    explorer_shutdown();
+}
+
 static void test_file_ops(void) {
     printf("\n=== Test: File Operations (Clipboard) ===\n");
     
@@ -1007,6 +1052,7 @@ int main(void) {
     test_sort();
     test_toggles();
     test_selection();
+    test_list_scrolling();
     test_file_ops();
     test_helpers();
     test_drive_enumeration();

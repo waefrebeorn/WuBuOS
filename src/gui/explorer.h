@@ -230,7 +230,8 @@ typedef struct {
     /* File list */
     ExEntry             entries[EX_MAX_ENTRIES];
     int                 entry_count;
-    int                 list_scroll_y;
+    int                 list_scroll_y;    /* pixels, shared by both views (see wubu_scroll) */
+    int                 list_view_h;      /* viewport height, recorded by the renderer */
     int                 selected_indices[EX_MAX_SELECTION];
     int                 selection_count;
     int                 focus_idx;                   /* Keyboard focus (single) */
