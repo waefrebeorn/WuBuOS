@@ -224,14 +224,20 @@ void terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
 }
 
 DosGuiWindow* launch_file_manager(void) {
-    app_explorer_init();
-    DosGuiWindow *win = wm_create(100, 80, 800, 600, "File Manager");
-    if (win) {
-        win->on_draw = app_explorer_draw;
-        win->on_mouse = app_explorer_mouse;
-        win->on_key   = app_explorer_key;
+    /* ONE File Manager: the explorer ENGINE owns the window id, the path, the
+     * tree, the tabs and the input handlers. This used to build its own window
+     * with app_* callbacks, which left g_explorer.win_id at 0 -- so
+     * explorer_is_open() was false for the window the user was looking at, and
+     * every engine guard (navigate, back, and the rescan once the Styx namespace
+     * is built) silently did nothing. The pane therefore stayed empty. */
+    extern void explorer_show(void) __attribute__((weak));
+    extern DosGuiWindow *explorer_window(void) __attribute__((weak));
+    if (explorer_show) {
+        explorer_show();
+        return explorer_window ? explorer_window() : NULL;
     }
-    return win;
+    app_explorer_init();                 /* narrow link with no engine */
+    return wm_create(100, 80, 800, 600, "File Manager");
 }
 
 DosGuiWindow* launch_settings(void) {
@@ -490,6 +496,11 @@ const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
  * test TU (apps_test.c keeps its own stubs for the chrome types, so it cannot include wm.h). */
 void app_test_window_key(DosGuiWindow *w, uint32_t key) { if (w && w->on_key) w->on_key(w, key, 0); }
 int  app_test_window_alive(DosGuiWindow *w) { return w && w->alive; }
+void app_test_window_resize(DosGuiWindow *w, int nw, int nh) {
+    /* Weak, same reason as the paint probe: the weak-linkage graph has no WM to resize anything in. */
+    extern void wm_resize(DosGuiWindow *win, int width, int height) __attribute__((weak));
+    if (w && wm_resize) wm_resize(w, nw, nh);
+}
 
 /* DID THE APP PAINT?
  *

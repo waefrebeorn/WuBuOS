@@ -323,7 +323,10 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
      * focus. This is a test affordance, off by default. */
     if (!getenv("WUBU_NO_BOOT_APPS")) {
         launch_app("My Computer");
-        launch_app("HolyC Terminal");
+        /* WUBU_ONLY_FILE_MANAGER=1 boots the File Manager WITHOUT the terminal on
+         * top of it: the terminal covers the file list, so a screenshot of the
+         * list was impossible and "the pane is empty" could not be disproved. */
+        if (!getenv("WUBU_ONLY_FILE_MANAGER")) launch_app("HolyC Terminal");
     }
 
     /* WUBU_OPEN_SETTINGS=1 opens the Control Panel at boot. Verification affordance: the desktop icons
@@ -428,6 +431,23 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         fs_add_file("hello.wubu", demo_wubu, sizeof(demo_wubu));
 
     fprintf(stderr, "WuBuOS: Styx namespace built\n");
+
+    /* The boot windows are opened BEFORE this namespace exists (that is how
+     * shipped-on-boot apps land at fixed positions), so an Explorer created at
+     * launch time scanned an EMPTY root and showed no files -- a file manager
+     * with nothing in it. Re-scan now that the files are there; the window, its
+     * history and its tree stay where the user expects them. */
+    {
+        extern bool explorer_is_open(void) __attribute__((weak));
+        extern const char *explorer_current_path(void) __attribute__((weak));
+        extern void explorer_navigate(const char *path) __attribute__((weak));
+        bool open = explorer_is_open ? explorer_is_open() : false;
+        if (getenv("WUBU_EXPLORER_DEBUG"))
+            fprintf(stderr, "[boot] explorer open=%d path=%s\n", (int)open,
+                    (explorer_current_path && open) ? explorer_current_path() : "(none)");
+        if (explorer_is_open && explorer_current_path && explorer_navigate && open)
+            explorer_navigate(explorer_current_path());
+    }
     return 0;
 }
 

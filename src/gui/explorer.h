@@ -353,6 +353,9 @@ void explorer_shutdown(void);
 void explorer_show(void);
 void explorer_hide(void);
 bool explorer_is_open(void);
+/* The File Manager window the engine owns (NULL when closed). */
+struct DosGuiWindow;
+struct DosGuiWindow *explorer_window(void);
 void explorer_toggle(void);
 
 /* Navigation */

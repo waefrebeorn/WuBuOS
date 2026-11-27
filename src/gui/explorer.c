@@ -300,6 +300,14 @@ void explorer_hide(void) {
     ex_hide_context_menu(&g_explorer);
 }
 
+/* The window the engine owns. Callers that used to create a second "File Manager"
+ * window themselves had no way to hand it back, so they returned a window the
+ * engine did not know about -- and every engine guard (navigate, back, tree,
+ * the post-boot rescan) then disagreed with what was on screen. */
+struct DosGuiWindow *explorer_window(void) {
+    return g_explorer.win_id > 0 ? wm_find_by_id(g_explorer.win_id) : NULL;
+}
+
 bool explorer_is_open(void) {
     return g_explorer.win_id > 0 && wm_find_by_id(g_explorer.win_id) != NULL;
 }
@@ -693,6 +701,8 @@ void ex_scan_directory(const char *path) {
 
     ScanCtx ctx = { ex };
     int n = guest_file_children(path, scan_one, &ctx);
+    if (getenv("WUBU_EXPLORER_DEBUG"))
+        fprintf(stderr, "[explorer] scan %s -> %d entries\n", path, n);
     if (n < 0) {
         snprintf(ex->status_text, sizeof(ex->status_text),
                  "Cannot open: %s", path);

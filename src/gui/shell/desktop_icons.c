@@ -129,6 +129,23 @@ void wm_set_icons_visible(bool show) {
     if (show) wm_refresh_desktop();   /* pick up files added while hidden */
 }
 
+/* mkdir -p: the guest root does not exist on a fresh machine, and a single
+ * mkdir() fails when its PARENTS are missing. That is why seeded default icons
+ * never appeared -- the seed asked for "<guest>/Desktop", got ENOENT, and gave
+ * up silently while reporting success. */
+static int ensure_dir_p(const char *path) {
+    char tmp[512];
+    snprintf(tmp, sizeof tmp, "%s", path);
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p != '/') continue;
+        *p = '\0';
+        if (mkdir(tmp, 0755) != 0 && errno != EEXIST) { *p = '/'; return -1; }
+        *p = '/';
+    }
+    if (mkdir(tmp, 0755) != 0 && errno != EEXIST) return -1;
+    return 0;
+}
+
 /* Resolve the user's Desktop directory.
  *
  * This used to prefer $XDG_DESKTOP_DIR and then fall back to $HOME/Desktop -- two
@@ -155,11 +172,13 @@ int wm_write_desktop_shortcut(const char *name, const char *exec) {
     desktop_dir_path(dir, sizeof(dir));
     struct stat st;
     if (stat(dir, &st) != 0) {
-        if (mkdir(dir, 0755) != 0 && errno != EEXIST) return -1;
+        if (ensure_dir_p(dir) != 0) return -1;
     }
     char fname[320];
+    /* Spaces are kept: the display name comes from the FILENAME, so mangling it
+     * to "File_Manager.desktop" produced a second desktop icon that read
+     * "File_Manager" next to the registry's "File Manager" -- one app, two tiles. */
     snprintf(fname, sizeof(fname), "%s/%.200s.desktop", dir, name);
-    for (char *p = fname; *p; p++) if (*p == ' ') *p = '_';
 
     char exec_buf[512];
     if (exec && *exec) snprintf(exec_buf, sizeof(exec_buf), "%s", exec);
@@ -199,7 +218,7 @@ int wm_seed_default_desktop_icons(void) {
     desktop_dir_path(dir, sizeof(dir));
     struct stat st;
     if (stat(dir, &st) != 0) {
-        if (mkdir(dir, 0755) != 0 && errno != EEXIST) return 0;
+        if (ensure_dir_p(dir) != 0) return 0;
     }
     /* Only seed when the desktop has NO shortcuts at all. */
     DIR *d = opendir(dir);
@@ -258,7 +277,7 @@ void wm_refresh_desktop(void) {
      * create the directory, which reads as "the desktop is broken" on first boot. */
     struct stat st;
     if (stat(dir, &st) != 0) {
-        if (mkdir(dir, 0755) != 0 && errno != EEXIST) return;
+        if (ensure_dir_p(dir) != 0) return;
     }
 
     DIR *d = opendir(dir);
@@ -316,7 +335,7 @@ int wm_new_folder(void) {
     desktop_dir_path(dir, sizeof(dir));
     struct stat st;
     if (stat(dir, &st) != 0) {
-        if (mkdir(dir, 0755) != 0 && errno != EEXIST) return -1;
+        if (ensure_dir_p(dir) != 0) return -1;
     }
     char name[256] = "New Folder";
     char path[768];
@@ -338,7 +357,7 @@ int wm_new_text_doc(void) {
     desktop_dir_path(dir, sizeof(dir));
     struct stat st;
     if (stat(dir, &st) != 0) {
-        if (mkdir(dir, 0755) != 0 && errno != EEXIST) return -1;
+        if (ensure_dir_p(dir) != 0) return -1;
     }
     char name[256] = "New Text Document.txt";
     char path[768];
