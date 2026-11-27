@@ -52,6 +52,8 @@ static const char *perf_on(void) { static int v = -1; if (v < 0) v = getenv("WUB
 static struct timespec g_perf_t0;
 static double g_perf_acc[8];   /* 0 render 1 present 2 evdev 3 x11 pump 4 wl dispatch 5 input 6 other */
 
+static long g_present_calls;   /* a cheap slot and a DEAD slot look identical without this */
+static long g_present_calls_shown;
 static int g_perf_n;
 static struct timespec g_perf_start;
 static int g_perf_frames;
@@ -67,10 +69,12 @@ static void perf_frame_tick(void) {
     if (++g_perf_n % 120) return;
     struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
     double secs = (t.tv_sec - g_perf_start.tv_sec) + (t.tv_nsec - g_perf_start.tv_nsec) / 1e9;
-    fprintf(stderr, "[perf] %.1f fps | render %.2f | present %.2f | evdev %.2f | pump %.2f | wl %.2f | input %.2f | agi %.2f ms\n",
+    fprintf(stderr, "[perf] %.1f fps | render %.2f | present %.2f (%ld calls) | evdev %.2f | pump %.2f | wl %.2f | input %.2f | agi %.2f ms\n",
             g_perf_frames / secs, g_perf_acc[0] / g_perf_n, g_perf_acc[1] / g_perf_n,
+            g_present_calls - g_present_calls_shown,
             g_perf_acc[2] / g_perf_n, g_perf_acc[3] / g_perf_n, g_perf_acc[4] / g_perf_n,
             g_perf_acc[5] / g_perf_n, g_perf_acc[6] / g_perf_n);
+    g_present_calls_shown = g_present_calls;   /* per-window, not cumulative: a growing total hides a dead slot */
     for (int k = 0; k < 8; k++) g_perf_acc[k] = 0;
     g_perf_n = 0; g_perf_frames = 0;
 }
@@ -201,7 +205,7 @@ struct timespec last_input;
         } else if (hosted_x11_present_active()) {
             VBEState *vs = vbe_state();
             perf_begin();
-            if (vs && vs->fb) hosted_x11_present_frame(vs->fb);
+            if (vs && vs->fb) { hosted_x11_present_frame(vs->fb); g_present_calls++; }
             perf_end(1);
         }
 

@@ -175,9 +175,9 @@ void hosted_x11_present_frame(const void *fb) {
     if (!g_xopen || !g_ximg || !fb) return;
 
     static const void *last_fb;
-    if (last_fb != fb) {
-        /* Re-point the XImage at this buffer. XDestroyImage would free data, so it is never
-         * called: detach the pointer first and let the OS own its memory. */
+    if (!g_shm_ok && last_fb != fb) {
+        /* SOCKET PATH ONLY: point the image straight at our framebuffer, so XPutImage reads it with no copy.
+         * XDestroyImage would free the buffer, so the pointer is detached and the OS keeps ownership. */
         if (g_ximg->data) { g_ximg->data = NULL; }
         g_ximg->data = (char *)fb;
         last_fb = fb;
@@ -191,9 +191,12 @@ void hosted_x11_present_frame(const void *fb) {
     last = now;
 
     if (g_shm_ok) {
-        /* One memcpy into the shared segment (the server reads it in place); measured far cheaper than a
-         * 3.8 MB socket write per frame. */
-        if (fb) memcpy(g_ximg->data, fb, (size_t)g_xw * (size_t)g_xh * 4u);
+        /* The image MUST keep pointing at the shared segment: the server reads THAT memory, not ours, so
+         * re-pointing g_ximg->data at the framebuffer made this memcpy copy fb onto itself and left the
+         * segment stale -- XShmPutImage then answered BadValue (opcode 130) and nothing reached the screen.
+         * Copy framebuffer -> segment, every presented frame. */
+        if (g_ximg->data != g_shm.shmaddr) g_ximg->data = g_shm.shmaddr;
+        memcpy(g_shm.shmaddr, fb, (size_t)g_xw * (size_t)g_xh * 4u);
         XShmPutImage(g_xdpy, g_xwin, g_xgc, g_ximg, 0, 0, 0, 0,
                      (unsigned)g_xw, (unsigned)g_xh, False);
     } else {
