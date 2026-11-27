@@ -224,9 +224,39 @@ void notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     notepad_draw_content(win, &content);
 }
 
+/* THE CARET IS ALWAYS INSIDE THE DOCUMENT.
+ *
+ * Measured in a live session: typing one character into a Notepad window aborted the whole OS --
+ * `*** buffer overflow detected ***`, SIGABRT, from memmove at the insert below. The core said why:
+ * cursor_line = -1 and line_count = 0, so `lines[cursor_line]` pointed one row BEFORE the buffer and
+ * FORTIFY caught the write. A window whose state was never reset (or was reset by something else) must
+ * still be a document, not a crash: repair the invariant here, at the one place that indexes by it. */
+/* Test seam: reproduce the state the core showed (cursor_line = -1, line_count = 0), so the guard above is
+ * exercised by a gate rather than trusted. */
+void notepad_test_corrupt_caret(void) {
+    memset(&g_notepad, 0, sizeof g_notepad);
+    g_notepad.cursor_line = -1;
+    g_notepad.cursor_col  = 0;
+}
+
+static void np_require_valid_caret(void) {
+    if (g_notepad.line_count < 1 || g_notepad.line_count > NOTEPAD_MAX_LINES) {
+        if (getenv("WUBU_NP_DEBUG"))
+            fprintf(stderr, "[np] repaired an unopened buffer (line_count=%d cursor=%d)\n",
+                    g_notepad.line_count, g_notepad.cursor_line);
+        np_reset();
+    }
+    if (g_notepad.cursor_line < 0 || g_notepad.cursor_line >= g_notepad.line_count)
+        g_notepad.cursor_line = 0;
+    int n = (int)strlen(g_notepad.lines[g_notepad.cursor_line]);
+    if (g_notepad.cursor_col < 0) g_notepad.cursor_col = 0;
+    if (g_notepad.cursor_col > n) g_notepad.cursor_col = n;
+}
+
 void notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     (void)win;
     if (key == 0) return;
+    np_require_valid_caret();
 
     /* A prompt swallows ordinary editing keys until it is confirmed or
      * cancelled, otherwise typing a filename would also edit the document. */

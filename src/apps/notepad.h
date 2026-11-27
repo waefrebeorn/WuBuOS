@@ -42,6 +42,7 @@ const char *notepad_filename(void);
 
 DosGuiWindow* notepad_launch(void);
 DosGuiWindow* notepad_open(const char *filename);
+void notepad_test_corrupt_caret(void);   /* gate: unrepaired state must not crash */
 void notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 void notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);

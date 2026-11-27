@@ -221,6 +221,32 @@ static void test_notepad_typing(void) {
     PASS();
 }
 
+/* Measured live: typing ONE character into a Notepad whose state had never been reset aborted the whole
+ * session -- "*** buffer overflow detected ***", memmove at the insert, cursor_line = -1. A crash is the worst
+ * possible answer to a keystroke, so the caret is repaired before it is used. */
+/* The registry's Notepad must be the SAME Notepad: launching it has to leave a document that is ready to
+ * type into. apps.c used to build its own window, bypassing np_reset() entirely -- the state was
+ * line_count=0/cursor=-1 and the first keystroke aborted the process. */
+static void test_launch_notepad_initialises_document(void) {
+    TEST("notepad: launching from the registry gives a READY buffer");
+    notepad_test_corrupt_caret();          /* prove launch is what repairs it, not luck from an earlier test */
+    DosGuiWindow *w = launch_notepad();
+    CHECK(w != NULL, "a window was created");
+    CHECK(notepad_line_count() == 1, "the document has one (empty) line");
+    CHECK(notepad_cursor_col() == 0, "and the caret sits at its start");
+    PASS();
+}
+
+static void test_notepad_survives_unrepaired_state(void) {
+    TEST("notepad: typing into an unrepaired buffer does not crash");
+    notepad_test_corrupt_caret();
+    notepad_key(NULL, 'A', 0);
+    CHECK(notepad_line_count() == 1, "the document is repaired to one line");
+    CHECK(strcmp(notepad_line_text(0), "A") == 0, "and the character lands in it");
+    CHECK(notepad_cursor_col() == 1, "with the caret after it");
+    PASS();
+}
+
 static void test_notepad_mouse_positions_caret(void) {
     TEST("notepad: click moves the caret");
     vbe_init(1024, 768);
@@ -801,6 +827,8 @@ int main(void) {
     
     printf("\n-- Notepad++ Editor --\n");
     test_notepad_typing();
+    test_notepad_survives_unrepaired_state();
+    test_launch_notepad_initialises_document();
     test_notepad_mouse_positions_caret();
     test_notepad_launch();
     

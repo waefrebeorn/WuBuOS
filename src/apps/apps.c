@@ -111,14 +111,16 @@ DosGuiWindow* launch_temple_repl(void) {
     return NULL;
 }
 
+/* ONE Notepad. This built its own window straight onto notepad_draw/notepad_key and never called
+ * notepad_open(), so np_reset() never ran: the buffer was uninitialised (measured line_count=0,
+ * cursor_line=-1), and the first keystroke ran memmove over lines[-1] -- "*** buffer overflow detected ***",
+ * SIGABRT, the whole session gone. The app owns its own window; the registry asks it. */
 DosGuiWindow* launch_notepad(void) {
-    DosGuiWindow *win = wm_create(100, 80, 500, 400, "Untitled - Notepad");
-    if (win) {
-        win->on_draw  = notepad_draw;
-        win->on_key   = notepad_key;
-        win->on_mouse = notepad_mouse;
-    }
-    return win;
+    /* Weak: the weak-linkage test graph purposely omits Notepad entirely, and a stub that satisfies the linker
+     * must never disagree with the real implementation -- here there is simply no app to launch. */
+    extern DosGuiWindow* notepad_open(const char *filename) __attribute__((weak));
+    if (!notepad_open) return NULL;
+    return notepad_open(NULL);
 }
 
 DosGuiWindow* launch_paint(void) {
