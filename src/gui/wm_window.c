@@ -127,7 +127,8 @@ uint32_t wm_clock_ms(void) {
 }
 
 DosGuiWindow *wm_create(int x, int y, int w, int h,
-                               const char *title) {
+                      const char *title) {
+    if (getenv("WUBU_WIN_DEBUG")) fprintf(stderr, "[win] create '%s' %dx%d\n", title ? title : "(null)", w, h);
     int i = spawn_window(x, y, w, h, title);
     if (i < 0) return NULL;
     /* Windows grow into place; they do not pop. The stamp is the animation clock -- the
@@ -142,6 +143,17 @@ DosGuiWindow *wm_create(int x, int y, int w, int h,
         if (taskbar_link_new_window) taskbar_link_new_window(g_dwm.windows[i].id, title);
     }
     return &g_dwm.windows[i];
+}
+
+/* The WM's Alt+F4 semantics as one call, for the HOST shell: close the focused window, or refuse.
+ * Returns 1 when a window was told to close, 0 when nothing was focused. The hosted layer uses this to decide
+ * what a WM_DELETE_WINDOW (Alt+F4 or the title-bar X on the HOST window) means: in Windows, Alt+F4 on an empty
+ * desktop does nothing, and it must not end the session -- measured: it closed the hosted window and the OS
+ * vanished. */
+int wm_close_focused(void) {
+    if (g_dwm.focused_id < 0) return 0;
+    wm_request_close(g_dwm.focused_id);
+    return 1;
 }
 
 /* Interactive close: start the shrink, do NOT destroy yet. wm_destroy stays immediate so

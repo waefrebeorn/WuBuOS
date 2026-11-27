@@ -112,6 +112,9 @@ DosGuiWindow *wm_create(int x, int y, int w, int h,
 void wm_destroy(DosGuiWindow *win);
 /* Interactive close (X button / Alt+F4): animates, then destroys. wm_destroy is immediate. */
 void wm_request_close(int idx);
+/* Alt+F4 semantics for a caller outside the WM (the hosted shell's close-protocol handler):
+ * 1 = a focused window was told to close, 0 = nothing was focused, nothing happened. */
+int wm_close_focused(void);
 /* Desktop icons currently registered (0 means the desktop is empty). */
 int wm_icon_count(void);
 void           wm_set_focus(DosGuiWindow *win);

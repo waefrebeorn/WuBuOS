@@ -52,8 +52,12 @@ int shortcut_create_url(const char *name, const char *url, int grid_x, int grid_
 int icon_hit_test(int mx, int my) {
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *ic = &g_dwm.icons[i];
+        /* The clickable box is the WHOLE cell -- icon and the label beneath it -- from the same functions the
+         * layout uses. It used to stop 12 px below the icon, so the label area (where a user naturally aims,
+         * and the only thing containing the app's name) was dead: the icon looked present and did nothing.
+         * Measured: a click at the icon's own centre-height minus 20 px hit nothing. */
         if (mx >= ic->x && mx < ic->x + desktop_cell_w() &&
-            my >= ic->y && my < ic->y + DOSGUI_ICON_SIZE + 12)
+            my >= ic->y && my < ic->y + desktop_cell_h())
             return i;
     }
     return -1;

@@ -953,6 +953,9 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                  * Selection is what rename/delete/properties act on, so without it the
                  * only way to touch an icon was to run it. */
                 unsigned now = wm_now_ms();
+                if (getenv("WUBU_INPUT_DEBUG"))
+                    fprintf(stderr, "[icon] hit=%d at %d,%d icon=(%d,%d)\n",
+                            icon_idx, x, y, g_dwm.icons[icon_idx].x, g_dwm.icons[icon_idx].y);
                 bool dbl = (icon_idx == s_last_icon &&
                             now - s_last_icon_ms <= ICON_DBLCLICK_MS);
                 s_last_icon = icon_idx;
@@ -972,6 +975,11 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                 /* Unfocus first: the launch below focuses the new window, so
                  * clearing it afterwards would leave nothing focused and the
                  * new window would never receive the keyboard. */
+                if (getenv("WUBU_INPUT_DEBUG"))
+                    fprintf(stderr, "[icon] OPEN '%s' type=%d click=%p exec=%p\n",
+                            g_dwm.icons[icon_idx].name, (int)g_dwm.icons[icon_idx].type,
+                            (void *)g_dwm.icons[icon_idx].on_click,
+                            (void *)g_dwm.icons[icon_idx].on_execute);
                 g_dwm.focused_id = -1;
                 if (g_dwm.icons[icon_idx].on_click) {
                     g_dwm.icons[icon_idx].on_click();

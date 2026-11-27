@@ -633,9 +633,18 @@ static void test_icon_hit_test(void) {
     /* Icon 1 one column over; the column pitch is wide enough for a label */
     hit = icon_hit_test(DOSGUI_ICON_MARGIN + DOSGUI_ICON_COL_PITCH + 10, 30);
     CHECK(hit == 1, "should hit icon 1");
-    /* The label line belongs to the icon too, not just the 32px glyph */
-    hit = icon_hit_test(DOSGUI_ICON_MARGIN + DOSGUI_ICON_COL_PITCH + 10, DOSGUI_ICON_MARGIN + DOSGUI_ICON_SIZE + 4);
-    CHECK(hit == 1, "label line is clickable");
+    /* The who_LE CELL is clickable, not "icon + 12 px".
+     * The old check probed 4 px BELOW the glyph -- inside the old 12-px allowance, so it passed while the
+     * label area (where the name is, and where a user aims) was dead. Measured live: a double-click at the
+     * icon's own column, 20 px below its centre height, launched nothing. */
+    const int cell_h = desktop_cell_h();
+    const int ix = g_dwm.icons[1].x + 10, iy = g_dwm.icons[1].y;   /* anchor on the ICON, not the margin */
+    hit = icon_hit_test(ix, iy + DOSGUI_ICON_SIZE + 4);
+    CHECK(hit == 1, "just under the glyph is clickable");
+    hit = icon_hit_test(ix, iy + cell_h - 2);
+    CHECK(hit == 1, "the BOTTOM of the cell (over the label text) is clickable");
+    hit = icon_hit_test(ix, iy + cell_h + 2);
+    CHECK(hit == -1, "and one pixel past the cell is not (the box is the cell, no more)");
     /* Miss */
     hit = icon_hit_test(900, 700);
     CHECK(hit == -1, "should miss");

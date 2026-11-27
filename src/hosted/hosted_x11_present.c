@@ -431,6 +431,9 @@ int hosted_x11_present_pump(void) {
             /* A real keyboard only reaches the window that holds X input focus. Without this
              * the app could be clicked but every physical keystroke went to whatever else the
              * window manager had focused -- which read as "the keyboard does not work". */
+            if (getenv("WUBU_INPUT_DEBUG"))
+                fprintf(stderr, "[x11] press root=%d,%d origin=%d,%d -> guest %d,%d\n",
+                        ev.xbutton.x_root, ev.xbutton.y_root, ox, oy, tx, ty);
             XSetInputFocus(g_xdpy, g_xwin, RevertToParent, CurrentTime);
             hosted_x11_grab_win_keys();
             hosted_x11_sync_kbd_capture();
