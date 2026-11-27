@@ -246,8 +246,9 @@ be reached**.
 | **IN-TREE** | implemented in `src/` and compiled into the product |
 | **SUBMODULE-BUILT** | implemented in a submodule, produced by `make vendored`, **not reachable from the shell** |
 | **SUBMODULE-UNBUILT** | implemented in a submodule that the default build never compiles |
-| **SIBLING** | implemented in another own-repo (`wubunos`, `wubulens`, `wubucompositor`, `W-Code`, `WuBuKernel`) |
-| **ABSENT** | nothing anywhere in the ecosystem |
+| **OWNED-REPO** | the capability exists in a repository we own that is **not imported** — an integration leg, not a missing product feature (map: `docs/compendium/02-architecture/owned-repo-import-map.md`) |
+| **SIBLING** | a local checkout outside the tree (`wubulens`, `wubucompositor`, `W-Code`) |
+| **ABSENT** | nothing anywhere in the ecosystem — probed across all 35 owned repos (`tools/owned_coverage.py`) |
 
 Measured today: `src/apps/wubuoffice` is **8,028 files / 535 C files / 25 apps**;
 `wubupad` 1,884 / 60; `src/lua/www` 664 / 312; `wet` 74 / 23; `vws` 27 / 9;
