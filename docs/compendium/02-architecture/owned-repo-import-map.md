@@ -36,6 +36,7 @@ afternoon of git.
 | `src/lua/www` | WWW | world-space engine |
 | `src/tools/wubugrep` | wubugrep | the sanctioned search tool |
 | `src/audio/bigmac` | big-mac | audio engine |
+| `src/web` | **WuBuWeb** | the web layer: URL, HTTP/1.1 message bytes, HTML to text (38 tests) |
 
 ## Owned but NOT imported, and the gap family each one owns
 
@@ -53,9 +54,11 @@ afternoon of git.
 
 ## Families with NO owner anywhere
 
-- **online** — there is no browser engine in any owned repo. `WWW` is a
-  world-space engine, not a page renderer. This is the one genuinely missing
-  capability, and the reason it stays #1 in the benchmark ranking.
+- **online** — was the #1 gap and had no owner anywhere. **WuBuWeb now owns it**
+  and is imported at `src/web`: URL parsing and resolution, HTTP/1.1 message
+  bytes, chunked decoding, HTML-to-text with scripts and styles excluded. What is
+  still missing is the *product* leg — transport (TCP/TLS), layout, painting —
+  not the owning repository.
 - **comms** — no mail, chat or call client in any owned repo.
 - **a11y** — WuBuOffice carries the a11y modules (`wubua11y`, `wubua11yannounce`,
   `wubua11ytree`, `wubudyslexia`); the shell has no owner, which is why the shell

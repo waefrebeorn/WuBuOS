@@ -37,6 +37,7 @@ BENCH = ROOT / "docs/compendium/04-roadmap/daily-driver-benchmarks.md"
 # repo: (purpose, import path inside WuBuOS or None, local checkout or None, gap families it owns)
 OWNED = {
     "WuBuOS":         ("Body -- the operating system", None, "wubuos", []),
+    "WuBuWeb":        ("Web layer -- URL, HTTP/1.1, HTML to text", "src/web", "WuBuWeb", ["online"]),
     "wubuwizard":     ("Brain -- the AGI (inference/training, KV cache)", "src/brain", None, ["agentic", "agi"]),
     "WuBuNOS":        ("Compiler -- HolyD, MIR, 14 ISA backends", "src/compiler", "wubunos", ["live-compiler", "dev"]),
     "WuBuKernel":     ("Own C11 kernel, consumed by WuBuOS", "src/kernel/WuBuKernel", "WuBuKernel", ["system", "security"]),
@@ -76,7 +77,6 @@ OWNED = {
 # Families with no owned repo AND no in-tree implementation: say why, so a future
 # session does not go looking for a repo that does not exist.
 UNOWNED = {
-    "online":  "no browser engine anywhere in the ecosystem; WWW is a world-space engine, not a page renderer",
     "comms":   "no mail/chat/call client in any owned repo",
     "gaming":  "covered in-tree (Proton executor, game library), no separate repo",
     "a11y":    "partial owner: WuBuOffice carries the a11y modules; the shell has no owner",

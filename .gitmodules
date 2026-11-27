@@ -29,3 +29,6 @@
 [submodule "src/wemu"]
 	path = src/wemu
 	url = https://github.com/waefrebeorn/wemu.git
+[submodule "src/web"]
+	path = src/web
+	url = https://github.com/waefrebeorn/WuBuWeb.git
