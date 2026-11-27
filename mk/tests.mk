@@ -9,7 +9,7 @@
 # 70% of the recipes.
 RT_ALWAYS := $(RT)/wubu_crc32.c $(RT)/wubu_str.c
 
-test_critical_runtime: test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -489,8 +489,19 @@ test_medium_other: runtime gui test_isa_exec test_docs test_gap_matrix test_open
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
-test: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic test_orphans
-	@echo "✅ All tests passed (all tiers)"
+# The verdict belongs to make's exit code, not to an echo at the end of a recipe:
+# under -k an earlier target can fail and the last line still printed "All tests
+# passed". The tiers run in a sub-make so their status survives, and the banner is
+# printed only when that status is zero.
+.PHONY: test test-tiers
+test:
+	@$(MAKE) --no-print-directory -k test-tiers; rc=$$?; \
+	if [ $$rc -eq 0 ]; then echo "✅ ALL TIERS PASSED"; \
+	else echo "❌ TIERS FAILED (rc=$$rc) -- the Error lines above name the gate"; fi; \
+	exit $$rc
+
+test-tiers: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic test_orphans
+	@echo "every tier target was attempted"
 
 test_jit:
 	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_test.c -o $(JIT)/jit_test -ldl -Iinclude $(RT_ALWAYS) 
@@ -3066,6 +3077,10 @@ test_nt_ordinals:
 
 test_web:
 	$(MAKE) -C src/web test
+
+test_wubu_utf8: src/runtime/wubu_utf8_test.c src/runtime/wubu_utf8.c
+	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_utf8_test $^
+	$${TMPDIR:-/tmp}/wubu_utf8_test
 
 test_wubu_inflate: src/runtime/wubu_inflate_test.c src/runtime/wubu_inflate.c
 	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_inflate_test $^
