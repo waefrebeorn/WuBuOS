@@ -7,9 +7,17 @@
 
 #include "../egojar.h"
 #include "explorer_internal.h"
+#include "shell/preview_decode.h"
+#include <stdlib.h>
 #include <string.h>
 
 void explorer_update_preview(int idx) {
+    /* A preview buffer belongs to ONE selection; leaving the old one in place while a new
+     * file is chosen is how a pane shows the previous photo under the new file's name. */
+    free(g_explorer.preview.img_pixels);
+    g_explorer.preview.img_pixels = NULL;
+    g_explorer.preview.img_w = g_explorer.preview.img_h = 0;
+
     if (idx < 0 || idx >= g_explorer.entry_count) {
         g_explorer.preview.type = EX_PREVIEW_NONE;
         return;
@@ -54,11 +62,19 @@ void explorer_update_preview(int idx) {
             }
         } else if (strcmp(ext, "png") == 0 || strcmp(ext, "jpg") == 0 ||
                    strcmp(ext, "jpeg") == 0 || strcmp(ext, "gif") == 0 ||
-                   strcmp(ext, "bmp") == 0 || strcmp(ext, "webp") == 0) {
-            g_explorer.preview.type = EX_PREVIEW_IMAGE;
-            g_explorer.preview.img_w = 0;
-            g_explorer.preview.img_h = 0;
-            /* Would use stb_image here */
+                   strcmp(ext, "bmp") == 0) {
+            /* Our own decoders: wubu_pixmap (PNG/BMP), wubu_gif (first frame), wubu_jpeg. */
+            uint32_t *px = NULL;
+            int iw = 0, ih = 0;
+            if (wubu_preview_decode_file(entry->full_path, &px, &iw, &ih, 0) == WUBU_PREVIEW_OK) {
+                g_explorer.preview.type = EX_PREVIEW_IMAGE;
+                g_explorer.preview.img_pixels = px;
+                g_explorer.preview.img_w = iw;
+                g_explorer.preview.img_h = ih;
+            } else {
+                /* a format we cannot read is described, not drawn as an empty pane */
+                g_explorer.preview.type = EX_PREVIEW_METADATA;
+            }
         } else {
             g_explorer.preview.type = EX_PREVIEW_METADATA;
         }

@@ -493,6 +493,7 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
                     if (idx >= 0) {
                         ex->focus_idx = idx;
                         ex->anchor_idx = idx;
+                        explorer_update_preview(idx);   /* the pane follows the click */
                         if (!shift) {
                             explorer_clear_selection();
                             explorer_toggle_selection(idx);
@@ -504,6 +505,7 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
                     if (idx >= 0) {
                         ex->focus_idx = idx;
                         ex->anchor_idx = idx;
+                        explorer_update_preview(idx);   /* the pane follows the click */
                         if (!shift) {
                             explorer_clear_selection();
                             explorer_toggle_selection(idx);

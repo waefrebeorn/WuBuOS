@@ -37,6 +37,15 @@
 #include <zlib.h>
 #include <stdlib.h>
 
+/* One owner for "a new listing just appeared": focus its first row and tell the preview
+ * pane, which existed and rendered but had no caller until now. */
+static void ex_preview_first_row(void) {
+    if (g_explorer.entry_count > 0) {
+        g_explorer.focus_idx = 0;
+        explorer_update_preview(0);
+    }
+}
+
 /* Safe dirname wrapper - avoids modifying input string */
 /* -- Global State ------------------------------------------------- */
 
@@ -115,7 +124,12 @@ int explorer_init(void) {
      * with no relation to anything WuBuOS itself had saved.  "/" now means the
      * guest sandbox (see styxfs_guest_root()), which is the only namespace apps
      * see. */
-    strcpy(g_explorer.current_path, "/");
+    /* WUBU_EXPLORER_PATH lets a harness (and a screenshot gate) start in a known directory
+     * instead of the namespace root. Diagnostics only; unset means "/" as before. */
+    {
+        const char *start = getenv("WUBU_EXPLORER_PATH");
+        strncpy(g_explorer.current_path, (start && *start) ? start : "/", EX_MAX_PATH - 1);
+    }
     /* Every explorer has at least one tab, like Windows 11: the strip is part of the
      * surface, not something the user has to create. */
     g_explorer.tab_count = 1;
@@ -125,6 +139,7 @@ int explorer_init(void) {
     snprintf(g_explorer.tabs[0].path, sizeof(g_explorer.tabs[0].path), "/");
 
     ex_scan_directory(g_explorer.current_path);
+    ex_preview_first_row();
     ex_populate_tree(g_explorer.tree_root, g_explorer.current_path);
     ex_update_breadcrumbs(&g_explorer);
     ex_add_to_history(&g_explorer, g_explorer.current_path);
@@ -341,6 +356,7 @@ void explorer_navigate(const char *path) {
 
     g_explorer.library = -1;           /* navigating to a real path leaves library mode */
     ex_scan_directory(g_explorer.current_path);
+    ex_preview_first_row();
     if (g_explorer.tree_selected) {
         ex_tree_free(g_explorer.tree_root);
         g_explorer.tree_root = NULL;
@@ -513,6 +529,7 @@ void explorer_toggle_hidden(void) {
      * which would silently replace the merged list with one directory. */
     if (g_explorer.library >= 0) { (void)ex_load_library(&g_explorer, g_explorer.library); return; }
     ex_scan_directory(g_explorer.current_path);
+    ex_preview_first_row();
 }
 
 void explorer_toggle_extensions(void) {

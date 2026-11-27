@@ -39,6 +39,14 @@ for name, im, kw in cases:
     raw.save(os.path.join(out, name + ".rgb"), "PPM")  # PPM: header + raw RGB, parsed by the gate
     print(f"wrote {path}")
 
+# a 2x2 BMP with distinct rows: proves the bottom-up flip and the BGR->RGB swap at once
+rows = Image.new("RGB", (2, 2))
+rows.putpixel((0, 0), (0, 255, 0)); rows.putpixel((1, 0), (0, 255, 0))   # top row: green
+rows.putpixel((0, 1), (255, 0, 0)); rows.putpixel((1, 1), (255, 0, 0))   # bottom row: red
+rows.save(os.path.join(out, "rows.bmp"), "BMP")
+Image.open(os.path.join(out, "rows.bmp")).convert("RGB").save(os.path.join(out, "rows.bmp.rgb"), "PPM")
+print("wrote rows.bmp (top green, bottom red)")
+
 # a progressive file: must be REFUSED, not mis-decoded
 gradient(40, 32).save(os.path.join(out, "progressive.jpg"), "JPEG", progressive=True)
 print("wrote progressive.jpg (must be refused)")
