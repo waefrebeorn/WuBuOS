@@ -64,6 +64,30 @@ a real PNG (8 258 IDAT → 9 264 scanline bytes exact) through our own inflate.
 **26 goals, 14 DONE, 12 OPEN.** Every closure above has a passing gate wired into the
 default tier, and the three that follow are the ones with the most user-visible effect.
 
+## The preview pane: dead code, then two stores
+
+`explorer_update_preview()` had **no caller** in the whole tree. Text, metadata, and a ~60-line
+`EX_PREVIEW_IMAGE` render branch with aspect-fit scaling were all dead, which is why the pane
+always said "Select a file to preview". Wiring it exposed a second, older defect:
+
+**two stores behind one `styxfs_` prefix.** `styxfs_readdir()` enumerated a host directory
+(`styxfs_host.c`); `styxfs_open()`/`read()` resolved `srv->open_files[]` (`styxfs_posix.c`),
+whose `styxfs_resolve()` searches only files that are ALREADY OPEN. A file could be listed and
+then be structurally unopenable — no decoder would ever have fixed that.
+
+Fixed for BYTES only, on purpose: `hosted_ns_read.c` reads from the same `g_fs` table the 9P
+callbacks serve, and `ex_9p_read_file()` reaches it through a weak symbol. Proof is a
+screenshot: pane draws the seeded photo, caption `64x48 (shown 64x48)`.
+
+Still open, and not claimed as done: `styxfs_posix.c` and `styxfs_host.c` implement overlapping
+pieces of one interface. Unifying them is a refactor of its own.
+
+## Dead test file found
+
+`src/hosted/hosted_test.c` is referenced by **no makefile** — its tests
+(`test_styx_namespace_populated`, `test_wm_has_windows`, `test_styx_stat`, ...) have never run.
+Wire it into a target or delete it; do not add coverage to it as-is.
+
 ## Reachability is not closure
 
 Five decoders were closed before anything in the shipped binary could call them: `wubu_inflate`,
