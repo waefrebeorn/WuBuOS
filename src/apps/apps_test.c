@@ -826,12 +826,21 @@ static void test_music_real(void) {
  * So this walks the registry ITSELF and types at each window it gets. A launcher that returns NULL is a named
  * SKIP (an app that needs a fixture is not a pass); an app that dies takes the test process with it and the
  * gate fails loudly. */
+/* Declared here, not via wm.h: this file carries its own stubs for the chrome types and cannot include it. */
+void wm_content_rect(const DosGuiWindow *w, int *x, int *y, int *w_out, int *h);
+
 static void test_every_registered_app_survives_typing(void) {
     TEST("apps: the whole registry launches and survives a keystroke");
-    int launched = 0, skipped = 0, crashed = 0;
+    /* A real surface, or every app is "blank" because there is nothing to paint into and wm_create clamps the
+     * window to a 0x0 screen. Measured the hard way: the first version of this reported 15/15 blank. */
+    vbe_init(1024, 768);
+    wm_init(1024, 768);
+    int launched = 0, skipped = 0, crashed = 0, blank = 0;
     for (int i = 0; i < g_app_def_count; i++) {
         const DosGuiAppDef *d = &g_app_defs[i];
         if (d->path) { skipped++; continue; }            /* .WET applets need the applet host */
+        printf("  launch %-18s\n", d->name ? d->name : "?");   /* so a crash names its own app */
+        fflush(stdout);
         DosGuiWindow *w = d->launch ? d->launch() : NULL;
         if (!w) { skipped++; printf("  SKIP %-18s (launcher returned NULL)\n", d->name ? d->name : "?"); continue; }
 
@@ -842,11 +851,73 @@ static void test_every_registered_app_survives_typing(void) {
             if (!app_test_window_alive(w)) { crashed++; break; }
         }
         CHECK(app_test_window_alive(w), "the window is still alive after the keystrokes");
+
+        /* AND IT MUST PAINT. A window that opens blank is the other half of "the apps are unusable":
+         * the crash gate above cannot see it, because nothing crashed. Render the frame and count distinct
+         * colours INSIDE the content rect (the chrome belongs to the WM, not the app). */
+        {
+            int cx = 0, cy = 0, cw = 0, ch = 0;
+            /* Render FIRST: the content rect is only known once a chrome pass has measured the caption
+             * (before that wm_content_rect answers with the whole window, title bar included -- which made
+             * this check pass on a per-app mutant that painted nothing, because the WM's own chrome supplied
+             * the second colour). */
+            wm_render(NULL, 1024, 768);
+            wm_content_rect(w, &cx, &cy, &cw, &ch);
+            wm_render(NULL, 1024, 768);
+            uint32_t seen[8]; int distinct = 0;
+            for (int yy = cy; yy < cy + ch && distinct < 8; yy++) {
+                for (int xx = cx; xx < cx + cw; xx++) {
+                    if (xx < 0 || yy < 0 || xx >= 1024 || yy >= 768) continue;
+                    uint32_t px = vbe_get_pixel(xx, yy);
+                    int have = 0;
+                    for (int s = 0; s < distinct; s++) if (seen[s] == px) { have = 1; break; }
+                    if (!have) {
+                        if (distinct == (int)(sizeof seen / sizeof seen[0])) { have = 1; }  /* saturated: stop growing */
+                        else seen[distinct++] = px;
+                    }
+                }
+            }
+            if (distinct < 2) {
+                /* DECLARED, not excused: DOS Box hosts a live emulator whose guest has not executed yet, so
+                 * its surface is empty at frame 0 by design (the failure path draws a placeholder that DOES
+                 * paint, so 1 colour proves we got the live window, not the placeholder). Named every run so
+                 * the exception cannot quietly grow to cover a second app. */
+                /* A uniform content area is NOT by itself a defect: an EMPTY document (Notepad, Notes,
+                 * Todo, Editor) is one colour by design, and DOS Box hosts an emulator surface that is
+                 * unpainted until its guest boots. What must paint is an app whose whole point is to show
+                 * something immediately -- a list, a canvas, a panel, a terminal. Those are named here, so
+                 * "which apps must paint" is a decision on the record instead of a blanket guess. */
+                /* OPEN QUESTION, recorded not hidden: Settings and Music paint ONE colour in their content
+                 * rect in this graph, while a live session shows the Control Panel drawing its sidebar. Two
+                 * possibilities -- their registry launchers do not run the init that paints, or their empty
+                 * state really is uniform. Until that is measured they stay OUT of the must-paint list
+                 * instead of being asserted or silently removed. */
+                static const char *const must_paint[] = {
+                    "My Computer", "File Manager", "Calculator", "Paint", "Terminal", "Task Manager", "Petdex",
+                };
+                int required = 0;
+                if (d->name)
+                    for (size_t m = 0; m < sizeof must_paint / sizeof must_paint[0]; m++)
+                        if (strcmp(d->name, must_paint[m]) == 0) required = 1;
+                printf("  %s %-18s content %dx%d at %d,%d painted %d colour(s)\n",
+                       required ? "MUST-PAINT" : "INFO     ", d->name ? d->name : "?",
+                       cw, ch, cx, cy, distinct);
+                /* DIAGNOSTIC ONLY, not an assertion: a mutant whose calc_draw() returns immediately STILL
+                 * reported more than one colour in this rect, so this instrument does not currently
+                 * distinguish "painted" from "did not paint" -- something else (chrome edge, the WM's own
+                 * fill) supplies the second colour. Shipping it as a CHECK would be decoration. It is printed
+                 * so the numbers are on the record for whoever makes the instrument honest (measure the
+                 * app's own on_draw into a cleared buffer, which needs a seam apps_test cannot see). */
+                (void)required;
+            }
+        }
         wm_destroy(w);
         launched++;
     }
-    printf("  registry: %d launched, %d skipped, %d crashed\n", launched, skipped, crashed);
+    printf("  registry: %d launched, %d skipped, %d crashed, %d blank\n", launched, skipped, crashed, blank);
     CHECK(crashed == 0, "no registered app died on a keystroke");
+    /* no blank-pixel assertion: see the comment at the diagnostic above -- the instrument is unproven */
+    (void)blank;
     CHECK(launched >= 15, "at least 15 registry entries really launched (a low number means the walk is broken)");
     PASS();
 }

@@ -4012,8 +4012,9 @@ test_mirror:
 # The AI link: configuration, a bounded dead-endpoint probe, and a real listener. The three cases exist
 # because "reachable" is the only one a machine without a brain can get wrong in the flattering direction.
 test_wubu_scroll: $(GUI)/gfx/wubu_scroll.c $(GUI)/gfx/wubu_scroll_test.c $(GUI)/gfx/wubu_scroll.h
-	$(CC) $(CFLAGS) -I$(GUI)/gfx -o test_wubu_scroll $(GUI)/gfx/wubu_scroll.c $(GUI)/gfx/wubu_scroll_test.c
-	./test_wubu_scroll
+	mkdir -p build
+	$(CC) $(CFLAGS) -I$(GUI)/gfx -o build/test_wubu_scroll $(GUI)/gfx/wubu_scroll.c $(GUI)/gfx/wubu_scroll_test.c
+	./build/test_wubu_scroll
 
 test_wubu_ai_link:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude -I$(RT) \
