@@ -3,7 +3,7 @@
 This is the handoff for the next session: the state of the slerm backlog, the defects the
 new gates found, and the three next steps in the order they should be taken.
 
-## Closures (13 of 25 goals, every one with a gate that compares to a foreign oracle)
+## Closures (14 of 26 goals, every one with a gate that compares to a foreign oracle)
 
 | Goal | Module | Gate | Oracle | Mutation |
 |---|---|---|---|---|
@@ -20,6 +20,7 @@ new gates found, and the three next steps in the order they should be taken.
 | D6 agent log | `src/runtime/wubu_agent_log.c` | `test_wubu_agent_log` 24/24 | forged-record case (chain only) | no chaining → 1 fail |
 | D1 password policy | `src/runtime/wubu_pwpolicy.c` | `test_wubu_pwpolicy` 25/25 | decision table, both directions | dominance off → 1 fail |
 | D4 clipboard (A) | `src/bridge/wubu_clip.c` | `test_wubu_clip` 26/26 | preference-order cases | prefs ignored → 3 fail |
+| SLERM-2024 JPEG (A) | `src/runtime/wubu_jpeg.c` | `test_wubu_jpeg` 18/18 | Pillow encodes AND decodes the fixtures | nearest chroma → 2 fail |
 
 Independent proofs beyond the test files: a real ZIP entry (312 → 2 071 bytes exact) and
 a real PNG (8 258 IDAT → 9 264 scanline bytes exact) through our own inflate.
@@ -60,12 +61,24 @@ a real PNG (8 258 IDAT → 9 264 scanline bytes exact) through our own inflate.
 
 ## State at handoff
 
-**25 goals, 13 DONE, 12 OPEN.** Every closure above has a passing gate wired into the
+**26 goals, 14 DONE, 12 OPEN.** Every closure above has a passing gate wired into the
 default tier, and the three that follow are the ones with the most user-visible effect.
+
+## Reachability is not closure
+
+Five decoders were closed before anything in the shipped binary could call them: `wubu_inflate`,
+`wubu_pixmap`, `wubu_gif` and `wubu_jpeg` sat outside `GUI_OBJS`. They are now in the product
+link and `nm src/hosted/wubu` proves the symbols are there — but `explorer_preview.c` still only
+sets `NONE` / `METADATA` / `TEXT`, so **no preview pane draws them yet**. Check `nm` and the
+callers before claiming a decoder is a feature.
 
 ## Next three steps (in order)
 
-1. **SLERM-2024 JPEG + GIF animation** (`src/runtime/wubu_jpeg.c`): the only image gap
+1. **EX_PREVIEW_IMAGE in Explorer** (`src/gui/explorer_preview.c` + `explorer_render.c`): a
+   preview type that decodes by extension through `wubu_pixmap` / `wubu_gif` / `wubu_jpeg` and
+   blits into the preview rect, proven by a screenshot that shows a photo in the pane rather
+   than the metadata placeholder. The decoders are linked; this is the draw call.
+2. **SLERM-2026 progressive JPEG + GIF animation** (`src/runtime/wubu_jpeg.c`): the only image gap
    left; the file manager still cannot preview a photo, and GIF decoding is first-frame
    only. Baseline JPEG first (4:2:0/4:2:2/4:4:4), progressive second, compared against
    Pillow within a stated tolerance rather than asserted exactly.
