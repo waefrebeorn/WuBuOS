@@ -26,8 +26,10 @@ int wubu_settings_init(void) {
     if (wubu_settings_load() != 0) {
         wubu_settings_save();
     }
-    /* Apply theme immediately */
-    wubu_theme_set(g_settings.theme.theme_id);
+    /* Apply EVERYTHING that has a live effect, not just the theme. This used to set the theme and stop,
+     * so a saved accessibility font scale and high-contrast flag were ignored on every boot: they only took
+     * effect if the user opened Settings, changed something, and triggered wubu_settings_apply_live(). */
+    wubu_settings_apply_live();
     return 0;
 }
 
@@ -66,8 +68,13 @@ extern __attribute__((weak)) void vbe_set_text_scale(int);
 void wubu_settings_apply_live(void) {
     wubu_theme_set(g_settings.theme.theme_id);
     wubu_theme_set_high_contrast(g_settings.a11y.high_contrast);
-    int ts = (int)(g_settings.a11y.font_scale + 0.5);
+    /* DPI is the BASELINE for text size, not decoration: it was written to the settings file and read
+     * back by nobody, so a machine reporting 192 dpi drew exactly like a 96 dpi one. scale = font_scale *
+     * dpi/96 keeps both knobs live and gives dpi its standard meaning. */
+    double dpi = g_settings.fonts.dpi > 0 ? (double)g_settings.fonts.dpi : 96.0;
+    int ts = (int)(g_settings.a11y.font_scale * (dpi / 96.0) + 0.5);
     if (ts < 1) ts = 1;
+    if (ts > 4) ts = 4;
     if (vbe_set_text_scale) vbe_set_text_scale(ts);
 }
 

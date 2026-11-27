@@ -65,6 +65,35 @@ static void test_font_scale(void) {
     s->a11y.font_scale = 1.0;
     wubu_settings_apply_live();
     CHECK(vbe_text_scale() == 1, "font_scale back to 1.0 -> text scale 1");
+
+    /* DPI was written to the settings file and read back by nobody: a 192 dpi machine drew exactly like a
+     * 96 dpi one. It is now the baseline for text size, so this must move. */
+    s->fonts.dpi = 192;
+    s->a11y.font_scale = 1.0;
+    wubu_settings_apply_live();
+    CHECK(vbe_text_scale() == 2, "dpi 192 at font_scale 1.0 -> text scale 2 (dpi is live)");
+    s->fonts.dpi = 96;
+    wubu_settings_apply_live();
+    CHECK(vbe_text_scale() == 1, "dpi back to 96 -> text scale 1");
+}
+
+/* -- init applies EVERYTHING, not just the theme ------------------- */
+
+static void test_init_applies_saved_settings(void) {
+    printf("\n[init applies saved settings]\n");
+    WubuSettings *s = wubu_settings_mut();
+    s->a11y.font_scale = 2.0;
+    s->fonts.dpi = 96;
+    wubu_settings_save();
+
+    vbe_set_text_scale(1);                 /* a fresh process starts at 1 */
+    CHECK(wubu_settings_init() == 0, "init runs");
+    CHECK(vbe_text_scale() == 2,
+          "a saved font scale is applied at BOOT, not only when Settings is opened");
+
+    s = wubu_settings_mut();
+    s->a11y.font_scale = 1.0;
+    wubu_settings_apply_live();
 }
 
 /* -- a11y.high_contrast -> live palette override ------------------ */
@@ -171,6 +200,7 @@ int main(void) {
     wubu_settings_init();
 
     test_font_scale();
+    test_init_applies_saved_settings();
     test_high_contrast();
     test_reduce_motion();
     test_dark_theme();
