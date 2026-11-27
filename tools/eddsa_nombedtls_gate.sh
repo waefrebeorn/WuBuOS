@@ -112,9 +112,18 @@ BASEPT="5866666666666666666666666666666666666666666666666666666666666666"
 FORGED="$BASEPT""01$(printf '00%.0s' $(seq 1 31))"
 NONCAN="${SIG_N:0:64}$(printf 'ff%.0s' $(seq 1 32))"
 Y_P1="ee$(printf 'ff%.0s' $(seq 1 30))7f"   # y = p+1, non-canonical field element
+# A NEGATIVE CONTROL MUST BE PROVABLY DIFFERENT FROM THE POSITIVE ONE.
+# This vector used to be "00${SIG_N:2}" -- it SET R's first byte to 0x00, so on the roughly 1-in-256 runs
+# where R already began with 00 the "tampered" signature was byte-identical to the valid one, verification
+# correctly said PASS, and the gate reported a policy failure that did not exist (seen once in ~40 runs).
+# Flip a bit instead: the result can never equal the input, and the gate asserts that.
+b0=${SIG_N:0:2}
+tb0=$(printf '%02x' $(( 0x$b0 ^ 1 )))
+TAMPERED="$tb0${SIG_N:2}"
+[ "$TAMPERED" != "$SIG_N" ] || { echo "[nomb] FAIL tamper vector equals the valid signature"; exit 1; }
 VECTORS=(
  "valid|$DIG|$PUB|$SIG_N"
- "tampered-signature|$DIG|$PUB|00${SIG_N:2}"
+ "tampered-signature|$DIG|$PUB|$TAMPERED"
  "wrong-public-key|$DIG|$WRONG_PUB|$SIG_N"
  "tampered-digest|$BADDIG|$PUB|$SIG_N"
  "non-canonical-S|$DIG|$PUB|$NONCAN"
