@@ -951,6 +951,49 @@ void startmenu_build_programs_db(void) {
             }
         }
     }
+
+    /* THE REGISTRY IS THE APP LIST. Every registered app must be launchable from
+     * Start, not only from a desktop tile: measured before this pass the DB had
+     * 14 hand-written names against a 31-entry registry, so 21 apps (Notes, Todo,
+     * Music, Task Manager, Petdex, Tutorials, ...) were reachable only from the
+     * desktop -- which is why the desktop had to show everything. A duplicate is
+     * refused by name, and two registry names are recognised as the SAME app the
+     * DB already lists under another name rather than added twice. */
+    {
+        static const struct { const char *registry, *db_name; } alias[] = {
+            { "Settings",   "Control Panel" },      /* one app, two names */
+            { "HolyC Term", "HolyC Terminal" },     /* one app, two names */
+        };
+        for (int i = 0; i < g_app_def_count &&
+                        g_program_db.count < DOSGUI_MAX_PROGRAM_ENTRIES; i++) {
+            const char *name = g_app_defs[i].name;
+            if (!name || !*name) continue;
+            int present = 0;
+            for (int j = 0; j < g_program_db.count && !present; j++)
+                present = (strcmp(g_program_db.entries[j].name, name) == 0);
+            for (size_t a = 0; a < sizeof alias / sizeof alias[0] && !present; a++) {
+                if (strcmp(name, alias[a].registry) != 0) continue;
+                for (int j = 0; j < g_program_db.count; j++)
+                    if (strcmp(g_program_db.entries[j].name, alias[a].db_name) == 0) {
+                        present = 1; break;
+                    }
+            }
+            if (present) continue;
+            SmProgramEntry *rag = &g_program_db.entries[g_program_db.count++];
+            memset(rag, 0, sizeof *rag);
+            strncpy(rag->name, name, sizeof(rag->name) - 1);
+            strncpy(rag->executable, name, sizeof(rag->executable) - 1);
+            strcpy(rag->category, "Apps");
+            rag->is_builtin = true;   /* in-process: launch_app handles it */
+        }
+    }
+
+    if (getenv("WUBU_STARTMENU_DUMP")) {
+        fprintf(stderr, "[startmenu] %d programs\n", g_program_db.count);
+        for (int i = 0; i < g_program_db.count; i++)
+            fprintf(stderr, "[startmenu]  %-28s %s\n",
+                    g_program_db.entries[i].name, g_program_db.entries[i].category);
+    }
 }
 
 /* -- Search ------------------------------------------------------- */

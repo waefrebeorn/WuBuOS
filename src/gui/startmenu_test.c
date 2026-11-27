@@ -164,6 +164,27 @@ static void test_wet_applets_in_programs(void) {
     PASS();
 }
 
+/* The Start menu's program list must come from the app registry, not a second
+ * hand-written list: 21 registered apps were reachable only from the desktop. */
+static void test_registry_apps_reach_the_start_menu(void) {
+    TEST("registry apps appear in Start, and an alias is not listed twice");
+    startmenu_build_programs_db();
+
+    int one = 0, two = 0, control = 0, settings = 0;
+    for (int i = 0; i < g_program_db.count; i++) {
+        const char *n = g_program_db.entries[i].name;
+        if (strcmp(n, "Fixture One") == 0) one++;
+        if (strcmp(n, "Fixture Two") == 0) two++;
+        if (strcmp(n, "Control Panel") == 0) control++;
+        if (strcmp(n, "Settings") == 0) settings++;
+    }
+    CHECK(one == 1, "a registry app is listed exactly once");
+    CHECK(two == 1, "and so is the second one");
+    CHECK(control == 1, "the hand-written 'Control Panel' entry is still there");
+    CHECK(settings == 0, "'Settings' is not added as a second entry for the same app");
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Start Menu Test Suite (Cell 402)        |\n");
@@ -175,6 +196,7 @@ int main(void) {
     test_xp_sidebar_gradient_and_orb();
     test_multiple_toggles();
     test_wet_applets_in_programs();
+    test_registry_apps_reach_the_start_menu();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

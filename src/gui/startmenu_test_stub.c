@@ -128,3 +128,15 @@ int64_t wubu_exec_macho(const void *macho, size_t macho_size) {
 void wubu_ct_destroy(WubuCt *ct) { (void)ct; }
 int  wubu_ct_start(WubuCt *ct) { (void)ct; return -1; }
 const char *wubu_ct_runtime_name(CtRuntime runtime) { (void)runtime; return "stub"; }
+/* -- App registry fixture ------------------------------------------
+ * startmenu_build_programs_db() derives its list from g_app_defs, so the test
+ * graph must supply a registry. Two fixtures, one of which is an ALIAS of a
+ * name the DB already hard-codes ("Settings" -> "Control Panel"), which is what
+ * proves the alias rule: two entries for one app is the bug this avoids. */
+#include "../apps/apps.h"
+const DosGuiAppDef g_app_defs[] = {
+    { "Fixture One", "Fixture One", 0, 0x00FF0000u, NULL, NULL },
+    { "Fixture Two", "Fixture Two", 0, 0x0000FF00u, NULL, NULL },
+    { "Settings",    "Settings",    0, 0x00808080u, NULL, NULL },
+};
+const int g_app_def_count = (int)(sizeof g_app_defs / sizeof g_app_defs[0]);
