@@ -9,7 +9,7 @@
 # 70% of the recipes.
 RT_ALWAYS := $(RT)/wubu_crc32.c $(RT)/wubu_str.c
 
-test_critical_runtime: test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -3097,6 +3097,10 @@ test_wubu_blake2b: src/runtime/wubu_blake2b_test.c src/runtime/wubu_blake2b.c
 test_wubu_json: src/runtime/wubu_json_test.c src/runtime/wubu_json.c src/runtime/wubu_utf8.c
 	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_json_test $^
 	$${TMPDIR:-/tmp}/wubu_json_test
+
+test_hosted_ns_read:
+	$(CC) -O0 -g -std=c11 -I$(HOSTED) -I$(RT) -Iinclude -o $${TMPDIR:-/tmp}/hosted_ns_read_test src/hosted/hosted_ns_read_test.c src/hosted/hosted_ns_read.c
+	$${TMPDIR:-/tmp}/hosted_ns_read_test
 
 test_wubu_preview_decode:
 	@python3 -c 'import PIL' 2>/dev/null || { echo "test_wubu_preview_decode needs Pillow (the oracle)"; exit 1; }

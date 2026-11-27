@@ -7,8 +7,8 @@ linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
 - product source modules: 4314
-- OWNED (appear in a test target recipe): 956
-- VENDORED / unproven (no test-target recipe reference): 3358
+- OWNED (appear in a test target recipe): 957
+- VENDORED / unproven (no test-target recipe reference): 3357
 
 ## OWNED modules (tested)
 
@@ -126,6 +126,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `holyc_repl.c`  -- tests: test_wm;test_ui;test_calc;test_regedit
 - `hosted_display.c`  -- tests: test_hosted_display
 - `hosted_fs_persist.c`  -- tests: test_revolver;test_startmenu_files;test_startmenu;test_era_apps
+- `hosted_ns_read.c`  -- tests: test_hosted_ns_read
 - `hosted_pe.c`  -- tests: test_hosted_pe
 - `hosted_styxfs.c`  -- tests: test_revolver;test_startmenu_files;test_startmenu;test_era_apps
 - `input.c`  -- tests: test_input;test_input_keymap;test_evdev;test_steaminput
@@ -1730,7 +1731,6 @@ the kernel/driver build or nowhere in the test recipes).
 - `hive.c`
 - `hosted.c`
 - `hosted_agent_channel.c`
-- `hosted_ns_read.c`
 - `hosted_render.c`
 - `hosted_run.c`
 - `hosted_wayland.c`
