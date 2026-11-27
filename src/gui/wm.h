@@ -283,6 +283,11 @@ void taskbar_update_clock(time_t now);
  * two-line wrap is only ever needed for genuinely two-word names. */
 #define DOSGUI_ICON_TILE      (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 44) /* 84 */
 #define DOSGUI_ICON_COL_PITCH DOSGUI_ICON_TILE
+
+/* The desktop cell is sized from the TEXT (line height at the current scale), not the constant above: at a
+ * 2x accessibility scale labels outgrew a fixed 84-px cell. Every layout and hit-test asks these. */
+int desktop_cell_w(void);
+int desktop_cell_h(void);
 #define DOSGUI_ICON_ROW_PITCH DOSGUI_ICON_TILE
 
 typedef enum {

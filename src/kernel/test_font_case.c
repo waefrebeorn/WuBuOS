@@ -121,6 +121,17 @@ int main(void)
                 if (vbe_get_pixel(xx, yy) != 0) ink++;
         TEST(ink > 8, "at text scale 2 an accented glyph still draws (amplified face, not a bitmap hole)");
 
+        /* Bilinear, not replication: with block replication every 2x2 destination block was uniform. Count
+         * blocks that carry more than one value -- a replicated glyph has NONE. */
+        int varied_blocks = 0;
+        for (int yy = 0; yy + 1 < 24; yy += 2)
+            for (int xx = 0; xx + 1 < 20; xx += 2) {
+                uint32_t a = vbe_get_pixel(xx, yy), b = vbe_get_pixel(xx + 1, yy);
+                uint32_t cc = vbe_get_pixel(xx, yy + 1), d = vbe_get_pixel(xx + 1, yy + 1);
+                if (a != b || a != cc || a != d) varied_blocks++;
+            }
+        TEST(varied_blocks > 6, "2x text is interpolated, not block-replicated (no uniform 2x2 stamp)");
+
         /* the measure must match the renderer it feeds: boxes sized from vbe_text_width at a11y scale used to
          * assume 8 px per glyph while the face advances by its own metrics. */
         TEST(vbe_text_width("ii", 1) < vbe_text_width("WW", 1),

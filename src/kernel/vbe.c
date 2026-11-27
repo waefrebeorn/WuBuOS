@@ -590,15 +590,30 @@ static void aa_draw_text_scaled(int x, int y, const char *s, uint32_t color, int
         unsigned char c = (cp >= 0 && cp <= 0xFF) ? (unsigned char)cp : (unsigned char)'?';
         const WubuGlyphAA *g = aa_char_ok(c) ? aa_glyph(c) : NULL;
         if (!g || !g->cov) { vbe_draw_char(x, y, (char)c, color, scale); x += GLYPH_ADVANCE * scale; continue; }
-        for (int gy = 0; gy < g->h; gy++) {
-            const unsigned char *row = g->cov + (size_t)gy * (size_t)g->w;
-            for (int gx = 0; gx < g->w; gx++) {
-                int cov = row[gx];
-                if (!cov) continue;
-                int bx = x + g->xoff * scale, by = baseline + g->yoff * scale;
-                for (int sy = 0; sy < scale; sy++)
-                    for (int sx = 0; sx < scale; sx++)
-                        vbe_blend_pixel_cov(bx + gx * scale + sx, by + gy * scale + sy, color, cov);
+        /* BILINEAR, not replication. Copying each coverage pixel into a scale x scale block is what made 2x
+         * text read as blocky "monospace": every 2x2 block was uniform, so the letter's curves turned into
+         * steps. Sample the coverage continuously instead (integer 8.8 fixed point, no libm in the kernel). */
+        const int bx = x + g->xoff * scale, by = baseline + g->yoff * scale;
+        const int dw = g->w * scale, dh = g->h * scale;
+        for (int dy = 0; dy < dh; dy++) {
+            /* source row, centre-aligned: (dy + 0.5) * h / dh - 0.5, in 8.8 */
+            int sy8 = ((2 * dy + 1) * g->h * 128) / dh - 128;
+            int y0 = sy8 >> 8, fy = sy8 & 255;
+            if (y0 < 0) { y0 = 0; fy = 0; }
+            if (y0 > g->h - 1) { y0 = g->h - 1; fy = 0; }
+            int y1 = (y0 + 1 < g->h) ? y0 + 1 : y0;
+            const unsigned char *r0 = g->cov + (size_t)y0 * (size_t)g->w;
+            const unsigned char *r1 = g->cov + (size_t)y1 * (size_t)g->w;
+            for (int dx = 0; dx < dw; dx++) {
+                int sx8 = ((2 * dx + 1) * g->w * 128) / dw - 128;
+                int x0 = sx8 >> 8, fx = sx8 & 255;
+                if (x0 < 0) { x0 = 0; fx = 0; }
+                if (x0 > g->w - 1) { x0 = g->w - 1; fx = 0; }
+                int x1 = (x0 + 1 < g->w) ? x0 + 1 : x0;
+                int top = (r0[x0] * (256 - fx) + r0[x1] * fx) >> 8;
+                int bot = (r1[x0] * (256 - fx) + r1[x1] * fx) >> 8;
+                int cov = (top * (256 - fy) + bot * fy) >> 8;
+                if (cov) vbe_blend_pixel_cov(bx + dx, by + dy, color, cov);
             }
         }
         x += aa_advance(g) * scale;

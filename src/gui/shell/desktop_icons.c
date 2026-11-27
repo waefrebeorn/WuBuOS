@@ -23,29 +23,47 @@
 #include <dirent.h>
 #include <strings.h>   /* strcasecmp / strncasecmp */
 
+/* -- Cell size derived from the TEXT, not a constant ------------------------------------------------
+ * The pitch was DOSGUI_ICON_TILE (84 px: icon + gap + 44 px of label). At a 2x accessibility scale the
+ * label alone is ~76 px, so labels ran into the next cell, and reflow_icons_column() stacked every icon in
+ * ONE column with no bound -- the 9th default icon landed under the taskbar and was clipped even at 1x in a
+ * short window. Both cell dimensions now follow the renderer's line height, and the reflow wraps columns. */
+extern int vbe_line_height(void) __attribute__((weak));
+static int desk_line_h(void) { return vbe_line_height ? vbe_line_height() : 19; }
+
+int desktop_cell_h(void) {
+    int h = DOSGUI_ICON_SIZE + 8 + 2 * desk_line_h() + 6;   /* icon + gap + two label lines */
+    return h > DOSGUI_ICON_TILE ? h : DOSGUI_ICON_TILE;
+}
+int desktop_cell_w(void) {
+    /* labels grow with the line height, and Win11 cells are wide enough for the longest name */
+    int w = DOSGUI_ICON_TILE + (desk_line_h() - 19) * 4;
+    return w > DOSGUI_ICON_TILE ? w : DOSGUI_ICON_TILE;
+}
+
 int icon_grid_x(int x) {
-    /* Screened on the real desktop width, not a fixed column count, so the
-     * finer uniform tile doesn't clip the right side on a wide screen. */
-    int gx = (x - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_COL_PITCH;
-    int maxc = (g_dwm.screen_w - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_COL_PITCH;
+    const int pitch = desktop_cell_w();
+    int gx = (x - DOSGUI_ICON_MARGIN) / pitch;
+    int maxc = (g_dwm.screen_w - DOSGUI_ICON_MARGIN) / pitch;
     if (gx < 0) gx = 0;
     if (gx > maxc) gx = maxc;
-    return DOSGUI_ICON_MARGIN + gx * DOSGUI_ICON_COL_PITCH;
+    return DOSGUI_ICON_MARGIN + gx * pitch;
 }
 
 int icon_grid_y(int y) {
-    int gy = (y - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_ROW_PITCH;
-    int maxr = (taskbar_top() - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_ROW_PITCH;
+    const int pitch = desktop_cell_h();
+    int gy = (y - DOSGUI_ICON_MARGIN) / pitch;
+    int maxr = (taskbar_top() - DOSGUI_ICON_MARGIN) / pitch;
     if (gy < 0) gy = 0;
     if (gy > maxr) gy = maxr;
-    return DOSGUI_ICON_MARGIN + gy * DOSGUI_ICON_ROW_PITCH;
+    return DOSGUI_ICON_MARGIN + gy * pitch;
 }
 
 void snap_icon_to_grid(DosGuiIcon *icon) {
     icon->x = icon_grid_x(icon->x);
     icon->y = icon_grid_y(icon->y);
-    icon->grid_x = (icon->x - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_COL_PITCH;
-    icon->grid_y = (icon->y - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_ROW_PITCH;
+    icon->grid_x = (icon->x - DOSGUI_ICON_MARGIN) / desktop_cell_w();
+    icon->grid_y = (icon->y - DOSGUI_ICON_MARGIN) / desktop_cell_h();
 }
 
 /* -- Desktop view options (Stream 3) --------------------------------- */
@@ -75,16 +93,23 @@ bool wm_get_auto_arrange(void) {
 static void reflow_icons_column(void) {
     const int x0 = DOSGUI_ICON_MARGIN;
     const int y0 = DOSGUI_ICON_MARGIN;
-    const int step = DOSGUI_ICON_TILE;
-    int y = y0;
+    const int ch = desktop_cell_h();
+    const int cw = desktop_cell_w();
+    /* How many cells the desktop can actually show. The old loop had no bound at all, so any icon past the
+     * last visible row was drawn under the taskbar (or off the window) and simply disappeared. */
+    int rows = (taskbar_top() - y0) / ch;
+    if (rows < 1) rows = 1;
+    int slot = 0;
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *ic = &g_dwm.icons[i];
         if (!ic->alive) continue;
-        ic->x = x0;
-        ic->y = y;
-        ic->grid_x = 0;
-        ic->grid_y = (y - y0) / step;
-        y += step;
+        int gy = slot % rows;
+        int gx = slot / rows;
+        ic->grid_x = gx;
+        ic->grid_y = gy;
+        ic->x = x0 + gx * cw;
+        ic->y = y0 + gy * ch;
+        slot++;
     }
 }
 

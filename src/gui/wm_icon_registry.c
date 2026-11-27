@@ -30,8 +30,8 @@ int icon_add(const char *name, int gx, int gy,
     memset(icon, 0, sizeof(*icon));
     strncpy(icon->name, name, sizeof(icon->name) - 1);
     icon->grid_x = gx; icon->grid_y = gy;
-    icon->x = 20 + gx * DOSGUI_ICON_COL_PITCH;
-    icon->y = 20 + gy * DOSGUI_ICON_ROW_PITCH;
+    icon->x = 20 + gx * desktop_cell_w();
+    icon->y = 20 + gy * desktop_cell_h();
     icon->on_click = on_click;
     icon->type = DESK_ICON_APP;
     icon->icon_color = 0x0080FF;  /* Default blue */
@@ -47,8 +47,8 @@ int icon_add_ex(const char *name, DeskIconType type,
     memset(icon, 0, sizeof(*icon));
     strncpy(icon->name, name, sizeof(icon->name) - 1);
     icon->grid_x = gx; icon->grid_y = gy;
-    icon->x = 20 + gx * DOSGUI_ICON_COL_PITCH;
-    icon->y = 20 + gy * DOSGUI_ICON_ROW_PITCH;
+    icon->x = 20 + gx * desktop_cell_w();
+    icon->y = 20 + gy * desktop_cell_h();
     icon->type = type;
     icon->icon_color = icon_color ? icon_color : 0x0080FF;
     if (target) strncpy(icon->target, target, sizeof(icon->target) - 1);
