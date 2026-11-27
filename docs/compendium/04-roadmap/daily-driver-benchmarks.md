@@ -431,7 +431,140 @@ its only shell entry opens one app out of 25.
 
 ---
 
+
+---
+
+# Edition 3 — requirements from support data, standards, and migration pain
+
+Three more list sources, chosen because they are what people actually hit rather
+than what vendors advertise:
+
+- **The ticket list.** The 13 most common help-desk tickets of 2025 — password
+  resets first, then software install/update errors, connectivity, email,
+  hardware faults, access to shared resources, performance, bug reports, data
+  loss, device onboarding, licences ([Whatfix](https://whatfix.com/blog/common-help-desk-tickets/)).
+  Each one is an OS requirement; a system that cannot answer the ticket is the
+  ticket.
+- **The control catalogue.** NIST SP 800-53 Rev. 5's control families — AC
+  access control, AU audit, CM configuration management, IA identification and
+  authentication, IR incident response, RA risk assessment, SC communications
+  protection, SI system integrity, PT PII processing, SR supply chain
+  ([NIST](https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final)).
+- **The migration pain list.** The recurring complaints about desktop Linux:
+  hardware support, HiDPI, suspend, Bluetooth audio, printing, codecs, font
+  quality, packaging, theme consistency, the X11/Wayland split
+  ([Datamation](https://www.datamation.com/open-source/eight-complaints-about-the-linux-desktop/)).
+
+## 22. The tickets a person will actually file (20)
+
+| # | The ticket | State | Evidence |
+|---|---|---|---|
+| 201 | "I forgot my password" — and can reset it without IT | **ABSENT** | there are no accounts to reset |
+| 202 | "It won't install" — with a reason the user can act on | PARTIAL | pkgmgr returns codes; no user-facing error text |
+| 203 | "I can't get online" — and a way to see why | **ABSENT** | #10 |
+| 204 | "My email isn't sending" | ABSENT | #18 |
+| 205 | "Something is broken in the hardware" — and a report | PARTIAL | sensors exist; no diagnostics bundle |
+| 206 | "I can't reach the shared drive" | ABSENT | #57 |
+| 207 | "It's slow" — and something that shows what is slow | PARTIAL | frame timing only exists for developers |
+| 208 | "The app crashed" — with context | PARTIAL | `crash_notice.c` banner |
+| 209 | "I lost a file" | PARTIAL | Trash only; no versions, no backup |
+| 210 | "Set up my new machine" | PARTIAL | greeter + onboarding sentinel |
+| 211 | "Is my licence still valid?" | ABSENT | no licence concept |
+| 212 | "My screen is frozen" — and a way out | PARTIAL | Alt-F4/close; no session recovery |
+| 213 | "The printer won't print" | PARTIAL | backend only; no queue or status |
+| 214 | "My second monitor isn't detected" | ABSENT | #71 |
+| 215 | "The VPN won't connect" | ABSENT | #8 |
+| 216 | "The browser is slow" | ABSENT | #11 |
+| 217 | "My disk is full" — and a warning first | ABSENT | #68 |
+| 218 | "No sound" | PARTIAL | mixer works; no output-device chooser |
+| 219 | "My mouse/keyboard stopped" | PARTIAL | input path, no device list |
+| 220 | "The clock is wrong" | ABSENT | #69 |
+
+## 23. Security and privacy control families (NIST SP 800-53 Rev. 5, desktop subset) (15)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 221 | Account management (AC-2) | **ABSENT** | no accounts |
+| 222 | Least privilege (AC-6) | PARTIAL | `wubu_cap` capability gates |
+| 223 | Audit event logging (AU-2/3) | PARTIAL | kernel log + `/n` |
+| 224 | Audit review (AU-6) | ABSENT | nothing reads the log back |
+| 225 | Configuration baseline (CM-2/6) | PARTIAL | settings file is the baseline |
+| 226 | Identification and authentication (IA-2/5), MFA | ABSENT | — |
+| 227 | Incident handling (IR-4/6) | PARTIAL | crash banner |
+| 228 | Vulnerability scanning / advisories (RA-5) | ABSENT | no advisory feed |
+| 229 | Boundary protection (SC-7) — firewall | ABSENT | #75 |
+| 230 | Cryptographic protection (SC-8/13) | PARTIAL | package signing only |
+| 231 | Integrity checking of the running system (SI-7) | PARTIAL | packages verify; system files do not |
+| 232 | Malicious-code protection (SI-3) | ABSENT | — |
+| 233 | Spam/phishing protection (SI-8) | ABSENT | — |
+| 234 | PII processing rules (PT) | ABSENT | — |
+| 235 | Supply-chain provenance (SR-3/11), SBOM | PARTIAL | signed packages; no SBOM |
+
+## 24. New-machine onboarding, the IT checklist a person gets on day one (12)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 236 | Disk encrypted before hand-over | **ABSENT** | #74 |
+| 237 | Updates current at hand-over | PARTIAL | pkgmgr, no schedule |
+| 238 | Device named, user account created | ABSENT | no accounts |
+| 239 | VPN profile installed | ABSENT | #8 |
+| 240 | Printer configured | PARTIAL | enumeration only |
+| 241 | Password manager provisioned | ABSENT | #76 |
+| 242 | Backup configured and tested | ABSENT | #60 |
+| 243 | Second factor enrolled | ABSENT | — |
+| 244 | Asset recorded in an inventory | ABSENT | — |
+| 245 | User shown the shortcuts that matter | PARTIAL | tutorials exist, no shortcut sheet |
+| 246 | Offboarding: wipe or hand back | ABSENT | — |
+| 247 | Device transfer keeps the user's data | ABSENT | — |
+
+## 25. Privacy-by-design requirements (10)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 248 | Data minimisation | PARTIAL | no telemetry at all; local-only stores |
+| 249 | Purpose limitation and consent | ABSENT | nothing asks |
+| 250 | Export my data (portability) | ABSENT | — |
+| 251 | Delete my data (erasure) | PARTIAL | Trash; no "delete everything" |
+| 252 | Breach notification path | ABSENT | — |
+| 253 | A privacy dashboard | PARTIAL | settings page of flags |
+| 254 | Telemetry off by default | **IN-TREE** | there is no telemetry |
+| 255 | Location permission gate | ABSENT | no producers |
+| 256 | Camera/microphone in-use indicator | ABSENT | — |
+| 257 | Per-app data access list | ABSENT | — |
+
+## 26. Energy and battery (8)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 258 | Idle power budget | PARTIAL | 30 fps idle repaint; measured, not budgeted |
+| 259 | Few background wakeups | PARTIAL | AGI loop ticks twice a second; no budget |
+| 260 | Display sleeps when idle | PARTIAL | screensaver exists |
+| 261 | System sleeps when idle | ABSENT | #61 |
+| 262 | Charge limit | ABSENT | #179 |
+| 263 | Battery health reported | ABSENT | #178 |
+| 264 | Power profiles | ABSENT | #183 |
+| 265 | An energy report a user can read | ABSENT | — |
+
+## 27. The migration pain list (12)
+
+| # | Complaint about desktop Linux | State | Evidence |
+|---|---|---|---|
+| 266 | Hardware support out of the box | PARTIAL | driver registry; no firmware blobs |
+| 267 | HiDPI scaling that works | PARTIAL | text scales; no fractional scaling |
+| 268 | Suspend that reliably resumes | ABSENT | #61 |
+| 269 | Bluetooth audio | ABSENT | no BlueZ path |
+| 270 | Printing that just works | PARTIAL | backend, no queue |
+| 271 | Codecs (mp4, mp3, h264) | PARTIAL | ffmpeg in the hosted leg |
+| 272 | Font rendering quality | PARTIAL | one 11 px face + bold |
+| 273 | Application packaging and install UX | PARTIAL | pkgmgr, no store |
+| 274 | Theme consistency | PARTIAL | one theme family, mixed eras |
+| 275 | The X11/Wayland split | **IN-TREE** | own compositor + X11 present |
+| 276 | Multi-monitor hotplug | ABSENT | #71 |
+| 277 | Accessibility there on day one | PARTIAL | a11y lives in the office submodule |
+
+---
+
 ## What this document is not
 
-It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 more and corrects sixteen verdicts that were wrong because the implementation lives in a submodule. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
+It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 more from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list -- 277 workflows in total. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
 its gate exists — that is the next job, one family at a time.
