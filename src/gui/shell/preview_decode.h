@@ -22,8 +22,13 @@ enum {
     WUBU_PREVIEW_NOMEM     = -5
 };
 
-/* Decode `path` into `*out_px`, 0x00RRGGBB, top row first. Caller frees with free().
- * `max_pixels` 0 = 24 megapixels. */
+/* Decode bytes into `*out_px`, 0x00RRGGBB, top row first. Caller frees with free().
+ * `name` only supplies the extension, so this works for a namespace file whose bytes came
+ * through styxfs and never existed at a host path. `max_pixels` 0 = 24 megapixels. */
+int wubu_preview_decode_bytes(const char *name, const unsigned char *data, size_t len,
+                              uint32_t **out_px, int *w, int *h, size_t max_pixels);
+
+/* Convenience for host files (fixtures, gates): reads `path` then calls the bytes form. */
 int wubu_preview_decode_file(const char *path, uint32_t **out_px, int *w, int *h, size_t max_pixels);
 
 const char *wubu_preview_reason(int code);

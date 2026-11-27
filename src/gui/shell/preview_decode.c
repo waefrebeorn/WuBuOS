@@ -67,19 +67,12 @@ static uint32_t *pack(const unsigned char *src, int w, int h, int ch, size_t max
     return out;
 }
 
-int wubu_preview_decode_file(const char *path, uint32_t **out_px, int *w, int *h, size_t max_pixels) {
-    if (!path || !out_px || !w || !h) return WUBU_PREVIEW_OPEN;
-    *out_px = NULL; *w = 0; *h = 0;
-    if (!max_pixels) max_pixels = 24u * 1000u * 1000u;
-
-    const char *ext = ext_of(path);
+static int decode_bytes(const char *name, const unsigned char *file, size_t len,
+                        uint32_t **out_px, int *w, int *h, size_t max_pixels) {
+    const char *ext = ext_of(name);
     int png = eq_ci(ext, "png"), bmp = eq_ci(ext, "bmp"), gif = eq_ci(ext, "gif");
     int jpg = eq_ci(ext, "jpg") || eq_ci(ext, "jpeg");
     if (!png && !bmp && !gif && !jpg) return WUBU_PREVIEW_FORMAT;
-
-    size_t len = 0;
-    unsigned char *file = read_all(path, &len);
-    if (!file) return WUBU_PREVIEW_OPEN;
 
     int rc = WUBU_PREVIEW_DECODE;
     if (jpg) {
@@ -127,7 +120,35 @@ int wubu_preview_decode_file(const char *path, uint32_t **out_px, int *w, int *h
             }
         }
     }
-    free(file);
     if (rc != WUBU_PREVIEW_OK) { free(*out_px); *out_px = NULL; *w = *h = 0; }
+    return rc;
+}
+
+int wubu_preview_decode_bytes(const char *name, const unsigned char *data, size_t len,
+                              uint32_t **out_px, int *w, int *h, size_t max_pixels) {
+    if (!name || !data || !len || !out_px || !w || !h) return WUBU_PREVIEW_OPEN;
+    *out_px = NULL; *w = 0; *h = 0;
+    if (!max_pixels) max_pixels = 24u * 1000u * 1000u;
+    return decode_bytes(name, data, len, out_px, w, h, max_pixels);
+}
+
+int wubu_preview_decode_file(const char *path, uint32_t **out_px, int *w, int *h, size_t max_pixels) {
+    if (!path || !out_px || !w || !h) return WUBU_PREVIEW_OPEN;
+    *out_px = NULL; *w = 0; *h = 0;
+    if (!max_pixels) max_pixels = 24u * 1000u * 1000u;
+
+    /* Ask about the FORMAT before touching the disk: "there is no webp decoder" is true
+     * whether or not the file happens to exist, and answering "cannot read the file" would
+     * send a user looking for the wrong problem. */
+    const char *ext = ext_of(path);
+    if (!eq_ci(ext, "png") && !eq_ci(ext, "bmp") && !eq_ci(ext, "gif") &&
+        !eq_ci(ext, "jpg") && !eq_ci(ext, "jpeg"))
+        return WUBU_PREVIEW_FORMAT;
+
+    size_t len = 0;
+    unsigned char *file = read_all(path, &len);
+    if (!file) return WUBU_PREVIEW_OPEN;
+    int rc = decode_bytes(path, file, len, out_px, w, h, max_pixels);
+    free(file);
     return rc;
 }

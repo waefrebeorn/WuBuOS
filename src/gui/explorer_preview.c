@@ -64,9 +64,32 @@ void explorer_update_preview(int idx) {
                    strcmp(ext, "jpeg") == 0 || strcmp(ext, "gif") == 0 ||
                    strcmp(ext, "bmp") == 0) {
             /* Our own decoders: wubu_pixmap (PNG/BMP), wubu_gif (first frame), wubu_jpeg. */
+            /* Read through the SAME backend the listing came from: explorer entries live in
+             * the kernel namespace (styxfs), not at host paths, so a decoder that calls
+             * fopen() can list a file and then fail to decode it. */
             uint32_t *px = NULL;
             int iw = 0, ih = 0;
-            if (wubu_preview_decode_file(entry->full_path, &px, &iw, &ih, 0) == WUBU_PREVIEW_OK) {
+            int ok = 0;
+            int fd = ex_9p_open(entry->full_path, O_RDONLY);
+            if (fd >= 0) {
+                size_t cap = 1u << 20, n = 0;
+                unsigned char *bytes = malloc(cap);
+                while (bytes) {
+                    ssize_t r = ex_9p_read(fd, bytes + n, cap - n);
+                    if (r <= 0) break;
+                    n += (size_t)r;
+                    if (n < cap) continue;
+                    if (cap >= (32u << 20)) break;
+                    unsigned char *bigger = realloc(bytes, cap * 2);
+                    if (!bigger) break;
+                    bytes = bigger;
+                    cap *= 2;
+                }
+                ex_9p_close(fd);
+                if (bytes && n) ok = (wubu_preview_decode_bytes(entry->name, bytes, n, &px, &iw, &ih, 0) == WUBU_PREVIEW_OK);
+                free(bytes);
+            }
+            if (ok) {
                 g_explorer.preview.type = EX_PREVIEW_IMAGE;
                 g_explorer.preview.img_pixels = px;
                 g_explorer.preview.img_w = iw;
