@@ -74,6 +74,10 @@ const DosGuiAppDef *app_find_by_name(const char *name);
 DosGuiWindow* app_launch(int icon_type);
 DosGuiWindow* app_launch_by_name(const char *name);
 
+/* Test seams for the registry smoke gate (the window struct stays opaque to test TUs). */
+void app_test_window_key(DosGuiWindow *w, uint32_t key);
+int  app_test_window_alive(DosGuiWindow *w);
+
 /* Individual launch functions (thin wrappers over the registry table). */
 DosGuiWindow* launch_my_computer(void);
 DosGuiWindow* launch_temple_repl(void);

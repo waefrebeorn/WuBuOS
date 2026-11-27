@@ -816,6 +816,41 @@ static void test_music_real(void) {
     PASS();
 }
 
+
+/* A keystroke must never be able to kill the shell.
+ *
+ * Measured live: one character typed into Notepad aborted the whole session -- SIGABRT from memmove over
+ * lines[-1], because the registry built its own window and never ran np_reset(). Nothing in the suite noticed,
+ * because every per-app test called the APP's own entry point, i.e. the path the registry was not using.
+ *
+ * So this walks the registry ITSELF and types at each window it gets. A launcher that returns NULL is a named
+ * SKIP (an app that needs a fixture is not a pass); an app that dies takes the test process with it and the
+ * gate fails loudly. */
+static void test_every_registered_app_survives_typing(void) {
+    TEST("apps: the whole registry launches and survives a keystroke");
+    int launched = 0, skipped = 0, crashed = 0;
+    for (int i = 0; i < g_app_def_count; i++) {
+        const DosGuiAppDef *d = &g_app_defs[i];
+        if (d->path) { skipped++; continue; }            /* .WET applets need the applet host */
+        DosGuiWindow *w = d->launch ? d->launch() : NULL;
+        if (!w) { skipped++; printf("  SKIP %-18s (launcher returned NULL)\n", d->name ? d->name : "?"); continue; }
+
+        /* The keys that exercise an editing path: a letter, backspace, Enter, an arrow. */
+        static const uint32_t keys[] = { 'a', 8, 13, 0xE048, 0xE050 };
+        for (size_t k = 0; k < sizeof keys / sizeof keys[0]; k++) {
+            app_test_window_key(w, keys[k]);
+            if (!app_test_window_alive(w)) { crashed++; break; }
+        }
+        CHECK(app_test_window_alive(w), "the window is still alive after the keystrokes");
+        wm_destroy(w);
+        launched++;
+    }
+    printf("  registry: %d launched, %d skipped, %d crashed\n", launched, skipped, crashed);
+    CHECK(crashed == 0, "no registered app died on a keystroke");
+    CHECK(launched >= 15, "at least 15 registry entries really launched (a low number means the walk is broken)");
+    PASS();
+}
+
 int main(void) {
     printf("\n=== WuBuOS DosGui Apps Test Suite ===\n\n");
     
@@ -829,6 +864,7 @@ int main(void) {
     test_notepad_typing();
     test_notepad_survives_unrepaired_state();
     test_launch_notepad_initialises_document();
+    test_every_registered_app_survives_typing();
     test_notepad_mouse_positions_caret();
     test_notepad_launch();
     

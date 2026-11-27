@@ -486,6 +486,11 @@ const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 
 /* -- Lookup helpers ----------------------------------------------- */
 
+/* Test seams: let a gate type at a registry-launched window without exposing the window struct to every
+ * test TU (apps_test.c keeps its own stubs for the chrome types, so it cannot include wm.h). */
+void app_test_window_key(DosGuiWindow *w, uint32_t key) { if (w && w->on_key) w->on_key(w, key, 0); }
+int  app_test_window_alive(DosGuiWindow *w) { return w && w->alive; }
+
 const DosGuiAppDef *app_find(int icon_type) {
     for (int i = 0; i < g_app_def_count; i++)
         if (g_app_defs[i].icon_type == icon_type) return &g_app_defs[i];
