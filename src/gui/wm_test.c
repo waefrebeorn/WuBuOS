@@ -1272,6 +1272,21 @@ static void test_snap_zones(void) {
 /* Ctrl+Esc opens Start -- Microsoft's published shortcut, and the only keyboard route to the OS's own menu
  * inside a hosted session, where the host window manager owns Super. Measured live before this existed:
  * pressing Super in the guest opened the HOST's launcher, not ours. */
+/* A window must not open larger than the screen: it would paint past the edge and believe it had room for
+ * content it cannot show (measured: the Control Panel at 900x380 listed every row and showed no scrollbar). */
+static void test_window_clamped_to_screen(void) {
+    TEST("a window bigger than the screen is clamped, and stays reachable");
+    wm_init(800, 600);
+    DosGuiWindow *w = wm_create(700, 500, 2000, 1600, "Huge");
+    CHECK(w != NULL, "window created");
+    if (w) {
+        CHECK(w->w <= 800 && w->h <= 600, "w and h fit the screen");
+        CHECK(w->x + w->w <= 800 && w->y + w->h <= 600, "and it is fully on screen");
+    }
+    wm_shutdown();
+    PASS();
+}
+
 static void test_ctrl_esc_opens_start(void) {
     TEST("Ctrl+Esc opens Start (Windows shortcut, and the way in when the host owns Super)");
     wm_init(1024, 768);
@@ -2869,6 +2884,7 @@ int main(void) {
     test_snap_layouts();
     test_win_arrow_hotkey();
     test_ctrl_esc_opens_start();
+    test_window_clamped_to_screen();
     test_modifier_bits_match_input_h();
     test_show_desktop_hotkey();
     test_shell_shortcuts_reach_their_launchers();

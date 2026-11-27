@@ -16,6 +16,7 @@
  * C11.
  */
 #include "control_panel.h"
+#include "gfx/wubu_scroll.h"
 #include "control_panel_text.h"   /* cp_fill/cp_draw_text: without this they were implicit declarations */
 #include "../kernel/wubu_world.h"
 #include "wubu_theme.h"
@@ -219,8 +220,17 @@ void controlpanel_handle_key(uint32_t key, uint32_t mods)
     }
     controlpanel_key(key, mods);
 }
+/* defined with the scroll state below; declared here because the mouse entry point consumes scrolls first */
+static int g_side_panel_h;    /* the panel height last rendered; everything derives from it */
+static int cp_side_scroll_input(int x, int y, int btn, int kind, int oh);
+
 void controlpanel_handle_mouse(int x, int y, int btn, int kind)
 {
+    /* Scrolling is chrome, not page content: the sidebar consumes the wheel and the scroll band before the
+     * applet is offered the event, or a page would swallow the wheel and the list would never move. */
+    if (getenv("WUBU_INPUT_DEBUG") && (btn == 4 || btn == 5))
+        fprintf(stderr, "[cp] wheel btn=%d kind=%d at %d,%d panel_h=%d\n", btn, kind, x, y, g_side_panel_h);
+    if (cp_side_scroll_input(x, y, btn, kind, g_side_panel_h)) return;
     if (kind == 1 && btn == 1) {
         int hit = controlpanel_sidebar_hit(x, y);
         if (hit >= 0) { g_controlpanel.active_applet = hit; return; }
@@ -275,21 +285,79 @@ static int cp_side_viewport(int oh)
     return v > 0 ? v : 0;
 }
 
+/* The sidebar's scroll state, expressed through the shared scroll unit so it uses the same arithmetic as every
+ * other list (see src/gui/gfx/wubu_scroll.h -- Microsoft's ScrollViewer sizes). */
+static int g_side_drag;        /* 1 while the thumb is being dragged */
+static int g_side_grab_dy;     /* where inside the thumb the drag started */
+
+/* ONE derivation of the scroll state. "oh" is always the PANEL height: the viewport is what is left below the
+ * header, and using a viewport height here double-subtracted the header (measured: the last row sat 4 px below
+ * the panel edge, and the wheel had a 140 px range where it should have 180). */
+static WubuScroll cp_side_scroll_state(int oh)
+{
+    WubuScroll s;
+    s.content = g_controlpanel.applet_count * cp_side_row_h();
+    s.view = cp_side_viewport(oh);
+    s.offset = g_side_scroll;
+    return s;
+}
+
+static int g_side_seen_active = -1;   /* which page the scroll was last aligned to */
+
 static void cp_side_scroll_clamp(int oh)
 {
-    int row = cp_side_row_h();
-    int total = g_controlpanel.applet_count * row;
+    WubuScroll s = cp_side_scroll_state(oh);
+    g_side_scroll = wubu_scroll_clamp(&s);
+
+    /* Bring the ACTIVE row into view when the PAGE CHANGES -- and only then. Doing it on every render dragged
+     * the list back to the selection and made the wheel appear dead (measured: eight notches moved the view by
+     * zero, because the clamp kept snapping row 0 back into sight). Windows does not scroll on paint either. */
+    if (g_controlpanel.active_applet != g_side_seen_active) {
+        g_side_seen_active = g_controlpanel.active_applet;
+        int row = cp_side_row_h();
+        int top = g_controlpanel.active_applet * row;
+        int bot = top + row;
+        if (s.view > 0) {
+            if (top < g_side_scroll) g_side_scroll = top;
+            if (bot > g_side_scroll + s.view) g_side_scroll = bot - s.view;
+        }
+    }
+    WubuScroll t = cp_side_scroll_state(oh);
+    g_side_scroll = wubu_scroll_clamp(&t);
+}
+
+/* Wheel over the sidebar, and thumb drag. Returns 1 when the event was consumed. */
+static int cp_side_scroll_input(int x, int y, int btn, int kind, int oh)
+{
     int view = cp_side_viewport(oh);
-    int maxtop = total - view;
-    if (maxtop < 0) maxtop = 0;
-    if (g_side_scroll > maxtop) g_side_scroll = maxtop;
-    if (g_side_scroll < 0) g_side_scroll = 0;
-    /* keep the active row fully visible */
-    int top = g_controlpanel.active_applet * row;
-    int bot = top + row;
-    if (top < g_side_scroll) g_side_scroll = top;
-    if (bot > g_side_scroll + view) g_side_scroll = bot - view;
-    if (g_side_scroll > maxtop) g_side_scroll = maxtop;
+    if (view <= 0) return 0;
+    WubuScroll s = cp_side_scroll_state(oh);
+    if (wubu_scroll_max(&s) <= 0) return 0;
+
+    if (btn == 4 || btn == 5) {                       /* wheel: Windows' three rows per notch */
+        if (x >= CP_SIDEBAR_W) return 0;
+        g_side_scroll = wubu_scroll_wheel(&s, btn == 4 ? -1 : +1, cp_side_row_h());
+        return 1;
+    }
+    if (kind == 1 && btn == 1 && x >= CP_SIDEBAR_W - WUBU_SCROLL_BAND_W) {
+        int l = 0, p = 0;
+        wubu_scroll_thumb(&s, view, &l, &p);
+        if (wubu_scroll_on_thumb(&s, view, y - (CP_HEADER_H + 4))) {
+            g_side_drag = 1;
+            g_side_grab_dy = (y - (CP_HEADER_H + 4)) - p;
+            return 1;
+        }
+        /* a track click jumps the thumb's top to the pointer, like Windows */
+        g_side_scroll = wubu_scroll_from_thumb_drag(&s, view, y - (CP_HEADER_H + 4), l / 2);
+        return 1;
+    }
+    /* kind: 1 = button down, 2 = button up, 0 = motion (hosted_render.c) */
+    if (g_side_drag && kind == 0) {
+        g_side_scroll = wubu_scroll_from_thumb_drag(&s, view, y - (CP_HEADER_H + 4), g_side_grab_dy);
+        return 1;
+    }
+    if (g_side_drag && kind == 2) { g_side_drag = 0; return 1; }
+    return 0;
 }
 
 /* Where applet row i is, as one expression shared by the renderer and the hit-test. */
@@ -354,6 +422,7 @@ void controlpanel_render_at(uint32_t *fb, int fb_w, int fb_h,
     cp_fill(fb, fb_w, fb_h, ox + sw - 1, oy, 1, oh, c->border_dark);
     cp_draw_text(fb, fb_w, fb_h, ox + CP_SIDE_PAD, oy + 10, "Settings", c->win_title_text, 1);
 
+    g_side_panel_h = oh;                       /* the scroll unit derives the viewport from this */
     cp_side_scroll_clamp(oh);
     const int line_h = cp_line_h();
     for (int i = 0; i < g_controlpanel.applet_count; i++) {
@@ -370,6 +439,20 @@ void controlpanel_render_at(uint32_t *fb, int fb_w, int fb_h,
         cp_draw_text(fb, fb_w, fb_h, ox + x + CP_SIDE_PAD + 16, oy + text_y,
                      g_controlpanel.applets[i].name,
                      active ? c->select_text : c->body_text, 1);
+    }
+
+    /* The scrollbar: Microsoft's ScrollViewer sizes -- a 6 px thumb over a 16 px hit band, drawn OVER the
+     * content at the sidebar's right edge, and only when there is something to scroll. Before this unit the
+     * panel simply could not show more rows than fit. */
+    {
+        WubuScroll ss = cp_side_scroll_state(oh);
+        if (wubu_scroll_max(&ss) > 0) {
+            int track = cp_side_viewport(oh), tl = 0, tp = 0;
+            wubu_scroll_thumb(&ss, track, &tl, &tp);
+            int tx = ox + CP_SIDEBAR_W - WUBU_SCROLL_THUMB_W - 2;
+            cp_fill(fb, fb_w, fb_h, tx, oy + CP_HEADER_H + 4 + tp, WUBU_SCROLL_THUMB_W, tl,
+                    c->scroll_thumb ? c->scroll_thumb : c->border_dark);
+        }
     }
 
     CpApplet *a = controlpanel_active();

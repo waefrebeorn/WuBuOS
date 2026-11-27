@@ -35,6 +35,7 @@
  * (X11 evdev keycode = scancode + 8) and pushed into that same queue -- one input path for
  * every backend, so the X11 window is as interactive as the Wayland one. */
 #include "input.h"
+#include "hosted_internal.h"
 #include "hosted_x11_private.h"
 
 static int      g_xquit;
@@ -448,7 +449,18 @@ int hosted_x11_present_pump(void) {
             memset(&mev, 0, sizeof(mev));
             mev.x = tx;
             mev.y = ty;
-            int bit = (ev.xbutton.button == 1) ? 1 : (ev.xbutton.button == 3) ? 2 : 4;
+            /* WHEEL: the button NUMBER is the direction (4 up, 5 down, 6/7 horizontal). It used to be folded
+             * into the same held "bit 4" as any other button, so the guest saw wheel-up for wheel-down and no
+             * list could be scrolled downwards -- measured: xdotool click 4 and click 5 both arrived as btn=4.
+             * A wheel notch is an event, not a held button, so it is never OR-ed into the button mask. */
+            unsigned xb = ev.xbutton.button;
+            if (xb >= 4 && xb <= 7) {
+                mev.buttons = (int)xb;
+                mev.kind = 1;
+                input_mouse_push(mev);
+                break;
+            }
+            int bit = (xb == 1) ? 1 : (xb == 3) ? 2 : 4;
             g_xbuttons |= bit;
             mev.buttons = g_xbuttons;
             mev.kind = 1;
@@ -463,6 +475,7 @@ int hosted_x11_present_pump(void) {
             memset(&mev, 0, sizeof(mev));
             mev.x = tx;
             mev.y = ty;
+            if (ev.xbutton.button >= 4 && ev.xbutton.button <= 7) break;   /* wheel release: nothing to clear */
             int bit = (ev.xbutton.button == 1) ? 1 : (ev.xbutton.button == 3) ? 2 : 4;
             g_xbuttons &= ~bit;
             mev.buttons = g_xbuttons;

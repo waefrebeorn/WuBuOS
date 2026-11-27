@@ -128,7 +128,25 @@ uint32_t wm_clock_ms(void) {
 
 DosGuiWindow *wm_create(int x, int y, int w, int h,
                       const char *title) {
-    if (getenv("WUBU_WIN_DEBUG")) fprintf(stderr, "[win] create '%s' %dx%d\n", title ? title : "(null)", w, h);
+    if (getenv("WUBU_WIN_DEBUG"))
+        fprintf(stderr, "[win] create '%s' at %d,%d %dx%d\n", title ? title : "(null)", x, y, w, h);
+    /* A window may not be born larger than the screen, or positioned so it cannot be reached.
+     *
+     * Measured on a 900x380 session: the Control Panel created a larger window, believed it had room for every
+     * row, painted them past the bottom edge and showed no scrollbar -- the tail of every list was unreachable
+     * and the window looked clipped. Windows never opens a window bigger than the work area either. */
+    {
+        int maxw = g_dwm.screen_w > 0 ? g_dwm.screen_w : w;
+        int maxh = g_dwm.screen_h > 0 ? g_dwm.screen_h : h;
+        if (w > maxw) w = maxw;
+        if (h > maxh) h = maxh;
+        if (x + w > maxw) x = maxw - w;
+        if (y + h > maxh) y = maxh - h;
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (getenv("WUBU_WIN_DEBUG") && (w != maxw || h != maxh))
+            fprintf(stderr, "[win] clamped to the screen (%dx%d)\n", w, h);
+    }
     int i = spawn_window(x, y, w, h, title);
     if (i < 0) return NULL;
     /* Windows grow into place; they do not pop. The stamp is the animation clock -- the

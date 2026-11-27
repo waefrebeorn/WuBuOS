@@ -209,7 +209,7 @@ static int cp_sidebar_check(uint32_t *dfb, int fb_w, int fb_h)
 
     controlpanel_test_line_h(19);                       /* 1x: the shipped look */
     controlpanel_select(0);
-    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, 300);
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, fb_h);
     int x, y, w, h;
     if (!controlpanel_sidebar_row_rect(0, &x, &y, &w, &h)) { CHECK(0, "row 0 exists"); return fails; }
     CHECK(h >= 26 && h <= 64, "a row is bounded at 1x");
@@ -217,18 +217,38 @@ static int cp_sidebar_check(uint32_t *dfb, int fb_w, int fb_h)
 
     controlpanel_test_line_h(38);                       /* 2x: labels twice as tall */
     controlpanel_select(n - 1);                         /* ...and the LAST page, the one that was clipped */
-    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, 300);
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, fb_h);
     if (!controlpanel_sidebar_row_rect(n - 1, &x, &y, &w, &h)) { CHECK(0, "last row exists"); return fails; }
     CHECK(h > h_1x, "a row GROWS with the text scale (26 px fixed was what clipped 2x labels)");
     CHECK(y >= controlpanel_header_h(), "the active row starts below the header");
-    CHECK(y + h <= 300, "the ACTIVE row is fully on screen at 2x (it was clipped at the panel edge)");
-    CHECK(y + h > 300 - h, "and it sits at the bottom edge, not floating mid-list");
+    CHECK(y + h <= fb_h, "the ACTIVE row is fully on screen at 2x (it was clipped at the panel edge)");
+    CHECK(y + h > fb_h - h, "and it sits at the bottom edge, not floating mid-list");
 
     controlpanel_select(0);                             /* selecting the first page scrolls back up */
-    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, 300);
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, fb_h);
     controlpanel_sidebar_row_rect(0, &x, &y, &w, &h);
     CHECK(y >= controlpanel_header_h() && y < controlpanel_header_h() + 40,
           "selecting page 1 scrolls the list back to the top");
+
+    /* Wheel scrolling: with a short panel the list is taller than the viewport, and the wheel must MOVE it.
+     * Before the scroll unit existed the panel could only "keep the active row visible", so a user could not
+     * reach the tail at all. */
+    controlpanel_test_line_h(38);
+    controlpanel_select(0);
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, fb_h);
+    controlpanel_sidebar_row_rect(0, &x, &y, &w, &h);
+    const int first_y = y;
+    for (int k = 0; k < 8; k++) controlpanel_handle_mouse(10, 120, 5, 1);   /* wheel down over the sidebar */
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, fb_h);
+    controlpanel_sidebar_row_rect(0, &x, &y, &w, &h);
+    CHECK(y < first_y, "the wheel over the sidebar scrolls the list (rows move up)");
+    controlpanel_sidebar_row_rect(n - 1, &x, &y, &w, &h);
+    CHECK(y + h <= fb_h, "and the LAST row is reachable by scrolling");
+
+    for (int k = 0; k < 12; k++) controlpanel_handle_mouse(10, 120, 4, 1);  /* wheel back up */
+    controlpanel_render_at(dfb, fb_w, fb_h, 0, 0, fb_w, fb_h);
+    controlpanel_sidebar_row_rect(0, &x, &y, &w, &h);
+    CHECK(y >= controlpanel_header_h(), "scrolling back to the top cannot overshoot above the header");
 
     controlpanel_test_line_h(0);                        /* restore real metrics */
     return fails;
