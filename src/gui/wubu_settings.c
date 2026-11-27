@@ -9,6 +9,7 @@
  */
 
 #include "wubu_settings_internal.h"
+#include "fonts/wubu_font_text.h"   /* WUBU_FONT_TEXT_PX: the base size font_size is measured against */
 #include "wubu_theme.h"
 
 #include <string.h>
@@ -72,7 +73,14 @@ void wubu_settings_apply_live(void) {
      * back by nobody, so a machine reporting 192 dpi drew exactly like a 96 dpi one. scale = font_scale *
      * dpi/96 keeps both knobs live and gives dpi its standard meaning. */
     double dpi = g_settings.fonts.dpi > 0 ? (double)g_settings.fonts.dpi : 96.0;
-    int ts = (int)(g_settings.a11y.font_scale * (dpi / 96.0) + 0.5);
+    /* font_size was the same kind of decoration dpi was: written at io.c:51, read at io.c:195, consumed by
+     * nothing. It is the base size in pixels -- 13 is the face we bake -- so the three knobs compose:
+     *   effective px = font_size * font_scale * (dpi / 96)
+     * and the renderer takes the nearest integer text scale it can actually draw. */
+    /* the base is the face we actually bake, not a magic 13 typed here */
+    double base_px = g_settings.fonts.font_size > 0 ? (double)g_settings.fonts.font_size
+                                                   : (double)WUBU_FONT_TEXT_PX;
+    int ts = (int)((base_px / (double)WUBU_FONT_TEXT_PX) * g_settings.a11y.font_scale * (dpi / 96.0) + 0.5);
     if (ts < 1) ts = 1;
     if (ts > 4) ts = 4;
     if (vbe_set_text_scale) vbe_set_text_scale(ts);

@@ -75,6 +75,15 @@ static void test_font_scale(void) {
     s->fonts.dpi = 96;
     wubu_settings_apply_live();
     CHECK(vbe_text_scale() == 1, "dpi back to 96 -> text scale 1");
+
+    /* font_size was the same decoration dpi was: written, read, consumed by nothing. It is the base px now
+     * (13 = the baked face), so choosing 26 must actually double the text. */
+    s->fonts.font_size = 26;
+    wubu_settings_apply_live();
+    CHECK(vbe_text_scale() == 2, "font_size 26 -> text scale 2 (font_size is live)");
+    s->fonts.font_size = 13;
+    wubu_settings_apply_live();
+    CHECK(vbe_text_scale() == 1, "font_size back to 13 -> text scale 1");
 }
 
 /* -- init applies EVERYTHING, not just the theme ------------------- */

@@ -35,10 +35,11 @@ under `/home/wubu/opt/refos/` on 2026-11-26.
    closed here is *Latin-1 text renders*, not *the OS is localised* — a locale table is separate work.
    Remaining in this line: the bitmap path (text scale ≠ 1) has no Latin-1, so an accessibility scale shows
    `?` where an accent belongs.
-5. **The text stack is one face.** No font selection, no bold/italic, no kerning, integer scaling only. The
-   settings already carry `font_family` and `font_size`; neither reaches a renderer — same class as `dpi` was.
-   Smallest increment: make `font_size` select between two baked sizes and gate that the rendered cap height
-   actually changes.
+5. **The text stack is one face.** No font selection, no bold/italic, no kerning, integer scaling only.
+   `font_size` is now LIVE (base px, so it composes with `font_scale` and `dpi`: effective px =
+   `font_size * font_scale * dpi/96`; gated by `test_settings`, mutant proves it). `font_family` still reaches
+   no renderer *because only one face is baked* — that is a bake job (a second weight at the same size, with
+   `--preserve` semantics), not a wiring job, and it is the next increment here.
 6. **Scope fact, not a gap:** 17 app sources against 3115 binaries is the difference between an OS and a
    distribution's whole userland. Recording it so the number is not mistaken for parity work.
 
