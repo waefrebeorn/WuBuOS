@@ -130,4 +130,6 @@ def main():
         print("wrote /tmp/owned-surface.md (pass --write to land in docs/)")
 
 if __name__ == "__main__":
-    main()
+    # main() RETURNS the verdict; discarding it made a FAILED banner exit 0, which is
+    # how the full suite printed "All tests passed" over a stale owned-surface manifest.
+    raise SystemExit(main())
