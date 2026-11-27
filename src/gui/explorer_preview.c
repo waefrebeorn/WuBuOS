@@ -53,9 +53,7 @@ void explorer_update_preview(int idx) {
              * listing stores "/photo.jpg". Try the stored path, then the root-relative form:
              * the two differ only at the root, and silently failing here meant every photo
              * fell back to metadata. */
-            int fd = ex_9p_open(entry->full_path, O_RDONLY);
-            if (fd < 0 && entry->full_path[0] == '/' && entry->full_path[1])
-                fd = ex_9p_open(entry->full_path + 1, O_RDONLY);
+            int fd = 0;
             if (fd >= 0) {
                 ssize_t n = ex_9p_read(fd, g_explorer.preview.text_buffer, sizeof(g_explorer.preview.text_buffer) - 1);
                 if (n > 0) {
@@ -81,28 +79,13 @@ void explorer_update_preview(int idx) {
              * listing stores "/photo.jpg". Try the stored path, then the root-relative form:
              * the two differ only at the root, and silently failing here meant every photo
              * fell back to metadata. */
-            int fd = ex_9p_open(entry->full_path, O_RDONLY);
-            if (fd < 0 && entry->full_path[0] == '/' && entry->full_path[1])
-                fd = ex_9p_open(entry->full_path + 1, O_RDONLY);
-            if (fd >= 0) {
-                size_t cap = 1u << 20, n = 0;
-                unsigned char *bytes = malloc(cap);
-                while (bytes) {
-                    ssize_t r = ex_9p_read(fd, bytes + n, cap - n);
-                    if (r <= 0) break;
-                    n += (size_t)r;
-                    if (n < cap) continue;
-                    if (cap >= (32u << 20)) break;
-                    unsigned char *bigger = realloc(bytes, cap * 2);
-                    if (!bigger) break;
-                    bytes = bigger;
-                    cap *= 2;
-                }
-                ex_9p_close(fd);
-                if (bytes && n)
-                    ok = (wubu_preview_decode_bytes(entry->name, bytes, n, &px, &iw, &ih, 0) == WUBU_PREVIEW_OK);
-                free(bytes);
-            }
+            int fd = 0;
+            unsigned char *bytes = NULL;
+            size_t n = 0;
+            if (ex_9p_read_file(entry->full_path, &bytes, &n) == 0)
+                ok = (wubu_preview_decode_bytes(entry->name, bytes, n, &px, &iw, &ih, 0) == WUBU_PREVIEW_OK);
+            free(bytes);
+            (void)fd;
             if (ok) {
                 g_explorer.preview.type = EX_PREVIEW_IMAGE;
                 g_explorer.preview.img_pixels = px;

@@ -1,3 +1,4 @@
+#include <stdlib.h>
 /* explorer_fs.c -- 9P/Styx filesystem backend for the WuBuOS Explorer.
  *
  * Self-contained module extracted from explorer.c. Provides the thin
@@ -47,6 +48,36 @@ ssize_t ex_9p_read(int fd, void *buf, size_t count) {
 ssize_t ex_9p_write(int fd, const void *buf, size_t count) {
     extern ssize_t styxfs_write(int fd, const void *buf, size_t count);
     return styxfs_write(fd, buf, count);
+}
+
+/* Read a whole file as bytes, preferring the namespace that the 9P callbacks serve.
+ * Weak, so builds without the hosted namespace fall back to open/read. */
+int ex_9p_close(int fd);   /* defined below */
+
+int ex_9p_read_file(const char *path, unsigned char **out, size_t *out_len) {
+    extern int styxfs_ns_read(const char *path, unsigned char **out, size_t *out_len)
+        __attribute__((weak));
+    if (styxfs_ns_read && styxfs_ns_read(path, out, out_len) == 0) return 0;
+
+    int fd = ex_9p_open(path, O_RDONLY);
+    if (fd < 0 && path && path[0] == '/' && path[1]) fd = ex_9p_open(path + 1, O_RDONLY);
+    if (fd < 0) return -1;
+    size_t cap = 1u << 16, n = 0;
+    unsigned char *buf = malloc(cap);
+    while (buf) {
+        ssize_t r = ex_9p_read(fd, buf + n, cap - n);
+        if (r <= 0) break;
+        n += (size_t)r;
+        if (n < cap) continue;
+        unsigned char *bigger = realloc(buf, cap * 2);
+        if (!bigger) break;
+        buf = bigger;
+        cap *= 2;
+    }
+    ex_9p_close(fd);
+    if (!buf || !n) { free(buf); return -1; }
+    *out = buf; *out_len = n;
+    return 0;
 }
 
 int ex_9p_close(int fd) {

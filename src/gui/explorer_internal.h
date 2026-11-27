@@ -122,6 +122,9 @@ int ex_9p_open(const char *path, int flags);
 ssize_t ex_9p_read(int fd, void *buf, size_t count);
 ssize_t ex_9p_write(int fd, const void *buf, size_t count);
 int ex_9p_close(int fd);
+
+/* whole-file read through the namespace (prefers the 9P callbacks' store) */
+int ex_9p_read_file(const char *path, unsigned char **out, size_t *out_len);
 int ex_9p_readdir(const char *path, struct dirent ***entries);
 DIR *ex_9p_opendir(const char *path);
 
