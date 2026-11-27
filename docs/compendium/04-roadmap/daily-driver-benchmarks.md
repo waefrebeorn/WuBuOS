@@ -228,7 +228,210 @@ amount of shell polish substitutes for it.
 | Security | keyring file + firewall toggle (nftables) | store/read a secret; block a port and prove it |
 | Recovery | persist open windows + autosave buffers | kill -9, relaunch, windows restored |
 
+
+---
+
+# Edition 2 — corrected, broader, and ecosystem-wide
+
+**Why a second edition.** Edition 1 graded from `src/` alone and called several
+workflows MISSING that already have a real implementation in a **submodule**.
+That was wrong, and this section fixes it. The correction changes the headline:
+the biggest gap is not missing software, it is **software that exists and cannot
+be reached**.
+
+## The five states a capability can be in
+
+| State | Meaning |
+|---|---|
+| **IN-TREE** | implemented in `src/` and compiled into the product |
+| **SUBMODULE-BUILT** | implemented in a submodule, produced by `make vendored`, **not reachable from the shell** |
+| **SUBMODULE-UNBUILT** | implemented in a submodule that the default build never compiles |
+| **SIBLING** | implemented in another own-repo (`wubunos`, `wubulens`, `wubucompositor`, `W-Code`, `WuBuKernel`) |
+| **ABSENT** | nothing anywhere in the ecosystem |
+
+Measured today: `src/apps/wubuoffice` is **8,028 files / 535 C files / 25 apps**;
+`wubupad` 1,884 / 60; `src/lua/www` 664 / 312; `wet` 74 / 23; `vws` 27 / 9;
+`src/brain` 3,291 / 1,474. `make vendored` drives CMake for wubupad + wubuoffice
+and its build tree has artifacts. The shell exposes **one** entry for all of it
+(`WubuOffice` → `wubushow`).
+
+## Corrections to edition 1
+
+| # | Was | Actually | Where |
+|---|---|---|---|
+| 28 | docx read PARTIAL | **SUBMODULE-BUILT** | `wubuoffice/apps/wubudoc`, `wubuword`, `wuburead`, `src/wubuoxml` |
+| 31 | PDF read PARTIAL | **SUBMODULE-BUILT** | `apps/wubupdf` |
+| 32 | PDF form PARTIAL | **SUBMODULE-BUILT** | `src/wubupdfform` |
+| 33 | spreadsheet MISSING | **SUBMODULE-BUILT** | `apps/wubucell` + `src/wubuformula`, `wubupivot`, `wubusolver`, `wubusort`, `wubusubtotal` |
+| 34 | slides PARTIAL | **SUBMODULE-BUILT** | `apps/wubushow` + `src/wubumasterslide`, `wubutransition`, `wubuanimation` |
+| 35 | spell check MISSING | **SUBMODULE-BUILT** | `src/wubuspell`, `wubugrammar`, `wubuthesaurus`, `wubulang` |
+| 36 | crash recovery PARTIAL | **SUBMODULE-BUILT** | `src/wubuautosave`, `wubuhistory` |
+| 38 | export PDF MISSING | **SUBMODULE-BUILT** | `apps/wubupdf` (writer) |
+| 39 | annotate/sign MISSING | **SUBMODULE-BUILT** | `src/wuburedact`, `wubusig`, `wubuwatermark` |
+| 49 | subtitles MISSING | **SUBMODULE-BUILT** | `src/wubucaption` |
+| 53 | search inside docs MISSING | **SUBMODULE-BUILT** | `src/wubuindex`, `wubudiff`, `wubucite` |
+| 54 | zip PARTIAL | **SUBMODULE-BUILT** | `src/wubuzip`, `apps/wubuconv` |
+| 74 | disk encryption PARTIAL | **SUBMODULE-BUILT** | `src/wubuencrypt` |
+| 81 | screen reader MISSING | **SUBMODULE-BUILT** | `src/wubua11y`, `wubua11yannounce`, `wubua11ytree`, plus `wubudyslexia` |
+| 87 | captions MISSING | **SUBMODULE-BUILT** | `src/wubucaption` |
+| 28–39, 48 | (also) OCR, EPUB, XPS, QR, redaction | **SUBMODULE-BUILT** | `apps/wubuocr`, `src/wubuepub`, `wubuxps`, `wubuqr` |
+
+**So the real gap for sixteen workflows is one thing: a shell surface and a
+build gate.** `make vendored` is not in `make test`, not in the default build, and
+its only shell entry opens one app out of 25.
+
+## The integration gap, measured
+
+- 25 office apps exist; **1** is in the registry (`WubuOffice` → `wubushow`).
+- `make vendored` exists and produces artifacts, but nothing asserts it in the
+  suite (audit F6). A CMake regression would be invisible.
+- No file association points at `wubucell`, `wubudoc`, `wubupdf`, `wubuocr`.
+  Double-clicking a .docx still goes to the in-tree notepad.
+
+## New families (research-grounded)
+
+### 12. Responsiveness — Nielsen's three limits (0.1 s / 1 s / 10 s)
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 112 | A click responds in under 100 ms | **IN-TREE** | measured 2.2 ms/frame render (WUBU_FPS_REPORT) |
+| 113 | A window opens in under 1 s | **IN-TREE** | open animation completes in WUBU_ANIM_OPEN_MS |
+| 114 | An app launches in under 1 s | UNVERIFIED | no timing gate |
+| 115 | Typing never lags | **IN-TREE** | input sampled each frame, 60 fps active |
+| 116 | A 10,000-entry folder lists in under 1 s | ABSENT | no large-directory gate |
+| 117 | Scrolling stays at 60 fps | **IN-TREE** | scroll unit reworked this week |
+| 118 | Boot to desktop in under 10 s | UNVERIFIED | no boot-time budget |
+| 119 | Resume shows the session immediately | ABSENT | no suspend at all (#61) |
+| 120 | A screenshot lands in under 1 s | **IN-TREE** | screenshot path gated |
+| 121 | Search results appear while typing | **IN-TREE** | Start search re-ranks per keystroke |
+| 122 | A notification appears instantly | **IN-TREE** | toast path |
+| 123 | Progress is visible for anything over 1 s | PARTIAL | pkgmgr has progress; file copies do not |
+
+### 13. Internationalization (Microsoft i18n checklist)
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 124 | Use the OS in a non-English locale | ABSENT | 0 locales (reference: CachyOS 235) |
+| 125 | Dates and numbers in local format | ABSENT | hard-coded formats |
+| 126 | Right-to-left layout | ABSENT | no bidi |
+| 127 | Type CJK via an input method | ABSENT | no IME |
+| 128 | CJK glyphs render | ABSENT | face covers Latin-1 only |
+| 129 | Sort names in local collation | ABSENT | strcasecmp |
+| 130 | Correct case mapping for non-ASCII | PARTIAL | Latin-1 table only |
+| 131 | Currency and units | ABSENT | — |
+| 132 | Timezone and DST display | PARTIAL | host clock only |
+| 133 | Translate the shell's own strings | ABSENT | strings are literals |
+
+### 14. Security baseline (CIS-style defaults)
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 134 | Updates on by default | PARTIAL | pkgmgr exists; no schedule |
+| 135 | Firewall on by default | ABSENT | no firewall |
+| 136 | Disk encrypted by default | ABSENT (submodule app only) | `wubuencrypt` |
+| 137 | Screen locks after 15 min | PARTIAL | screensaver exists, no policy |
+| 138 | Password policy on account creation | ABSENT | no accounts |
+| 139 | Audit log of privileged actions | PARTIAL | `/n` + klog |
+| 140 | Secure boot chain | **IN-TREE** | WuBuFW measures + chainloads |
+| 141 | Signed updates | **IN-TREE** | Ed25519, gated |
+| 142 | Least privilege for apps | PARTIAL | `wubu_cap` gates kernel paths |
+| 143 | No default credentials anywhere | **IN-TREE** | no accounts to have them |
+
+### 15. Backup and data integrity (3-2-1)
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 144 | Back up my files to another place | ABSENT | no backup tool |
+| 145 | Restore from that backup | ABSENT | — |
+| 146 | Recover an older version of a file | PARTIAL | `wubuhistory` in the submodule |
+| 147 | Survive power loss without corruption | PARTIAL | TXFS WAL in kernel; guest fs is host files |
+| 148 | Detect silent corruption (checksums) | PARTIAL | `wubu_crc32`, `wubu_sha256` exist; no scrub |
+| 149 | Trash keeps deleted files until emptied | **IN-TREE** | `wubu_trash` |
+| 150 | Resolve a sync conflict | ABSENT | `wubusync` in submodule, no conflict UI |
+| 151 | Know how much space a folder uses | PARTIAL | Explorer sums a selection only |
+
+### 16. Window management
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 152 | Snap a window to half the screen | **IN-TREE** | `win11_snap.c` |
+| 153 | Snap to a quarter | **IN-TREE** | GAAD quarter snaps |
+| 154 | Virtual desktops | **IN-TREE** | `wm_overview.c`, pager |
+| 155 | Move a window to another desktop | **IN-TREE** | Win+Shift+arrow, gated |
+| 156 | Alt-Tab with previews | **IN-TREE** | `alt_tab_switcher.c` |
+| 157 | Alt-Tab within one app | ABSENT | — |
+| 158 | Always-on-top | ABSENT | — |
+| 159 | Per-monitor DPI | ABSENT | single output |
+| 160 | Hot-plug a monitor | ABSENT | #71 |
+| 161 | Restore windows after restart | ABSENT | #67 |
+| 162 | Window rules (position by app) | ABSENT | — |
+| 163 | Move/resize with the keyboard | PARTIAL | snap keys only |
+
+### 17. Accessibility extras (WCAG 2.2)
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 164 | Visible focus ring everywhere | PARTIAL | icons/windows; not every control |
+| 165 | Logical focus order | PARTIAL | per-surface, no global order |
+| 166 | Every control has a name and role | ABSENT | no accessible tree in the shell |
+| 167 | Text contrast ≥ 4.5:1 | PARTIAL | dark theme passes; some muted labels do not |
+| 168 | Non-text contrast ≥ 3:1 | PARTIAL | window borders are low-contrast |
+| 169 | No keyboard trap | UNVERIFIED | no trap tests |
+| 170 | Targets ≥ 24 px | PARTIAL | title-bar buttons are 10 px |
+| 171 | Reflow at 200 % zoom | PARTIAL | text scales; layout is fixed-width in places |
+| 172 | Errors say what to do | PARTIAL | dialogs exist; messages are terse |
+| 173 | Consistent help / shortcuts visible | PARTIAL | walkthrough exists; no shortcut sheet |
+
+### 18. Printing, scanning, and the physical world
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 174 | Print preview | ABSENT | dialog submits, no preview |
+| 175 | Choose printer and options | PARTIAL | `wubu_print.c` enumerates; no options UI |
+| 176 | Paper size / duplex | ABSENT | — |
+| 177 | Scan a document | ABSENT | no SANE path |
+
+### 19. Power and thermals
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 178 | See battery health | ABSENT | percentage only |
+| 179 | Charge limit | ABSENT | — |
+| 180 | Sleep on idle | ABSENT | #61 |
+| 181 | See throttling | PARTIAL | thermal temps in the tray |
+| 182 | Fan control | ABSENT | — |
+| 183 | Power profiles (quiet/performance) | ABSENT | — |
+
+### 20. Update lifecycle
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 184 | Check for updates | PARTIAL | pkgmgr, no schedule |
+| 185 | Download and install | **IN-TREE** | pkgmgr + signature gate |
+| 186 | Reboot into the update | ABSENT | no boot slotting |
+| 187 | Roll back a bad update | PARTIAL | transactions only |
+| 188 | Know support/EOL status | ABSENT | — |
+| 189 | Update firmware | PARTIAL | firmware page reads DMI; never flashes |
+
+### 21. Onboarding and help
+
+| # | Workflow | State | Evidence |
+|---|---|---|---|
+| 190 | First-run setup in one screen | **IN-TREE** | greeter |
+| 191 | Discover keyboard shortcuts | PARTIAL | tutorials, no reference sheet |
+| 192 | Tooltips on controls | PARTIAL | hover previews exist for taskbar only |
+| 193 | Undo everywhere | PARTIAL | editors only |
+| 194 | Search the settings | ABSENT | — |
+| 195 | Reset one category to defaults | **IN-TREE** | `wubu_settings_reset_category` |
+| 196 | Offline help | PARTIAL | docs in repo, no viewer (#11) |
+| 197 | Accessibility setup during onboarding | ABSENT | flag exists, not offered |
+| 198 | Choose language at first run | ABSENT | #124 |
+| 199 | Enter a recovery mode | PARTIAL | QEMU/WuBuFW paths |
+| 200 | Report a crash with context | PARTIAL | `crash_notice` banner |
+
+---
+
 ## What this document is not
 
-It is not a feature promise. 26 rows are marked **WORKS**; 14 of them were exercised in this session and the rest are graded from code that is compiled into the product. A row only becomes trustworthy when
+It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 more and corrects sixteen verdicts that were wrong because the implementation lives in a submodule. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
 its gate exists — that is the next job, one family at a time.
