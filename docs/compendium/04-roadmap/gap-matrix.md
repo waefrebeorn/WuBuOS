@@ -5,7 +5,7 @@ it here. `-- MISSING --` is a measured absence, not an opinion. PRESENT points a
 file:line so the claim can be checked in one command; it says nothing about whether
 the behaviour works -- that is the test suite's job.
 
-**39/42 have an owner, 3 missing, 8 declared not applicable.**
+**41/42 have an owner, 1 missing, 8 declared not applicable.**
 
 | source | feature | owner | note |
 |---|---|---|---|
@@ -20,10 +20,10 @@ the behaviour works -- that is the test suite's job.
 | win11 | `Windows.PrintQueueActionCenter` | `src/runtime/wubu_print.c:30` | print backend (queue state read from cupsd) |
 | win11 | `Windows.CloudExperienceHost` | `src/gui/shell/wubu_shell_greeter.c:29` | first-run OOBE |
 | win11 | `Windows.PinningConfirmationDialog` | `src/gui/shell/pin_confirm.c:16` | ask before pinning to the taskbar, with a remembered answer |
-| win11 | `Windows.PeopleExperienceHost` | **MISSING** | people/contacts flyout |
-| win11 | `WindowsAppRuntime` | **MISSING** | packaged-app runtime |
-| win11 | `Win32WebViewHost` | `src/lua/www/~WuBu~/examples/wb_character_demo.c:1` | embedded web view (WorldSpace) |
-| win11 | `MicrosoftWindows.Client.AIX` | **MISSING** | AI actions |
+| win11 | `Windows.PeopleExperienceHost` | `src/runtime/wubu_people.c:12` | contacts: a bounded persistent store (TSV, atomic replace, case-insensitive de-duplication, truncating untrusted input) behind a People page that lists the real contacts and says 'no contacts' when empty. The taskbar contact flyout is NOT built and is not claimed. |
+| win11 | `Microsoft.WindowsAppRuntime` | `src/runtime/wubu_pkgx.c:14` | packaged-app runtime core: registration from a package manifest, MSIX-shaped identity (name_<8hex> family from a documented FNV-1a publisher hash, NOT Microsoft's), enumeration, resolution by name or family, removal, and an entry-point validation that refuses absolute and '..' exec paths. NOT done and not claimed: MSIX format/signature verification, container isolation, and a Store UI. |
+| win11 | `Win32WebViewHost` | **MISSING** | GAP: no embedded web view host (src/lua/www is an app, not a host control) |
+| win11 | `MicrosoftWindows.Client.AIX` | `src/runtime/wubu_ai_link.c:13` | AI actions: the Control Panel AI page reports the configured model endpoint, reaches it with a bounded probe (reusing wubu_mirror_probe, one TCP probe in the tree) and never claims reachability it did not measure. The page does NOT probe inside a render -- a measurement runs at init and on F5. |
 | win11 | `MicrosoftWindows.Client.CBS` | `src/runtime/wubu_account.c:13` | core shell services: accounts, search/spotlight, input UX, first-run setup -- implemented as modules here, not shipped as a servicing package |
 | win11 | `MicrosoftWindows.Client.FileExp` | `src/gui/explorer.c:43` | file explorer client |
 | win11 | `Windows.ContentDeliveryManager` | `src/gui/wubu_pkgmgr.c:16` | content delivery / packages |

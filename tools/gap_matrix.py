@@ -44,6 +44,9 @@ WIN11_VERDICTS = {
     "microsoft.windows.narratorquickstart": ("na", [], "removed by the owner's decision -- the a11y cluster read as jank"),
     # A GAP, not an N/A: the associations exist, the dialog a user picks them in does not. Declaring
     # missing work "not applicable" is the same lie as leaving it unmapped.
+    "win32webviewhost": ("gap", [],
+                         "no embedded webview host: the lua/www browser is a separate app, not a control "
+                         "another app can host -- the name match was a file-existence 'owner'"),
     "appresolverux":                    ("own", ["src/gui/shell/open_with_dialog.c"],
                                         "open-with resolver -- candidate list from the mime system, remembered choice"),
 }
@@ -77,7 +80,9 @@ SHELL = [
                                      "entry-point validation that refuses absolute and '..' exec paths. NOT done "
                                      "and not claimed: MSIX format/signature verification, container isolation, "
                                      "and a Store UI."),
-    ("Win32WebViewHost",        ["src/lua/www"], "embedded web view (WorldSpace)"),
+    # A GAP, not an owner: pointing this at src/lua/www matched an EXAMPLE file in a submodule and counted
+    # as "embedded web view". A browser app is not a control another app can host.
+    ("Win32WebViewHost",        [], "GAP: no embedded web view host (src/lua/www is an app, not a host control)"),
     ("MicrosoftWindows.Client.AIX", ["src/runtime/wubu_ai_link.c", "src/gui/control_panel_ai.c",
                                      "src/runtime/wubu_ai_link_test.c"],
                                     "AI actions: the Control Panel AI page reports the configured model endpoint, "
@@ -157,6 +162,25 @@ def find(globs):
     return None
 
 
+
+def in_build(path):
+    """Is this file actually COMPILED by the tree? A row whose owner exists but is never built is a file,
+    not a feature -- and 'find() returns the first existing path' is how a ledger of file matches gets
+    quoted as parity. Checks every mk fragment for the path or its basename (mk expands variables, so a
+    literal path search alone would miss $(GUI)/foo.c)."""
+    if not path:
+        return False
+    p = path.split(":")[0]
+    base = p.rsplit("/", 1)[-1]
+    if base.endswith(".h"):
+        return True                      # a header is not compiled on its own; its .c is checked instead
+    for mk in sorted((ROOT / "mk").glob("*.mk")):
+        text = mk.read_text(errors="replace")
+        if base in text:
+            return True
+    return False
+
+
 def _norm(name):
     """Same normalisation for both sides: hash suffix, then the vendor prefixes."""
     b = re.sub(r"_(cw5n1h2txyewy|8wekyb3d8bbwe|[a-z0-9]{13})$", "", name)
@@ -215,7 +239,13 @@ def main():
         print(f"{src:9} {name[:44]:44} {(hit or '-- MISSING --')[:40]:40} {note}")
 
     present = sum(1 for r in rows if r[3])
+    unbuilt = [(src_, name, hit) for src_, name, _n, hit in rows if hit and not in_build(hit)]
     print(f"\n{present}/{len(rows)} reference features have an owning module; {missing} missing")
+    if unbuilt:
+        print(f"{len(unbuilt)} of those owners are NOT COMPILED by any mk fragment "
+              f"(a file that exists is not a feature):")
+        for s_, n_, h_ in unbuilt[:12]:
+            print(f"  {s_:9} {n_[:40]:40} {h_[:40]}")
     if not_applicable:
         print(f"{len(not_applicable)} declared not applicable (decided, not unmapped):")
         for name, why in not_applicable:
@@ -228,8 +258,8 @@ def main():
         for src, name, note, _ in undecided:
             print(f"UNDECIDED: {name} ({src}) -- {note}")
         print(f"gap matrix: {present} owned, {missing} missing, {len(not_applicable)} not applicable, "
-              f"{len(undecided)} undecided")
-        return 1 if undecided else 0
+              f"{len(undecided)} undecided, {len(unbuilt)} not built")
+        return 1 if (undecided or unbuilt) else 0
 
     if "--write" in sys.argv:
         out = ROOT / "docs/compendium/04-roadmap/gap-matrix.md"
