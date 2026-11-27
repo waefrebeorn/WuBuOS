@@ -98,6 +98,13 @@ int main(void) {
     /* -- 2. open the greeter: it must draw real pixels -- */
     wubu_shell_greeter_run();
     CHECK(wubu_shell_greeter_is_open(), "greeter dialog is open");
+    /* NOT modal: a modal wizard put the Start menu UNDER itself and Escape only stepped back, so a fresh
+     * system could not reach its own apps until the account form was filled. */
+    {
+        DosGuiWindow *gw = wm_get_focused();
+        CHECK(gw != NULL, "the greeter takes focus");
+        CHECK(gw != NULL && !wm_is_modal(gw), "and it does NOT swallow the desktop (Start opens above it)");
+    }
     CHECK(wubu_shell_greeter_selected_theme() ==
           wubu_settings_get()->theme.theme_id,
           "initial theme selection is the product default (not hardcoded)");

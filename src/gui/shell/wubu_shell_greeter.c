@@ -649,9 +649,13 @@ void wubu_shell_greeter_open(void) {
     /* The window is chrome + content; the layout owns the content. Creating it at the content
      * height alone is how the bottom row ended up clipped. */
     int bar_h = chrome_caption_metrics().bar_h;
-    DosGuiWindow *w = wm_create_modal(dx, dy, WUBU_SHELL_GREETER_WIDTH,
-                                             WUBU_SHELL_GREETER_HEIGHT + bar_h,
-                                             "Welcome to WuBuOS", NULL);
+    /* NOT modal. Windows never blocks the desktop behind a first-run tool, and a modal wizard put the Start
+     * menu UNDER itself: a new user pressing Ctrl+Esc saw the launcher appear behind the setup card with no
+     * search field, and Escape only stepped back, so a fresh system could not reach its own apps until the
+     * account form was filled. The greeter sets its own on_key/on_mouse, so focus is all it needs. */
+    DosGuiWindow *w = wm_create(dx, dy, WUBU_SHELL_GREETER_WIDTH,
+                                     WUBU_SHELL_GREETER_HEIGHT + bar_h,
+                                     "Welcome to WuBuOS");
     if (!w) return;
     w->on_draw  = greeter_on_draw;
     w->on_key   = greeter_on_key;
