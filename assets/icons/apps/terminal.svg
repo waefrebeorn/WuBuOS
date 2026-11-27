@@ -1,3 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-  <rect x="3" y="4" width="18" height="16"/><polygon points="6,8 9,8 9,11 6,11"/><rect x="6" y="13" width="8" height="1"/><rect x="15" y="8" width="3" height="1"/>
+  <path d="M3 4 L21 4 L21 20 L3 20 Z M6 8 L9 8 L9 11 L6 11 Z M6 13 L14 13 L14 14 L6 14 Z M15 8 L18 8 L18 9 L15 9 Z"/>
 </svg>

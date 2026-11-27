@@ -489,7 +489,7 @@ static void test_every_registered_app_has_an_icon(void) {
         "File Manager", "Settings", "Editor", "WuBu Canvas", "HolyC Term", "DOS Box",
         "EDR Activity", "Bonzi Buddy", "WubuPad", "WubuOffice", "Comfy", "Tandem",
         "Task Manager", "Notes", "Todo", "Music", "VWS Designer", "Getting Started",
-        "Petdex", "Tutorials",
+        "Petdex", "Tutorials", "WET Applet", "Guests", "win11_taskbar",
     };
     int missing = 0;
     for (size_t i = 0; i < sizeof apps / sizeof apps[0]; i++) {
