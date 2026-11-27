@@ -48,7 +48,7 @@ invariant survives), and `tools/slerm_backlog.py` (`make test_slerm_backlog`)
 fails when a vendored id has no goal, a goal has no module/gate/criterion, or a
 goal is marked DONE while `mk/tests.mk` has no `test_<stem>` target.
 
-State: **21 goals — 5 DONE (expression, DEFLATE, UTF-8, PNG+BMP, JSON), 16 OPEN.**
+State: **22 goals — 6 DONE (expression, DEFLATE, UTF-8, PNG+BMP, JSON, BLAKE2b), 16 OPEN.**
 
 ### First closure: SLERM-2012, the expression evaluator
 

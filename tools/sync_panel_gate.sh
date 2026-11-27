@@ -76,7 +76,7 @@ SRCS="$ROOT/src/runtime/wubu_crc32.c \
  $ROOT/src/gui/wubu_pkgmgr_sync_panel.c \
  $ROOT/src/gui/wubu_settings.c $ROOT/src/gui/wubu_settings_defaults.c $ROOT/src/gui/wubu_settings_io.c \
  $ROOT/src/gui/wubu_theme.c \
- $ROOT/src/runtime/wubu_pkg.c $ROOT/src/runtime/wubu_json.c $ROOT/src/runtime/wubu_palette.c \
+ $ROOT/src/runtime/wubu_pkg.c $ROOT/src/runtime/wubu_json.c src/runtime/wubu_utf8.c $ROOT/src/runtime/wubu_palette.c \
  $ROOT/src/runtime/styx_names.c $ROOT/src/runtime/styx_enc.c $ROOT/src/runtime/styx_serve.c \
  $ROOT/src/runtime/styx_parse.c $ROOT/src/runtime/styx_fid.c $ROOT/src/runtime/styxfs_vfs.c \
  $ROOT/src/runtime/styxfs_callbacks.c $ROOT/src/runtime/styxfs_posix.c $ROOT/src/runtime/styxfs_path.c \
