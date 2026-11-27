@@ -564,7 +564,110 @@ than what vendors advertise:
 
 ---
 
+
+---
+
+# Edition 4 — three audiences: the person, the developer, the administrator
+
+A user, a developer and an admin need different things from the SAME machine, and
+editions 1–3 only asked the user's question. This edition adds the other two,
+grounded in their own lists:
+
+- **Admin**: the 18 CIS Critical Security Controls ([CIS](https://www.cisecurity.org/controls/cis-controls-list))
+  and the system-administrator maintenance checklist (patches, backups verified,
+  logs reviewed, capacity, accounts, certificates) plus the endpoint/MDM
+  checklist (inventory, policy, encryption, remote wipe, compliance reporting).
+- **Developer**: the dev-workstation setup list (toolchain, debuggers, profilers,
+  libraries, containers — [Red Hat](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html/developing_c_and_cpp_applications_in_rhel_8/setting-up-a-development-workstation_developing-applications))
+  and the onboarding-to-first-commit list.
+- **Cross-audience**: shared-device and family needs that neither list covers.
+
+## 28. Developer needs — "can I build and debug on this machine?" (28)
+
+| # | Need | State | Evidence |
+|---|---|---|---|
+| 278 | A compiler and linker on the machine | PARTIAL | WuBuNOS backends in-tree; no user-facing `cc` |
+| 279 | Get source onto the machine (clone) | **ABSENT** | no git |
+| 280 | Build the project from inside the OS | PARTIAL | `make` exists on the host leg only |
+| 281 | Run the test suite from inside the OS | PARTIAL | the suite is host-side |
+| 282 | Set a breakpoint and step | **ABSENT** | no debugger |
+| 283 | Profile where time goes | PARTIAL | `WUBU_FPS_REPORT`, `--bench-render` |
+| 284 | A REPL to try a snippet | **IN-TREE** | HolyC REPL, `.wet`/Lua applets |
+| 285 | Install a dependency/library | PARTIAL | pkgmgr has no dev packages |
+| 286 | An isolated build container | **IN-TREE** | `wubu_container`, seccomp/cgroup isolation |
+| 287 | Cross-compile to another ISA | **IN-TREE** | 11 backends in wubunos |
+| 288 | Run a foreign binary | **IN-TREE** | WEMU |
+| 289 | An editor that knows the language | PARTIAL | highlighting primitives, no language model |
+| 290 | Find a symbol across the tree | **IN-TREE** | `wubugrep` (own SIMD grep) |
+| 291 | Version control UI | ABSENT | — |
+| 292 | Headers/SDK to write an app | PARTIAL | in-tree headers, no installed SDK |
+| 293 | Sample apps and templates | PARTIAL | `.wet` tutorials |
+| 294 | Crash dumps with symbols | ABSENT | — |
+| 295 | Logging and tracing | PARTIAL | `klog`, no tracer |
+| 296 | Reproducible builds | UNVERIFIED | nothing pins the toolchain |
+| 297 | CI that runs ON the OS | ABSENT | CI is the host's |
+| 298 | Terminal multiplexing | ABSENT | no panes/sessions |
+| 299 | Remote development over SSH | PARTIAL | via the terminal's exec path |
+| 300 | Hot reload / file watching | ABSENT | — |
+| 301 | Publish a package | ABSENT | signing exists, no publish flow |
+| 302 | Pin a toolchain version | ABSENT | — |
+| 303 | Portable editor config | ABSENT | — |
+| 304 | Documentation for the OS API | PARTIAL | `docs/` + compendium, no API reference generator |
+| 305 | Deterministic test ordering/isolation | PARTIAL | tests use fixed paths in places |
+
+## 29. Administrator needs — CIS Controls v8, mapped to one machine (30)
+
+| # | Control | State | Evidence |
+|---|---|---|---|
+| 306 | 1 Inventory of hardware assets | **ABSENT** | nothing enumerates devices into a record |
+| 307 | 2 Inventory of software | PARTIAL | pkgmgr DB lists installed packages |
+| 308 | 3 Data protection and classification | ABSENT | — |
+| 309 | 4 Secure configuration baseline | PARTIAL | settings file; no baseline compare |
+| 310 | 5 Account management | **ABSENT** | no accounts |
+| 311 | 6 Access control management | PARTIAL | `wubu_cap` |
+| 312 | 7 Continuous vulnerability management | ABSENT | no advisories |
+| 313 | 8 Audit log management | PARTIAL | kernel log; no rotation, no shipping |
+| 314 | 9 Email and web protections | ABSENT | no mail, no browser |
+| 315 | 10 Malware defenses | ABSENT | — |
+| 316 | 11 Data recovery | ABSENT | no backup |
+| 317 | 12 Network infrastructure management | ABSENT | — |
+| 318 | 13 Network monitoring and defense | PARTIAL | counters only |
+| 319 | 14 Security awareness training | PARTIAL | walkthrough + tutorials |
+| 320 | 15 Service provider management | ABSENT | — |
+| 321 | 16 Application software security | PARTIAL | package signing, seccomp profiles |
+| 322 | 17 Incident response management | PARTIAL | crash banner; no runbook |
+| 323 | 18 Penetration testing | ABSENT | — |
+| 324 | Enrol a device in a fleet | ABSENT | no MDM/identity |
+| 325 | Push policy to a device | ABSENT | — |
+| 326 | Remote view/control a session | ABSENT | — |
+| 327 | Compliance report per device | ABSENT | — |
+| 328 | Patch rings and maintenance windows | PARTIAL | pkgmgr, no scheduling |
+| 329 | Verify a backup restores | ABSENT | no backup |
+| 330 | Capacity and disk forecasting | ABSENT | — |
+| 331 | Certificate lifecycle | ABSENT | — |
+| 332 | Staged updates with rollback | PARTIAL | txn only |
+| 333 | Licence tracking | ABSENT | — |
+| 334 | Export a support bundle | ABSENT | no diagnostics package |
+| 335 | Wipe a device at hand-back | ABSENT | — |
+
+## 30. Cross-audience: shared, family and guest use (10)
+
+| # | Need | State | Evidence |
+|---|---|---|---|
+| 336 | Separate user accounts | **ABSENT** | single user by design (ZealOS heritage) |
+| 337 | Switch users without closing apps | ABSENT | follows 336 |
+| 338 | Guest session | ABSENT | — |
+| 339 | Kiosk / locked-down mode | ABSENT | — |
+| 340 | Parental limits | **IN-TREE** | `parental_guard.c`, family limits in the hosted loop |
+| 341 | Screen time report | PARTIAL | playtime tracked for games only |
+| 342 | Remote help for a family member | ABSENT | — |
+| 343 | Hand a device to someone else safely | ABSENT | — |
+| 344 | Factory reset | ABSENT | — |
+| 345 | Upload diagnostics to get help | ABSENT | — |
+
+---
+
 ## What this document is not
 
-It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 more from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list -- 277 workflows in total. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
+It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list; edition 4 adds 68 more for the developer (Red Hat workstation list, onboarding-to-first-commit) and the administrator (the 18 CIS Controls, sysadmin maintenance and MDM checklists) plus shared-device needs -- 345 workflows in total, across three audiences. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
 its gate exists — that is the next job, one family at a time.
