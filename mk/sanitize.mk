@@ -65,17 +65,17 @@ $(GUI)/mime_contract_test.san: $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(G
 		-o $@ -lm
 
 # Revolver clamping -- integer parsing of environment variables.
-$(RT)/revolver_test.san: $(RT)/wubu_revolver.c $(RT)/test_revolver.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c
+$(RT)/revolver_test.san: $(RT)/wubu_revolver.c $(RT)/test_revolver.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_ns_read.c $(HOSTED)/hosted_fs_persist.c
 	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(RT) -I$(HOSTED) -I$(KERNEL) $(RT)/wubu_revolver.c \
-		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_ns_read.c $(HOSTED)/hosted_fs_persist.c \
 		$(RT)/test_revolver.c -o $@ -lm
 
 # Guest filesystem image loader -- WUBFS01 header + records from disk.
-$(HOSTED)/test_fs_persist.san: $(HOSTED)/test_fs_persist.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c
+$(HOSTED)/test_fs_persist.san: $(HOSTED)/test_fs_persist.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_ns_read.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c
 	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
-		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_ns_read.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(HOSTED)/test_fs_persist.c -o $@ -lm
 
 # Mutation fuzzer for the same loader, run under ASan/UBSan.  A memory fault aborts
@@ -86,7 +86,7 @@ $(FS_PERSIST_FUZZ_SAN): $(HOSTED)/fs_persist_fuzz.c $(HOSTED)/hosted_styxfs.c \
                         $(RT)/wubu_guest_root.c
 	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
-		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_ns_read.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(RT)/wubu_guest_root.c $(HOSTED)/fs_persist_fuzz.c -o $@ -lm
 
 # Mutation fuzzer for the .desktop parser, under ASan/UBSan.
@@ -130,7 +130,7 @@ $(FS_CRASH_SAFE_SAN): $(HOSTED)/fs_crash_safe_test.c $(HOSTED)/hosted_styxfs.c \
                       $(RT)/wubu_guest_root.c
 	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
-		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_ns_read.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(RT)/wubu_guest_root.c $(HOSTED)/fs_crash_safe_test.c -o $@ -lm
 
 # NT syscall surface -- every slot probed with all-zero arguments, forked.

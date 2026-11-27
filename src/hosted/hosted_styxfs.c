@@ -89,32 +89,6 @@ int fs_add_file(const char *name, const uint8_t *data, uint32_t len) {
     return 0;
 }
 
-/* Read a file's bytes from the namespace the 9P callbacks serve (g_fs).
- *
- * This exists because the tree had TWO stores behind one prefix: styxfs_readdir() enumerated
- * a host directory while styxfs_open() resolved a different table, so a name could be listed
- * and then fail to open -- which is exactly what the file manager's preview hit. One owner for
- * namespace BYTES is this file, because this is where the 9P callbacks already read them.
- * Returns 0 on success, -1 if the name is not a file in the namespace. */
-int styxfs_ns_read(const char *path, unsigned char **out, size_t *out_len) {
-    if (!path || !out || !out_len) return -1;
-    *out = NULL; *out_len = 0;
-    const char *name = path;
-    while (*name == '/') name++;                 /* the namespace root has no leading slash */
-    for (int i = 0; i < g_nfiles; i++) {
-        if (g_fs[i].qtype == STX_QTDIR) continue;
-        if (strcmp(g_fs[i].name, name) != 0) continue;
-        if (g_fs[i].data_len == 0) return -1;
-        unsigned char *buf = malloc(g_fs[i].data_len);
-        if (!buf) return -1;
-        memcpy(buf, g_fs[i].data, g_fs[i].data_len);
-        *out = buf;
-        *out_len = g_fs[i].data_len;
-        return 0;
-    }
-    return -1;
-}
-
 void fs_reset(void) { g_nfiles = 0; g_next_path = 1; g_fs_dirty = 0; }
 
 /* Persist pending changes if there are any.  A failed save is reported loudly:
