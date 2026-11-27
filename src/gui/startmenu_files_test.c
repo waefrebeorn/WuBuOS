@@ -86,6 +86,45 @@ int main(void)
 
     startmenu_search_clear();
 
+    /* ---- 2b. the EXACT name must win ---------------------------------- */
+    /* Live defect: typing the app's full name ("File Manager") returned "File Renamer" first because the
+     * scan kept database order, so Enter opened something else. Ranking: exact, then prefix, then substring. */
+    {
+        int base = g_program_db.count;
+        const char *names[3] = { "File Renamer", "File Manager", "File" };
+        for (int k = 0; k < 3; k++) {
+            SmProgramEntry *e = &g_program_db.entries[g_program_db.count++];
+            memset(e, 0, sizeof *e);
+            snprintf(e->name, sizeof e->name, "%s", names[k]);
+            snprintf(e->executable, sizeof e->executable, "%s", names[k]);
+        }
+        startmenu_search_update("File Manager");
+        SmProgramEntry **r = NULL; int n = 0;
+        startmenu_search_get_results(&r, &n);
+        int i_mgr = -1, i_ren = -1;
+        for (int k = 0; k < n; k++) {
+            if (strcmp(r[k]->name, "File Renamer") == 0) i_ren = k;
+            if (strcmp(r[k]->name, "File Manager") == 0) i_mgr = k;
+        }
+        TEST(n > 0 && i_mgr == 0, "an EXACT name ranks first, even when a lookalike sits earlier in the DB");
+        TEST(i_ren < 0, "and a name that is not a substring of the query is not offered");
+        startmenu_search_clear();
+
+        startmenu_search_update("File");
+        startmenu_search_get_results(&r, &n);
+        int j_mgr = -1, j_ren = -1;
+        for (int k = 0; k < n; k++) {
+            if (strcmp(r[k]->name, "File Manager") == 0) j_mgr = k;
+            if (strcmp(r[k]->name, "File Renamer") == 0) j_ren = k;
+        }
+        TEST(n > 0 && strcmp(r[0]->name, "File") == 0, "the exact short name ranks first");
+        TEST(j_mgr > 0 && j_ren > 0, "both prefix matches follow it, in database order");
+        TEST(j_ren < j_mgr, "and they keep their database order (Renamer was added first)");
+        startmenu_search_clear();
+
+        g_program_db.count = base;   /* the fixture leaves the database as it found it */
+    }
+
     /* ---- 3. re-indexing replaces rather than duplicates ------------ */
     startmenu_index_files();
     TEST(count_file_entries() == 3, "re-indexing does not duplicate entries");

@@ -43,17 +43,33 @@ void startmenu_search_update(const char *query) {
         lower_query[i] = (char)tolower((unsigned char)g_search.query[i]);
     lower_query[qlen] = '\0';
     
-    for (int i = 0; i < g_program_db.count && g_search.result_count < DOSGUI_MAX_PROGRAM_ENTRIES; i++) {
-        SmProgramEntry *e = &g_program_db.entries[i];
-        char lower_name[48];
-        int nlen = (int)strlen(e->name);
-        if (nlen > 47) nlen = 47;
-        for (int j = 0; j < nlen; j++)
-            lower_name[j] = (char)tolower((unsigned char)e->name[j]);
-        lower_name[nlen] = '\0';
-        
-        if (strstr(lower_name, lower_query)) {
-            g_search.results[g_search.result_count++] = e;
+    /* RANK the matches: exact name, then prefix, then substring, each in database order.
+     *
+     * A plain strstr scan in database order is not a search, it is a filter: typing the app's FULL name
+     * ("File Manager") returned "File Renamer" first because it sits earlier in the database, and pressing
+     * Enter opened the wrong entry -- measured in a live session, where the name the user could read on the
+     * desktop found something that was not it. Ranking is only parity if the exact answer cannot lose. */
+    static unsigned char taken[DOSGUI_MAX_PROGRAM_ENTRIES];
+    memset(taken, 0, sizeof taken);
+    for (int pass = 0; pass < 3; pass++) {
+        for (int i = 0; i < g_program_db.count && g_search.result_count < DOSGUI_MAX_PROGRAM_ENTRIES; i++) {
+            if (taken[i]) continue;
+            SmProgramEntry *e = &g_program_db.entries[i];
+            char lower_name[48];
+            int nlen = (int)strlen(e->name);
+            if (nlen > 47) nlen = 47;
+            for (int j = 0; j < nlen; j++)
+                lower_name[j] = (char)tolower((unsigned char)e->name[j]);
+            lower_name[nlen] = '\0';
+
+            int hit;
+            if (pass == 0)      hit = (strcmp(lower_name, lower_query) == 0);
+            else if (pass == 1) hit = (strncmp(lower_name, lower_query, (size_t)qlen) == 0);
+            else                hit = (strstr(lower_name, lower_query) != NULL);
+            if (hit) {
+                g_search.results[g_search.result_count++] = e;
+                taken[i] = 1;
+            }
         }
     }
 }
