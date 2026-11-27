@@ -783,7 +783,71 @@ values — [Dart hot reload](https://dart.googlesource.com/sdk/+/9b157b67e3aa4f8
 
 ---
 
+
+---
+
+# Edition 6 — user-facing surface gaps (28)
+
+Aesthetics are not taste when they are counted. Each row names the surface layer
+from `docs/compendium/02-architecture/gui-standard.md` and the measurement that
+produced it.
+
+## 35. Shell and chrome (8)
+
+| # | Gap | State | Evidence |
+|---|---|---|---|
+| 415 | Title bar tells the truth about the app | **IN-TREE** | per-app icon master resolved by `chrome_app_icon_for` |
+| 416 | Long titles ellipsise instead of clipping | **IN-TREE** | `vbe_ellipsize`, gate `test_ellipsize` |
+| 417 | Tray indicators are shapes, not colour squares | **IN-TREE** | battery/network/thermometer glyphs, gated |
+| 418 | Taskbar buttons have hover/pressed states | PARTIAL | press feedback only; no hover |
+| 419 | Alt+Tab switcher inside the shell | UNVERIFIED | matches only in hosted render paths |
+| 420 | Window snapping (edge/corner) | **ABSENT** | no snap code in `src/gui` |
+| 421 | Consistent window shadow/elevation | PARTIAL | 2 shadow radii, ad hoc |
+| 422 | Notification has an action affordance | ABSENT | toast text only |
+
+## 36. Controls (8)
+
+| # | Gap | State | Evidence |
+|---|---|---|---|
+| 423 | Every control has 5 states (normal/hover/pressed/focus/disabled) | PARTIAL | pressed exists on buttons; hover, focus, disabled inconsistent |
+| 424 | One spacing scale | **ABSENT** | 411 hardcoded values frozen by the ratchet |
+| 425 | Colours come from the theme | PARTIAL | 43 raw `0xRRGGBB` in draw paths |
+| 426 | Tooltips on truncated controls | **ABSENT** | none in the shell |
+| 427 | Empty states ("no results", "no files") | **ABSENT** | no `empty_state` anywhere in `src` |
+| 428 | Modal dialogs trap focus | PARTIAL | dialogs exist; no focus chain |
+| 429 | Clipboard works inside the OS | PARTIAL | clipboard at hosted/X11 level only |
+| 430 | Scrollbars sized from metrics | **IN-TREE** | `wubu_gui_metrics` |
+
+## 37. Keyboard and focus (5)
+
+| # | Gap | State | Evidence |
+|---|---|---|---|
+| 431 | Tab order per window | **ABSENT** | no focus chain in `src/gui` |
+| 432 | Visible focus ring | PARTIAL | theme defines it; not drawn everywhere |
+| 433 | Every menu reachable without a mouse | PARTIAL | Start has keys; context menus partial |
+| 434 | Global shortcuts are declared, not scattered | ABSENT | no shortcut table |
+| 435 | Keyboard-only escape from any modal | PARTIAL | Esc handled per dialog |
+
+## 38. Accessibility and comfort (4)
+
+| # | Gap | State | Evidence |
+|---|---|---|---|
+| 436 | High-contrast theme | PARTIAL | `wubu_settings`/`wubu_theme` define it |
+| 437 | Reduced motion honoured | **ABSENT** | no motion system to reduce |
+| 438 | Text scaling independent of DPI | **IN-TREE** | `font_scale` + per-call re-measure |
+| 439 | Screen reader over the widget tree | **ABSENT** | shell has no a11y owner |
+
+## 39. Program authoring (3)
+
+| # | Gap | State | Evidence |
+|---|---|---|---|
+| 440 | Adding an app is one declaration | PARTIAL | `g_app_defs` is the source, but `DESK_ICON_*` leaks into 7 files |
+| 441 | Live reload of a running applet | **ABSENT** | `.wet` is discovered at launch only |
+| 442 | Rollback when a live program crashes | **ABSENT** | no last-good artefact |
+
+---
+
 ## What this document is not
 
-It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list; edition 4 adds 68 more for the developer (Red Hat workstation list, onboarding-to-first-commit) and the administrator (the 18 CIS Controls, sysadmin maintenance and MDM checklists) plus shared-device needs -- 345 workflows across three audiences; edition 5 adds 69 more for the four identities this OS claims (AGI, agentic OS, EDR, live-coding TempleOS descendant) -- 414 workflows in total. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
+It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list; edition 4 adds 68 more for the developer (Red Hat workstation list, onboarding-to-first-commit) and the administrator (the 18 CIS Controls, sysadmin maintenance and MDM checklists) plus shared-device needs -- 345 workflows across three audiences; edition 5 adds 69 more for the four identities this OS claims (AGI, agentic OS, EDR, live-coding TempleOS descendant) -- 442 workflows in total. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
 its gate exists — that is the next job, one family at a time.

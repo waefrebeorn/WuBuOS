@@ -1,0 +1,212 @@
+{
+ "src/gui/buddy_sprite.c": {
+  "colour": 1
+ },
+ "src/gui/daemon_panel.c": {
+  "colour": 2
+ },
+ "src/gui/explorer_format.c": {
+  "colour": 9
+ },
+ "src/gui/explorer_info.c": {
+  "colour": 15
+ },
+ "src/gui/explorer_input.c": {
+  "colour": 1
+ },
+ "src/gui/explorer_tree.c": {
+  "colour": 3
+ },
+ "src/gui/lua/wubu_lua_gui.c": {
+  "colour": 3
+ },
+ "src/gui/shell/add_to_library_dialog.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/add_to_library_dialog_test.c": {
+  "geometry": 3
+ },
+ "src/gui/shell/alt_tab_switcher.c": {
+  "geometry": 3
+ },
+ "src/gui/shell/choice_dialog.c": {
+  "geometry": 10
+ },
+ "src/gui/shell/choice_dialog_test.c": {
+  "geometry": 5
+ },
+ "src/gui/shell/desktop_icons.c": {
+  "colour": 2,
+  "icon_enum": 7
+ },
+ "src/gui/shell/holyc_repl.c": {
+  "geometry": 5
+ },
+ "src/gui/shell/open_with_dialog.c": {
+  "geometry": 22
+ },
+ "src/gui/shell/open_with_dialog_test.c": {
+  "geometry": 12
+ },
+ "src/gui/shell/parental_guard.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/parental_guard_test.c": {
+  "geometry": 11
+ },
+ "src/gui/shell/pin_confirm.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/pin_confirm_test.c": {
+  "geometry": 3
+ },
+ "src/gui/shell/power_menu.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/print_dialog.c": {
+  "colour": 1,
+  "geometry": 6
+ },
+ "src/gui/shell/projection_flyout.c": {
+  "geometry": 4
+ },
+ "src/gui/shell/quick_settings.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/run_dialog.c": {
+  "geometry": 11
+ },
+ "src/gui/shell/shell_session.c": {
+  "geometry": 1,
+  "icon_enum": 4
+ },
+ "src/gui/shell/startmenu.c": {
+  "geometry": 8,
+  "icon_enum": 12
+ },
+ "src/gui/shell/startmenu_db.c": {
+  "geometry": 16
+ },
+ "src/gui/shell/startmenu_power.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/startmenu_search.c": {
+  "geometry": 3
+ },
+ "src/gui/shell/startmenu_tree.c": {
+  "geometry": 3
+ },
+ "src/gui/shell/taskbar_overflow_menu.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/taskbar_tasks_test.c": {
+  "geometry": 5
+ },
+ "src/gui/shell/win11_snap.c": {
+  "geometry": 9
+ },
+ "src/gui/shell/win11_widgets.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/window_chrome.c": {
+  "colour": 9,
+  "geometry": 1
+ },
+ "src/gui/shell/wm_clock.c": {
+  "geometry": 22
+ },
+ "src/gui/shell/wm_ctxmenu.c": {
+  "colour": 1,
+  "geometry": 14
+ },
+ "src/gui/shell/wm_ctxmenu_engine.c": {
+  "colour": 1,
+  "geometry": 1
+ },
+ "src/gui/shell/wm_icon_glyphs.c": {
+  "colour": 1,
+  "geometry": 11,
+  "icon_enum": 6
+ },
+ "src/gui/shell/wm_icons.c": {
+  "colour": 1,
+  "geometry": 2,
+  "icon_enum": 1
+ },
+ "src/gui/shell/wm_overview.c": {
+  "geometry": 6
+ },
+ "src/gui/shell/wm_rim.c": {
+  "colour": 1,
+  "geometry": 1
+ },
+ "src/gui/shell/wm_shadow.c": {
+  "geometry": 2
+ },
+ "src/gui/shell/wm_shadow_test.c": {
+  "geometry": 7
+ },
+ "src/gui/shell/wm_slime.c": {
+  "geometry": 1
+ },
+ "src/gui/shell/wm_taskbar.c": {
+  "geometry": 7
+ },
+ "src/gui/shell/wm_toast.c": {
+  "geometry": 2
+ },
+ "src/gui/shell/wm_toast_test.c": {
+  "geometry": 3
+ },
+ "src/gui/shell/wm_tray_world.c": {
+  "geometry": 2
+ },
+ "src/gui/shell/wm_tray_world_test.c": {
+  "geometry": 4
+ },
+ "src/gui/shell/wubu_lock_screen.c": {
+  "geometry": 5
+ },
+ "src/gui/shell/wubu_notify.c": {
+  "colour": 2,
+  "geometry": 12
+ },
+ "src/gui/shell/wubu_osd.c": {
+  "geometry": 7
+ },
+ "src/gui/shell/wubu_screensaver.c": {
+  "colour": 1,
+  "geometry": 2
+ },
+ "src/gui/shell/wubu_shell_greeter.c": {
+  "geometry": 27
+ },
+ "src/gui/shell/wubu_shell_greeter_test.c": {
+  "geometry": 10
+ },
+ "src/gui/shell/wubu_wallpaper.c": {
+  "geometry": 2
+ },
+ "src/gui/term.c": {
+  "colour": 4
+ },
+ "src/gui/term_ansi.c": {
+  "colour": 3
+ },
+ "src/gui/term_render.c": {
+  "colour": 3
+ },
+ "src/gui/wm_icon_registry.c": {
+  "colour": 3,
+  "icon_enum": 2
+ },
+ "src/gui/wm_render.c": {
+  "icon_enum": 1
+ },
+ "src/gui/wm_test.c": {
+  "icon_enum": 3
+ },
+ "src/gui/wubu_theme.c": {
+  "colour": 9
+ }
+}
