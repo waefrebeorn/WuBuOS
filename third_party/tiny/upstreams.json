@@ -1,0 +1,224 @@
+{
+ "note": "pinned single-file upstreams; install with tools/fetch_tiny.py --install <id>",
+ "entries": [
+  {
+   "id": "miniz",
+   "files": [
+    "miniz.c",
+    "miniz.h",
+    "miniz_export.h",
+    "miniz_common.h",
+    "miniz_tdef.h",
+    "miniz_tinfl.h",
+    "miniz_zip.h",
+    "miniz_tdef.c",
+    "miniz_tinfl.c",
+    "miniz_zip.c"
+   ],
+   "repo": "richgel999/miniz",
+   "licence": "MIT / public domain (dual)",
+   "size_kb": 425,
+   "fills": [
+    "archive",
+    "office",
+    "files"
+   ],
+   "why": "deflate + ZIP + PNG read: unlocks archive browsing, DOCX/XLSX/ODT containers, and PNG without a libpng VERIFIED 2026-11-27: the repo is TEN files, not one -- miniz.h needs a CMake-generated miniz_export.h (absent upstream, 404 on main and master) and links against miniz_tdef.c/miniz_tinfl.c. A shim header plus four extra sources made it build; see tests/tiny_miniz_probe.c.",
+   "gate": "tests/tiny_miniz_probe.c: deflate round-trip + a corrupted stream refused",
+   "verified": "make test_tiny_miniz"
+  },
+  {
+   "id": "stb_image",
+   "files": [
+    "stb_image.h"
+   ],
+   "repo": "nothings/stb",
+   "licence": "public domain / MIT (dual)",
+   "size_kb": 272,
+   "fills": [
+    "media",
+    "files"
+   ],
+   "why": "decode JPEG/PNG/GIF/BMP/TGA/PSD; the viewer gap and wallpaper support",
+   "gate": "decode one JPEG and one PNG to RGBA"
+  },
+  {
+   "id": "stb_truetype",
+   "files": [
+    "stb_truetype.h"
+   ],
+   "repo": "nothings/stb",
+   "licence": "public domain",
+   "size_kb": 204,
+   "fills": [
+    "a11y",
+    "aesthetics"
+   ],
+   "why": "rasterise real TTF/OTF at any size: the tree ships ONE bitmap face vs Win11's 336 fonts",
+   "gate": "render 'Wg' at 14 px from a TTF and count non-zero pixels"
+  },
+  {
+   "id": "pl_mpeg",
+   "files": [
+    "pl_mpeg.h"
+   ],
+   "repo": "phoboslab/pl_mpeg",
+   "licence": "MIT",
+   "size_kb": 138,
+   "fills": [
+    "media"
+   ],
+   "why": "MPEG-1 video + MP2 audio decode in one header: actual video playback, the #1 media gap",
+   "gate": "decode N frames of a fixture .mpg, assert frame count and a non-uniform frame"
+  },
+  {
+   "id": "stb_vorbis",
+   "files": [
+    "stb_vorbis.c"
+   ],
+   "repo": "nothings/stb",
+   "licence": "public domain / MIT",
+   "size_kb": 195,
+   "fills": [
+    "media"
+   ],
+   "why": "OGG Vorbis audio: game/music asset playback",
+   "gate": "decode a .ogg to PCM, assert sample rate + non-silence"
+  },
+  {
+   "id": "dr_wav",
+   "files": [
+    "dr_wav.h"
+   ],
+   "repo": "mackron/dr_libs",
+   "licence": "public domain / MIT-0",
+   "size_kb": 340,
+   "fills": [
+    "media"
+   ],
+   "why": "WAV read/write incl. 24-bit and float; recording and sound settings test tones",
+   "gate": "write a 440 Hz tone, read it back, assert sample count"
+  },
+  {
+   "id": "dr_mp3",
+   "files": [
+    "dr_mp3.h"
+   ],
+   "repo": "mackron/dr_libs",
+   "licence": "public domain / MIT-0",
+   "size_kb": 200,
+   "fills": [
+    "media"
+   ],
+   "why": "MP3 decode: the most common music file on a user's disk",
+   "gate": "decode a fixture .mp3, assert PCM length within 1%"
+  },
+  {
+   "id": "monocypher",
+   "files": [
+    "monocypher.c",
+    "monocypher.h"
+   ],
+   "repo": "LoupVaillant/Monocypher",
+   "licence": "public domain / BSD-2 / CC0 (dual)",
+   "size_kb": 101,
+   "fills": [
+    "security",
+    "online"
+   ],
+   "why": "X25519, EdDSA, ChaCha20-Poly1305, BLAKE2b in 2 files: TLS primitives and file encryption without OpenSSL",
+   "gate": "RFC test vector for X25519 and EdDSA sign/verify"
+  },
+  {
+   "id": "lz4",
+   "files": [
+    "lz4.c",
+    "lz4.h"
+   ],
+   "repo": "lz4/lz4",
+   "licence": "BSD-2",
+   "size_kb": 129,
+   "fills": [
+    "system",
+    "files"
+   ],
+   "why": "fast lossless compression for snapshots/backups: the rollback and image-persistence leg",
+   "gate": "round-trip 1 MB of pseudo-random data"
+  },
+  {
+   "id": "cJSON",
+   "files": [
+    "cJSON.c",
+    "cJSON.h"
+   ],
+   "repo": "DaveGamble/cJSON",
+   "licence": "MIT",
+   "size_kb": 79,
+   "fills": [
+    "dev",
+    "agentic"
+   ],
+   "why": "JSON parse/emit for manifests (.wua), agent messages, API replies",
+   "gate": "parse a nested object, emit it, compare"
+  },
+  {
+   "id": "utf8",
+   "files": [
+    "utf8.h"
+   ],
+   "repo": "sheredom/utf8.h",
+   "licence": "Unlicense (public domain)",
+   "size_kb": 73,
+   "fills": [
+    "a11y",
+    "i18n"
+   ],
+   "why": "codepoint iteration, case mapping, width: every text path that is not ASCII",
+   "gate": "iterate and case-map a mixed UTF-8 string"
+  },
+  {
+   "id": "tinyexpr",
+   "files": [
+    "tinyexpr.c",
+    "tinyexpr.h"
+   ],
+   "repo": "codeplea/tinyexpr",
+   "licence": "zlib",
+   "size_kb": 25,
+   "fills": [
+    "apps"
+   ],
+   "why": "expression parser for the calculator and any formula field",
+   "gate": "evaluate '2+3*4' and a variable expression"
+  },
+  {
+   "id": "cozette",
+   "files": [
+    "cozette.fnt"
+   ],
+   "repo": "slavfox/Cozette",
+   "licence": "MIT (check LICENSE: upstream is permissive bitmap)",
+   "size_kb": 4,
+   "fills": [
+    "aesthetics",
+    "a11y"
+   ],
+   "why": "a real pixel-perfect programming bitmap face in FOUR KILOBYTES; the .fnt is the tiny variant",
+   "gate": "render the full ASCII range and assert every glyph box is non-empty"
+  },
+  {
+   "id": "feather-icons",
+   "files": [
+    "icons/*.svg"
+   ],
+   "repo": "feathericons/feather",
+   "licence": "MIT",
+   "size_kb": 150,
+   "fills": [
+    "aesthetics"
+   ],
+   "why": "287 consistent 24px stroke icons at ~0.5 KB each; ends the hand-drawn master shortage for UI actions",
+   "gate": "bake >=100 icons through tools/icon_bake.py, assert distinct masks"
+  }
+ ]
+}

@@ -9,7 +9,7 @@
 # 70% of the recipes.
 RT_ALWAYS := $(RT)/wubu_crc32.c $(RT)/wubu_str.c
 
-test_critical_runtime: test_owned_coverage test_web test_hardcode_ratchet check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -3065,6 +3065,13 @@ test_nt_ordinals:
 
 test_web:
 	$(MAKE) -C src/web test
+
+test_tiny_upstreams:
+	python3 tools/fetch_tiny.py --check
+
+test_tiny_miniz: tests/tiny_miniz_probe.c third_party/tiny/miniz/miniz.c third_party/tiny/miniz/miniz_tdef.c third_party/tiny/miniz/miniz_tinfl.c
+	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/tiny_miniz_probe $^ -lm
+	$${TMPDIR:-/tmp}/tiny_miniz_probe
 
 test_hardcode_ratchet:
 	python3 tools/hardcode_ratchet.py
