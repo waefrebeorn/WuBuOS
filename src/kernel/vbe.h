@@ -190,6 +190,8 @@ void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale);
 
 /* Measure string width in pixels (count * 6 * scale * text_scale). */
 int vbe_text_width(const char *s, int scale);
+/* Titles use the 700-weight face (Windows: "use Semibold for titles"); body text stays regular. */
+void vbe_draw_text_bold(int x, int y, const char *s, uint32_t color, int scale);
 /* (ascent + descent) at the current text scale: the line box layout code must reserve. */
 int vbe_line_height(void);
 

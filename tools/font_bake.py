@@ -133,6 +133,8 @@ def main():
     ap.add_argument("--font", default=DEFAULT_FONT)
     ap.add_argument("--size", type=int, default=13)
     ap.add_argument("--out", default=DEFAULT_OUT)
+    ap.add_argument("--prefix", default="",
+                    help="symbol prefix so two faces can live in one translation unit (e.g. bold_)")
     ap.add_argument("--preserve", default=None,
                     help="existing header whose glyphs must be REUSED unchanged (only new codepoints bake)")
     a = ap.parse_args()
@@ -173,30 +175,33 @@ def main():
         f.write(f" * face: {os.path.relpath(a.font, ROOT)}\n")
         f.write(f" * px: {a.size}  ascent: {ascent}  descent: {descent}\n")
         f.write(" * coverage: 8-bit antialiased, one byte per pixel, row-major\n */\n")
-        f.write("#ifndef WUBU_FONT_TEXT_H\n#define WUBU_FONT_TEXT_H\n\n")
+        guard = "WUBU_FONT_TEXT_%sH" % (a.prefix.upper().replace("_", "") or "")
+        f.write(f"#ifndef {guard}\n#define {guard}\n\n")
         f.write("#include <stdint.h>\n#include <stddef.h>   /* NULL for blank glyphs */\n\n")
-        f.write(f"#define WUBU_FONT_TEXT_PX      {a.size}\n")
-        f.write(f"#define WUBU_FONT_TEXT_ASCENT  {ascent}\n")
-        f.write(f"#define WUBU_FONT_TEXT_DESCENT {descent}\n")
-        f.write(f"#define WUBU_FONT_TEXT_LINE_H  {ascent + descent}\n")
-        f.write(f"#define WUBU_FONT_TEXT_FIRST   0x{FIRST:02X}\n")
-        f.write(f"#define WUBU_FONT_TEXT_LAST    0x{LAST:02X}\n\n")
+        f.write(f"#ifndef WUBU_FONT_TEXT_PX\n#define WUBU_FONT_TEXT_PX      {a.size}\n#endif\n")
+        f.write(f"#ifndef WUBU_FONT_TEXT_ASCENT\n#define WUBU_FONT_TEXT_ASCENT  {ascent}\n#endif\n")
+        f.write(f"#ifndef WUBU_FONT_TEXT_DESCENT\n#define WUBU_FONT_TEXT_DESCENT {descent}\n#endif\n")
+        f.write(f"#ifndef WUBU_FONT_TEXT_LINE_H\n#define WUBU_FONT_TEXT_LINE_H  {ascent + descent}\n#endif\n")
+        f.write(f"#ifndef WUBU_FONT_TEXT_FIRST\n#define WUBU_FONT_TEXT_FIRST   0x{FIRST:02X}\n#endif\n")
+        f.write(f"#ifndef WUBU_FONT_TEXT_LAST\n#define WUBU_FONT_TEXT_LAST    0x{LAST:02X}\n#endif\n\n")
+        f.write("#ifndef WUBU_GLYPH_AA_TYPEDEF\n#define WUBU_GLYPH_AA_TYPEDEF\n")
         f.write("typedef struct {\n")
         f.write("    int8_t        w, h;      /* glyph box */\n")
         f.write("    int8_t        xoff, yoff;/* placement from pen / baseline */\n")
         f.write("    const uint8_t *cov;      /* w*h coverage, or NULL for a blank */\n")
-        f.write("} WubuGlyphAA;\n\n")
+        f.write("} WubuGlyphAA;\n#endif\n\n")
         for cp, ch, w, h, xoff, yoff, data in glyphs:
             if not data:
                 continue
-            f.write(f"static const uint8_t g_glyph_{cp:02x}[{w * h}] = {{")
+            f.write(f"static const uint8_t g_glyph_{a.prefix}{cp:02x}[{w * h}] = {{")
             for i, b in enumerate(data):
                 f.write(("\n    " if i % 16 == 0 else " "))
                 f.write(f"{b:3d},")
             f.write("\n};\n")
-        f.write("\nstatic const WubuGlyphAA g_font_glyphs[] = {\n")
+        table = "g_font_glyphs" if not a.prefix else f"g_font_glyphs_{a.prefix}"
+        f.write(f"\nstatic const WubuGlyphAA {table}[] = {{\n")
         for cp, ch, w, h, xoff, yoff, data in glyphs:
-            cov = f"g_glyph_{cp:02x}" if data else "NULL"
+            cov = f"g_glyph_{a.prefix}{cp:02x}" if data else "NULL"
             f.write(f"    [{cp - FIRST}] = {{ {w}, {h}, {xoff}, {yoff}, {cov} }},"
                     f"  /* '{(ch if ch != chr(92) else '/')}' */\n")
         f.write("};\n\n")

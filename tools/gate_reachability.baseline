@@ -392,6 +392,7 @@ test_wubu_firstboot
 test_wubu_install
 test_wubu_install_tty
 test_wubu_onboarding
+test_wubu_scroll
 test_wubu_selfbuild
 test_wubu_tokenizer
 test_wubu_zx

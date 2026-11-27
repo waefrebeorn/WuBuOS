@@ -9,18 +9,33 @@
 #include <stdint.h>
 #include <stddef.h>   /* NULL for blank glyphs */
 
+#ifndef WUBU_FONT_TEXT_PX
 #define WUBU_FONT_TEXT_PX      13
+#endif
+#ifndef WUBU_FONT_TEXT_ASCENT
 #define WUBU_FONT_TEXT_ASCENT  15
+#endif
+#ifndef WUBU_FONT_TEXT_DESCENT
 #define WUBU_FONT_TEXT_DESCENT 4
+#endif
+#ifndef WUBU_FONT_TEXT_LINE_H
 #define WUBU_FONT_TEXT_LINE_H  19
+#endif
+#ifndef WUBU_FONT_TEXT_FIRST
 #define WUBU_FONT_TEXT_FIRST   0x20
+#endif
+#ifndef WUBU_FONT_TEXT_LAST
 #define WUBU_FONT_TEXT_LAST    0xFF
+#endif
 
+#ifndef WUBU_GLYPH_AA_TYPEDEF
+#define WUBU_GLYPH_AA_TYPEDEF
 typedef struct {
     int8_t        w, h;      /* glyph box */
     int8_t        xoff, yoff;/* placement from pen / baseline */
     const uint8_t *cov;      /* w*h coverage, or NULL for a blank */
 } WubuGlyphAA;
+#endif
 
 static const uint8_t g_glyph_21[36] = {
       0, 182,  93,   0,   0, 176,  88,   0,   0, 170,  83,   0,   0, 165,  78,   0,

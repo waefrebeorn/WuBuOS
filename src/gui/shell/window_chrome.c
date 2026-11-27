@@ -466,8 +466,10 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
     int text_x = icon_x + CHROME_ICON_SIZE + CHROME_TEXT_PADDING;
     int text_y = win->y + bw + (tbh - WUBU_FONT_INK_H) / 2;
     if (win->title[0]) {
-        vbe_draw_text(text_x, text_y, win->title,
-                      active ? tc()->win_title_text : tc()->win_title_text_ina, 1);
+        /* Titles are the 700-weight face: Windows' guidance is "use Semibold for titles", and a caption drawn in
+         * the body weight is most of why a desktop reads as flat rather than as an OS. */
+        vbe_draw_text_bold(text_x, text_y, win->title,
+                           active ? tc()->win_title_text : tc()->win_title_text_ina, 1);
     }
 
     /* Title bar border bottom (separator) */

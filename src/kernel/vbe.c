@@ -16,6 +16,7 @@
 /* The baked coverage table is DATA: no libm, no allocator, no host call. Including it
  * here is what lets one glue point upgrade every text call site. */
 #include "../gui/fonts/wubu_font_text.h"
+#include "../gui/fonts/wubu_font_text_bold.h"   /* weight 700: titles, per Windows' type guidance */
 
 /* Bitmap glyphs were ~8px tall; the baked face has cap height 9 at 13px with ascent 15.
  * Drawing the baseline 14px below the old top keeps a title in the same optical band. */
@@ -558,8 +559,15 @@ static int aa_char_ok(unsigned char c) {
     return c >= WUBU_FONT_TEXT_FIRST && c <= WUBU_FONT_TEXT_LAST;
 }
 
+/* TWO FACES, one renderer. Windows' own type guidance: "use regular weight for most text, use Semibold for
+ * titles". The face in use is selected once per draw, so the draw loop is not duplicated per weight. */
+static const WubuGlyphAA *g_face = g_font_glyphs;
+static int               g_face_count = (int)(sizeof(g_font_glyphs) / sizeof(g_font_glyphs[0]));
+
 static const WubuGlyphAA *aa_glyph(unsigned char c) {
-    return &g_font_glyphs[c - WUBU_FONT_TEXT_FIRST];
+    int idx = (int)c - WUBU_FONT_TEXT_FIRST;
+    if (idx < 0 || idx >= g_face_count) return &g_font_glyphs[0];
+    return &g_face[idx];
 }
 
 static int aa_advance(const WubuGlyphAA *g) {
@@ -580,6 +588,7 @@ static int aa_text_width(const char *s) {
 /* Draw the AA face at an integer magnification. The scaled text path used 8x8 BITMAP tables, which have no
  * Latin-1 (so "é" at a11y text scale became '?') and look blocky; amplifying the face we already bake gives
  * one look at every scale, with the accents, and adds no table that can develop holes. */
+
 static void aa_draw_text_scaled(int x, int y, const char *s, uint32_t color, int scale) {
     /* the same optical offset as the 1x path, magnified: the glyph's yoff is negative, so a baseline of
      * plain y put the whole word ABOVE the origin and the clip erased it. */
@@ -646,6 +655,18 @@ static void aa_draw_text(int x, int y, const char *s, uint32_t color) {
         }
         x += aa_advance(g);
     }
+}
+
+/* Draw with the BOLD face (weight 700) and restore the regular one afterwards. One call, no caller-side state:
+ * a title is bold because it asked to be, not because a global was left switched. */
+void vbe_draw_text_bold(int x, int y, const char *s, uint32_t color, int scale) {
+    const WubuGlyphAA *prev = g_face;
+    int prev_n = g_face_count;
+    g_face = g_font_glyphs_bold_;
+    g_face_count = (int)(sizeof(g_font_glyphs_bold_) / sizeof(g_font_glyphs_bold_[0]));
+    vbe_draw_text(x, y, s, color, scale);
+    g_face = prev;
+    g_face_count = prev_n;
 }
 
 void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale) {

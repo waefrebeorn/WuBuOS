@@ -139,6 +139,30 @@ int main(void)
     }
     vbe_set_text_scale(1);
 
+    /* ---- 1d. the BOLD face is a real second face ------------------- */
+    /* Windows' type guidance: "use regular weight for most text, use Semibold for titles". We ship weight 700
+     * (segoeuib.ttf) because that is the bold face in the reference tree; what must hold either way is that a
+     * title looks DIFFERENT and keeps the same line box, or every layout that assumed a height breaks. */
+    {
+        static uint32_t reg[400 * 40];
+        vbe_set_text_scale(1);
+        vbe_clear(0);
+        vbe_draw_text(0, 0, "Start", 0x00FFFFFF, 1);
+        for (int y = 0; y < 40; y++)
+            for (int x = 0; x < 400; x++) reg[y * 400 + x] = vbe_get_pixel(x, y);
+        vbe_clear(0);
+        vbe_draw_text_bold(0, 0, "Start", 0x00FFFFFF, 1);
+        int diff = 0, ink = 0;
+        for (int y = 0; y < 40; y++)
+            for (int x = 0; x < 400; x++) {
+                uint32_t b = vbe_get_pixel(x, y);
+                if (b != reg[y * 400 + x]) diff++;
+                if (b) ink++;
+            }
+        TEST(ink > 20, "the bold face draws ink");
+        TEST(diff > 20, "and it is VISUALLY different from the regular face (a second real weight)");
+    }
+
     /* ---- 2. drawing puts the right GLYPH at the right PEN ---------- */
     /* The renderer is antialiased now: a cell no longer equals a bitmap row, so asserting
      * exact bits would assert the old rasteriser instead of the behaviour. What must stay
