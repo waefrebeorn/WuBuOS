@@ -8,6 +8,7 @@
 #include "../egojar.h"
 #include "explorer_internal.h"
 #include "shell/preview_decode.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -48,7 +49,13 @@ void explorer_update_preview(int idx) {
             strcmp(ext, "css") == 0) {
             g_explorer.preview.type = EX_PREVIEW_TEXT;
 
+            /* The namespace root names files WITHOUT a leading slash ("photo.jpg"), while a
+             * listing stores "/photo.jpg". Try the stored path, then the root-relative form:
+             * the two differ only at the root, and silently failing here meant every photo
+             * fell back to metadata. */
             int fd = ex_9p_open(entry->full_path, O_RDONLY);
+            if (fd < 0 && entry->full_path[0] == '/' && entry->full_path[1])
+                fd = ex_9p_open(entry->full_path + 1, O_RDONLY);
             if (fd >= 0) {
                 ssize_t n = ex_9p_read(fd, g_explorer.preview.text_buffer, sizeof(g_explorer.preview.text_buffer) - 1);
                 if (n > 0) {
@@ -70,7 +77,13 @@ void explorer_update_preview(int idx) {
             uint32_t *px = NULL;
             int iw = 0, ih = 0;
             int ok = 0;
+            /* The namespace root names files WITHOUT a leading slash ("photo.jpg"), while a
+             * listing stores "/photo.jpg". Try the stored path, then the root-relative form:
+             * the two differ only at the root, and silently failing here meant every photo
+             * fell back to metadata. */
             int fd = ex_9p_open(entry->full_path, O_RDONLY);
+            if (fd < 0 && entry->full_path[0] == '/' && entry->full_path[1])
+                fd = ex_9p_open(entry->full_path + 1, O_RDONLY);
             if (fd >= 0) {
                 size_t cap = 1u << 20, n = 0;
                 unsigned char *bytes = malloc(cap);
@@ -86,7 +99,8 @@ void explorer_update_preview(int idx) {
                     cap *= 2;
                 }
                 ex_9p_close(fd);
-                if (bytes && n) ok = (wubu_preview_decode_bytes(entry->name, bytes, n, &px, &iw, &ih, 0) == WUBU_PREVIEW_OK);
+                if (bytes && n)
+                    ok = (wubu_preview_decode_bytes(entry->name, bytes, n, &px, &iw, &ih, 0) == WUBU_PREVIEW_OK);
                 free(bytes);
             }
             if (ok) {

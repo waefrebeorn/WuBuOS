@@ -40,10 +40,23 @@
 /* One owner for "a new listing just appeared": focus its first row and tell the preview
  * pane, which existed and rendered but had no caller until now. */
 static void ex_preview_first_row(void) {
-    if (g_explorer.entry_count > 0) {
-        g_explorer.focus_idx = 0;
-        explorer_update_preview(0);
+    if (g_explorer.entry_count <= 0) return;
+
+    /* WUBU_PREVIEW_SELECT=<name> focuses a named entry, so a screenshot gate can prove the
+     * pane draws the file it was given instead of assuming the first row is the interesting
+     * one. Diagnostics only. */
+    const char *want = getenv("WUBU_PREVIEW_SELECT");
+    if (want && *want) {
+        for (int i = 0; i < g_explorer.entry_count; i++) {
+            if (strcmp(g_explorer.entries[i].name, want) == 0) {
+                g_explorer.focus_idx = i;
+                explorer_update_preview(i);
+                return;
+            }
+        }
     }
+    g_explorer.focus_idx = 0;
+    explorer_update_preview(0);
 }
 
 /* Safe dirname wrapper - avoids modifying input string */

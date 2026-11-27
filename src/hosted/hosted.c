@@ -430,6 +430,30 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     if (fs_find("hello.wubu") < 0)
         fs_add_file("hello.wubu", demo_wubu, sizeof(demo_wubu));
 
+    /* WUBU_SEED_IMAGE puts a real photo INTO the namespace. The explorer lists styxfs, not
+     * host paths, so a preview can only be proven on screen if the file lives in here. */
+    {
+        const char *seed = getenv("WUBU_SEED_IMAGE");
+        if (seed && *seed && fs_find("photo.jpg") < 0) {
+            FILE *sf = fopen(seed, "rb");
+            if (sf) {
+                if (fseek(sf, 0, SEEK_END) == 0) {
+                    long n = ftell(sf);
+                    rewind(sf);
+                    if (n > 0 && n < (16L << 20)) {
+                        uint8_t *img = malloc((size_t)n);
+                        if (img && fread(img, 1, (size_t)n, sf) == (size_t)n) {
+                            if (fs_add_file("photo.jpg", img, (size_t)n) == 0)
+                                fprintf(stderr, "WuBuOS: seeded photo.jpg (%ld bytes) for the preview pane\n", n);
+                        }
+                        free(img);
+                    }
+                }
+                fclose(sf);
+            }
+        }
+    }
+
     fprintf(stderr, "WuBuOS: Styx namespace built\n");
 
     /* The boot windows are opened BEFORE this namespace exists (that is how
