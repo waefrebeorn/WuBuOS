@@ -200,7 +200,9 @@ const unsigned char *chrome_app_icon_for(const char *title) {
     if (!title || !*title) return NULL;
     struct { const char *needle; const unsigned char *mask; } kMap[] = {
         { "calc",      wubu_icon_apps_calculator },
+        { "my computer", wubu_icon_apps_folder },
         { "holyc",     wubu_icon_apps_holyc },
+        { "repl",      wubu_icon_apps_holyc },
         { "term",      wubu_icon_apps_terminal },
         { "file",      wubu_icon_apps_folder },
         { "explor",    wubu_icon_apps_folder },
@@ -208,10 +210,25 @@ const unsigned char *chrome_app_icon_for(const char *title) {
         { "paint",     wubu_icon_apps_paint },
         { "canvas",    wubu_icon_apps_paint },
         { "notepad",   wubu_icon_apps_notepad },
+        { "notes",     wubu_icon_apps_notes },
         { "editor",    wubu_icon_apps_editor },
         { "setting",   wubu_icon_apps_settings },
         { "control",   wubu_icon_apps_settings },
-        { "task mgr",  wubu_icon_apps_settings },
+        { "task manager", wubu_icon_apps_taskmanager },
+        { "task mgr",  wubu_icon_apps_taskmanager },
+        { "todo",      wubu_icon_apps_todo },
+        { "music",     wubu_icon_apps_music },
+        { "wubupad",   wubu_icon_apps_wubupad },
+        { "wubuoffice",wubu_icon_apps_wubuoffice },
+        { "petdex",    wubu_icon_apps_petdex },
+        { "tutorial",  wubu_icon_apps_tutorials },
+        { "getting started", wubu_icon_apps_gettingstarted },
+        { "dos box",   wubu_icon_apps_dosbox },
+        { "edr",       wubu_icon_apps_edr },
+        { "bonzi",     wubu_icon_apps_bonzi },
+        { "comfy",     wubu_icon_apps_comfy },
+        { "tandem",    wubu_icon_apps_tandem },
+        { "vws",       wubu_icon_apps_vwsdesigner },
     };
     for (size_t i = 0; i < sizeof kMap / sizeof kMap[0]; i++) {
         const char *h = title, *n = kMap[i].needle;

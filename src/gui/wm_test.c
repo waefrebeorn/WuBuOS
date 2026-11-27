@@ -478,6 +478,30 @@ static void test_app_icons_are_distinct(void) {
     PASS();
 }
 
+/* Coverage: every registered app must resolve to a baked master. The list
+ * mirrors the g_app_defs registry in src/apps/apps.c (the registry owns the
+ * names; this gate owns the mapping's completeness, because the runtime
+ * fallback -- a bare initial -- is what makes a shell look unfinished). */
+static void test_every_registered_app_has_an_icon(void) {
+    TEST("every registered app resolves to a baked icon master");
+    static const char *const apps[] = {
+        "My Computer", "Temple REPL", "Notepad", "Paint", "Calculator", "Terminal",
+        "File Manager", "Settings", "Editor", "WuBu Canvas", "HolyC Term", "DOS Box",
+        "EDR Activity", "Bonzi Buddy", "WubuPad", "WubuOffice", "Comfy", "Tandem",
+        "Task Manager", "Notes", "Todo", "Music", "VWS Designer", "Getting Started",
+        "Petdex", "Tutorials",
+    };
+    int missing = 0;
+    for (size_t i = 0; i < sizeof apps / sizeof apps[0]; i++) {
+        if (!chrome_app_icon_for(apps[i])) {
+            printf("  MISSING master: %s\n", apps[i]);
+            missing++;
+        }
+    }
+    CHECK(missing == 0, "no registered app falls back to a placeholder icon");
+    PASS();
+}
+
 /* Regression for the XP Luna drop-shadow: a window must cast a soft blended
  * shadow to its bottom-right under Luna themes (and none under Win98). */
 static void test_render_window_drop_shadow(void) {
@@ -2973,6 +2997,7 @@ int main(void) {
     test_buddy_states_render_differently();
     test_render_draws_glyphs_and_selection();
     test_app_icons_are_distinct();
+    test_every_registered_app_has_an_icon();
     test_render_window_drop_shadow();
     test_render_win98_title_bar_is_theme_navy();
     test_vbe_clip_confines_pixels();

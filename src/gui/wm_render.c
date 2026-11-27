@@ -177,6 +177,19 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         fprintf(stderr, "[probe] render sees icon_count=%d &g_dwm=%p off=%zu size=%zu\n",
                 g_dwm.icon_count, (void *)&g_dwm, offsetof(DosGuiWM, icon_count),
                 sizeof(DosGuiWM)); } }
+    /* WUBU_ICON_DUMP=1: the icon grid as the renderer sees it. Exists because a
+     * screenshot showed the first tiles ABOVE the top edge and the layout code
+     * cannot be blamed from a picture alone. */
+    { static int dumped; if (!dumped && getenv("WUBU_ICON_DUMP")) { dumped = 1;
+        fprintf(stderr, "[icons] screen=%dx%d task_top=%d cell=%dx%d\n",
+                g_dwm.screen_w, g_dwm.screen_h, taskbar_top(),
+                desktop_cell_w(), desktop_cell_h());
+        for (int i = 0; i < g_dwm.icon_count; i++)
+            fprintf(stderr, "[icons] %2d %-18s x=%5d y=%5d grid=(%d,%d) alive=%d\n",
+                    i, g_dwm.icons[i].name, g_dwm.icons[i].x, g_dwm.icons[i].y,
+                    g_dwm.icons[i].grid_x, g_dwm.icons[i].grid_y,
+                    (int)g_dwm.icons[i].alive);
+    } }
     for (int i = 0; i < ((skip & 2) || g_dwm.icons_hidden ? 0 : g_dwm.icon_count); i++) {
         DosGuiIcon *icon = &g_dwm.icons[i];
         if (!icon->alive) continue;
