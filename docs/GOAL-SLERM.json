@@ -206,12 +206,12 @@
   {
    "n": 2013,
    "id": "SLERM-2013",
-   "status": "OPEN",
-   "title": "Password policy on account creation",
+   "status": "DONE",
+   "title": "Password policy on account creation: rules with reasons, not a boolean",
    "replaces": "D1",
-   "module": "src/runtime/wubu_account.c",
-   "criterion": "src/runtime/wubu_account.c implements password policy on account creation with a behaviour gate that fails on the pre-fix tree; the gate is wired into the default tier and asserts a refusal path, not only the happy path.",
-   "gate": "make test_wubu_account",
+   "module": "src/runtime/wubu_pwpolicy.c",
+   "criterion": "src/runtime/wubu_pwpolicy.c decides whether a password may create an account, answering with a named reason (length in CHARACTERS, class mix, a common-password list, the user name and its reverse, dominance and long runs), and test_wubu_pwpolicy pins every decision in both directions. [verified 2026-11-27: make test_wubu_pwpolicy prints '25 passed, 0 failed'. The gate caught three real policy bugs in the first draft: the common-password list was checked AFTER the character-class rule, so 'Password123' was refused for the wrong reason; and the padding/run rule only rejected strings that were ENTIRELY one character or ENTIRELY a run, so 'aaaaaaaaaA1' and 'abcdefghijK1' both passed. It now refuses a character covering >=70% of the string or a six-long straight run, and checks the common list before classes because the advice matters. Mutation: disabling the dominance rule leaves a failure. Acceptance cases are tested too, including a 10-character CJK passphrase counted in CHARACTERS not bytes.]",
+   "gate": "make test_wubu_pwpolicy",
    "source": "devils-advocate-2026-11-27",
    "licence": "n/a",
    "fills": []
