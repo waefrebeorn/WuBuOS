@@ -5,6 +5,20 @@
 #include "../egojar.h"
 #include "explorer.h"
 #include "explorer_internal.h"
+#include "file_assoc.h"
+
+/* Weak: the app layer may not be in a given test graph, and a stub that satisfies the linker must never
+ * disagree with the real implementation. */
+extern struct DosGuiWindow *notepad_open(const char *filename) __attribute__((weak));
+extern struct DosGuiWindow *app_launch_wet_path(const char *path) __attribute__((weak));
+static struct DosGuiWindow *(*notepad_open_path)(const char *) = notepad_open;
+/* Tests install a counting stub so the gate proves a handler was CALLED, not merely chosen. */
+void explorer_test_set_notepad(struct DosGuiWindow *(*fn)(const char *)) { notepad_open_path = fn; }
+static struct DosGuiWindow *(*const launch_wet_path)(const char *) = app_launch_wet_path;
+
+/* The gate reads this to prove the DISPATCH, not just the table. */
+int g_test_last_assoc;
+int explorer_test_last_assoc(void) { return g_test_last_assoc; }
 #include "wubu_theme.h"
 #include <stdint.h>
 #include <string.h>
@@ -73,15 +87,25 @@ void explorer_open_entry(ExExplorerState *ex, int idx)
         return;
     }
 
-    /* Files need a handler. The one we have is W-CODE (the IDE owns source and .wet
-     * applet files); everything else is honestly left alone rather than opened with a
-     * guess that would silently mislead the user. */
-    if (ex_launch_with_wcode &&
-        (strcmp(e->extension, "wet") == 0 ||
-         strcmp(e->extension, "c")   == 0 ||
-         strcmp(e->extension, "h")   == 0 ||
-         strcmp(e->extension, "hc")  == 0)) {
-        ex_launch_with_wcode(e->full_path);
+    /* Files need a handler, and file_assoc owns WHICH one. This used to be an inline strcmp chain that only
+     * knew source files, so double-clicking a .txt did nothing at all -- the most ordinary action in a file
+     * manager. A type with no handler stays ASSOC_NONE and is left alone for Open With, never guessed. */
+    AssocKind kind = file_assoc_kind(e->full_path);
+    g_test_last_assoc = (int)kind;
+    switch (kind) {
+        case ASSOC_WET:
+            if (launch_wet_path) { launch_wet_path(e->full_path); break; }
+            if (ex_launch_with_wcode) ex_launch_with_wcode(e->full_path);
+            break;
+        case ASSOC_NOTEPAD:
+            if (notepad_open_path) notepad_open_path(e->full_path);
+            else if (ex_launch_with_wcode) ex_launch_with_wcode(e->full_path);
+            break;
+        case ASSOC_WCODE:
+            if (ex_launch_with_wcode) ex_launch_with_wcode(e->full_path);
+            break;
+        default:
+            break;   /* no handler we ship: the caller's Open With asks */
     }
 }
 

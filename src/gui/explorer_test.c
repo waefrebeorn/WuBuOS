@@ -6,7 +6,12 @@
 #include "../kernel/vbe.h"      /* pixel gate for the tab strip */
 #include "wubu_theme.h"         /* colours come from the theme, not from the test */
 
-#include "explorer_internal.h"   /* shared context-menu geometry */
+#include "explorer_internal.h"
+#include "file_assoc.h"
+int explorer_test_last_assoc(void);
+void explorer_test_set_notepad(struct DosGuiWindow *(*fn)(const char *));
+static int g_notepad_calls;
+static struct DosGuiWindow *count_notepad(const char *p) { (void)p; g_notepad_calls++; return (struct DosGuiWindow *)1; }   /* shared context-menu geometry */
 #include "../runtime/wubu_libraries.h"
 #include <sys/stat.h>
 #include <unistd.h>
@@ -1055,6 +1060,38 @@ static void test_toolbar(void) {
     explorer_shutdown();
 }
 
+
+/* ------------------------------------------------------------------------------------------------
+ * file_assoc: what opens a file. Explorer's old answer was an inline strcmp chain that knew only source
+ * files, so double-clicking a .txt did NOTHING. These checks pin the table AND the dispatch.
+ * ---------------------------------------------------------------------------------------------- */
+static void test_file_association(void)
+{
+    TEST_ASSERT(file_assoc_kind("notes.txt")   == ASSOC_NOTEPAD, "a .txt opens in Notepad");
+    TEST_ASSERT(file_assoc_kind("/a/b/LOG.TXT") == ASSOC_NOTEPAD, "extension matching is case-insensitive");
+    TEST_ASSERT(file_assoc_kind("main.c")      == ASSOC_WCODE,   ".c goes to W-Code");
+    TEST_ASSERT(file_assoc_kind("app.wet")     == ASSOC_WET,     "a .WET applet goes to the applet host");
+    TEST_ASSERT(file_assoc_kind("photo.png")   == ASSOC_NONE,    "an image has NO handler rather than a guess");
+    TEST_ASSERT(file_assoc_kind("README")      == ASSOC_NONE,    "no extension means no handler");
+    TEST_ASSERT(file_assoc_kind("a/b.c/dump")  == ASSOC_NONE,    "a dot in a DIRECTORY is not an extension");
+    TEST_ASSERT(strcmp(file_assoc_label(ASSOC_NOTEPAD), "Notepad") == 0, "the label names the app the user will see");
+
+    /* The DISPATCH, not just the table: opening an entry must take the Notepad path. Before this, a .txt
+     * double-click fell off the end of the strcmp chain and did nothing at all. */
+    static ExExplorerState ex;
+    memset(&ex, 0, sizeof ex);
+    ex.entry_count = 1;
+    snprintf(ex.entries[0].name, sizeof ex.entries[0].name, "notes.txt");
+    snprintf(ex.entries[0].full_path, sizeof ex.entries[0].full_path, "/notes.txt");
+    snprintf(ex.entries[0].extension, sizeof ex.entries[0].extension, "txt");
+    ex.entries[0].type = EX_ENTRY_FILE;
+    explorer_test_set_notepad(count_notepad);
+    explorer_open_entry(&ex, 0);
+    TEST_ASSERT(g_notepad_calls == 1, "opening a .txt CALLS the Notepad handler exactly once (not just decides)");
+    TEST_ASSERT(explorer_test_last_assoc() == ASSOC_NOTEPAD,
+                "and double-clicking that file really takes the Notepad path");
+}
+
 int main(void) {
     printf("╔══════════════════════════════════════════════════════════╗\n");
     printf("║  explorer Test Suite                              ║\n");
@@ -1071,6 +1108,7 @@ int main(void) {
     test_selection();
     test_list_scrolling();
     test_standard_folders();
+    test_file_association();
     test_file_ops();
     test_helpers();
     test_drive_enumeration();
