@@ -331,7 +331,7 @@ its only shell entry opens one app out of 25.
 | 135 | Firewall on by default | ABSENT | no firewall |
 | 136 | Disk encrypted by default | ABSENT (submodule app only) | `wubuencrypt` |
 | 137 | Screen locks after 15 min | PARTIAL | screensaver exists, no policy |
-| 138 | Password policy on account creation | ABSENT | no accounts |
+| 138 | Password policy on account creation | ABSENT | accounts exist; no minimum length, lockout or policy is applied |
 | 139 | Audit log of privileged actions | PARTIAL | `/n` + klog |
 | 140 | Secure boot chain | **IN-TREE** | WuBuFW measures + chainloads |
 | 141 | Signed updates | **IN-TREE** | Ed25519, gated |
@@ -460,7 +460,7 @@ than what vendors advertise:
 
 | # | The ticket | State | Evidence |
 |---|---|---|---|
-| 201 | "I forgot my password" — and can reset it without IT | **ABSENT** | there are no accounts to reset |
+| 201 | "I forgot my password" — and can reset it without IT | **PARTIAL** *(corrected 2026-11-27)* | An account record and verifier exist (`wubu_account_build/_verify`, created by the greeter at `wubu_shell_greeter.c:436`); there is no reset or recovery flow. Earlier "no accounts" was wrong — see `devils-advocate-2026-11-27.md` §3. |
 | 202 | "It won't install" — with a reason the user can act on | PARTIAL | pkgmgr returns codes; no user-facing error text |
 | 203 | "I can't get online" — and a way to see why | **ABSENT** | #10 |
 | 204 | "My email isn't sending" | ABSENT | #18 |
@@ -485,7 +485,7 @@ than what vendors advertise:
 
 | # | Requirement | State | Evidence |
 |---|---|---|---|
-| 221 | Account management (AC-2) | **ABSENT** | no accounts |
+| 221 | Account management (AC-2) | **PARTIAL** *(corrected 2026-11-27)* | `wubu_account.c` + `wubu_userinfo.c`; no create/delete/modify UI, no policy |
 | 222 | Least privilege (AC-6) | PARTIAL | `wubu_cap` capability gates |
 | 223 | Audit event logging (AU-2/3) | PARTIAL | kernel log + `/n` |
 | 224 | Audit review (AU-6) | ABSENT | nothing reads the log back |
@@ -507,7 +507,7 @@ than what vendors advertise:
 |---|---|---|---|
 | 236 | Disk encrypted before hand-over | **ABSENT** | #74 |
 | 237 | Updates current at hand-over | PARTIAL | pkgmgr, no schedule |
-| 238 | Device named, user account created | ABSENT | no accounts |
+| 238 | Device named, user account created | PARTIAL *(corrected 2026-11-27)* | the greeter creates the record during OOBE |
 | 239 | VPN profile installed | ABSENT | #8 |
 | 240 | Printer configured | PARTIAL | enumeration only |
 | 241 | Password manager provisioned | ABSENT | #76 |
@@ -624,7 +624,7 @@ grounded in their own lists:
 | 307 | 2 Inventory of software | PARTIAL | pkgmgr DB lists installed packages |
 | 308 | 3 Data protection and classification | ABSENT | — |
 | 309 | 4 Secure configuration baseline | PARTIAL | settings file; no baseline compare |
-| 310 | 5 Account management | **ABSENT** | no accounts |
+| 310 | 5 Account management | **PARTIAL** *(corrected 2026-11-27)* | records exist; policy, reset and admin paths do not |
 | 311 | 6 Access control management | PARTIAL | `wubu_cap` |
 | 312 | 7 Continuous vulnerability management | ABSENT | no advisories |
 | 313 | 8 Audit log management | PARTIAL | kernel log; no rotation, no shipping |
@@ -847,7 +847,82 @@ produced it.
 
 ---
 
+
+---
+
+# Edition 7 — the families the earlier editions missed (34)
+
+Sources this round: the macOS HIG menu bar, EN 301 549 v4.1.0 (WCAG 2.2 at OS
+level), OSWorld 2.0 task classes, the Wayland clipboard/DnD protocol, Windows 11
+24H2 servicing, the CIS Debian benchmark, and SteamOS desktop mode.
+
+## 40. Menu and commands (6)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 443 | A per-application menu bar with a standard order | **ABSENT** | no global menu; apps draw their own buttons |
+| 444 | A Help menu that is searchable | ABSENT | — |
+| 445 | Every command reachable by keyboard | PARTIAL | shortcuts exist per window, no command table |
+| 446 | Commands that are unavailable are visibly disabled | PARTIAL | some controls; no uniform rule |
+| 447 | Context menus are consistent across apps | PARTIAL | explorer + desktop only |
+| 448 | A command palette for the shell | ABSENT | — |
+
+## 41. Accessibility at procurement level (EN 301 549 / WCAG 2.2) (7)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 449 | Full keyboard operability (2.1.1) | PARTIAL | no focus chain to be operable through |
+| 450 | Visible focus indicator (2.4.7) | PARTIAL | theme defines it; not drawn everywhere |
+| 451 | Text contrast 4.5:1 (1.4.3) | UNVERIFIED | theme palettes never measured against the ratio |
+| 452 | Non-text contrast 3:1 for controls (1.4.11) | UNVERIFIED | same |
+| 453 | Reflow at 320 px equivalent (1.4.10) | ABSENT | fixed pixel layouts |
+| 454 | Text spacing without clipping (1.4.12) | PARTIAL | ellipsis exists; no spacing override |
+| 455 | No keyboard trap (2.1.2) | UNVERIFIED | no modal focus trap to escape |
+
+## 42. Clipboard and drag-and-drop as protocol objects (4)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 456 | Clipboard with MIME types, not one string | PARTIAL | `src/bridge/bridge.c` holds a host clipboard |
+| 457 | Copy rich + plain, paste chooses by MIME | ABSENT | single representation |
+| 458 | Drag and drop of files between windows | ABSENT | `wm_input` drags windows only |
+| 459 | DnD carries an explicit action (copy/move/link) | ABSENT | — |
+
+## 43. Servicing and hardening (CIS Debian / 24H2) (9)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 460 | Security updates install unattended | ABSENT | no update service |
+| 461 | Update history the user can read | ABSENT | — |
+| 462 | Feature changes are flagged, not silent | ABSENT | no feature-flag system |
+| 463 | Disk encryption at rest | ABSENT | — |
+| 464 | Firewall default-deny with a visible state | ABSENT | no firewall (#229) |
+| 465 | Audit trail of privileged actions | PARTIAL | klog only |
+| 466 | File-integrity monitoring of system files | ABSENT | packages verify, system files do not |
+| 467 | Screen locks after inactivity and unlocks with the account | PARTIAL | lock screen exists; unlock verifier exists; idle policy partial |
+| 468 | A hardening report the user could act on | ABSENT | — |
+
+## 44. Two shells over one system (SteamOS) (4)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 469 | Game mode and desktop mode over the same files | PARTIAL | game library + desktop exist; the switch is not a mode |
+| 470 | Switch modes without losing running apps | ABSENT | — |
+| 471 | Same apps visible in both modes | PARTIAL | library is separate from `g_app_defs` |
+| 472 | Controller-navigable shell | PARTIAL | keyboard paths; no gamepad focus model |
+
+## 45. Computer-use agent surfaces (OSWorld 2.0) (4)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 473 | Every app is launchable by name from one registry | **PARTIAL** | `g_app_defs` exists; `DESK_ICON_*` still leaks into 7 files |
+| 474 | Long multi-app workflows survive a crash mid-way | ABSENT | no session restore |
+| 475 | An agent can observe what changed on screen | PARTIAL | screenshot API; no diff/event stream |
+| 476 | An agent's action is attributable to it in the UI | ABSENT | no indication of agent-driven input |
+
+---
+
 ## What this document is not
 
-It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list; edition 4 adds 68 more for the developer (Red Hat workstation list, onboarding-to-first-commit) and the administrator (the 18 CIS Controls, sysadmin maintenance and MDM checklists) plus shared-device needs -- 345 workflows across three audiences; edition 5 adds 69 more for the four identities this OS claims (AGI, agentic OS, EDR, live-coding TempleOS descendant) -- 442 workflows in total. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
+It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list; edition 4 adds 68 more for the developer (Red Hat workstation list, onboarding-to-first-commit) and the administrator (the 18 CIS Controls, sysadmin maintenance and MDM checklists) plus shared-device needs -- 345 workflows across three audiences; edition 5 adds 69 more for the four identities this OS claims (AGI, agentic OS, EDR, live-coding TempleOS descendant) -- 476 workflows in total. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
 its gate exists — that is the next job, one family at a time.
