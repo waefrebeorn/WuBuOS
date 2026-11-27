@@ -80,6 +80,37 @@ int main(void)
              "lower-case letter differs from its upper-case form");
     }
 
+    /* ---- 1b. the codes the two tables do not cover ---------------- */
+    /* '`', '{', '|', '}', '~' had no glyph and were drawn as a SPACE, so JSON and shell code shown in an
+     * editor or terminal rendered with holes in it. Each must exist, be non-empty, and differ from space. */
+    const char extra_chars[5] = { '`', '{', '|', '}', '~' };
+    for (int i = 0; i < 5; i++) {
+        int idx = vbe_font_extra_index(extra_chars[i]);
+        char nm[32];
+        snprintf(nm, sizeof nm, "extra glyph '%c' exists", extra_chars[i]);
+        TEST(idx == i && memcmp(vbe_font_extra_8x8[idx], vbe_font_8x8[0], 8) != 0, nm);
+    }
+    TEST(vbe_font_extra_index('a') == -1 && vbe_font_extra_index(' ') == -1,
+         "the extra table claims only its own characters");
+
+    /* Draw through the BITMAP path, not the AA face. At scale 1 vbe_draw_text goes to aa_draw_text, whose
+     * baked face already covers 0x20..0x7E -- so a scale-1 check here proved nothing and passed with the fix
+     * removed. Text scale 2 falls back to vbe_draw_char, which is the path that lacked these glyphs. */
+    vbe_set_text_scale(2);
+    memset(vbe_state()->back, 0, (size_t)stride * vbe_height() * sizeof(uint32_t));
+    vbe_draw_text(0, 0, "{|}~`", 0x00FFFFFF, 1);
+    vbe_swap();
+    {
+        int pen = 0;
+        for (int i = 0; i < 5; i++) {
+            char nm[48];
+            snprintf(nm, sizeof nm, "'%c' draws ink in the BITMAP path (scale 2)", extra_chars[i]);
+            TEST(cell_ink(fb, pen, 0) > 2, nm);
+            pen += vbe_text_width("{", 1);
+        }
+    }
+    vbe_set_text_scale(1);
+
     /* ---- 2. drawing puts the right GLYPH at the right PEN ---------- */
     /* The renderer is antialiased now: a cell no longer equals a bitmap row, so asserting
      * exact bits would assert the old rasteriser instead of the behaviour. What must stay

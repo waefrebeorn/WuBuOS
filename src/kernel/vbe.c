@@ -503,6 +503,8 @@ void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale) {
      * strings included, not just typed input. */
     if (ch >= 'a' && ch <= 'z') {
         glyph = vbe_font_lower_8x8[(unsigned char)ch - 'a'];
+    } else if (vbe_font_extra_index((unsigned char)ch) >= 0) {
+        glyph = vbe_font_extra_8x8[vbe_font_extra_index((unsigned char)ch)];
     } else if (ch >= 32 && ch <= 95) {
         glyph = vbe_font_8x8[(unsigned char)ch - 32];
     } else {

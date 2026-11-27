@@ -57,8 +57,10 @@ int cp_draw_text(uint32_t *fb, int fb_w, int fb_h,
         if (*p == ' ') { cx += 8 * scale; continue; }
         if (*p == '\n') { y += 10 * scale; cx = x; continue; }
         const uint8_t *g = NULL;
-        if (*p >= 32 && *p <= 95)       g = vbe_font_8x8[*p - 32];
-        else if (*p > 95 && *p <= 127)  g = vbe_font_lower_8x8[*p - 'a'];
+        int ex = vbe_font_extra_index(*p);
+        if (ex >= 0)                    g = vbe_font_extra_8x8[ex];
+        else if (*p >= 32 && *p <= 95)  g = vbe_font_8x8[*p - 32];
+        else if (*p >= 'a' && *p <= 'z') g = vbe_font_lower_8x8[*p - 'a'];
         if (g) cp_glyph(fb, fb_w, fb_h, cx, y, g, colour, scale);
         cx += 8 * scale;
     }

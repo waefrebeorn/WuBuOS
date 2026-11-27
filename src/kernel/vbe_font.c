@@ -111,3 +111,31 @@ const uint8_t vbe_font_lower_8x8[26][8] = {
     /* 'y' */ { 0x00, 0x88, 0x88, 0x88, 0x78, 0x08, 0x70, 0x00 },
     /* 'z' */ { 0x00, 0xF8, 0x10, 0x20, 0x40, 0x80, 0xF8, 0x00 },
 };
+
+/*
+ * The characters the upper table stops short of. vbe_font_8x8 covers 32..95 and vbe_font_lower_8x8 covers
+ * a..z, so '`' (96) and '{', '|', '}', '~' (123..126) had NO glyph and were drawn as a SPACE -- a JSON
+ * document, a shell line or any code shown in an editor or the terminal rendered with holes in it.
+ * Five glyphs, same cell geometry (8 rows, bit 7 = leftmost, 5-pixel strokes).
+ */
+const uint8_t vbe_font_extra_8x8[5][8] = {
+    /* '`' */ { 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+    /* '{' */ { 0x18, 0x20, 0x20, 0x60, 0x20, 0x20, 0x18, 0x00 },
+    /* '|' */ { 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00 },
+    /* '}' */ { 0x30, 0x08, 0x08, 0x0C, 0x08, 0x08, 0x30, 0x00 },
+    /* '~' */ { 0x00, 0x00, 0x30, 0x48, 0x04, 0x00, 0x00, 0x00 },
+};
+
+/* Index into vbe_font_extra_8x8 for an ASCII code, or -1. One owner for the mapping: the kernel draw path
+ * and the Control Panel's text helper both ask this, so they cannot disagree about which chars exist. */
+int vbe_font_extra_index(int ch)
+{
+    switch (ch) {
+    case '`': return 0;
+    case '{': return 1;
+    case '|': return 2;
+    case '}': return 3;
+    case '~': return 4;
+    default:  return -1;
+    }
+}
