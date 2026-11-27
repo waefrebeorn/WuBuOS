@@ -887,11 +887,11 @@ static void test_every_registered_app_survives_typing(void) {
                  * unpainted until its guest boots. What must paint is an app whose whole point is to show
                  * something immediately -- a list, a canvas, a panel, a terminal. Those are named here, so
                  * "which apps must paint" is a decision on the record instead of a blanket guess. */
-                /* OPEN QUESTION, recorded not hidden: Settings and Music paint ONE colour in their content
-                 * rect in this graph, while a live session shows the Control Panel drawing its sidebar. Two
-                 * possibilities -- their registry launchers do not run the init that paints, or their empty
-                 * state really is uniform. Until that is measured they stay OUT of the must-paint list
-                 * instead of being asserted or silently removed. */
+                /* RESOLVED, and it is a fact about this GRAPH, not the product: test_apps links control.c
+                 * (the old panel) and NOT control_panel.c (the shipped applet engine), so launch_settings()
+                 * takes its documented fallback here -- one colour is what the fallback paints. The shipped
+                 * panel has its own gate (test_applet_layout, 276 checks incl. per-page paint assertions), so
+                 * this is not a coverage gap. Music is the same shape: an empty playlist. */
                 static const char *const must_paint[] = {
                     "My Computer", "File Manager", "Calculator", "Paint", "Terminal", "Task Manager", "Petdex",
                 };
