@@ -3,7 +3,7 @@
 This is the handoff for the next session: the state of the slerm backlog, the defects the
 new gates found, and the three next steps in the order they should be taken.
 
-## Closures (10 of 24 goals, every one with a gate that compares to a foreign oracle)
+## Closures (13 of 25 goals, every one with a gate that compares to a foreign oracle)
 
 | Goal | Module | Gate | Oracle | Mutation |
 |---|---|---|---|---|
@@ -17,6 +17,9 @@ new gates found, and the three next steps in the order they should be taken.
 | SLERM-2023 X25519 | `src/runtime/wubu_x25519.c` | `test_wubu_x25519` 12/12 | RFC 7748 §5.2 + iterated 1/1000 + cryptography | cswap off → 10 fail |
 | SLERM-2021 GIF (2A) | `src/runtime/wubu_gif.c` | `test_wubu_gif` 8/8 | own Python GIF writer + Pillow cross-check | interlace off → 1 fail |
 | SLERM-2017 WAV | `src/runtime/wubu_wav.c` | `test_wubu_wav` 11/11 | Python `wave` + edge-byte hand-built RIFF | 24-bit sign shift off → 1 fail |
+| D6 agent log | `src/runtime/wubu_agent_log.c` | `test_wubu_agent_log` 24/24 | forged-record case (chain only) | no chaining → 1 fail |
+| D1 password policy | `src/runtime/wubu_pwpolicy.c` | `test_wubu_pwpolicy` 25/25 | decision table, both directions | dominance off → 1 fail |
+| D4 clipboard (A) | `src/bridge/wubu_clip.c` | `test_wubu_clip` 26/26 | preference-order cases | prefs ignored → 3 fail |
 
 Independent proofs beyond the test files: a real ZIP entry (312 → 2 071 bytes exact) and
 a real PNG (8 258 IDAT → 9 264 scanline bytes exact) through our own inflate.
@@ -54,6 +57,11 @@ a real PNG (8 258 IDAT → 9 264 scanline bytes exact) through our own inflate.
   refactor (2 300 343 → 2 166 451 bytes) is proven equivalent — 2 128 targets, 0 diffs.
 - `docs/compendium/05-sources/tiny-upstreams.md`: 14 pinned permissive candidates,
   ~2.3 MB total, **none imported** — every mechanism they would have covered is own C11.
+
+## State at handoff
+
+**25 goals, 13 DONE, 12 OPEN.** Every closure above has a passing gate wired into the
+default tier, and the three that follow are the ones with the most user-visible effect.
 
 ## Next three steps (in order)
 
