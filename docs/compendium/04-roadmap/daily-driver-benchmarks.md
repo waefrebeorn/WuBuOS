@@ -667,7 +667,122 @@ grounded in their own lists:
 
 ---
 
+
+---
+
+# Edition 5 — the four things this OS claims to be
+
+A consumer OS is judged by the user list. This one also claims four distinct
+identities — **AGI**, **agentic OS**, **EDR**, and **live-coding TempleOS
+descendant** — and each has its own published requirements list. Grading them
+separately is the only way to see whether the claims are engineering or
+vocabulary.
+
+Sources: the agentic-OS requirements checklist (per-agent authority, limits
+enforced at the moment of action, held work routed to a named person, every
+verdict recorded, authority that expires — [Pryme](https://www.prymeintelligence.com/blog/agentic-operating-system-requirements-checklist/)),
+the [OWASP Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)
+risk taxonomy and [NIST AI RMF](https://airc.nist.gov/airmf-resources/airmf/5-sec-core/)
+(govern, map, measure, manage); for EDR, the eight evaluation criteria
+([Fortinet](https://www.fortinet.com/content/dam/fortinet/assets/checklists/ch-top-eight-considerations-evaluating-edr-solutions.pdf))
+— protection efficacy, ransomware defense and rollback, anti-tampering,
+manageability, performance — read against MITRE ATT&CK coverage; for live
+coding, TempleOS's JIT-and-REPL model ([HolyC docs](https://pacakutekagudabasa.github.io/HolyC/docs.html))
+and Dart's hot-reload semantics (late binding, immutable methods, fields retain
+values — [Dart hot reload](https://dart.googlesource.com/sdk/+/9b157b67e3aa4f8839df3678739c3c1e671345f0/runtime/docs/hot-reload.md)).
+
+## 31. Agentic OS requirements (22)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 346 | A perceive → decide → act → learn loop exists | **IN-TREE** | `wubu_agi_play_tick`, `wubu_agi_play_learn` in the hosted loop |
+| 347 | The agent has an identity a third party can verify | **IN-TREE** | federation agent card → `/n/agent` |
+| 348 | The agent's memory is a first-class namespace | **IN-TREE** | KV-FS published as `/n/kv`, tick files per world step |
+| 349 | Per-agent granted authority, not ambient power | PARTIAL | `wubu_cap` capability gates in the kernel path |
+| 350 | Authority expires | **ABSENT** | nothing revokes a grant on time |
+| 351 | Limits enforced AT the moment of action | PARTIAL | caps check at syscall entry; no per-action policy |
+| 352 | Human approval for held work, routed to a named person | **ABSENT** | no approval queue anywhere in `src/` |
+| 353 | Every verdict/action recorded, exportable | PARTIAL | `/n` + klog; no action log with verdicts |
+| 354 | A dry-run / simulate mode for an action | **ABSENT** | — |
+| 355 | Tool calling: the model can invoke OS verbs | PARTIAL | app launching via the agent channel; no tool registry |
+| 356 | Tool surface is enumerable and documented | ABSENT | — |
+| 357 | Prompt-injection resistance (goal hijacking) | ABSENT | no untrusted-content boundary |
+| 358 | Memory poisoning detection | ABSENT | — |
+| 359 | Cascading-failure containment (blast radius) | PARTIAL | process isolation; no agent-level budget |
+| 360 | Resource limits per agent (tokens/CPU/IO) | **IN-TREE** | `control_panel_limits.c`, `wubu_parental_enforce` |
+| 361 | Excessive agency is bounded by capabilities | PARTIAL | #349 |
+| 362 | Output handling: agent text is never executed blindly | PARTIAL | actions go through the same launch path |
+| 363 | Observability: a trace of what the agent did | PARTIAL | tick stream; no span/trace view |
+| 364 | Evaluation on YOUR cases, not a demo | ABSENT | no eval harness in the OS |
+| 365 | Model change under the operator's control | PARTIAL | `control_panel_ai.c` |
+| 366 | Kill switch that is not the power button | ABSENT | `wubu_agi_play_set_input_injection(0)` exists; no user stop |
+| 367 | AI-RMF governance artefacts (map/measure/manage) | ABSENT | — |
+
+## 32. EDR requirements (18)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 368 | Process creation telemetry with lineage | PARTIAL | ppid recorded on exec paths |
+| 369 | File write/rename/delete telemetry | ABSENT | — |
+| 370 | Network connection telemetry | ABSENT | — |
+| 371 | Persistence-point monitoring (autostart) | PARTIAL | `service_mgr` owns autostart; no watch |
+| 372 | In-memory / fileless detection | ABSENT | — |
+| 373 | Detection rules with named alerts | PARTIAL | `secmon` events, no rule language |
+| 374 | IOC matching (hash, path, domain) | ABSENT | — |
+| 375 | Sigma/YARA-style importable rules | ABSENT | — |
+| 376 | Response: kill process | PARTIAL | host exec can terminate |
+| 377 | Response: quarantine a file | **ABSENT** | — |
+| 378 | Response: roll back changes (ransomware) | **ABSENT** | no versioned file store |
+| 379 | Response: isolate the host | ABSENT | no firewall to isolate with (#229) |
+| 380 | Anti-tamper: agent cannot be silently disabled | PARTIAL | boot attest measures the chain |
+| 381 | Offline protection (no cloud dependency) | PARTIAL | local detection only, nothing to call |
+| 382 | ATT&CK coverage mapped and reported | ABSENT | — |
+| 383 | Alert triage UI with history | PARTIAL | "EDR Activity" app shows events |
+| 384 | Exportable incident bundle | ABSENT | #334 |
+| 385 | Performance budget for the agent | UNVERIFIED | no measurement |
+
+## 33. TempleOS-style live compiler inside the OS (15)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 386 | A language that compiles while the system runs | **IN-TREE** | HolyC via `holyd` + JIT |
+| 387 | A REPL where a line executes immediately | **IN-TREE** | `shell/holyc_repl.c` |
+| 388 | Compile a whole program from inside the OS | PARTIAL | compiler in-tree; no in-OS `make` flow |
+| 389 | Redefine a function and have callers use it | **ABSENT** | no edit-and-continue |
+| 390 | Old frames keep old code (no crash mid-swap) | ABSENT | follows 389 |
+| 391 | `#exe`-style in-source execution blocks | PARTIAL | REPL accepts code; no block semantics |
+| 392 | The running system is the development system | PARTIAL | REPL + apps, no editor→compile→run loop |
+| 393 | Source, data and OS state persist together | PARTIAL | files persist; no image |
+| 394 | Program state survives a restart of the tool | ABSENT | no image persistence |
+| 395 | Hypertext docs interleaved with code | ABSENT | docs are markdown, not callable |
+| 396 | JIT'd code is inspectable/disassemblable | **IN-TREE** | x86 encoder + disassembler |
+| 397 | Errors point at the source line in-OS | PARTIAL | compiler diagnostics exist |
+| 398 | Tasks/windows are language-level objects | PARTIAL | apps are C, not language objects |
+| 399 | Boot straight into the live environment | **IN-TREE** | HolyC terminal is a boot app |
+| 400 | Ring-0 affordance for the live coder | **IN-TREE** | kernel runs in-process |
+
+## 34. Live GUI coding while it runs (14)
+
+| # | Requirement | State | Evidence |
+|---|---|---|---|
+| 401 | Design a window without C | **IN-TREE** | `.wet` applets, VWS designer |
+| 402 | Edit the running UI and see it change | **ABSENT** | no hot reload of a running applet |
+| 403 | Reload keeps widget state (fields retain values) | **ABSENT** | — |
+| 404 | Reload keeps call sites future-bound (late binding) | ABSENT | — |
+| 405 | Layout recompute without restarting | PARTIAL | designer preview only |
+| 406 | Live style/theme change while running | **IN-TREE** | theme switch applies live |
+| 407 | Live font/scale change while running | **IN-TREE** | fixed this week; layout re-measures |
+| 408 | Script an event handler without rebuild | **IN-TREE** | `.wet` scripts |
+| 409 | Inspect a live widget tree | PARTIAL | designer tree in the submodule |
+| 410 | Design-time ⇄ run-time same code path | PARTIAL | applet runtime vs designer |
+| 411 | Undo a bad live edit without restart | ABSENT | — |
+| 412 | Live reload over a remote session | ABSENT | — |
+| 413 | Hot-swap an app's C code | ABSENT | no in-OS linker |
+| 414 | A visible "this is live" indicator | ABSENT | — |
+
+---
+
 ## What this document is not
 
-It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list; edition 4 adds 68 more for the developer (Red Hat workstation list, onboarding-to-first-commit) and the administrator (the 18 CIS Controls, sysadmin maintenance and MDM checklists) plus shared-device needs -- 345 workflows in total, across three audiences. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
+It is not a feature promise. Edition 1 graded 111 workflows from `src/` alone; edition 2 adds 89 and corrects sixteen verdicts that were wrong because the implementation lives in a submodule; edition 3 adds 77 from support-ticket data, NIST SP 800-53's control families, the IT onboarding checklist and the migration pain list; edition 4 adds 68 more for the developer (Red Hat workstation list, onboarding-to-first-commit) and the administrator (the 18 CIS Controls, sysadmin maintenance and MDM checklists) plus shared-device needs -- 345 workflows across three audiences; edition 5 adds 69 more for the four identities this OS claims (AGI, agentic OS, EDR, live-coding TempleOS descendant) -- 414 workflows in total. 26 rows remain **WORKS** (compiled in and exercised); everything else is graded from code, and the section above says which tree the code lives in. A row only becomes trustworthy when
 its gate exists — that is the next job, one family at a time.
