@@ -607,16 +607,24 @@ static void test_ns_guests_launch_by_write(void) {
         CHECK(lc && wubu_ct_state(lc) == CT_RUNNING, state_msg);
     }
 
+    /* Poll for the CONTENT, not for the file's existence. `echo x > f` creates
+     * the file first and writes a moment later, so under a saturated -j24 gate
+     * the old "file exists?" poll succeeded and the single read afterwards got an
+     * empty file -- a red gate that had nothing to do with the product. */
     int seen = 0;
-    for (int i = 0; i < 200; i++) {
+    char mb[64] = {0};
+    for (int i = 0; i < 300; i++) {
         FILE *f = fopen(marker, "r");
-        if (f) { fclose(f); seen = 1; break; }
+        if (f) {
+            size_t r = fread(mb, 1, sizeof(mb) - 1, f);
+            mb[r] = '\0';
+            fclose(f);
+        }
+        if (strcmp(mb, "L9-LAUNCHED\n") == 0) { seen = 1; break; }
+        mb[0] = '\0';
         usleep(10000);
     }
-    CHECK(seen, "launched command really executed (marker file)");
-    char mb[64] = {0};
-    FILE *f = fopen(marker, "r");
-    if (f) { size_t r = fread(mb, 1, sizeof(mb) - 1, f); mb[r] = '\0'; fclose(f); }
+    CHECK(seen, "launched command really executed (marker with its content)");
     CHECK(strcmp(mb, "L9-LAUNCHED\n") == 0,
           "marker content proves real exec output");
 
