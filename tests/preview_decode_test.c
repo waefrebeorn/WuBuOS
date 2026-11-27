@@ -3,7 +3,7 @@
  * Fixtures are written by tools/make_jpeg_fixtures.py (Pillow) and by this test itself for
  * BMP/GIF; the expected pixels come from the files the oracle wrote, not from our decoder.
  */
-#include "preview_decode.h"
+#include "../src/gui/shell/preview_decode.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

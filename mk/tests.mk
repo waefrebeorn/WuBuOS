@@ -2794,7 +2794,7 @@ test_hosted_pe: $(HOSTED)/hosted_pe.c $(HOSTED)/hosted_pe_test.c $(GUI)/wubu_pro
 	flock $(CT_GATE_LOCK) $(HOSTED)/hosted_pe_test
 
 test_explorer:
-		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/explorer.c $(GUI)/explorer_input.c $(GUI)/gfx/wubu_scroll.c $(GUI)/explorer_ops.c $(GUI)/file_assoc.c $(GUI)/explorer_info.c $(GUI)/explorer_zip.c $(GUI)/explorer_format.c $(GUI)/explorer_drives.c $(GUI)/explorer_tree.c $(GUI)/explorer_preview.c $(GUI)/explorer_render.c $(GUI)/shell/file_type_icons.c $(GUI)/explorer_tree_render.c $(GUI)/explorer_search.c $(GUI)/explorer_toolbar.c $(GUI)/explorer_library.c $(GUI)/explorer_fs.c $(GUI)/explorer_fsops.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/explorer_test_stub.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(RT)/wubu_libraries.c $(GUI)/explorer_test.c -lm -o $(GUI)/explorer_test -Iinclude $(RT_ALWAYS) 
+		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/explorer.c $(GUI)/explorer_input.c $(GUI)/gfx/wubu_scroll.c $(GUI)/explorer_ops.c $(GUI)/file_assoc.c $(GUI)/explorer_info.c $(GUI)/explorer_zip.c $(GUI)/explorer_format.c $(GUI)/explorer_drives.c $(GUI)/explorer_tree.c $(GUI)/explorer_preview.c $(GUI)/shell/preview_decode.c $(RT)/wubu_pixmap.c $(RT)/wubu_gif.c $(RT)/wubu_jpeg.c $(RT)/wubu_inflate.c $(RT)/wubu_utf8.c $(GUI)/explorer_render.c $(GUI)/shell/file_type_icons.c $(GUI)/explorer_tree_render.c $(GUI)/explorer_search.c $(GUI)/explorer_toolbar.c $(GUI)/explorer_library.c $(GUI)/explorer_fs.c $(GUI)/explorer_fsops.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/explorer_test_stub.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(RT)/wubu_libraries.c $(GUI)/explorer_test.c -lm -o $(GUI)/explorer_test -Iinclude $(RT_ALWAYS) 
 	$(GUI)/explorer_test
 # Arbitrary-program PTY spawn: an exec (not a shell) must run and produce output.
 test_pty_exec:
@@ -3100,7 +3100,7 @@ test_wubu_json: src/runtime/wubu_json_test.c src/runtime/wubu_json.c src/runtime
 
 test_wubu_preview_decode:
 	@python3 -c 'import PIL' 2>/dev/null || { echo "test_wubu_preview_decode needs Pillow (the oracle)"; exit 1; }
-	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_preview_decode_test src/gui/shell/preview_decode_test.c src/gui/shell/preview_decode.c src/runtime/wubu_pixmap.c src/runtime/wubu_gif.c src/runtime/wubu_jpeg.c src/runtime/wubu_inflate.c src/runtime/wubu_utf8.c -lm
+	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_preview_decode_test tests/preview_decode_test.c src/gui/shell/preview_decode.c src/runtime/wubu_pixmap.c src/runtime/wubu_gif.c src/runtime/wubu_jpeg.c src/runtime/wubu_inflate.c src/runtime/wubu_utf8.c -lm
 	@python3 tools/make_jpeg_fixtures.py $${TMPDIR:-/tmp}/wubu_jpeg_fx >/dev/null
 	$${TMPDIR:-/tmp}/wubu_preview_decode_test $${TMPDIR:-/tmp}/wubu_jpeg_fx
 

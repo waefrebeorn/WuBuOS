@@ -28,8 +28,8 @@ static const char *ext_of(const char *path) {
 static int eq_ci(const char *a, const char *b) {
     for (; *a && *b; a++, b++) {
         char x = *a, y = *b;
-        if (x >= 'A' && x <= 'Z') x += 32;
-        if (y >= 'A' && y <= 'Z') y += 32;
+        if (x >= 'A' && x <= 'Z') x += ('a' - 'A');
+        if (y >= 'A' && y <= 'Z') y += ('a' - 'A');
         if (x != y) return 0;
     }
     return *a == *b;

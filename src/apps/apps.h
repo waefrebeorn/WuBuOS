@@ -77,6 +77,7 @@ DosGuiWindow* app_launch_by_name(const char *name);
 /* Test seams for the registry smoke gate (the window struct stays opaque to test TUs). */
 void app_test_window_key(DosGuiWindow *w, uint32_t key);
 int  app_test_window_alive(DosGuiWindow *w);
+void app_test_window_resize(DosGuiWindow *w, int nw, int nh);
 /* Changed pixels after clearing the content rect and calling the app's own on_draw (WM not involved).
  * 0 = the app painted nothing; -1 = no surface. Never negative otherwise. */
 int app_test_paint_probe(DosGuiWindow *w, int *out_cw, int *out_ch);

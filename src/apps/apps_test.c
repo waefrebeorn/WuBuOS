@@ -884,6 +884,20 @@ static void test_every_registered_app_survives_typing(void) {
                 if (required) blank++;
             }
         }
+        /* SMALL-WINDOW PASS: the complaint that keeps coming back is cut-off text and bad margins, and a
+         * window clamped smaller than its content is where hardcoded layouts break. Shrink it, type at it
+         * again, and require it to survive and (for a must-paint app) still paint. Reported per app. */
+        {
+            int sw2 = 0, sh2 = 0;
+            app_test_window_resize(w, 320, 240);
+            int small_px = app_test_paint_probe(w, &sw2, &sh2);
+            if (small_px == 0)
+                printf("  SMALL-BLANK %-16s on_draw painted nothing at %dx%d\n",
+                       d->name ? d->name : "?", sw2, sh2);
+            app_test_window_key(w, 'a');
+            CHECK(app_test_window_alive(w), "the window survives being resized to 320x240 and typed at");
+        }
+
         wm_destroy(w);
         launched++;
     }

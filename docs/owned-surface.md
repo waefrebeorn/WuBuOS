@@ -176,7 +176,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `pie_signal.c`  -- tests: test_wemu_sandbox
 - `pie_unlisted.c`  -- tests: test_wemu_sandbox
 - `pin_confirm.c`  -- tests: test_pin_confirm
-- `preview_decode.c`  -- tests: test_wubu_preview_decode
+- `preview_decode.c`  -- tests: test_explorer;test_wubu_preview_decode
 - `probe_filemap.c`  -- tests: test_vsl_exec
 - `probe_ifunc_glibc_hello.c`  -- tests: test_vsl_exec
 - `probe_image_brk_registry.c`  -- tests: test_vsl_exec
@@ -556,7 +556,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_gc.c`  -- tests: test_gc
 - `wubu_gdpr_age.c`  -- tests: test_holyd_agi;test_era_apps
 - `wubu_gesture.c`  -- tests: test_hw_gesture
-- `wubu_gif.c`  -- tests: test_wubu_preview_decode
+- `wubu_gif.c`  -- tests: test_explorer;test_wubu_preview_decode
 - `wubu_glott.c`  -- tests: test_glott_speak
 - `wubu_gop_modes.c`  -- tests: test_wubu_gop_modes
 - `wubu_gpu_backend.c`  -- tests: test_ns_bridge;test_ns_9p
@@ -610,7 +610,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_image_ops.c`  -- tests: test_oci
 - `wubu_image_parse.c`  -- tests: test_oci
 - `wubu_image_tar.c`  -- tests: test_oci
-- `wubu_inflate.c`  -- tests: test_wubu_preview_decode;test_zlib;test_zip;test_cab
+- `wubu_inflate.c`  -- tests: test_explorer;test_wubu_preview_decode;test_zlib;test_zip
 - `wubu_input.c`  -- tests: test_hw_input
 - `wubu_install.c`  -- tests: test_wubu_install;test_wubu_install_tty;test_wubu_firstboot
 - `wubu_install_tty.c`  -- tests: test_wubu_install_tty
@@ -625,7 +625,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_jackdetect.c`  -- tests: test_hw_jackdetect
 - `wubu_jackimpedance.c`  -- tests: test_hw_jackimpedance
 - `wubu_jackstate.c`  -- tests: test_hw_jackstate
-- `wubu_jpeg.c`  -- tests: test_wubu_preview_decode;test_wubu_jpeg
+- `wubu_jpeg.c`  -- tests: test_explorer;test_wubu_preview_decode;test_wubu_jpeg
 - `wubu_json.c`  -- tests: test_json_fuzz;test_mime;test_trash;test_gamelib
 - `wubu_kernel_xchg.c`  -- tests: test_kernel_xchg;test_ns_kernels
 - `wubu_kvfs.c`  -- tests: test_wubu;test_9psrv;test_syscall;test_launch
@@ -730,7 +730,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_peripheral.c`  -- tests: test_hw_peripheral
 - `wubu_petdex.c`  -- tests: test_apps
 - `wubu_phy.c`  -- tests: test_hw_phy
-- `wubu_pixmap.c`  -- tests: test_wubu_preview_decode
+- `wubu_pixmap.c`  -- tests: test_explorer;test_wubu_preview_decode
 - `wubu_pkg.c`  -- tests: test_runtime_apps;test_wubu_pkg_resolve;test_pkgmgr
 - `wubu_pkg_ed25519.c`  -- tests: test_pkgmgr
 - `wubu_pkg_sign.c`  -- tests: test_pkgmgr
