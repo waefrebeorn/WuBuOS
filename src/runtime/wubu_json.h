@@ -28,7 +28,8 @@ struct JsonToken_s {
     JsonType type;
     char *key;
     char *str_value;
-    int int_value;
+    int int_value;      /* kept for existing callers: integral values only */
+    double num_value;   /* every number, including fractions and exponents */
     bool bool_value;
     JsonToken *children;
     int child_count;
@@ -41,7 +42,15 @@ extern int g_json_token_count;
 extern int g_json_parse_error;
 
 /* -- Public API --------------------------------------------------- */
+/* Parse one value from *p, advancing *p past it. Lenient entry point kept for
+ * existing callers; new code should use json_parse_document(). */
 JsonToken *json_parse_value(const char **p);
+
+/* Parse a complete document from [text, text+len): whitespace, one value, optional
+ * trailing whitespace, nothing else. Returns NULL on any violation. Strict where the
+ * lenient path is not: decoded escapes, real doubles, duplicate keys refused, ':' and
+ * ',' required, depth bounded. */
+JsonToken *json_parse_document(const char *text, size_t len);
 JsonToken *json_find(JsonToken *obj, const char *key);
 void       json_free(JsonToken *root);
 

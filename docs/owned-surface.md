@@ -7,8 +7,8 @@ linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
 - product source modules: 4304
-- OWNED (appear in a test target recipe): 951
-- VENDORED / unproven (no test-target recipe reference): 3353
+- OWNED (appear in a test target recipe): 952
+- VENDORED / unproven (no test-target recipe reference): 3352
 
 ## OWNED modules (tested)
 
@@ -880,6 +880,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_usb4.c`  -- tests: test_hw_usb4
 - `wubu_usbf.c`  -- tests: test_hw_usbf
 - `wubu_userinfo.c`  -- tests: test_cp_applets;test_cp_applets;test_applet_layout;test_userinfo
+- `wubu_utf8.c`  -- tests: test_json_fuzz;test_mime;test_trash;test_gamelib
 - `wubu_uuid.c`  -- tests: test_holyd_agi;test_uuid;test_era_apps
 - `wubu_vblank.c`  -- tests: test_hw_vblank
 - `wubu_vc4.c`  -- tests: test_hw_vc4
@@ -4218,7 +4219,6 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_user.c`
 - `wubu_user_sim.c`
 - `wubu_userfs.c`
-- `wubu_utf8.c`
 - `wubu_value.c`
 - `wubu_varbit_vq.c`
 - `wubu_vc_attn.c`

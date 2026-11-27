@@ -37,7 +37,12 @@ static void save_theme(FILE *f, const ThemeSettings *t, int indent) {
     json_write_key(f, "use_custom_colors", indent); json_write_bool(f, t->use_custom_colors); fprintf(f, ",\n");
     json_write_key(f, "icon_layout_count", indent); json_write_int(f, t->icon_layout_count); fprintf(f, ",\n");
     json_write_key(f, "show_desktop_icons", indent); json_write_bool(f, t->show_desktop_icons); fprintf(f, ",\n");
-    json_write_key(f, "auto_arrange", indent); json_write_bool(f, t->auto_arrange); fprintf(f, ",\n");
+    /* The comma is conditional: with no icon-layout entries this is the LAST member,
+     * and the old unconditional ",\n" produced `"auto_arrange": true,}` -- a trailing
+     * comma, i.e. a settings file no strict JSON reader (jq, Python, our own parser
+     * now) accepts. The lenient parser that shipped before simply swallowed it. */
+    json_write_key(f, "auto_arrange", indent); json_write_bool(f, t->auto_arrange);
+    fprintf(f, t->icon_layout_count > 0 ? ",\n" : "\n");
     for (int i = 0; i < t->icon_layout_count && i < WUBU_ICON_LAYOUT_MAX; i++) {
         fprintf(f, "%*s\"icon_layout_%d\": { \"name\": \"%s\", \"grid_x\": %d, \"grid_y\": %d, \"alive\": %s }%s\n",
                 indent, "", i,
