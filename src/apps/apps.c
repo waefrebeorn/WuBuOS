@@ -491,6 +491,65 @@ const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 void app_test_window_key(DosGuiWindow *w, uint32_t key) { if (w && w->on_key) w->on_key(w, key, 0); }
 int  app_test_window_alive(DosGuiWindow *w) { return w && w->alive; }
 
+/* DID THE APP PAINT?
+ *
+ * Sampling the rendered frame cannot answer this: the WM's own chrome and fill supply the second colour, so a
+ * mutant whose on_draw() returns immediately still looked painted. This seam removes the WM from the
+ * measurement entirely -- clear the window's content rect to a sentinel, call the app's on_draw, and count the
+ * pixels that changed. Both drawing styles are covered: apps that paint through vbe_* write to the surface we
+ * cleared, and apps that paint through the fb argument write to the buffer we hand them, which is also
+ * cleared. Returns the number of changed pixels (0 = the app painted nothing). */
+int app_test_paint_probe(DosGuiWindow *w, int *out_cw, int *out_ch) {
+    /* Weak: the weak-linkage graph links apps.c with no renderer at all, and a stub that satisfies the linker
+     * must never disagree with the real implementation -- here there is simply no surface to measure. */
+    extern VBEState *vbe_state(void) __attribute__((weak));
+    extern uint32_t vbe_get_pixel(int x, int y) __attribute__((weak));
+    extern void vbe_fill_rect(int x, int y, int w, int h, uint32_t color) __attribute__((weak));
+    if (!vbe_state || !vbe_get_pixel || !vbe_fill_rect) return -1;   /* -1: cannot measure in this graph */
+
+    if (out_cw) *out_cw = 0;
+    if (out_ch) *out_ch = 0;
+    if (!w || !w->on_draw) return 0;
+
+    int cx, cy, cw, ch;
+    wm_content_rect(w, &cx, &cy, &cw, &ch);
+    VBEState *st = vbe_state();
+    if (!st || !st->fb || cw <= 0 || ch <= 0) return 0;
+    int sw = st->width, sh = st->height;
+    if (out_cw) *out_cw = cw;
+    if (out_ch) *out_ch = ch;
+
+    /* A colour no theme uses, so a change cannot be mistaken for the sentinel. */
+    const uint32_t SENTINEL = 0xFF00FF01u;
+    static uint32_t *buf;
+    static int buf_cap;
+    size_t need = (size_t)sw * (size_t)sh;
+    if (need > (size_t)buf_cap) {
+        uint32_t *nb = (uint32_t *)realloc(buf, need * sizeof(uint32_t));
+        if (!nb) return -1;
+        buf = nb; buf_cap = (int)need;
+    }
+    for (size_t i = 0; i < need; i++) buf[i] = SENTINEL;
+
+    /* Clear through the SAME API the apps paint with. Writing st->fb directly cleared the wrong buffer:
+     * vbe_* painters draw into the render target (st->back), so every app then measured as "painted 0 px". */
+    vbe_fill_rect(cx, cy, cw, ch, SENTINEL);
+
+    w->on_draw(w, buf, sw, sh);
+
+    int changed = 0;
+    for (int y = cy; y < cy + ch; y++) {
+        if (y < 0 || y >= sh) continue;
+        for (int x = cx; x < cx + cw; x++) {
+            if (x < 0 || x >= sw) continue;
+            uint32_t a = vbe_get_pixel(x, y);
+            uint32_t b = buf[(size_t)y * (size_t)sw + (size_t)x];
+            if (a != SENTINEL || b != SENTINEL) changed++;
+        }
+    }
+    return changed;
+}
+
 const DosGuiAppDef *app_find(int icon_type) {
     for (int i = 0; i < g_app_def_count; i++)
         if (g_app_defs[i].icon_type == icon_type) return &g_app_defs[i];

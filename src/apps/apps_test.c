@@ -852,63 +852,36 @@ static void test_every_registered_app_survives_typing(void) {
         }
         CHECK(app_test_window_alive(w), "the window is still alive after the keystrokes");
 
-        /* AND IT MUST PAINT. A window that opens blank is the other half of "the apps are unusable":
-         * the crash gate above cannot see it, because nothing crashed. Render the frame and count distinct
-         * colours INSIDE the content rect (the chrome belongs to the WM, not the app). */
+        /* DID IT PAINT? app_test_paint_probe clears the content rect, calls the app's own on_draw and counts
+         * the pixels that changed -- so the WM's chrome cannot supply the colour that "proves" a paint.
+         * That is not a hypothetical: the earlier version sampled the rendered frame and a mutant whose
+         * calc_draw() returned immediately STILL passed, because the title bar was inside the sampled rect.
+         *
+         * A uniform result is NOT automatically a defect: an empty document (Notepad, Notes, Todo, Editor) is
+         * one colour by design, and DOS Box hosts an emulator surface that is blank until its guest boots.
+         * Apps whose whole point is to show something immediately are named here, so "which apps must paint"
+         * is a decision on the record rather than a blanket guess. Settings is INFO because test_apps links
+         * control.c (the old panel) and not control_panel.c, so launch_settings() takes its documented
+         * fallback in this graph; the shipped panel is gated by test_applet_layout. */
         {
-            int cx = 0, cy = 0, cw = 0, ch = 0;
-            /* Render FIRST: the content rect is only known once a chrome pass has measured the caption
-             * (before that wm_content_rect answers with the whole window, title bar included -- which made
-             * this check pass on a per-app mutant that painted nothing, because the WM's own chrome supplied
-             * the second colour). */
-            wm_render(NULL, 1024, 768);
-            wm_content_rect(w, &cx, &cy, &cw, &ch);
-            wm_render(NULL, 1024, 768);
-            uint32_t seen[8]; int distinct = 0;
-            for (int yy = cy; yy < cy + ch && distinct < 8; yy++) {
-                for (int xx = cx; xx < cx + cw; xx++) {
-                    if (xx < 0 || yy < 0 || xx >= 1024 || yy >= 768) continue;
-                    uint32_t px = vbe_get_pixel(xx, yy);
-                    int have = 0;
-                    for (int s = 0; s < distinct; s++) if (seen[s] == px) { have = 1; break; }
-                    if (!have) {
-                        if (distinct == (int)(sizeof seen / sizeof seen[0])) { have = 1; }  /* saturated: stop growing */
-                        else seen[distinct++] = px;
-                    }
-                }
-            }
-            if (distinct < 2) {
-                /* DECLARED, not excused: DOS Box hosts a live emulator whose guest has not executed yet, so
-                 * its surface is empty at frame 0 by design (the failure path draws a placeholder that DOES
-                 * paint, so 1 colour proves we got the live window, not the placeholder). Named every run so
-                 * the exception cannot quietly grow to cover a second app. */
-                /* A uniform content area is NOT by itself a defect: an EMPTY document (Notepad, Notes,
-                 * Todo, Editor) is one colour by design, and DOS Box hosts an emulator surface that is
-                 * unpainted until its guest boots. What must paint is an app whose whole point is to show
-                 * something immediately -- a list, a canvas, a panel, a terminal. Those are named here, so
-                 * "which apps must paint" is a decision on the record instead of a blanket guess. */
-                /* RESOLVED, and it is a fact about this GRAPH, not the product: test_apps links control.c
-                 * (the old panel) and NOT control_panel.c (the shipped applet engine), so launch_settings()
-                 * takes its documented fallback here -- one colour is what the fallback paints. The shipped
-                 * panel has its own gate (test_applet_layout, 276 checks incl. per-page paint assertions), so
-                 * this is not a coverage gap. Music is the same shape: an empty playlist. */
-                static const char *const must_paint[] = {
-                    "My Computer", "File Manager", "Calculator", "Paint", "Terminal", "Task Manager", "Petdex",
-                };
-                int required = 0;
-                if (d->name)
-                    for (size_t m = 0; m < sizeof must_paint / sizeof must_paint[0]; m++)
-                        if (strcmp(d->name, must_paint[m]) == 0) required = 1;
-                printf("  %s %-18s content %dx%d at %d,%d painted %d colour(s)\n",
+            int probe_cw = 0, probe_ch = 0;
+            int painted_px = app_test_paint_probe(w, &probe_cw, &probe_ch);
+            /* My Computer and File Manager are NOT here even though they obviously paint in the product:
+             * THIS FILE stubs explorer_draw() to a no-op, so a failure would be about the stub. The explorer
+             * engine has its own gate (test_explorer, 218 checks). Settings/Music/Notes/Todo/Editor are INFO
+             * for the same kind of reason -- fallback panel in this graph, and empty state by design. */
+            static const char *const must_paint[] = {
+                "Calculator", "Paint", "Terminal", "Task Manager", "Petdex",
+            };
+            int required = 0;
+            if (d->name)
+                for (size_t m = 0; m < sizeof must_paint / sizeof must_paint[0]; m++)
+                    if (strcmp(d->name, must_paint[m]) == 0) required = 1;
+            if (painted_px <= 0) {
+                printf("  %s %-18s on_draw changed %d of %dx%d px\n",
                        required ? "MUST-PAINT" : "INFO     ", d->name ? d->name : "?",
-                       cw, ch, cx, cy, distinct);
-                /* DIAGNOSTIC ONLY, not an assertion: a mutant whose calc_draw() returns immediately STILL
-                 * reported more than one colour in this rect, so this instrument does not currently
-                 * distinguish "painted" from "did not paint" -- something else (chrome edge, the WM's own
-                 * fill) supplies the second colour. Shipping it as a CHECK would be decoration. It is printed
-                 * so the numbers are on the record for whoever makes the instrument honest (measure the
-                 * app's own on_draw into a cleared buffer, which needs a seam apps_test cannot see). */
-                (void)required;
+                       painted_px, probe_cw, probe_ch);
+                if (required) blank++;
             }
         }
         wm_destroy(w);
@@ -916,8 +889,7 @@ static void test_every_registered_app_survives_typing(void) {
     }
     printf("  registry: %d launched, %d skipped, %d crashed, %d blank\n", launched, skipped, crashed, blank);
     CHECK(crashed == 0, "no registered app died on a keystroke");
-    /* no blank-pixel assertion: see the comment at the diagnostic above -- the instrument is unproven */
-    (void)blank;
+    CHECK(blank == 0, "every MUST-paint app really painted (named on a MUST-PAINT line above)");
     CHECK(launched >= 15, "at least 15 registry entries really launched (a low number means the walk is broken)");
     PASS();
 }
