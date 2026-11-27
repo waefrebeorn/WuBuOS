@@ -276,6 +276,23 @@ static void test_selection(void) {
 /* Scrolling: the list had a `list_scroll_y` field that NOTHING read, so a folder with more rows than the pane
  * could not be scrolled at all. Windows' rule is the one implemented: the wheel moves three rows, and the
  * KEYBOARD scrolls the list to wherever the focus went -- not on paint. */
+static void test_standard_folders(void) {
+    printf("\n=== Test: Standard folders ===\n");
+    explorer_init();
+    ExExplorerState *ex = explorer_state();
+    /* the standard folders exist even when the store is empty: Windows' This PC tree, and what makes a fresh
+     * system look like a system rather than a broken pane */
+    {
+        int std = 0;
+        for (ExTreeNode *d = ex->tree_root ? ex->tree_root->first_child : NULL; d; d = d->next_sibling)
+            for (ExTreeNode *f = d->first_child; f; f = f->next_sibling) {
+                const char *names[] = { "Desktop", "Documents", "Downloads", "Music", "Pictures", "Videos" };
+                for (int k = 0; k < 6; k++) if (strcmp(f->display_name, names[k]) == 0) std++;
+            }
+        TEST_ASSERT(std == 6, "the tree carries Desktop/Documents/Downloads/Music/Pictures/Videos");
+    }
+    explorer_shutdown();
+}
 static void test_list_scrolling(void) {
     printf("\n=== Test: List scrolling ===\n");
     explorer_init();
@@ -1053,6 +1070,7 @@ int main(void) {
     test_toggles();
     test_selection();
     test_list_scrolling();
+    test_standard_folders();
     test_file_ops();
     test_helpers();
     test_drive_enumeration();

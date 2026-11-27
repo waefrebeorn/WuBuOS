@@ -116,6 +116,31 @@ void ex_populate_tree(ExTreeNode *node, const char *path) {
         ex->tree_root->child_count++;
     }
 
+    /* Windows puts Desktop/Documents/Downloads/Music/Pictures/Videos under This PC even when they are empty.
+     * Without them a fresh system opens File Manager onto ONE node and an empty pane, which reads as broken
+     * rather than as "you have not saved anything yet". The guest namespace is flat, so these are real prefixes
+     * ("/Documents/...") that the list filters on -- not decorations. */
+    if (ex->tree_root->first_child) {
+        static const char *const std_names[] = { "Desktop", "Documents", "Downloads",
+                                                 "Music", "Pictures", "Videos" };
+
+        ExTreeNode *drive = ex->tree_root->first_child;
+        drive->expanded = true;   /* This PC is open by default, or its folders never render */
+        for (unsigned s = 0; s < sizeof std_names / sizeof std_names[0]; s++) {
+            ExTreeNode *f = (ExTreeNode *)calloc(1, sizeof(ExTreeNode));
+            if (!f) continue;
+            snprintf(f->path, EX_MAX_PATH, "/%s", std_names[s]);
+            snprintf(f->display_name, sizeof f->display_name, "%s", std_names[s]);
+            f->parent = drive;
+            f->icon_color = tc()->select_bg;   /* one theme colour for every folder, not six invented ones */
+            f->scanned = true;
+            ExTreeNode *tail = drive->first_child;
+            if (!tail) drive->first_child = f;
+            else { while (tail->next_sibling) tail = tail->next_sibling; tail->next_sibling = f; }
+            drive->child_count++;
+        }
+    }
+
     /* Add current directory hierarchy */
     char *path_copy = strdup(path);
     char *components[64];

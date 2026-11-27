@@ -6,6 +6,7 @@
  */
 #include "explorer_internal.h"
 #include "gfx/wubu_scroll.h"
+#include "wubu_tokens.h"
 #include "wm.h"
 #include "../kernel/vbe.h"
 
@@ -88,7 +89,7 @@ void ex_render_tree(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x
         if (wubu_scroll_max(&s) > 0) {
             int tl = 0, tp = 0;
             wubu_scroll_thumb(&s, ex->tree_view_h, &tl, &tp);
-            vbe_fill_rect(x + w - WUBU_SCROLL_THUMB_W - 2, y + ex_title_h() + 2 + tp,
+            vbe_fill_rect(x + w - WUBU_SCROLL_THUMB_W - WUBU_SPACE_XS, y + ex_title_h() + WUBU_SPACE_XS + tp,
                           WUBU_SCROLL_THUMB_W, tl, tc()->scroll_thumb);
         }
     }

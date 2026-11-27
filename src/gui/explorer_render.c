@@ -414,6 +414,14 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
             }
             row_y += row_h;
         }
+        /* Windows says so out loud: an unlabelled blank pane looks like a failure to load. */
+        if (ex_view_count(ex) == 0) {
+            const char *msg = "This folder is empty";
+            int tw = vbe_text_width(msg, 1);
+            int view_mid = (ex->list_view_h > 0 ? ex->list_view_h : ex_row_h() * 2) / 2;   /* no bare 40 */
+            vbe_draw_text(x + (w - tw) / 2, y + ex_title_h() + view_mid, msg, tc()->body_text, 1);
+        }
+
         /* list scrollbar thumb, over the right edge of the list pane */
         {
             WubuScroll s = { .content = ex_view_count(ex) * row_h, .view = ex->list_view_h,
