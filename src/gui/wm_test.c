@@ -1269,6 +1269,29 @@ static void test_snap_zones(void) {
     PASS();
 }
 
+/* Ctrl+Esc opens Start -- Microsoft's published shortcut, and the only keyboard route to the OS's own menu
+ * inside a hosted session, where the host window manager owns Super. Measured live before this existed:
+ * pressing Super in the guest opened the HOST's launcher, not ours. */
+static void test_ctrl_esc_opens_start(void) {
+    TEST("Ctrl+Esc opens Start (Windows shortcut, and the way in when the host owns Super)");
+    wm_init(1024, 768);
+    startmenu_close();
+    CHECK(!startmenu_is_open(), "start menu starts closed");
+
+    wm_handle_key(0x1B, MOD_CTRL);           /* Esc with Ctrl */
+    CHECK(startmenu_is_open(), "Ctrl+Esc opened it");
+
+    wm_handle_key(0x1B, MOD_CTRL);
+    CHECK(!startmenu_is_open(), "Ctrl+Esc again closed it (a toggle, like Windows)");
+
+    /* and a BARE Esc must not open it -- that would make Escape unusable in every dialog */
+    wm_handle_key(0x1B, 0);
+    CHECK(!startmenu_is_open(), "bare Esc does not open the menu");
+    startmenu_close();
+    wm_shutdown();
+    PASS();
+}
+
 static void test_win_arrow_hotkey(void) {
     TEST("Win+Arrow snaps the focused window (Snap Layouts hotkey)");
     wm_init(1024, 768);
@@ -2845,6 +2868,7 @@ int main(void) {
 
     test_snap_layouts();
     test_win_arrow_hotkey();
+    test_ctrl_esc_opens_start();
     test_modifier_bits_match_input_h();
     test_show_desktop_hotkey();
     test_shell_shortcuts_reach_their_launchers();

@@ -289,6 +289,13 @@ void hosted_x11_grab_win_keys(void) {
      * in a live session: nine clicks and one Alt+F4 left an empty desktop with the guest process gone. The
      * guest's own handler already refuses to close anything when no window is focused (wm_input.c), so the
      * key simply does nothing, which is what Windows does on an empty desktop. */
+    /* Ctrl+Esc opens the guest's Start menu (Microsoft's shortcut list). The host WM owns Super, so without
+     * grabbing this combination the OS had no keyboard route to its own menu inside a hosted session. */
+    KeyCode esc = XKeysymToKeycode(g_xdpy, XK_Escape);
+    if (esc)
+        for (unsigned v = 0; v < sizeof lock_variants / sizeof lock_variants[0]; v++)
+            grab_one(esc, ControlMask | lock_variants[v]);
+
     KeyCode f4 = XKeysymToKeycode(g_xdpy, XK_F4);
     if (f4)
         for (unsigned v = 0; v < sizeof lock_variants / sizeof lock_variants[0]; v++)

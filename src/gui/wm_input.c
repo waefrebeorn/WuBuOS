@@ -226,6 +226,14 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         startmenu_toggle();
         return;
     }
+    /* Ctrl+Esc: open Start. Microsoft's published shortcut list has it, and it is the way IN when the HOST
+     * window manager owns the Super key -- measured: Cinnamon grabs Super globally, so the OS's own menu was
+     * unreachable in a hosted session unless the user first toggled keyboard capture. Handled before the
+     * modal block so it also CLOSES an open menu, like Windows. */
+    if ((mods & MOD_CTRL) && key == 0x1B) {
+        startmenu_toggle();
+        return;
+    }
     if (startmenu_is_open()) {
         startmenu_handle_key(key, mods);
         startmenu_handle_search_input(key, mods);
