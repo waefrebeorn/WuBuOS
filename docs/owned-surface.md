@@ -7,8 +7,8 @@ linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
 - product source modules: 4312
-- OWNED (appear in a test target recipe): 952
-- VENDORED / unproven (no test-target recipe reference): 3360
+- OWNED (appear in a test target recipe): 953
+- VENDORED / unproven (no test-target recipe reference): 3359
 
 ## OWNED modules (tested)
 
@@ -623,6 +623,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_jackdetect.c`  -- tests: test_hw_jackdetect
 - `wubu_jackimpedance.c`  -- tests: test_hw_jackimpedance
 - `wubu_jackstate.c`  -- tests: test_hw_jackstate
+- `wubu_jpeg.c`  -- tests: test_wubu_jpeg
 - `wubu_json.c`  -- tests: test_json_fuzz;test_mime;test_trash;test_gamelib
 - `wubu_kernel_xchg.c`  -- tests: test_kernel_xchg;test_ns_kernels
 - `wubu_kvfs.c`  -- tests: test_wubu;test_9psrv;test_syscall;test_launch
@@ -3890,7 +3891,6 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_invariant.c`
 - `wubu_iommu.c`
 - `wubu_isq_plan.c`
-- `wubu_jpeg.c`
 - `wubu_kda.c`
 - `wubu_kereq.c`
 - `wubu_kernel.c`

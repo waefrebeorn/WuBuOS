@@ -1,7 +1,7 @@
 {
  "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
  "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
- "next_n": 2026,
+ "next_n": 2027,
  "goals": [
   {
    "n": 2001,
@@ -369,12 +369,12 @@
   {
    "n": 2024,
    "id": "SLERM-2024",
-   "status": "OPEN",
-   "title": "JPEG baseline+progressive decode and GIF animation (stage 2B of the image gap)",
+   "status": "DONE",
+   "title": "JPEG baseline decode (stage A of the image family)",
    "replaces": "stb_image:jpeg",
    "module": "src/runtime/wubu_jpeg.c",
    "oracle": "Pillow and an independent JPEG decoder as second readers; progressive and 4:2:0/4:4:4 corpora",
-   "criterion": "src/runtime/wubu_jpeg.c decodes baseline sequential and progressive JPEG (4:2:0, 4:2:2, 4:4:4) into the same RGBA buffers as the GIF and PNG paths, and test_wubu_jpeg compares pixels against Pillow within a stated tolerance while refusing a truncated entropy-coded segment and an unsupported colour transform.",
+   "criterion": "src/runtime/wubu_jpeg.c decodes baseline sequential JPEG -- any of the legal chroma subsamplings, 1 or 3 components, restart intervals -- and REFUSES progressive, arithmetic, 12-bit and CMYK by name; test_wubu_jpeg compares against Pillow-encoded files within a stated tolerance (mean <= 2.0, worst <= 8) plus a structural check that the red square is red and in place. [verified 2026-11-27: make test_wubu_jpeg prints '18 passed, 0 failed'. Measured against Pillow: 4:2:0 mean |diff| 0.34 / worst 2, 4:4:4 0.04 / 2, greyscale 0.01 / 1. Three real bugs caught by the gate: nearest-neighbour chroma upsampling cost 7.94 mean and 92 worst (bilinear triangle filter, as libjpeg, took it to 0.34 / 2 and the tolerance was then TIGHTENED to 2.0 / 8 so a regression fails); a file truncated mid-scan decoded successfully because the bit reader padded with zeros -- now refused as SHORT; and an oversized image was allocated before the cap was consulted. Mutation: nearest upsampling restored leaves 2 failures. STAGE A ONLY: progressive JPEG and GIF animation remain the goal below.]",
    "gate": "make test_wubu_jpeg",
    "source": "nothings/stb",
    "licence": "public domain / MIT",
@@ -397,6 +397,21 @@
    "licence": "n/a",
    "fills": [
     "gui"
+   ]
+  },
+  {
+   "n": 2026,
+   "id": "SLERM-2026",
+   "status": "OPEN",
+   "replaces": "SLERM-2024 stage B",
+   "title": "JPEG progressive decode and GIF animation (image family stage B)",
+   "module": "src/runtime/wubu_jpeg.c",
+   "criterion": "wubu_jpeg_decode accepts SOF2 progressive files (spectral selection and successive approximation across multiple scans) and wubu_gif decodes every frame with delays, disposal methods and looping into a frame list; test_wubu_jpeg_progressive and test_wubu_gif_anim compare each scan's pixels and each frame against Pillow.",
+   "gate": "make test_wubu_jpeg_progressive",
+   "source": "devils-advocate-2026-11-27",
+   "licence": "n/a",
+   "fills": [
+    "image"
    ]
   }
  ]
