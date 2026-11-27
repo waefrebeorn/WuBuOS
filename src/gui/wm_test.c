@@ -446,6 +446,38 @@ static void test_render_draws_glyphs_and_selection(void) {
     PASS();
 }
 
+/* Regression: every app used to draw the SAME mini-window glyph tinted with its
+ * colour, so a desktop of 30 apps looked like one icon repeated. Now an app with
+ * a baked master draws that master; this pins that two apps resolve to two
+ * DIFFERENT shapes (compared as coverage on one ink colour, so tint cannot
+ * stand in for shape). */
+static void test_app_icons_are_distinct(void) {
+    TEST("app icon masters are per-app shapes (Calculator != Terminal)");
+    vbe_init(256, 256);
+    wm_init(256, 256);          /* sets the render target the pixel probe reads */
+    vbe_fill_rect(0, 0, 256, 256, 0xFF000000);
+
+    const int ax = 8, bx = 48, ay = 8;
+    int ha = chrome_app_icon_draw("Calculator", ax, ay, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, 0xFFFFFFFF);
+    int hb = chrome_app_icon_draw("Terminal", bx, ay,
+                                  DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, 0xFFFFFFFF);
+    CHECK(ha && hb, "both titles resolve to a baked master");
+
+    int ink_a = 0, ink_b = 0, asym = 0;
+    for (int y = 0; y < DOSGUI_ICON_SIZE; y++) {
+        for (int x = 0; x < DOSGUI_ICON_SIZE; x++) {
+            int a = (vbe_get_pixel(ax + x, ay + y) & 0x00FFFFFFu) != 0;
+            int b = (vbe_get_pixel(bx + x, ay + y) & 0x00FFFFFFu) != 0;
+            ink_a += a; ink_b += b;
+            if (a != b) asym++;
+        }
+    }
+    CHECK(ink_a > 0 && ink_b > 0, "both icons painted");
+    CHECK(asym > 20, "the two app masters are different shapes, not one glyph re-tinted");
+    wm_shutdown();
+    PASS();
+}
+
 /* Regression for the XP Luna drop-shadow: a window must cast a soft blended
  * shadow to its bottom-right under Luna themes (and none under Win98). */
 static void test_render_window_drop_shadow(void) {
@@ -2940,6 +2972,7 @@ int main(void) {
     test_render_no_crash();
     test_buddy_states_render_differently();
     test_render_draws_glyphs_and_selection();
+    test_app_icons_are_distinct();
     test_render_window_drop_shadow();
     test_render_win98_title_bar_is_theme_navy();
     test_vbe_clip_confines_pixels();

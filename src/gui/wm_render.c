@@ -18,6 +18,7 @@
 
 #include "wm.h"
 #include "wm_internal.h"
+#include "shell/window_chrome.h"   /* chrome_app_icon_draw: an app icon, not a tinted box */
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
@@ -184,14 +185,20 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         if (icon->selected)
             wm_draw_icon_selection(icon->x, icon->y);
 
-        /* Recognizable glyph instead of a flat colored box. Fall back to the
-         * icon_color box only if the slot is somehow empty. */
+        /* Recognizable glyph instead of a flat colored box. An app with a baked
+         * master draws ITS icon (the folder, the gear, the terminal), so two apps
+         * do not look like the same mini-window in different tints; everything
+         * else falls back to the type glyph. */
         uint32_t accent = icon->icon_color ? icon->icon_color : tc()->win_title_active;
-        wm_draw_icon_glyph(icon->type, icon->x, icon->y,
-                                  /* face */ tc()->btn_face,
-                                  /* light */ tc()->border_light,
-                                  /* dark */ tc()->border_dark,
-                                  /* accent */ accent);
+        if (!(icon->type == DESK_ICON_APP &&
+              chrome_app_icon_draw(icon->name, icon->x, icon->y,
+                                   DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE,
+                                   icon->selected ? tc()->select_text : tc()->icon_text)))
+            wm_draw_icon_glyph(icon->type, icon->x, icon->y,
+                                      /* face */ tc()->btn_face,
+                                      /* light */ tc()->border_light,
+                                      /* dark */ tc()->border_dark,
+                                      /* accent */ accent);
 
         int label_y = icon->y + DOSGUI_ICON_SIZE + 2;
         /* The label owns the column pitch (Win98 columns are ~75px), less a

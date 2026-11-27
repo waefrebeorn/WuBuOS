@@ -456,10 +456,17 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
     int icon_x = win->x + bw + CHROME_ICON_PADDING;
     int icon_y = win->y + bw + (tbh - CHROME_ICON_SIZE) / 2;
     if (win->icon_color) {
-        vbe_fill_rect(icon_x, icon_y, CHROME_ICON_SIZE, CHROME_ICON_SIZE,
-                      win->icon_color);
-        vbe_rect(icon_x, icon_y, CHROME_ICON_SIZE, CHROME_ICON_SIZE,
-                 tc()->border_dark);
+        /* The app's own baked master in the caption ink; the colour square is only
+         * the fallback for a title with no master. Every window used to draw that
+         * square -- a flat block where Windows shows the program's icon. */
+        uint32_t icon_ink = active ? tc()->win_title_text : tc()->win_title_text_ina;
+        if (!chrome_app_icon_draw(win->title, icon_x, icon_y,
+                                  CHROME_ICON_SIZE, CHROME_ICON_SIZE, icon_ink)) {
+            vbe_fill_rect(icon_x, icon_y, CHROME_ICON_SIZE, CHROME_ICON_SIZE,
+                          win->icon_color);
+            vbe_rect(icon_x, icon_y, CHROME_ICON_SIZE, CHROME_ICON_SIZE,
+                     tc()->border_dark);
+        }
     }
 
     /* -- Title text -- */
