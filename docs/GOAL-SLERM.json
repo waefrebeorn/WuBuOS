@@ -1,7 +1,7 @@
 {
  "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
  "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
- "next_n": 2024,
+ "next_n": 2025,
  "goals": [
   {
    "n": 2001,
@@ -317,13 +317,13 @@
   {
    "n": 2021,
    "id": "SLERM-2021",
-   "status": "OPEN",
-   "title": "JPEG baseline+progressive and GIF87a/89a decode (stage 2 of the image gap)",
+   "status": "DONE",
+   "title": "GIF87a/89a decode (stage 2A of the image gap): own LZW, palette, interlace, transparency",
    "replaces": "stb_image:jpeg+gif",
-   "module": "src/runtime/wubu_jpeg.c",
+   "module": "src/runtime/wubu_gif.c",
    "oracle": "third_party/tiny/stb_image (reference only, never linked)",
-   "criterion": "src/runtime/wubu_jpeg.c decodes baseline sequential and progressive JPEG and GIF87a/89a (including transparency and interlacing) into the WubuImage buffers used by stage 1, and test_wubu_jpeg compares pixels against an independent decoder for a corpus that includes 4:2:0, 4:4:4 and progressive files, refusing a truncated entropy-coded segment.",
-   "gate": "make test_wubu_jpeg",
+   "criterion": "src/runtime/wubu_gif.c decodes the first frame of a GIF87a/89a file -- LZW over the sub-block chain, global or local palette, four-pass interlacing, transparency -- into RGBA with no size cap and no allocation, and test_wubu_gif compares pixels against fixtures from an independent GIF writer while refusing truncation, non-GIF input, a corrupt code stream and an undersized buffer. [verified 2026-11-27: make test_wubu_gif prints '8 passed, 0 failed', and a Pillow-written GIF decodes pixel-for-pixel identical to Pillow's own RGBA read. Mutation: ignoring the interlace passes leaves a failure. Animation timing and frame compositing are NOT implemented and are the separate goal below.]",
+   "gate": "make test_wubu_gif",
    "source": "nothings/stb",
    "licence": "public domain / MIT",
    "fills": [
@@ -364,6 +364,24 @@
    "fills": [
     "security",
     "online"
+   ]
+  },
+  {
+   "n": 2024,
+   "id": "SLERM-2024",
+   "status": "OPEN",
+   "title": "JPEG baseline+progressive decode and GIF animation (stage 2B of the image gap)",
+   "replaces": "stb_image:jpeg",
+   "module": "src/runtime/wubu_jpeg.c",
+   "oracle": "Pillow and an independent JPEG decoder as second readers; progressive and 4:2:0/4:4:4 corpora",
+   "criterion": "src/runtime/wubu_jpeg.c decodes baseline sequential and progressive JPEG (4:2:0, 4:2:2, 4:4:4) into the same RGBA buffers as the GIF and PNG paths, and test_wubu_jpeg compares pixels against Pillow within a stated tolerance while refusing a truncated entropy-coded segment and an unsupported colour transform.",
+   "gate": "make test_wubu_jpeg",
+   "source": "nothings/stb",
+   "licence": "public domain / MIT",
+   "fills": [
+    "media",
+    "files",
+    "aesthetics"
    ]
   }
  ]
