@@ -133,6 +133,9 @@ def main():
     ap.add_argument("--font", default=DEFAULT_FONT)
     ap.add_argument("--size", type=int, default=13)
     ap.add_argument("--out", default=DEFAULT_OUT)
+    ap.add_argument("--fallback", default=None,
+                    help="second face used ONLY for codepoints the primary cannot render (font "
+                         "fallback, as every OS text stack does)")
     ap.add_argument("--prefix", default="",
                     help="symbol prefix so two faces can live in one translation unit (e.g. bold_)")
     ap.add_argument("--preserve", default=None,
@@ -143,13 +146,25 @@ def main():
         sys.exit(f"font_bake: no such font: {a.font}")
     font = ImageFont.truetype(a.font, a.size)
     ascent, descent = font.getmetrics()
+    fb_font = ImageFont.truetype(a.fallback, a.size) if a.fallback else None
+    fell_back = 0
+
+    def is_control(cp):
+        """C0/C1 control codes and DEL are not characters: no font renders them, and requiring a
+        glyph for them makes the bake impossible with any face that maps them to .notdef. This
+        surfaced when baking Selawik, which has no outline for U+007F -- Segoe happened to have one."""
+        return cp < 0x20 or 0x7F <= cp <= 0x9F
 
     glyphs = []
     for cp in range(FIRST, LAST + 1):
         ch = chr(cp)
         w, h, xoff, yoff, data = render(font, ch)
         # NBSP and soft hyphen are invisible BY DESIGN; everything else that renders empty is a hole.
-        if w == 0 and ch.strip() and cp not in (0x00A0, 0x00AD):
+        if w == 0 and fb_font is not None and ch.strip() and not is_control(cp):
+            w, h, xoff, yoff, data = render(fb_font, ch)
+            if w:
+                fell_back += 1
+        if w == 0 and ch.strip() and cp not in (0x00A0, 0x00AD) and not is_control(cp):
             sys.exit(f"font_bake: U+{cp:04X} '{ch}' rendered empty -- refusing to ship a "
                      f"table with a hole in it")
         glyphs.append((cp, ch, w, h, xoff, yoff, data))

@@ -27,6 +27,9 @@ WANT = "selawk.ttf"                      # regular weight; the release uses 8.3-
 TTF_SHA256 = "e9d98518d8ac2817782a9a382430463a2e0793ea68350b695bb727d9a830ee1c"  # extracted selawik.ttf
 OUT_DIR = os.path.join("third_party", "fonts")
 OUT_TTF = os.path.join(OUT_DIR, "selawik.ttf")
+BOLD_MEMBER = "selawkb.ttf"              # bold weight
+OUT_BOLD = os.path.join(OUT_DIR, "selawik-bold.ttf")
+BOLD_SHA256 = "f0db5e174a90e0956ad7d2844bdca1d5e6da92ec65b2c04e57ba9b180668c904"
 OUT_LIC = os.path.join(OUT_DIR, "Selawik-OFL.txt")
 LIC_URL = "https://raw.githubusercontent.com/microsoft/Selawik/master/LICENSE.txt"
 
@@ -62,6 +65,13 @@ def main():
         if got != TTF_SHA256:
             print("fetch_selawik: FAIL digest %s != pinned %s" % (got, TTF_SHA256))
             return 1
+        if os.path.exists(OUT_BOLD):
+            bd = open(OUT_BOLD, "rb").read()
+            bg = sha256(bd)
+            print("fetch_selawik: %s %d bytes sha256=%s" % (OUT_BOLD, len(bd), bg[:16]))
+            if bg != BOLD_SHA256:
+                print("fetch_selawik: FAIL bold digest %s != pinned" % bg)
+                return 1
         if not os.path.exists(OUT_LIC):
             print("fetch_selawik: FAIL no licence text beside the font (OFL requires it)")
             return 1
@@ -97,6 +107,13 @@ def main():
 
     os.makedirs(OUT_DIR, exist_ok=True)
     open(OUT_TTF, "wb").write(font)
+
+    try:
+        bold = z.read(BOLD_MEMBER)
+        open(OUT_BOLD, "wb").write(bold)
+        print("fetch_selawik: wrote %s (%d bytes) sha256=%s" % (OUT_BOLD, len(bold), sha256(bold)))
+    except KeyError:
+        print("fetch_selawik: WARNING no %s in the archive" % BOLD_MEMBER)
     try:
         with urllib.request.urlopen(LIC_URL, timeout=60) as r:
             open(OUT_LIC, "wb").write(r.read())
