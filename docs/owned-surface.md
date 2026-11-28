@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 4317
+- product source modules: 4318
 - OWNED (appear in a test target recipe): 957
-- VENDORED / unproven (no test-target recipe reference): 3360
+- VENDORED / unproven (no test-target recipe reference): 3361
 
 ## OWNED modules (tested)
 
@@ -4192,6 +4192,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_tensor_store.c`
 - `wubu_tensorfold.c`
 - `wubu_ternary.c`
+- `wubu_text_cache.c`
 - `wubu_thread_spec.c`
 - `wubu_threshsig.c`
 - `wubu_timeseries.c`

@@ -25,6 +25,9 @@
 
 typedef struct { float x0, y0, x1, y1; int dir; } Seg;
 
+static int ifloor(float v) { int i = (int)v; return (v < 0.0f && (float)i != v) ? i - 1 : i; }
+static int iceil(float v) { int i = (int)v; return (v > 0.0f && (float)i != v) ? i + 1 : i; }
+
 static float px_x(int32_t v, int upem, int ppem) { return (float)v * (float)ppem / (float)upem; }
 static float px_y(int32_t v, int upem, int ppem) { return -(float)v * (float)ppem / (float)upem; }
 
@@ -76,8 +79,9 @@ static void add_span(uint8_t *cov, int cw, int row, float x0, float x1, float we
     cov[row * cw + ix1] = (uint8_t)(cl > 255.0f ? 255.0f : cl);
 }
 
-int wubu_ttf_raster(const WubuTtfPoint *pts, int npts, const uint16_t *contour_end, int ncontours,
-                    int upem, int ppem, uint8_t *cov, int cw, int ch, int *out_w, int *out_h)
+int wubu_ttf_raster_off(const WubuTtfPoint *pts, int npts, const uint16_t *contour_end, int ncontours,
+                        int upem, int ppem, float pen_x, float pen_y, uint8_t *cov, int cw, int ch,
+                        int *out_w, int *out_h, int *out_bx, int *out_by)
 {
     static Seg seg[TT_MAX_SEG];
     static float gx[TT_MAX_PTS], gy[TT_MAX_PTS];
@@ -95,10 +99,19 @@ int wubu_ttf_raster(const WubuTtfPoint *pts, int npts, const uint16_t *contour_e
         if (pts[i].y < ymin) ymin = pts[i].y;
         if (pts[i].y > ymax) ymax = pts[i].y;
     }
-    float ox = px_x(xmin, upem, ppem), oy = px_y(ymax, upem, ppem);
-    int w = (int)(px_x(xmax, upem, ppem) - ox + 1.0f);   /* also the row stride below */
-    int h = (int)(px_y(ymin, upem, ppem) - oy + 1.0f);
-    if (w <= 0 || h <= 0 || w > cw || h > ch) return 0;
+    /* Integer-pixel box that contains the subpixel-shifted outline. The shift is why the box is
+     * computed from CEIL/floor rather than by rounding one width: at pen_x = .25 the glyph covers
+     * parts of both neighbouring pixels. */
+    float fx0 = px_x(xmin, upem, ppem) + pen_x, fx1 = px_x(xmax, upem, ppem) + pen_x;
+    /* px_y flips the axis, so ymax maps to the TOP of the box. Getting this backwards collapses
+     * every glyph to a one-pixel-tall empty bitmap. */
+    float fy_top = px_y(ymax, upem, ppem) + pen_y, fy_bot = px_y(ymin, upem, ppem) + pen_y;
+    int bx = ifloor(fx0), by = ifloor(fy_top);
+    int w = iceil(fx1) - bx, h = iceil(fy_bot) - by;
+    if (w < 1) w = 1;
+    if (h < 1) h = 1;
+    float ox = (float)bx, oy = (float)by;
+    if (w > cw || h > ch) return 0;
 
     int nseg = 0, start = 0;
     for (int c = 0; c < ncontours; c++) {
@@ -107,8 +120,8 @@ int wubu_ttf_raster(const WubuTtfPoint *pts, int npts, const uint16_t *contour_e
         int np = end - start + 1;
 
         for (int k = 0; k < np; k++) {
-            gx[k] = px_x(pts[start + k].x, upem, ppem) - ox;
-            gy[k] = px_y(pts[start + k].y, upem, ppem) - oy;
+            gx[k] = px_x(pts[start + k].x, upem, ppem) + pen_x - ox;
+            gy[k] = px_y(pts[start + k].y, upem, ppem) + pen_y - oy;
             gon[k] = pts[start + k].on;
         }
 
@@ -179,5 +192,15 @@ int wubu_ttf_raster(const WubuTtfPoint *pts, int npts, const uint16_t *contour_e
 
     *out_w = w;
     *out_h = h;
+    if (out_bx) *out_bx = bx;
+    if (out_by) *out_by = by;
     return 1;
+}
+
+/* Convenience: integer pen position, bearings discarded. */
+int wubu_ttf_raster(const WubuTtfPoint *pts, int npts, const uint16_t *contour_end, int ncontours,
+                    int upem, int ppem, uint8_t *cov, int cw, int ch, int *out_w, int *out_h)
+{
+    return wubu_ttf_raster_off(pts, npts, contour_end, ncontours, upem, ppem, 0.0f, 0.0f,
+                               cov, cw, ch, out_w, out_h, NULL, NULL);
 }

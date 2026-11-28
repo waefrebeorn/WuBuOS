@@ -68,4 +68,11 @@ int wubu_ttf_outline(const WubuTtf *ttf, uint32_t gid, WubuTtfPoint *pts, int ma
 int wubu_ttf_raster(const WubuTtfPoint *pts, int npts, const uint16_t *contour_end, int ncontours,
                     int upem, int ppem, uint8_t *cov, int cw, int ch, int *out_w, int *out_h);
 
+/* Same, at a fractional pen position (pen_x/pen_y in pixels). out_bx/out_by receive the integer
+ * offset of the returned box from the pen origin, which is what a caller needs to place the glyph
+ * without re-deriving the bounding box. */
+int wubu_ttf_raster_off(const WubuTtfPoint *pts, int npts, const uint16_t *contour_end, int ncontours,
+                        int upem, int ppem, float pen_x, float pen_y, uint8_t *cov, int cw, int ch,
+                        int *out_w, int *out_h, int *out_bx, int *out_by);
+
 #endif /* WUBU_TRUETYPE_H */
