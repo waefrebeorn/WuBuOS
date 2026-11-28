@@ -88,7 +88,7 @@ static void signin_render(CpApplet *applet, uint32_t *fb,
         cp_draw_text(fb, fb_w, fb_h, x + 20, ry, cmd, c->select_bg, 1);
     }
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_XS,
+    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM,
                  "Nothing here is simulated: each line is a device or a file that was found. F5 re-checks.",
                  c->body_text_ina, 1);
 }

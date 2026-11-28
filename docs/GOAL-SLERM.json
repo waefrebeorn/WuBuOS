@@ -433,7 +433,7 @@
     {
       "id": "SLERM-2028",
       "title": "Flip the baked text cells to Selawik and adapt the control-panel layouts",
-      "status": "OPEN",
+      "status": "DONE",
       "module": "src/gui/fonts/wubu_font_text.h",
       "oracle": "tools/font_bake.py (FreeType via Pillow) + test_applet_layout painted-bounds checks",
       "criterion": "Both cells baked from Selawik (regular + bold, fallback DejaVu for uncovered codepoints), AND test_applet_layout green at 6px MIN_PAD on every panel at 800x560/1024x768/1600x900. Measured with the Selawik cells in place: all 39 panel/size combinations change bounds; content tops move by 0, +2 or +4 px depending on the panel; the five failures (firmware, mirror, account, limits, signin) gain exactly +3 px at the bottom -- the same 3 px the line height loses (19 -> 16) -- and clamp at H-4 = 896 against the 6 px rule. Widths differ by 1 px on 53 of 188 codepoints; ascent 15 -> 13.",
@@ -442,7 +442,7 @@
       "n": 2028,
       "replaces": "segoeuil.ttf / segoeuib.ttf baked coverage (Segoe-derived cells)",
       "why": "The shipped text cells are derived from Microsoft's Segoe UI, which is not redistributable; Selawik is the OFL metric-compatible substitute, but its metrics move every string, so the swap needs measured layout adaptation rather than a table swap.",
-      "progress": "Measured 2026-11-28: font_bake.py rebakes both cells from Selawik with --fallback and test_font_aa passes on them; the blocker is layout, not rasterisation. The +3 px is per panel content, not a single global formula, so the fix is per-panel: take >=3 px out of the content or raise the panel's height budget, then re-run test_applet_layout which checks 117 panel/size combinations."
+      "progress": "DONE: both cells baked from Selawik (regular + DejaVu fallback for the 12 codepoints Selawik lacks; bold vendored 44,068 B, digest-pinned). The blocker was not the face but a real padding defect it exposed: five control panels anchored their footer to h - line_h - WUBU_SPACE_XS, i.e. a 4px bottom pad against the 6px MIN_PAD rule, and Segoe's taller line height (19 vs 16) had been hiding the violation by lifting the footer 3px. Discriminated by experiment: anchoring firmware's footer 3px higher (literal 19) restored y[16..893] and passed; the pad, not the glyphs, was at fault. Fixed by using WUBU_SPACE_SM (8) at all five sites, which satisfies 6px for any face. test_applet_layout 276/0 with both the Selawik and the old cells, test_font_aa 0 failed, standards/ratchet/docs/owned-surface green."
     }
   ]
 }

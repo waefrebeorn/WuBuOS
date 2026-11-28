@@ -106,12 +106,12 @@ static void limits_render(CpApplet *applet, uint32_t *fb,
         d->field == 0 ? "start hour selected" : "end hour selected", c->body_text);
 
     if (d->dirty)
-        cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 2 * cp_text_line_h() - WUBU_SPACE_XS, "Unsaved -- Enter writes the policy",
+        cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 2 * cp_text_line_h() - WUBU_SPACE_SM, "Unsaved -- Enter writes the policy",
                      c->select_bg, 1);
     else if (d->note[0])
-        cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 2 * cp_text_line_h() - WUBU_SPACE_XS, d->note, c->body_text_ina, 1);
+        cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 2 * cp_text_line_h() - WUBU_SPACE_SM, d->note, c->body_text_ina, 1);
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_XS,
+    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM,
                  "Space on/off - Tab switches hour - Up/Down 30 min - Enter saves", c->body_text_ina, 1);
 }
 
