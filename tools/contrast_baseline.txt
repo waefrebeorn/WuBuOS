@@ -1,32 +1,18 @@
 # Known contrast violations, "<theme> <pair>". The gate fails on any violation NOT listed here,
 # and also fails when a listed one starts passing: a baseline that cannot shrink is a lie.
 #
-# Everything below is WCAG 1.4.11 (non-text contrast, 3:1 for control boundaries), measured
-# 2026-11-28: 31 of 98 pairs. They are systematic, not incidental -- every theme draws its
-# scrollbar thumb and its button face below 3:1 against what they sit on, and the classic themes
-# distinguish buttons by 3D edges that are themselves only ~2.2:1. Clearing them is a visible
-# redesign across 7 themes, tracked as SLERM-2034; text contrast (1.4.3) is already closed.
-0 border_dark/win_face
+# Remainder of WCAG 1.4.11 (non-text 3:1), measured 2026-11-28. CLEARED so far: scrollbar thumb
+# vs track (7 themes -- theme 0 had thumb == track, an invisible thumb), outer control outline
+# border_darkest (5 themes), icon plate outline (2 themes). What is left is the FILL of controls
+# that are drawn flat: the button face and the start button, where no outline carries the boundary.
 0 btn_face/win_face
 0 start_btn_face/taskbar_bg
 1 btn_face/win_face
-1 icon_border/desktop_bg
 1 start_btn_face/taskbar_bg
-2 border_dark/win_face
-2 border_darkest/win_face
 2 btn_face/win_face
-3 border_dark/win_face
-3 border_darkest/win_face
 3 btn_face/win_face
-4 border_dark/win_face
-4 border_darkest/win_face
 4 btn_face/win_face
-5 border_dark/win_face
-5 border_darkest/win_face
 5 btn_face/win_face
 5 start_btn_face/taskbar_bg
-6 border_dark/win_face
-6 border_darkest/win_face
 6 btn_face/win_face
-6 icon_border/desktop_bg
 6 start_btn_face/taskbar_bg

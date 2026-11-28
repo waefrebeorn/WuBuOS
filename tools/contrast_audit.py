@@ -30,8 +30,8 @@ PAIRS = {
     "start_btn_text/start_btn_face":        ("normal", "start button"),
     "startmenu_text/startmenu_bg":          ("normal", "start menu item"),
     "icon_text/desktop_bg":                 ("normal", "desktop icon label"),
-    "btn_face/win_face":                    ("nontext", "button against window face"),
-    "border_dark/win_face":                 ("nontext", "3D shadow edge of a control"),
+    "btn_face/win_face":                    ("nontext", "button fill is the boundary where it is drawn flat"),
+    "border_dark/win_face":                 ("info", "inner bevel shading; the boundary is border_darkest"),
     "border_darkest/win_face":              ("nontext", "outer control outline"),
     "scroll_thumb/scroll_track":            ("nontext", "scrollbar thumb is the only indicator"),
     "icon_border/desktop_bg":               ("nontext", "icon plate outline"),
@@ -98,8 +98,8 @@ def main(argv):
     for theme, pair, fg, bg in sorted(rows):
         cls, why = PAIRS.get(pair, ("normal", "unlisted pair"))
         r = ratio(fg, bg)
-        if cls == "exempt":
-            print("%-3d %-38s %-7s %6.2f %5s  exempt (%s)" % (theme, pair, cls, r, "-", why))
+        if cls in ("exempt", "info"):
+            print("%-3d %-38s %-7s %6.2f %5s  %s (%s)" % (theme, pair, cls, r, "-", cls, why))
             continue
         checked += 1
         need = THRESHOLD[cls]
