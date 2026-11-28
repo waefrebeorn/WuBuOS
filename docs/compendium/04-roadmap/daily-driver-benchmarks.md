@@ -873,10 +873,10 @@ level), OSWorld 2.0 task classes, the Wayland clipboard/DnD protocol, Windows 11
 |---|---|---|---|
 | 449 | Full keyboard operability (2.1.1) | PARTIAL | no focus chain to be operable through |
 | 450 | Visible focus indicator (2.4.7) | PARTIAL | theme defines it; not drawn everywhere |
-| 451 | Text contrast 4.5:1 (1.4.3) | UNVERIFIED | theme palettes never measured against the ratio |
+| 451 | Text contrast 4.5:1 (1.4.3) | **VERIFIED** *(2026-11-28)* | `test_theme_contrast`: 56 text/background pairs across 7 themes run through WCAG's relative-luminance formula (`tools/contrast_audit.py`); 0 fail, 7 exempt (inactive components, labelled not skipped). It found and fixed the two classic themes: unfocused caption white on `#808080` = 3.95:1 -> `#6E6E6E` = 5.10:1. Tightest pass is `select_text/select_bg` at 4.53:1 against the 3:1 large-text rule. Ratios compared unrounded, per the spec. |
 | 452 | Non-text contrast 3:1 for controls (1.4.11) | UNVERIFIED | same |
-| 453 | Reflow at 320 px equivalent (1.4.10) | ABSENT | fixed pixel layouts |
-| 454 | Text spacing without clipping (1.4.12) | PARTIAL | ellipsis exists; no spacing override |
+| 453 | Reflow at 320 px equivalent (1.4.10) | ABSENT | fixed pixel layouts. Nearest measured case: 800x560 with 200% text passes `test_control_panel`, which is text scaling, not reflow — 320px-equivalent reflow is still unimplemented. |
+| 454 | Text spacing without clipping (1.4.12) | PARTIAL | ellipsis via `vbe_ellipsize` (`cp_draw_text_fit`), and prose wraps by MEASURED width, so 200% text no longer clips (SLERM-2032); no user-facing spacing override exists. |
 | 455 | No keyboard trap (2.1.2) | UNVERIFIED | no modal focus trap to escape |
 
 ## 42. Clipboard and drag-and-drop as protocol objects (4)
