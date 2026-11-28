@@ -44,4 +44,23 @@ int wubu_ttf_advance_px(const WubuTtf *ttf, uint32_t gid, int ppem);
 /* True when the font carries glyf/loca (TrueType outlines) rather than CFF. */
 int wubu_ttf_has_glyf(const WubuTtf *ttf);
 
+/* ---- stage 2: outlines and coverage ---- */
+
+#define WUBU_TTF_MAX_POINTS   1024
+#define WUBU_TTF_MAX_CONTOURS 64
+
+/* One outline point in font units; (0,0) is the glyph origin on the baseline, y grows upward. */
+typedef struct { int32_t x, y; uint8_t on; } WubuTtfPoint;
+
+/* Decode a glyph's outline. Simple glyphs and composites with xy offsets and 2.14 transforms are
+ * handled; composites anchored to another component's POINT NUMBERS are refused (return 0), because
+ * a wrong guess produces a corrupt glyph rather than a visible error. */
+int wubu_ttf_outline(const WubuTtf *ttf, uint32_t gid, WubuTtfPoint *pts, int max_pts, int *out_npts,
+                     uint16_t *contour_end, int max_contours, int *out_ncontours);
+
+/* Rasterise an outline into 8-bit coverage for the glyph's bounding box at `ppem`.
+ * cov must hold cw*ch bytes and is fully overwritten. Returns 1 on success. */
+int wubu_ttf_raster(const WubuTtfPoint *pts, int npts, const uint16_t *contour_end, int ncontours,
+                    int upem, int ppem, uint8_t *cov, int cw, int ch, int *out_w, int *out_h);
+
 #endif /* WUBU_TRUETYPE_H */

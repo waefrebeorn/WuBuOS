@@ -22,6 +22,33 @@ CPS = list(range(0x20, 0x7F)) + [
 ]
 
 
+RASTER_CPS = [0x41, 0x6F, 0xE9, 0x67, 0x57, 0x4D]
+RASTER_PPEMS = (13, 20, 48)
+
+
+def emit_raster(out):
+    """Expected ink bbox and mass from FreeType, for the coverage comparison.
+
+    FreeType hints by default, so the shapes are not identical to an unhinted outline; the gate
+    therefore compares ink MASS with a measured tolerance and the bbox within a few pixels,
+    rather than pretending two different rasterisers produce equal pixels.
+    """
+    from PIL import ImageFont
+    out.write("typedef struct { unsigned cp; int ppem; int w, h; long mass; } TtfRasterRow;\n\n")
+    out.write("static const TtfRasterRow TTF_RASTER[] = {\n")
+    n = 0
+    for ppem in RASTER_PPEMS:
+        f = ImageFont.truetype(FONT, ppem)
+        for cp in RASTER_CPS:
+            try:
+                m = f.getmask(chr(cp), mode="L")
+            except Exception:
+                continue
+            out.write("    { 0x%04X, %d, %d, %d, %d },\n" % (cp, ppem, m.size[0], m.size[1], sum(m)))
+            n += 1
+    out.write("};\n\n#define TTF_RASTER_N %d\n\n" % n)
+
+
 def main():
     from PIL import ImageFont
 
@@ -50,6 +77,7 @@ def main():
         out.write("    { 0x%04X, { %s } },\n" % (cp, vals))
     out.write("};\n\n#define TTF_ORACLE_N %d\n\n" % len(rows))
     out.write('#define TTF_ORACLE_PATH "%s"\n\n' % FONT)
+    emit_raster(out)
     out.write("#endif /* WUBU_TTF_ORACLE_H */\n")
     sys.stderr.write("oracle: %d code points, %d ppem\n" % (len(rows), len(PPEMS)))
 

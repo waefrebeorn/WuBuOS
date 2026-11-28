@@ -126,4 +126,29 @@ static const TtfOracleRow TTF_ORACLE[] = {
 
 #define TTF_ORACLE_PATH "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
+typedef struct { unsigned cp; int ppem; int w, h; long mass; } TtfRasterRow;
+
+static const TtfRasterRow TTF_RASTER[] = {
+    { 0x0041, 13, 9, 9, 5938 },
+    { 0x006F, 13, 8, 7, 5193 },
+    { 0x00E9, 13, 8, 10, 6252 },
+    { 0x0067, 13, 8, 10, 7519 },
+    { 0x0057, 13, 13, 9, 10351 },
+    { 0x004D, 13, 11, 9, 9417 },
+    { 0x0041, 20, 14, 15, 18388 },
+    { 0x006F, 20, 12, 11, 14018 },
+    { 0x00E9, 20, 12, 16, 17636 },
+    { 0x0067, 20, 13, 15, 19684 },
+    { 0x0057, 20, 20, 15, 26560 },
+    { 0x004D, 20, 17, 15, 24380 },
+    { 0x0041, 48, 33, 35, 95093 },
+    { 0x006F, 48, 29, 28, 77894 },
+    { 0x00E9, 48, 30, 39, 93882 },
+    { 0x0067, 48, 30, 37, 105312 },
+    { 0x0057, 48, 47, 35, 148725 },
+    { 0x004D, 48, 41, 35, 136583 },
+};
+
+#define TTF_RASTER_N 18
+
 #endif /* WUBU_TTF_ORACLE_H */

@@ -3117,8 +3117,8 @@ test_wubu_x25519: src/runtime/wubu_x25519_test.c src/runtime/wubu_x25519.c
 	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_x25519_test $^
 	$${TMPDIR:-/tmp}/wubu_x25519_test
 
-test_wubu_truetype: src/runtime/wubu_truetype_test.c src/runtime/wubu_truetype.c
-	$(CC) $(CFLAGS) -Itests -o $${TMPDIR:-/tmp}/wubu_truetype_test $^
+test_wubu_truetype: src/runtime/wubu_truetype_test.c src/runtime/wubu_truetype.c src/runtime/wubu_truetype_raster.c
+	$(CC) $(CFLAGS) -Itests -Isrc/runtime -o $${TMPDIR:-/tmp}/wubu_truetype_test $^
 	$${TMPDIR:-/tmp}/wubu_truetype_test
 
 test_wubu_aead: src/runtime/wubu_aead_test.c src/runtime/wubu_aead.c

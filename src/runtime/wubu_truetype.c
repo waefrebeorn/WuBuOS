@@ -225,3 +225,20 @@ int wubu_ttf_advance_px(const WubuTtf *ttf, uint32_t gid, int ppem)
     if (u == 0) return 0;
     return (int)(((uint64_t)u * (uint32_t)ppem + ttf->upem / 2) / ttf->upem);
 }
+
+/* The outline decoder shares this file's private SFNT handle, so it is compiled into the same
+ * translation unit deliberately: exposing the table offsets through a header would make an
+ * internal layout part of the ABI. Rasterising lives elsewhere because it needs none of this. */
+#include "wubu_truetype_outline.c"
+
+int wubu_ttf_outline(const WubuTtf *ttf, uint32_t gid, WubuTtfPoint *pts, int max_pts, int *out_npts,
+                     uint16_t *contour_end, int max_contours, int *out_ncontours)
+{
+    if (!ttf || !pts || !contour_end || !out_npts || !out_ncontours) return 0;
+    *out_npts = 0;
+    *out_ncontours = 0;
+    if (max_pts > WUBU_TTF_MAX_POINTS) max_pts = WUBU_TTF_MAX_POINTS;
+    if (max_contours > WUBU_TTF_MAX_CONTOURS) max_contours = WUBU_TTF_MAX_CONTOURS;
+    return load_glyph(ttf, gid, pts, max_pts, out_npts, contour_end, max_contours, out_ncontours,
+                      0, 0, 0);
+}
