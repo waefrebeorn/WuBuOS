@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2033,
+  "next_n": 2034,
   "goals": [
     {
       "n": 2001,
@@ -495,6 +495,19 @@
       "why": "Microsoft's text-scaling docs illustrate the failure mode as 'text scaling with text clipping'. Measured here: 20 of 276 checks fail at scale 2 -- the shell does not survive its own accessibility setting.",
       "progress": "DONE: 200% text went from 20 failures to 0. Three defects, and only one was obvious: (1) cp_row drew values unclipped past the row edge -> cp_draw_text_fit (vbe_ellipsize); (2) 15 prose sentences were drawn as single lines up to 1222px wide on an 800px panel -> wrapped; (3) cp_text_wrapped itself wrapped by max_w/(8*scale) CHARACTERS, assuming a fixed 8px glyph -- the AA face is not 8px and a re-rasterised 26px glyph is ~13px, so wrapping was present and panels still overflowed. It now wraps by measured width and advances by cp_text_line_h()*scale. Mutation: restoring the 8px assumption gives 258 passed/18 failed; with the measured wrapper all three recipe runs are 276/0 (face, baked fallback, scale 2).",
       "gate": "test_applet_layout"
+    },
+    {
+      "n": 2033,
+      "id": "SLERM-2033",
+      "status": "OPEN",
+      "replaces": "unmeasured colour contrast (EN 301 549 / WCAG 1.4.3 never checked)",
+      "title": "Clear the two legacy themes' caption contrast violation",
+      "module": "src/gui/theme_contrast_dump.c",
+      "oracle": "tools/contrast_audit.py -- WCAG relative-luminance formula implemented once, in Python, over hex values reported by the theme API",
+      "criterion": "Zero entries in tools/contrast_baseline.txt: every measured text/background pair meets 4.5:1 (normal) or 3:1 (large), with inactive-component pairs recorded as exempt rather than skipped.",
+      "why": "Measured: themes 0 and 1 draw an unfocused window caption as white on #808080 = 3.95:1, below the 4.5:1 normal-text threshold. Every other pair passes; the worst margin is select_text/select_bg at 4.53:1 against a 3:1 large-text rule.",
+      "progress": "Audit installed as test_wubu_contrast: 56 pairs, 2 fail, 7 exempt. Baseline holds the two known violations and the gate fails BOTH on a new violation and on a baseline entry that starts passing, so the debt can only shrink. Next: darken win_title_inactive in themes 0/1 (white on ~#6B6B6B is ~5.1:1) and check the pixel-golden gates, which is why this is separate from the audit commit.",
+      "gate": "test_wubu_contrast"
     }
   ]
 }

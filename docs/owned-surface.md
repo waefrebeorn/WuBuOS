@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 4322
+- product source modules: 4323
 - OWNED (appear in a test target recipe): 963
-- VENDORED / unproven (no test-target recipe reference): 3359
+- VENDORED / unproven (no test-target recipe reference): 3360
 
 ## OWNED modules (tested)
 
@@ -3097,6 +3097,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `testharness.c`
 - `testquit.c`
 - `text.c`
+- `theme_contrast_dump.c`
 - `thread_exec.c`
 - `thread_pool.c`
 - `threaded_guest.c`
