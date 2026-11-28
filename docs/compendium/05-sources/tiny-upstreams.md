@@ -110,3 +110,19 @@ manager path, an empty state, an error message and a progress affordance. The
 benchmark rows in `daily-driver-benchmarks.md` only move when the gate exercises
 the workflow, not when the header compiles. That distinction is the whole reason
 the ratchet and the benchmark doc exist beside this table.
+
+## MP3 Huffman codebooks — PDMP3 (public domain)
+
+`third_party/mp3/pdmp3_huffman.txt` is **data only**: the Layer III Huffman codebook tree
+(2804 nodes, 31 populated tables of 34) extracted from
+[technosaurus/PDMP3](https://github.com/technosaurus/PDMP3), public domain under the Unlicense
+(Krister Lagerstrom, continued by technosaurus). The original `pdmp3.c` sha256 is pinned in the
+file header, and `tools/make_mp3_huffman_tables.py` regenerates
+`src/runtime/wubu_mp3_huffman_tables.h` from it with a data digest.
+
+**No PDMP3 code is vendored or compiled.** Its decoder is not in this tree; only the normative
+codebook bytes are, because the ISO 11172-3 PDFs available online omit the numeric Table B.7
+(checked: the ossrs mirror is a partial "title page provided by ISO", and 13818-3 only references
+the table). The walker is ours (`src/runtime/wubu_mp3_huff.c`).
+
+**Gate:** `make test_mp3_huffman_tables` fails if the generated header is stale or hand-edited.

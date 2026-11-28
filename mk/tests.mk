@@ -15,7 +15,7 @@ RT_ALWAYS := $(RT)/wubu_crc32.c $(RT)/wubu_str.c
 SHELL_TEXT := $(GUI)/shell/shell_text.c $(RT)/wubu_text_face.c $(RT)/wubu_text_cache.c \
               $(RT)/wubu_truetype.c $(RT)/wubu_truetype_raster.c $(RT)/wubu_utf8.c
 
-test_critical_runtime: test_workspace_clean test_split_links test_wubu_mp3 test_wubu_gif_anim test_wubu_truetype test_hosted_screenshot test_flat_controls test_theme_contrast test_wubu_text_face test_shell_text test_shell_text_vbe test_wubu_text_cache test_selawik_font test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho test_wubu_font_text
+test_critical_runtime: test_mp3_huffman_tables test_workspace_clean test_split_links test_wubu_mp3 test_wubu_gif_anim test_wubu_truetype test_hosted_screenshot test_flat_controls test_theme_contrast test_wubu_text_face test_shell_text test_shell_text_vbe test_wubu_text_cache test_selawik_font test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho test_wubu_font_text
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -2101,6 +2101,11 @@ test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
 # this caught nothing in production, it exists because the same link failure cost two suite runs.
 # A test that writes into the repo root is a defect whether or not anyone notices. This names it at
 # the end of a suite instead of leaving it to be discovered weeks later.
+# The Huffman codebook header is GENERATED from vendored public-domain data. A hand-edited header is
+# how a decoder quietly gets its table bent into agreement with a bug, so the generator re-checks it.
+test_mp3_huffman_tables:
+	python3 tools/make_mp3_huffman_tables.py --check
+
 test_workspace_clean:
 	python3 tools/workspace_clean.py
 
