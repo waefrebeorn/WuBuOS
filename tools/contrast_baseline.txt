@@ -5,14 +5,3 @@
 # vs track (7 themes -- theme 0 had thumb == track, an invisible thumb), outer control outline
 # border_darkest (5 themes), icon plate outline (2 themes). What is left is the FILL of controls
 # that are drawn flat: the button face and the start button, where no outline carries the boundary.
-0 btn_face/win_face
-0 start_btn_face/taskbar_bg
-1 btn_face/win_face
-1 start_btn_face/taskbar_bg
-2 btn_face/win_face
-3 btn_face/win_face
-4 btn_face/win_face
-5 btn_face/win_face
-5 start_btn_face/taskbar_bg
-6 btn_face/win_face
-6 start_btn_face/taskbar_bg

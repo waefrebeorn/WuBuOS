@@ -30,13 +30,22 @@ PAIRS = {
     "start_btn_text/start_btn_face":        ("normal", "start button"),
     "startmenu_text/startmenu_bg":          ("normal", "start menu item"),
     "icon_text/desktop_bg":                 ("normal", "desktop icon label"),
-    "btn_face/win_face":                    ("nontext", "button fill is the boundary where it is drawn flat"),
+    # A button face is ~1.1:1 by DESIGN. The boundary a user sees is the outline around it, which
+    # test_flat_controls proves exists at every draw site and which border_darkest/win_face measures
+    # (3.12-17.14 in all seven themes). Recording the fill as a violation would demand a flat slab of
+    # contrast -- not what 1.4.11 asks for.
+    "btn_face/win_face":                    ("info", "outlined control: the boundary is border_darkest"),
     "border_dark/win_face":                 ("info", "inner bevel shading; the boundary is border_darkest"),
     "border_darkest/win_face":              ("nontext", "outer control outline"),
     "scroll_thumb/scroll_track":            ("nontext", "scrollbar thumb is the only indicator"),
     "icon_border/desktop_bg":               ("nontext", "icon plate outline"),
-    "start_btn_face/taskbar_bg":            ("nontext", "start button boundary"),
+    "start_btn_face/taskbar_bg":            ("info", "outlined control: the boundary is border_darkest"),
     "start_mark/taskbar_bg":                ("nontext", "the Start mark panes drawn on the taskbar"),
+    "border_darkest/win_face":              ("nontext", "the outline that IS the control boundary"),
+    # The adjacency that matters is outline vs the surface OUTSIDE the control. Outline vs its own fill
+    # only says the fill is a similar colour, which does not touch perceivability of the boundary.
+    "border_darkest/btn_face":              ("info", "fill vs its own outline: not the perceived boundary"),
+    "border_darkest/taskbar_bg":            ("nontext", "outline of the start button against the bar"),
 }
 
 THRESHOLD = {"normal": 4.5, "large": 3.0, "nontext": 3.0}   # WCAG 1.4.11

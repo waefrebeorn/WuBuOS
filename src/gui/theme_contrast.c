@@ -32,6 +32,11 @@ int main(void)
         /* The Start mark itself: four accent panes on the taskbar, no tile and no border behind
          * them, so the accent IS the control's visual. */
         PAIR(start_mark, taskbar_bg);
+        /* WCAG 1.4.11, the real boundary: when a control is OUTLINED the eye uses the outline, not the
+         * fill, so these are the pairs the requirement is actually about. */
+        PAIR(border_darkest, win_face);
+        PAIR(border_darkest, btn_face);
+        PAIR(border_darkest, taskbar_bg);
     }
     return 0;
 }
