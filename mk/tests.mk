@@ -500,7 +500,13 @@ test:
 	else echo "❌ TIERS FAILED (rc=$$rc) -- the Error lines above name the gate"; fi; \
 	exit $$rc
 
-test-tiers: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic test_orphans
+# Gates that were unreachable from `make test` until gate_reachability could see its own
+# root. Each was measured individually (rc==0) before being wired: a target that only exists
+# is not coverage.
+test_recovered: test_account test_all test_app_bundle test_atom test_auth test_bear_opt test_compat test_container_registry test_density test_deskenv test_dos_emu test_dos_proc test_drv test_drv_install test_ec_control test_ed25519_bignum_value_negctl test_ed25519_callee_ct test_ed25519_callee_ct_negctl test_ed25519_ct_evidence test_ed25519_fixed_ladder test_ed25519_fixed_ladder_multitoolchain_negctl test_ed25519_fixed_ladder_negctl test_ed25519_fixed_ladder_o0_negctl test_ed25519_fixed_timing test_ed25519_fixed_timing_negctl test_ed25519_gimple_ct test_ed25519_gimple_ct_negctl test_ed25519_ir_ct_negctl test_ed25519_native test_font_case test_fs_crash_safe test_fs_persist
+	@echo "recovered: 32 gates that `make test` never ran, measured green and now wired"
+
+test-tiers: test_recovered test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic test_orphans
 	@echo "every tier target was attempted"
 
 test_jit:
