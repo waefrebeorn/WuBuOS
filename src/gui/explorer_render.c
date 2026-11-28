@@ -173,6 +173,10 @@ void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
         vbe_draw_text(x + 100, content_y + 10, size_str, tc()->body_text, 1);
 
         char date_str[64];
+        if (ex->preview.audio_info[0]) {
+            vbe_draw_text(x + 10, content_y + 70, "Audio:", tc()->body_text_ina, 1);
+            vbe_draw_text(x + 100, content_y + 70, ex->preview.audio_info, tc()->body_text, 1);
+        }
         explorer_format_time(ex->preview.modified, date_str, sizeof(date_str));
         vbe_draw_text(x + 10, content_y + 30, "Modified:", tc()->body_text_ina, 1);
         vbe_draw_text(x + 100, content_y + 30, date_str, tc()->body_text, 1);

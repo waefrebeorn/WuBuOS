@@ -59,6 +59,29 @@ int main(int argc, char **argv) {
     check(wubu_preview_decode_file(path, &px, &w, &h, 100) == WUBU_PREVIEW_DECODE ||
           wubu_preview_decode_file(path, &px, &w, &h, 100) == WUBU_PREVIEW_TOO_BIG, "a cap below the image size refuses");
 
+    /* The MP3 summary: the preview line must describe the STREAM (rate, layout, duration), and
+     * must decline rather than invent for anything that is not an MP3. */
+    {
+        FILE *f = fopen("tests/fixtures/mp3/cbr128_44100_stereo.mp3", "rb");
+        if (f) {
+            fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
+            unsigned char *b = malloc((size_t)n);
+            if (b && fread(b, 1, (size_t)n, f) == (size_t)n) {
+                char line[64];
+                int ok = wubu_preview_mp3_summary("song.mp3", b, (size_t)n, line, sizeof line);
+                check(ok == 1, "an MP3 produces a summary line");
+                check(strstr(line, "44100 Hz") != NULL, "the summary states the sample rate");
+                check(strstr(line, "stereo") != NULL, "the summary states the layout");
+                check(strstr(line, "1.0") != NULL, "the summary states the duration in seconds");
+                check(wubu_preview_mp3_summary("song.wav", b, (size_t)n, line, sizeof line) == 0,
+                      "a non-MP3 file is declined by extension, not guessed at");
+                check(wubu_preview_mp3_summary("song.mp3", (const unsigned char *)"junk", 4, line, sizeof line) == 0,
+                      "bytes that are not MP3 are declined, not described");
+            }
+            free(b); fclose(f);
+        }
+    }
+
     printf("\n=== %d passed, %d failed ===\n", pass, fail);
     return fail ? 1 : 0;
 }

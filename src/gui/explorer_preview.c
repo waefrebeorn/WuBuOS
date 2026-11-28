@@ -65,6 +65,19 @@ void explorer_update_preview(int idx) {
                 }
                 ex_9p_close(fd);
             }
+        } else if (strcmp(ext, "mp3") == 0) {
+            /* Describe the stream rather than the extension: an MPEG-2 file at 22 kHz announcing
+             * itself only as "Audio" tells the user nothing they cannot see from the icon. */
+            unsigned char *bytes = NULL;
+            size_t n = 0;
+            g_explorer.preview.audio_info[0] = '\0';
+            if (ex_9p_read_file(entry->full_path, &bytes, &n) == 0 && bytes) {
+                wubu_preview_mp3_summary(entry->name, bytes, n,
+                                         g_explorer.preview.audio_info,
+                                         sizeof g_explorer.preview.audio_info);
+                free(bytes);
+            }
+            g_explorer.preview.type = EX_PREVIEW_METADATA;
         } else if (strcmp(ext, "png") == 0 || strcmp(ext, "jpg") == 0 ||
                    strcmp(ext, "jpeg") == 0 || strcmp(ext, "gif") == 0 ||
                    strcmp(ext, "bmp") == 0) {

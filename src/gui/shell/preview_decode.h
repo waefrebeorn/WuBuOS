@@ -33,4 +33,9 @@ int wubu_preview_decode_file(const char *path, uint32_t **out_px, int *w, int *h
 
 const char *wubu_preview_reason(int code);
 
+/* One line describing an MP3 (version, rate, layout, duration), or 0 when the file is not one.
+ * Kept here rather than in the renderer so it can be unit-tested without a framebuffer. */
+int wubu_preview_mp3_summary(const char *name, const unsigned char *data, size_t len,
+                             char *out, size_t out_cap);
+
 #endif

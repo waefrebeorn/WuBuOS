@@ -117,7 +117,8 @@
       "licence": "public domain / MIT-0",
       "fills": [
         "media"
-      ]
+      ],
+      "progress": "STAGE 1 DONE (frame layer): wubu_mp3_info walks every frame (MPEG-1/2/2.5, Layer III), skips ID3v2 (syncsafe length + footer), detects Xing/Info, and reports version/rate/layout/bitrate/frames/duration. Oracle is ffmpeg-encoded, ffprobe-decoded fixtures: frame counts within 1 (gapless trimming), durations within 1 ms, 37 checks 0 failed. Mutation-proven twice (MPEG-1 frame length for all versions -> MPEG-2 duration 522 vs 1071 ms; ID3v2 not skipped -> tagged case fails). ONE CONTRACT DISTINCTION THE ORACLE FORCED: the Xing/Info frame is a tag with a valid header -- it counts as an MPEG frame but carries no audio, so `frames` and `audio_frames` are separate and duration uses the latter; without that split our durations were 26 ms long. REACHABLE: the explorer preview describes an MP3 as 'MP3 44100 Hz stereo, 1.04 s' via wubu_preview_mp3_summary (unit-tested in test_wubu_preview_decode, 6 checks). STAGE 2 OPEN: Huffman, requantisation, reordering, stereo processing, alias reduction, IMDCT and polyphase synthesis -- no samples decode yet and the header says so."
     },
     {
       "n": 2008,

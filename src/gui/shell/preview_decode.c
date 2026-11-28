@@ -1,5 +1,6 @@
 /* preview_decode.c -- see preview_decode.h. */
 #include "preview_decode.h"
+#include "../../runtime/wubu_mp3.h"
 #include <strings.h>
 #include "../../runtime/wubu_pixmap.h"
 #include "../../runtime/wubu_gif.h"
@@ -158,3 +159,21 @@ int wubu_preview_decode_file(const char *path, uint32_t **out_px, int *w, int *h
     return rc;
 }
 
+
+int wubu_preview_mp3_summary(const char *name, const unsigned char *data, size_t len,
+                             char *out, size_t out_cap) {
+    if (!name || !data || !out || out_cap == 0) return 0;
+    const char *dot = strrchr(name, '.');
+    if (!dot || strcasecmp(dot, ".mp3") != 0) return 0;
+    WubuMp3 m; int err = 0;
+    if (wubu_mp3_info(data, len, &m, &err) != WUBU_MP3_OK) return 0;
+    /* "MPEG-2" is not pedantry: an MPEG-2 Layer III file carries 576 samples per frame and is
+     * half the frame length, which is why a player that assumes MPEG-1 mis-times it. */
+    snprintf(out, out_cap, "%s %d Hz %s, %d.%02d s%s",
+             m.version == 1 ? "MP3" : "MP3 (MPEG-2)",
+             m.sample_rate,
+             m.channels == 1 ? "mono" : "stereo",
+             m.duration_ms / 1000, (m.duration_ms % 1000) / 10,
+             m.vbr ? " VBR" : "");
+    return 1;
+}

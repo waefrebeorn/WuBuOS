@@ -148,6 +148,7 @@ typedef struct {
     ExPreviewType   type;
     char            path[EX_MAX_PATH];
     char            text_buffer[8192];    /* For text preview */
+    char            audio_info[64];       /* one line from wubu_preview_mp3_summary, or empty */
     int             text_lines;
     /* For image preview (stub - would use stb_image or similar) */
     int             img_w, img_h;
