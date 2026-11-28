@@ -231,7 +231,11 @@ int wubu_mp3_side_info(const void *data, size_t len, size_t offset, int frame_by
                 g->subblock_gain[0] = sb_get(&b, 3);
                 g->subblock_gain[1] = sb_get(&b, 3);
                 g->subblock_gain[2] = sb_get(&b, 3);
-                g->region0_count = 8;
+                /* ISO 11172-3: when block_type is not 00 the region counts are NOT transmitted and
+                 * are set by default -- 7 for types 01 and 11, 8 for type 10, and region1_count = 36
+                 * ("all remaining values are in region 1"). Using 8 for every block type was a real
+                 * bug: it shifted region 1's boundary for start/stop blocks by one scalefactor band. */
+                g->region0_count = (g->block_type == 2) ? 8 : 7;
                 g->region1_count = 36;
             } else {
                 g->block_type = 0;

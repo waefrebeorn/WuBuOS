@@ -162,6 +162,98 @@ int main(void) {
         }
     }
 
+
+    /* ---- stage 2b: the granule data actually decodes ------------------------------------------
+     * What this asserts, and what it deliberately does NOT:
+     *   - every granule of every MPEG-1 fixture walks the codebooks without leaving the tree and
+     *     without selecting an unpopulated codebook (0/4/14);
+     *   - the scalefactor + big_values region fits inside part2_3_length (big_bits <= declared);
+     *   - an MPEG-2 stream is REFUSED rather than decoded with MPEG-1 band tables.
+     * It does not assert used == declared: part2_3_length may cut the last count1 code in half and
+     * the reference decoder discards that partial code, so equality there would measure the
+     * encoder's rounding rather than our decoding. The value-level oracle arrives with the IMDCT.
+     */
+    {
+        const char *files[] = { "tests/fixtures/mp3/cbr128_44100_stereo.mp3",
+                                "tests/fixtures/mp3/cbr192_48000_stereo.mp3",
+                                "tests/fixtures/mp3/cbr64_44100_mono.mp3",
+                                "tests/fixtures/mp3/vbr_44100_stereo.mp3" };
+        for (unsigned fi = 0; fi < sizeof(files) / sizeof(files[0]); fi++) {
+            FILE *fp = fopen(files[fi], "rb");
+            CHECK(fp != NULL, "open %s", files[fi]);
+            if (!fp) continue;
+            fseek(fp, 0, SEEK_END); long n = ftell(fp); fseek(fp, 0, SEEK_SET);
+            unsigned char *d = malloc((size_t)n);
+            CHECK(d && fread(d, 1, (size_t)n, fp) == (size_t)n, "read %s", files[fi]);
+            fclose(fp);
+            WubuMp3 m; int e = 0;
+            CHECK(wubu_mp3_info(d, (size_t)n, &m, &e) == WUBU_MP3_OK, "info %s (%s)", files[fi], wubu_mp3_reason(e));
+            int granules = 0, bad = 0, overrun = 0, empty_big = 0, tail = 0, frames_bad = 0, exact = 0;
+            size_t at = (size_t)m.first_frame_offset;
+            for (int i = 0; i < m.frames; i++) {
+                int fl = 0, v = 0, r = 0, c = 0;
+                if (wubu_mp3_frame_header(d, (size_t)n, at, &fl, &v, &r, &c, &e) != 0) break;
+                WubuMp3GranuleBits gb[2][2];
+                int rc = wubu_mp3_frame_huffman(d, (size_t)n, at, gb, &e);
+                /* the final frame of a file may be cut off by EOF; anything else is a defect */
+                if (rc != WUBU_MP3_OK) {
+                    if (i + 1 < m.frames) frames_bad++;
+                    at += (size_t)fl;
+                    continue;
+                }
+                for (int gr = 0; gr < 2; gr++) {
+                    for (int ch = 0; ch < 2; ch++) {
+                        if (!gb[gr][ch].declared_bits) continue;
+                        granules++;
+                        if (!gb[gr][ch].ok) bad++;
+                        if (gb[gr][ch].big_bits > gb[gr][ch].declared_bits) overrun++;
+                        if (gb[gr][ch].big_bits == 0 && gb[gr][ch].declared_bits > 0) empty_big++;
+                        if (gb[gr][ch].tail_partial) tail++;
+                        if (gb[gr][ch].tail_skip == 0) exact++;
+                    }
+                }
+                at += (size_t)fl;
+            }
+            CHECK(frames_bad == 0, "%s: %d frames failed to decode (%s)", files[fi], frames_bad, wubu_mp3_reason(e));
+            CHECK(granules > 0, "%s: no granules decoded", files[fi]);
+            CHECK(bad == 0, "%s: %d of %d granules left the codebook", files[fi], bad, granules);
+            CHECK(overrun == 0, "%s: %d granules spent more than part2_3_length before count1", files[fi], overrun);
+            CHECK(empty_big == 0, "%s: %d granules consumed no bits at all", files[fi], empty_big);
+            /* A FLOOR on exactness, because "did not crash" is not evidence of correct decoding: a
+             * shifted codebook tree still walks to valid leaves. These floors are measured from this
+             * decoder on these fixtures (2026-11-28) and may only rise. They are what makes a bent
+             * table visible -- the count drops the moment the walk consumes the wrong number of bits. */
+            static const int floor_exact[] = { 50, 59, 75, 69 };
+            CHECK(exact >= floor_exact[fi],
+                  "%s: only %d of %d granules consumed exactly the declared bits (floor %d)",
+                  files[fi], exact, granules, floor_exact[fi]);
+            printf("  %-46s %d granules decode, %d exact, %d with a cut tail code\n",
+                   files[fi], granules, exact, tail);
+            free(d);
+        }
+
+        /* MPEG-2 uses ISO 13818-3 scalefactor bands. Decoding it with MPEG-1 bands would produce
+         * plausible nonsense, so the refusal is asserted rather than skipped. */
+        {
+            FILE *fp = fopen("tests/fixtures/mp3/mpeg2_22050_stereo.mp3", "rb");
+            CHECK(fp != NULL, "open the MPEG-2 fixture");
+            if (fp) {
+                fseek(fp, 0, SEEK_END); long n = ftell(fp); fseek(fp, 0, SEEK_SET);
+                unsigned char *d = malloc((size_t)n);
+                if (d && fread(d, 1, (size_t)n, fp) == (size_t)n) {
+                    WubuMp3 m; int e = 0;
+                    wubu_mp3_info(d, (size_t)n, &m, &e);
+                    WubuMp3GranuleBits gb[2][2];
+                    int rc = wubu_mp3_frame_huffman(d, (size_t)n, (size_t)m.first_frame_offset, gb, &e);
+                    CHECK(rc == WUBU_MP3_UNSUPPORTED,
+                          "MPEG-2 granule decode must be refused, not guessed (rc=%d)", rc);
+                }
+                free(d);
+                fclose(fp);
+            }
+        }
+    }
+
     printf("=== wubu_mp3: %d passed, %d failed ===\n", pass, fail);
     return fail ? 1 : 0;
 }

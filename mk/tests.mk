@@ -3217,7 +3217,7 @@ test_wubu_preview_decode:
 	@python3 tools/make_jpeg_fixtures.py $${TMPDIR:-/tmp}/wubu_jpeg_fx >/dev/null
 	$${TMPDIR:-/tmp}/wubu_preview_decode_test $${TMPDIR:-/tmp}/wubu_jpeg_fx
 
-test_wubu_mp3: src/runtime/wubu_mp3_test.c src/runtime/wubu_mp3.c tests/fixtures/mp3_expect.h
+test_wubu_mp3: src/runtime/wubu_mp3_test.c src/runtime/wubu_mp3.c src/runtime/wubu_mp3_huff.c tests/fixtures/mp3_expect.h
 	@command -v ffprobe >/dev/null || { echo "test_wubu_mp3 needs ffprobe (the oracle)"; exit 1; }
 	$(CC) $(CFLAGS) -Isrc/runtime -I. -o $${TMPDIR:-/tmp}/wubu_mp3_test $^
 	$${TMPDIR:-/tmp}/wubu_mp3_test

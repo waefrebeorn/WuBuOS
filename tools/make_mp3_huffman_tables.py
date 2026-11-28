@@ -28,21 +28,34 @@ TABLES = 34
 def load():
     text = SRC.read_text()
     rows, blob, origin = [], [], "unknown"
+    sfb_long, sfb_short, slen = {}, {}, []
     for line in text.splitlines():
         if line.startswith("# Original"):
             origin = line.split("sha256:", 1)[1].strip()
         elif line.startswith("MAIN ") and not line.startswith("MAIN 34"):
             idx, off, tlen, lb = line.split()[1:]
             rows.append((idx, off, tlen, lb))
-        elif line and not line.startswith("#") and not line.startswith("MAIN"):
+        elif line.startswith("SFBLONG "):
+            r, vals = line.split()[1], line.split()[2]
+            sfb_long[int(r)] = vals
+        elif line.startswith("SFBSHORT "):
+            r, vals = line.split()[1], line.split()[2]
+            sfb_short[int(r)] = vals
+        elif line.startswith("SLEN "):
+            slen.append(tuple(line.split()[1:3]))
+        elif line and not line.startswith("#") and not line.startswith(("MAIN", "BLOB", "SFB", "SLEN")):
             blob.extend(line.split())
     if len(rows) != TABLES:
         raise SystemExit("expected %d table rows, found %d" % (TABLES, len(rows)))
-    return rows, blob, origin
+    if len(sfb_long) != 3 or len(sfb_short) != 3 or len(slen) != 16:
+        raise SystemExit("band/slen sections incomplete: %d long, %d short, %d slen rows"
+                         % (len(sfb_long), len(sfb_short), len(slen)))
+    return rows, blob, origin, (sfb_long, sfb_short, slen)
 
 
 def render():
-    rows, blob, origin = load()
+    rows, blob, origin, bands = load()
+    sfb_long, sfb_short, slen = bands
     digest = hashlib.sha256(" ".join(blob).encode()).hexdigest()
     out = [
         "/* GENERATED FILE -- do not edit. Regenerate with tools/make_mp3_huffman_tables.py",
@@ -78,6 +91,21 @@ def render():
     for idx, off, tlen, lb in rows:
         o = "0" if off == "-" else off
         out.append("    { %s, %s, %s },  /* table %s */" % (o, tlen, lb, idx))
+    out += ["};", "",
+            "/* MPEG-1 scalefactor band boundaries in spectral-line units (ISO 11172-3 table B.8).",
+            " * Row order: 44100, 48000, 32000 Hz. MPEG-2/2.5 use ISO 13818-3 tables and are NOT here;",
+            " * the granule decoder refuses those rather than applying the wrong bands. */",
+            "static const uint16_t wubu_mp3_sfb_long[3][23] = {"]
+    for r in range(3):
+        out.append("    { " + sfb_long[r] + " },")
+    out += ["};", "", "static const uint16_t wubu_mp3_sfb_short[3][14] = {"]
+    for r in range(3):
+        out.append("    { " + sfb_short[r] + " },")
+    out += ["};", "",
+            "/* scalefac_compress -> (slen1, slen2) for MPEG-1 layer III. */",
+            "static const uint8_t wubu_mp3_slen[16][2] = {"]
+    for a, b in slen:
+        out.append("    { %s, %s }," % (a, b))
     out += ["};", "", "#endif /* WUBU_MP3_HUFFMAN_TABLES_H */", ""]
     return "\n".join(out)
 

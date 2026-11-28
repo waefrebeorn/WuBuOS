@@ -19,7 +19,8 @@ enum {
     WUBU_MP3_ARGS        = -1,
     WUBU_MP3_FORMAT      = -2,   /* no frame sync anywhere in the first window */
     WUBU_MP3_TRUNCATED   = -3,   /* a frame header claims more bytes than remain */
-    WUBU_MP3_UNSUPPORTED = -4    /* a layer other than III, or a reserved field */
+    WUBU_MP3_UNSUPPORTED = -4,   /* a layer other than III, or a reserved field */
+    WUBU_MP3_CORRUPT     = -5    /* entropy data left the selected codebook: a damaged stream */
 };
 
 typedef struct {
@@ -86,5 +87,23 @@ int wubu_mp3_side_info(const void *data, size_t len, size_t offset, int frame_by
                        WubuMp3Side *side, int *err);
 
 const char *wubu_mp3_reason(int err);
+
+
+/* ---- granule data (stage 2b) ---------------------------------------------------------------
+ * Huffman decoding of one frame's granules, checked against the encoder's own part2_3_length.
+ * `ok` is 1 when the bits consumed (scalefactors + Huffman) equal what the side info declares.
+ * Only MPEG-1 streams are decodable here: MPEG-2/2.5 scalefactor band tables are not in the
+ * decoder yet, and applying MPEG-1 bands to them would produce plausible nonsense. */
+typedef struct {
+    int used_bits;      /* scalefactors + Huffman symbols consumed (equals declared after the tail) */
+    int declared_bits;  /* part2_3_length from the side information */
+    int big_bits;       /* bits consumed by scalefactors + big_values before count1 */
+    int tail_partial;   /* 1 when part2_3_length cut the last count1 code (legal; it is discarded) */
+    int tail_skip;      /* bits left after the walk: 0 = exact, 1..19 = one cut codeword, else corrupt */
+    int ok;             /* 1 when the granule decoded without leaving the codebook */
+} WubuMp3GranuleBits;
+
+int wubu_mp3_frame_huffman(const uint8_t *data, size_t len, size_t frame_off,
+                           WubuMp3GranuleBits out[2][2], int *err);
 
 #endif
