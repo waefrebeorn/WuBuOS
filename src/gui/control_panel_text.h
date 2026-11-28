@@ -28,6 +28,11 @@ int cp_text_line_h(void);
  * scaled cell when no face is loaded, so a bare-metal panel still shows a title. */
 #define CP_PAGE_TITLE_BAND 36   /* vertical space a page title is centred in */
 #define CP_PAGE_TITLE_FALLBACK_DY 6
+/* Draw s ellipsized into max_w pixels. At an accessibility text scale, text is twice as wide and a
+ * fixed column runs off the panel; the SVG-of-truth here is the measured width, not the string. */
+int cp_draw_text_fit(uint32_t *fb, int fb_w, int fb_h, int x, int y, int max_w,
+                     const char *s, uint32_t colour, int scale);
+
 void cp_page_title(uint32_t *fb, int fb_w, int fb_h, int x, int y, const char *s, uint32_t colour);
 
 int cp_draw_text_bold(uint32_t *fb, int fb_w, int fb_h,

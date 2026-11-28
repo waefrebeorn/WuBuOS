@@ -74,6 +74,15 @@ int cp_draw_text(uint32_t *fb, int fb_w, int fb_h,
     return cp_text_width(s, scale);
 }
 
+int cp_draw_text_fit(uint32_t *fb, int fb_w, int fb_h, int x, int y, int max_w,
+                     const char *s, uint32_t colour, int scale)
+{
+    if (!s || max_w <= 0) return 0;
+    char buf[256];
+    vbe_ellipsize(s, max_w, buf, sizeof(buf));
+    return cp_draw_text(fb, fb_w, fb_h, x, y, buf, colour, scale);
+}
+
 void cp_page_title(uint32_t *fb, int fb_w, int fb_h, int x, int y, const char *s, uint32_t colour)
 {
     if (s && shell_text_draw_at(fb, fb_w, fb_h, x, y, CP_PAGE_TITLE_BAND, s,
@@ -105,32 +114,41 @@ int cp_text_width(const char *s, int scale)
 void cp_text_wrapped(uint32_t *fb, int fb_w, int fb_h, int x, int y, int max_w,
                      const char *s, uint32_t colour, int scale)
 {
-    if (!s) return;
+    if (!s || max_w <= 0) return;
     if (scale < 1) scale = 1;
-    int per_line = max_w / (8 * scale);
-    if (per_line < 1) return;
+    /* Wrap by MEASURED width. The previous version divided max_w by 8 * scale, i.e. it assumed a fixed
+     * 8px character, which the AA face does not have and which is wrong again once text is scaled (a
+     * re-rasterised 26px glyph is ~13px wide, not 16). That assumption is why wrapping was added and
+     * panels still overflowed at 200% text. */
+    const int line_h = cp_text_line_h() * scale;
+    char buf[256];
     const char *p = s;
+
     while (*p) {
-        while (*p == ' ') p++;
-        const char *line = p;
+        if (*p == '\n') { p++; y += line_h; continue; }
+        if (*p == ' ')  { p++; continue; }
+
         int n = 0, last_space = -1;
-        while (*p && *p != '\n') {
-            if (*p == ' ') last_space = n;
-            if (n == per_line) break;
-            p++; n++;
+        while (p[n] && p[n] != '\n' && n < (int)sizeof(buf) - 1) {
+            buf[n] = p[n];
+            buf[n + 1] = 0;
+            if (p[n] == ' ') last_space = n;
+            if (n > 0 && cp_text_width(buf, scale) > max_w) break;
+            n++;
         }
-        int cut = n;
-        if (*p && *p != '\n' && last_space > 0) {
-            cut = last_space;              /* break at the last space */
-            p = line + cut;
+
+        if (!p[n] || p[n] == '\n' || n >= (int)sizeof(buf) - 1) {
+            cp_draw_text(fb, fb_w, fb_h, x, y, buf, colour, scale);
+            p += n;
+        } else if (last_space > 0) {
+            buf[last_space] = 0;
+            cp_draw_text(fb, fb_w, fb_h, x, y, buf, colour, scale);
+            p += last_space + 1;
+        } else {
+            cp_draw_text(fb, fb_w, fb_h, x, y, buf, colour, scale);
+            p += n;   /* a single word wider than the line: hard-break it */
         }
-        char buf[128];
-        if (cut >= (int)sizeof buf) cut = (int)sizeof buf - 1;
-        memcpy(buf, line, (size_t)cut);
-        buf[cut] = 0;
-        cp_draw_text(fb, fb_w, fb_h, x, y, buf, colour, scale);
-        y += 10 * scale;
-        if (*p == '\n') p++;
+        y += line_h;
     }
 }
 
@@ -142,5 +160,7 @@ void cp_row(uint32_t *fb, int fb_w, int fb_h, int x, int y, int max_w,
     if (!value) return;
     int vx = x + lw + 4;
     if (vx >= x + max_w) return;
-    cp_draw_text(fb, fb_w, fb_h, vx, y, value, value_colour, 1);
+    /* Fit to what is LEFT of the row: at 200% text the value alone can be wider than the panel, and
+     * drawing it unclipped is what pushed content past the right edge. */
+    cp_draw_text_fit(fb, fb_w, fb_h, vx, y, x + max_w - vx, value, value_colour, 1);
 }

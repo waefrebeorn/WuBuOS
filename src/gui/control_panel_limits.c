@@ -71,8 +71,7 @@ static void limits_render(CpApplet *applet, uint32_t *fb,
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
     cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, "Family limits", c->select_bg);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 24,
-                 "The hours and days this machine may be used. Outside them the session locks itself.",
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + 24, w - 20, "The hours and days this machine may be used. Outside them the session locks itself.",
                  c->body_text_ina, 1);
 
     char win[32], days[64];
@@ -106,13 +105,12 @@ static void limits_render(CpApplet *applet, uint32_t *fb,
         d->field == 0 ? "start hour selected" : "end hour selected", c->body_text);
 
     if (d->dirty)
-        cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 2 * cp_text_line_h() - WUBU_SPACE_SM, "Unsaved -- Enter writes the policy",
+        cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + h - 2 * cp_text_line_h() - WUBU_SPACE_SM, w - 20, "Unsaved -- Enter writes the policy",
                      c->select_bg, 1);
     else if (d->note[0])
-        cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - 2 * cp_text_line_h() - WUBU_SPACE_SM, d->note, c->body_text_ina, 1);
+        cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + h - 2 * cp_text_line_h() - WUBU_SPACE_SM, w - 20, d->note, c->body_text_ina, 1);
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM,
-                 "Space on/off - Tab switches hour - Up/Down 30 min - Enter saves", c->body_text_ina, 1);
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM, w - 20, "Space on/off - Tab switches hour - Up/Down 30 min - Enter saves", c->body_text_ina, 1);
 }
 
 static void limits_key(CpApplet *applet, uint32_t key, uint32_t mods)

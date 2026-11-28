@@ -52,8 +52,7 @@ static void signin_render(CpApplet *applet, uint32_t *fb,
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
     cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, "Sign-in options", c->select_bg);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 24,
-                 "Fingerprint sign-in, as this machine reports it.", c->body_text_ina, 1);
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + 24, w - 20, "Fingerprint sign-in, as this machine reports it.", c->body_text_ina, 1);
 
     int ry = y + 52;
     const int step = 22;
@@ -75,7 +74,7 @@ static void signin_render(CpApplet *applet, uint32_t *fb,
 
     char status[200];
     wubu_biometric_status(b, status, sizeof status);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, ry + 4, status,
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, ry + 4, w - 20, status,
                  b->reader_present && b->agent_enroll ? c->body_text : c->body_text_ina, 1);
     ry += step + 8;
 
@@ -88,8 +87,7 @@ static void signin_render(CpApplet *applet, uint32_t *fb,
         cp_draw_text(fb, fb_w, fb_h, x + 20, ry, cmd, c->select_bg, 1);
     }
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM,
-                 "Nothing here is simulated: each line is a device or a file that was found. F5 re-checks.",
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM, w - 20, "Nothing here is simulated: each line is a device or a file that was found. F5 re-checks.",
                  c->body_text_ina, 1);
 }
 

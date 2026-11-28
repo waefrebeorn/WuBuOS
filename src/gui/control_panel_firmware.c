@@ -57,8 +57,7 @@ static void fw_render(CpApplet *applet, uint32_t *fb,
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
     cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, "System firmware", c->select_bg);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 24,
-                 "What this machine reports about itself, and what can update it.",
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + 24, w - 20, "What this machine reports about itself, and what can update it.",
                  c->body_text_ina, 1);
 
     int ry = y + 52;
@@ -104,8 +103,7 @@ static void fw_render(CpApplet *applet, uint32_t *fb,
     }
 
     /* The provenance line: the user must be able to tell a measurement from a decoration. */
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM,
-                 "Read from SMBIOS/DMI; nothing here is simulated.",
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM, w - 20, "Read from SMBIOS/DMI; nothing here is simulated.",
                  c->body_text_ina, 1);
 }
 

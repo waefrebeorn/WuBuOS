@@ -486,14 +486,14 @@
     {
       "n": 2032,
       "id": "SLERM-2032",
-      "status": "OPEN",
+      "status": "DONE",
       "replaces": "fixed-geometry control panel layout that assumes 100% text scale",
       "title": "Control panel layout survives the accessibility text scale",
       "module": "src/gui/control_panel.c",
       "oracle": "test_applet_layout painted-bounds checks run with vbe_set_text_scale(2)",
       "criterion": "All 117 panel/size checks pass at text scale 2 as well as 1, with 6px MIN_PAD; no panel clips its content when text is doubled.",
       "why": "Microsoft's text-scaling docs illustrate the failure mode as 'text scaling with text clipping'. Measured here: 20 of 276 checks fail at scale 2 -- the shell does not survive its own accessibility setting.",
-      "progress": "Measured 2026-11-28: WUBU_TEXT_SCALE=2 ./src/gui/test_applet_layout -> 256 passed, 20 failed. test_applet_layout accepts WUBU_TEXT_SCALE and WUBU_LAYOUT_FACE, so the failing set can be listed per panel and fixed one at a time.",
+      "progress": "DONE: 200% text went from 20 failures to 0. Three defects, and only one was obvious: (1) cp_row drew values unclipped past the row edge -> cp_draw_text_fit (vbe_ellipsize); (2) 15 prose sentences were drawn as single lines up to 1222px wide on an 800px panel -> wrapped; (3) cp_text_wrapped itself wrapped by max_w/(8*scale) CHARACTERS, assuming a fixed 8px glyph -- the AA face is not 8px and a re-rasterised 26px glyph is ~13px, so wrapping was present and panels still overflowed. It now wraps by measured width and advances by cp_text_line_h()*scale. Mutation: restoring the 8px assumption gives 258 passed/18 failed; with the measured wrapper all three recipe runs are 276/0 (face, baked fallback, scale 2).",
       "gate": "test_applet_layout"
     }
   ]

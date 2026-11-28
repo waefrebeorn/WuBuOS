@@ -55,8 +55,7 @@ static void acct_render(CpApplet *applet, uint32_t *fb,
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
     cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, "Your account", c->select_bg);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 24,
-                 "Who this session belongs to, as the machine defines it.", c->body_text_ina, 1);
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + 24, w - 20, "Who this session belongs to, as the machine defines it.", c->body_text_ina, 1);
 
     int ry = y + 52;
     const int step = 22;
@@ -83,8 +82,7 @@ static void acct_render(CpApplet *applet, uint32_t *fb,
             u->can_change_password ? u->passwd_tool : "no password tool on this machine");
     }
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM,
-                 "Read from /etc/passwd and the home directory; nothing here is simulated.",
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM, w - 20, "Read from /etc/passwd and the home directory; nothing here is simulated.",
                  c->body_text_ina, 1);
 }
 

@@ -71,8 +71,7 @@ static void mirror_render(CpApplet *applet, uint32_t *fb,
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
     cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, "Software sources", c->select_bg);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 24,
-                 "The mirrors the package manager will use. F5 measures them and reorders the list.",
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + 24, w - 20, "The mirrors the package manager will use. F5 measures them and reorders the list.",
                  c->body_text_ina, 1);
 
     int ry = y + 50;
@@ -82,9 +81,9 @@ static void mirror_render(CpApplet *applet, uint32_t *fb,
         char msg[320];
         snprintf(msg, sizeof msg, "No mirrorlist at %s", d->path);
         cp_draw_text(fb, fb_w, fb_h, x + 10, ry, msg, c->body_text, 1);
-        cp_draw_text(fb, fb_w, fb_h, x + 10, ry + step,
-                     "CachyOS ships /etc/pacman.d/mirrorlist; nothing here is simulated.",
-                     c->body_text_ina, 1);
+        cp_text_wrapped(fb, fb_w, fb_h, x + 10, ry + step, w - 20,
+                        "CachyOS ships /etc/pacman.d/mirrorlist; nothing here is simulated.",
+                        c->body_text_ina, 1);
     } else {
         char head[128];
         snprintf(head, sizeof head, "%d servers%s", d->list.count,
@@ -113,8 +112,7 @@ static void mirror_render(CpApplet *applet, uint32_t *fb,
         }
     }
 
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM,
-                 "Read from the mirrorlist file; latency measured by TCP connect.",
+    cp_text_wrapped(fb, fb_w, fb_h, x + 10, y + h - cp_text_line_h() - WUBU_SPACE_SM, w - 20, "Read from the mirrorlist file; latency measured by TCP connect.",
                  c->body_text_ina, 1);
 }
 
