@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2036,
+  "next_n": 2037,
   "goals": [
     {
       "n": 2001,
@@ -534,6 +534,19 @@
       "why": "hosted_run.c hardcoded P6 regardless of the path, so --screenshot shot.png wrote PPM under a .png name: no viewer opens it and any tool trusting the extension fails confusingly. Found by a visual review that could not even open the file it was given.",
       "progress": "DONE: writing extracted to hosted_screenshot_write(); .png (case-insensitive) goes through the tree's existing png_encode_rgba, everything else keeps P6. Gate checks MAGIC BYTES rather than 'a file appeared' -- the old code passed that weaker check. Mutation: ignoring the extension fails 2 checks. End-to-end: ./src/hosted/wubu -h --screenshot /tmp/e2e.png -> 89504e470d0a1a0a, 162 KB (was a 6.2 MB PPM). The gate stubs the encoder deliberately: it tests dispatch and file writing, not PNG encoding, which has its own coverage.",
       "gate": "test_hosted_screenshot"
+    },
+    {
+      "n": 2036,
+      "id": "SLERM-2036",
+      "status": "DONE",
+      "replaces": "epoch timestamps rendered as real dates (1969-12-31 for entries with no mtime)",
+      "title": "An unset timestamp reads Unknown, not the epoch",
+      "module": "src/gui/explorer.c",
+      "oracle": "explorer_format_time: zero and negative timestamps must render 'Unknown'; a real one as YYYY-MM-DD HH:MM",
+      "criterion": "No surface shows a pre-1970 date for an unset timestamp.",
+      "why": "The details pane showed 'Modified: 1969-12-31 19:00' for a drive entry whose stat never ran. The formatter passed 0 to localtime, which is a valid time, so nothing flagged it.",
+      "progress": "DONE: explorer_format_time returns 'Unknown' for t <= 0. The defect survived because the test asserted only strlen(buf) > 0 -- which an epoch string satisfies perfectly; the check now pins the contract (zero Unknown, negative Unknown, real timestamp shaped YYYY-MM-DD HH:MM). Mutation: restoring the guard failure gives 226 passed / 3 failed; fixed, 229/0.",
+      "gate": "test_explorer"
     }
   ]
 }

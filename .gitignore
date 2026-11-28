@@ -186,3 +186,4 @@ ci_qemu_int.log
 
 # built by mk/tests.mk, invoked by the pkg-key gate scripts
 tools/wubu_pkg_key_ctl
+.suite.lock

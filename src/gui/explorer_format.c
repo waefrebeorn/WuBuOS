@@ -56,6 +56,12 @@ void explorer_format_size(uint64_t bytes, char *buf, int buf_size) {
 }
 
 void explorer_format_time(time_t t, char *buf, int buf_size) {
+    /* Zero is not 1970: it means the entry never got a timestamp (a drive, a namespace node, a failed
+     * stat). Rendering it as 1969-12-31 19:00 tells the user a file was modified before Unix existed. */
+    if (t <= 0) {
+        snprintf(buf, buf_size, "Unknown");
+        return;
+    }
     struct tm *tm = localtime(&t);
     if (tm) {
         strftime(buf, buf_size, "%Y-%m-%d %H:%M", tm);

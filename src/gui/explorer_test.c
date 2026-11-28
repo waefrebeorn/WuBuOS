@@ -406,9 +406,24 @@ static void test_helpers(void) {
     explorer_format_size(1024 * 1024 * 1024, buf, sizeof(buf));
     TEST_ASSERT_STR_EQ(buf, "1.0 GB", "format_size 1GB");
     
-    /* Test format_time (just check it doesn't crash) */
+    /* format_time: a real timestamp formats, and ZERO is "Unknown", never the epoch. The previous
+     * check was only strlen(buf) > 0, which "1969-12-31 19:00" passes -- the details pane showed
+     * exactly that for a drive. */
     explorer_format_time(time(NULL), buf, sizeof(buf));
     TEST_ASSERT(strlen(buf) > 0, "format_time produces output");
+    {
+        char zero[64];
+        explorer_format_time(0, zero, sizeof(zero));
+        TEST_ASSERT_STR_EQ(zero, "Unknown", "format_time(0) is Unknown, not the epoch");
+        TEST_ASSERT(strstr(zero, "1969") == NULL && strstr(zero, "1970") == NULL,
+                    "format_time(0) mentions no epoch year");
+        char neg[64];
+        explorer_format_time((time_t)-5, neg, sizeof(neg));
+        TEST_ASSERT_STR_EQ(neg, "Unknown", "a negative timestamp is Unknown too");
+        char fixed[64];
+        explorer_format_time((time_t)1700000000, fixed, sizeof(fixed));
+        TEST_ASSERT(strlen(fixed) == 16 && fixed[4] == '-', "a real timestamp formats as YYYY-MM-DD HH:MM");
+    }
     
     explorer_shutdown();
 }
