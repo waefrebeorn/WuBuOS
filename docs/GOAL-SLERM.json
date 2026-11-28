@@ -436,12 +436,13 @@
       "status": "OPEN",
       "module": "src/gui/fonts/wubu_font_text.h",
       "oracle": "tools/font_bake.py (FreeType via Pillow) + test_applet_layout painted-bounds checks",
-      "criterion": "Both cells baked from Selawik (regular + bold, fallback DejaVu for uncovered codepoints), AND test_applet_layout green at 6px MIN_PAD on every panel at 1024x768/1366x768/1600x900. Measured blocker: with Selawik cells the panels shift down 4px and grow 3px (firmware y[12..893] -> y[16..896]), 5 panels clamp at H-4 and 15 layout checks fail; widths differ by 1px on 53 of 188 shared codepoints and ascent changes 15 -> 13.",
+      "criterion": "Both cells baked from Selawik (regular + bold, fallback DejaVu for uncovered codepoints), AND test_applet_layout green at 6px MIN_PAD on every panel at 800x560/1024x768/1600x900. Measured with the Selawik cells in place: all 39 panel/size combinations change bounds; content tops move by 0, +2 or +4 px depending on the panel; the five failures (firmware, mirror, account, limits, signin) gain exactly +3 px at the bottom -- the same 3 px the line height loses (19 -> 16) -- and clamp at H-4 = 896 against the 6 px rule. Widths differ by 1 px on 53 of 188 codepoints; ascent 15 -> 13.",
       "gate": "test_applet_layout",
       "next": "measure each failing panel's content height, take 6px out of padding/spacing, re-run.",
       "n": 2028,
       "replaces": "segoeuil.ttf / segoeuib.ttf baked coverage (Segoe-derived cells)",
-      "why": "The shipped text cells are derived from Microsoft's Segoe UI, which is not redistributable; Selawik is the OFL metric-compatible substitute, but its metrics move every string, so the swap needs measured layout adaptation rather than a table swap."
+      "why": "The shipped text cells are derived from Microsoft's Segoe UI, which is not redistributable; Selawik is the OFL metric-compatible substitute, but its metrics move every string, so the swap needs measured layout adaptation rather than a table swap.",
+      "progress": "Measured 2026-11-28: font_bake.py rebakes both cells from Selawik with --fallback and test_font_aa passes on them; the blocker is layout, not rasterisation. The +3 px is per panel content, not a single global formula, so the fix is per-panel: take >=3 px out of the content or raise the panel's height budget, then re-run test_applet_layout which checks 117 panel/size combinations."
     }
   ]
 }
