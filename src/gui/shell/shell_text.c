@@ -34,9 +34,14 @@ int shell_text_measure_heading(const char *s)
 int shell_text_draw_heading(uint32_t *fb, int stride_px, int fb_h,
                             int x, int band_y, int band_h, const char *s, uint32_t rgb)
 {
-    if (!g_face || !fb || !s) return -1;
+    return shell_text_draw_at(fb, stride_px, fb_h, x, band_y, band_h, s, SHELL_TEXT_HEADING_PX, rgb);
+}
 
-    const int px = SHELL_TEXT_HEADING_PX;
+int shell_text_draw_at(uint32_t *fb, int stride_px, int fb_h,
+                       int x, int band_y, int band_h, const char *s, int px, uint32_t rgb)
+{
+    if (!g_face || !fb || !s || px <= 0) return -1;
+
     /* Centre the string's real ink, not the hhea extents. Measured on Selawik at 20px: em-centring
      * left "Settings" 6px low (gap above 9, below 3), because cap height is far below the ascender. */
     int y0 = 0, y1 = 0;

@@ -108,6 +108,32 @@ int main(void)
     shell_text_draw_heading(second, W, H, PEN_X, BAND_Y, BAND_H, "Settings", 0xFFFFFF);
     ok(memcmp(second, g_fb, sizeof(g_fb)) == 0, "two fresh renders of the same heading are identical");
 
+    /* Page titles use the ramp's larger Title step. Same engine, but it must still fit the band it
+     * is given, and it must genuinely be bigger -- a "title" that renders at the heading size would
+     * pass every heading check. */
+    {
+        const int title_band = BAND_H + BAND_H / 8;
+        static uint32_t tfb[W * H];
+        memset(tfb, 0, sizeof(tfb));
+        int tadv = shell_text_draw_at(tfb, W, H, PEN_X, BAND_Y, title_band, "Settings",
+                                      SHELL_TEXT_TITLE_PX, 0xFFFFFF);
+        int tfirst = -1, tlast = -1;
+        long tmass = 0;
+        for (int y = 0; y < H; y++) {
+            int any = 0;
+            for (int x = 0; x < W; x++) {
+                unsigned v = tfb[y * W + x] & 0xFF;
+                if (v) { any = 1; tmass += (long)v; }
+            }
+            if (any) { if (tfirst < 0) tfirst = y; tlast = y; }
+        }
+        printf("  page title: advance=%d ink rows %d..%d of band %d..%d\n",
+               tadv, tfirst, tlast, BAND_Y, BAND_Y + title_band - 1);
+        ok(tadv > 0, "a page title draws at the Title step");
+        ok(tfirst >= BAND_Y && tlast <= BAND_Y + title_band - 1, "the title's ink stays inside its band");
+        ok((tlast - tfirst) > (last - first), "the title is larger than the heading");
+    }
+
     shell_text_shutdown();
     ok(!shell_text_ready(), "shutdown releases the face");
     ok(shell_text_draw_heading(g_fb, W, H, 0, 0, BAND_H, "Settings", 0xFFFFFF) == -1,

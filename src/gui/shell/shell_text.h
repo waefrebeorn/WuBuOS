@@ -15,6 +15,9 @@
 
 /* The ramp step headings use: "Display semibold 20/28" in Microsoft's epx table. */
 #define SHELL_TEXT_HEADING_PX 20
+/* Page titles: Win11's "Title" step (28/36). A page title drawn by upscaling the 13px cell is the
+ * blurriest text in the shell, because a 2x bitmap scale enlarges antialiasing rather than outlines. */
+#define SHELL_TEXT_TITLE_PX   28
 
 /* 1 when a face is loaded and display text will be drawn, 0 otherwise. */
 int shell_text_ready(void);
@@ -33,5 +36,9 @@ int shell_text_measure_heading(const char *s);
  * consumed, or -1 when no face is loaded -- callers MUST treat -1 as "use the baked cell". */
 int shell_text_draw_heading(uint32_t *fb, int stride_px, int fb_h,
                             int x, int band_y, int band_h, const char *s, uint32_t rgb);
+
+/* Same, at any ramp size. -1 when no face is loaded. */
+int shell_text_draw_at(uint32_t *fb, int stride_px, int fb_h,
+                       int x, int band_y, int band_h, const char *s, int px, uint32_t rgb);
 
 #endif

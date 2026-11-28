@@ -51,7 +51,7 @@ static void signin_render(CpApplet *applet, uint32_t *fb,
     if (!d) return;
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 6, "Sign-in options", c->select_bg, 2);
+    cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, "Sign-in options", c->select_bg);
     cp_draw_text(fb, fb_w, fb_h, x + 10, y + 24,
                  "Fingerprint sign-in, as this machine reports it.", c->body_text_ina, 1);
 

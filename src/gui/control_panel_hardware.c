@@ -75,7 +75,7 @@ static void hw_render(CpApplet *applet, uint32_t *fb,
     const WubuThemeColors *c = wubu_theme_colors();
     if (!c) return;
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 6, applet->name, c->select_bg, 2);
+    cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, applet->name, c->select_bg);
     /* the layout: the title bar + the world line + the fields */
     draw_line(fb, fb_w, fb_h, x + 10, y + 30, w - 20, "Machine: ", "WuBuOS", c->body_text, c->select_bg);
     draw_line(fb, fb_w, fb_h, x + 10, y + 52, w - 20, "World:   ", world, c->body_text_ina, c->body_text);

@@ -18,6 +18,7 @@
  * C11.
  */
 #include "control_panel.h"
+#include "shell/shell_text.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include "wubu_gui_metrics.h"
@@ -170,6 +171,16 @@ static void audit_control_panel(int W, int H)
 
 int main(void)
 {
+    /* Display titles change the height of every page title, so the same 117 checks must run with
+     * them. WUBU_LAYOUT_FACE=none runs the baked-cell fallback path instead; the recipe runs both,
+     * because a layout that only fits when the font is missing is not a layout that fits. */
+    {
+        const char *face = getenv("WUBU_LAYOUT_FACE");
+        if (!face || !*face) face = "third_party/fonts/selawik.ttf";
+        if (strcmp(face, "none") != 0) shell_text_init(face);
+        printf("[layout] display titles: %s\n", shell_text_ready() ? "20/28px face" : "baked fallback");
+    }
+
     printf("╔══════════════════════════════════════════════════════════╗\n");
     printf("║  Control Panel applet layout audit                        ║\n");
     printf("╚══════════════════════════════════════════════════════════╝\n");

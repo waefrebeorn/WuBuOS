@@ -7,6 +7,7 @@
  */
 
 #include "control_panel_text.h"
+#include "shell/shell_text.h"
 #include "../kernel/vbe.h"
 
 #include <string.h>
@@ -71,6 +72,14 @@ int cp_draw_text(uint32_t *fb, int fb_w, int fb_h,
         start = nl + 1;
     }
     return cp_text_width(s, scale);
+}
+
+void cp_page_title(uint32_t *fb, int fb_w, int fb_h, int x, int y, const char *s, uint32_t colour)
+{
+    if (s && shell_text_draw_at(fb, fb_w, fb_h, x, y, CP_PAGE_TITLE_BAND, s,
+                                SHELL_TEXT_TITLE_PX, colour) > 0)
+        return;
+    cp_draw_text(fb, fb_w, fb_h, x, y + CP_PAGE_TITLE_FALLBACK_DY, s, colour, 2);
 }
 
 int cp_draw_text_bold(uint32_t *fb, int fb_w, int fb_h,

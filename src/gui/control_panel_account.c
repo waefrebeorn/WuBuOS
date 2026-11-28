@@ -54,7 +54,7 @@ static void acct_render(CpApplet *applet, uint32_t *fb,
     const WubuUserInfo *u = &d->info;
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 6, "Your account", c->select_bg, 2);
+    cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, "Your account", c->select_bg);
     cp_draw_text(fb, fb_w, fb_h, x + 10, y + 24,
                  "Who this session belongs to, as the machine defines it.", c->body_text_ina, 1);
 

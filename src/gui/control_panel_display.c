@@ -155,7 +155,7 @@ static void display_render(CpApplet *applet, uint32_t *fb,
      * which is exactly how one panel read as bootleg next to every other. */
     const WubuThemeColors *c = wubu_theme_colors();
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
-    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg, 2);
+    cp_page_title(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg);
     if (!wd) {
         cp_draw_text(fb, fb_w, fb_h, x + 14, y + 44,
                      "no display snapshot", c->body_text_ina, 1);

@@ -109,7 +109,7 @@ static void people_render(CpApplet *applet, uint32_t *fb,
     if (!c) return;
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
-    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg, 2);
+    cp_page_title(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg);
 
     char count[64], store[256], who[PEOPLE_ROWS][2][128];
     wubu_people_line(&g_db, count, sizeof count);

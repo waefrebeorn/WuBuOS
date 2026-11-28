@@ -44,7 +44,7 @@ static void programs_render(CpApplet *applet, uint32_t *fb,
     if (!c) return;
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
-    cp_draw_text(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg, 2);
+    cp_page_title(fb, fb_w, fb_h, x + 14, y + 12, applet->name, c->select_bg);
 
     char count[64], ver[PROGRAMS_ROWS][2][128];
     if (g_reg.count == 1) snprintf(count, sizeof count, "1 package");

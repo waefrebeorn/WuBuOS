@@ -22,6 +22,14 @@ void cp_fill(uint32_t *fb, int fb_w, int fb_h,
 /* Draw one line of text with the kernel's 8x8 font (ASCII 32..127, upper and
  * lower case). Returns the pixel width drawn. Clipped to fb_w/fb_h. */
 int cp_text_line_h(void);
+/* One owner for page titles. Before this, thirteen applet pages each drew their own title by
+ * scaling the 13px baked cell 2x, which enlarges antialiasing instead of outlines -- the blurriest
+ * text in the shell. Draws at the ramp's Title step through our engine, falling back to that same
+ * scaled cell when no face is loaded, so a bare-metal panel still shows a title. */
+#define CP_PAGE_TITLE_BAND 36   /* vertical space a page title is centred in */
+#define CP_PAGE_TITLE_FALLBACK_DY 6
+void cp_page_title(uint32_t *fb, int fb_w, int fb_h, int x, int y, const char *s, uint32_t colour);
+
 int cp_draw_text_bold(uint32_t *fb, int fb_w, int fb_h,
                       int x, int y, const char *s, uint32_t colour, int scale);
 int cp_draw_text(uint32_t *fb, int fb_w, int fb_h,

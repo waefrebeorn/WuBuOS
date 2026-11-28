@@ -4115,6 +4115,7 @@ test_applet_layout:
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c \
 		-o $(GUI)/test_applet_layout -lm
 	timeout 120 $(GUI)/test_applet_layout
+	WUBU_LAYOUT_FACE=none timeout 120 $(GUI)/test_applet_layout
 
 test_pin_confirm:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \

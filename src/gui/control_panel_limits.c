@@ -70,7 +70,7 @@ static void limits_render(CpApplet *applet, uint32_t *fb,
     if (!d) return;
 
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
-    cp_draw_text(fb, fb_w, fb_h, x + 10, y + 6, "Family limits", c->select_bg, 2);
+    cp_page_title(fb, fb_w, fb_h, x + 10, y + 6, "Family limits", c->select_bg);
     cp_draw_text(fb, fb_w, fb_h, x + 10, y + 24,
                  "The hours and days this machine may be used. Outside them the session locks itself.",
                  c->body_text_ina, 1);

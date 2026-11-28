@@ -66,7 +66,7 @@ static void sound_render(CpApplet *applet, uint32_t *fb,
     const WubuThemeColors *c = wubu_theme_colors();
     if (!c) return;
     cp_fill(fb, fb_w, fb_h, x, y, w, h, c->win_face);
-    cp_draw_text(fb, fb_w, fb_h, x + 20, y + 12, applet->name, c->select_bg, 2);
+    cp_page_title(fb, fb_w, fb_h, x + 20, y + 12, applet->name, c->select_bg);
 
     /* the volume bar */
     int bx = x + 20, by = y + 60, bw = w - 40, bh = 18;
