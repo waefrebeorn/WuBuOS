@@ -40,7 +40,11 @@ def main():
         print("gate_reachability: no `test` target in %s" % MK)
         return 2
 
-    reachable, stack = set(), ["test"]
+    # TWO roots: the fast suite and the release suite. A gate that is too slow or too invasive
+    # for `make test` still has to be reachable from something, or it is dead code with a
+    # passing-looking recipe. test_default_crypto_negative_control injects a regression into
+    # tracked source, so it can never run beside 24 parallel compiles.
+    reachable, stack = set(), [r for r in ("test", "test_release") if r in deps]
     while stack:
         t = stack.pop()
         if t in reachable:

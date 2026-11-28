@@ -1,4 +1,3 @@
-test_default_crypto_negative_control
 test_ed25519_bignum_value
 test_ed25519_dudect
 test_ed25519_fixed_timing_crossconfig_negctl
