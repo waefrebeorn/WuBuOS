@@ -1,0 +1,8 @@
+# Untracked files the suite is allowed to leave behind, each with a reason and a goal.
+# Format: path  # reason
+#
+# 'ab' is a 35-byte 4x2 P6 PPM that appears at the repo root after a full suite run. It is NOT
+# reproducible from the four targets that run near it, so its writer is still unknown: SLERM-2039.
+# When the writer is found and fixed, delete this line -- the gate fails on STALE entries too, so
+# this list can only shrink.
+ab  # 4x2 PPM written by an unidentified test, SLERM-2039

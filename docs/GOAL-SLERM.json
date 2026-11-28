@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2039,
+  "next_n": 2040,
   "goals": [
     {
       "n": 2001,
@@ -575,6 +575,19 @@
       "why": "SLERM-2026 made the compositor correct and reachable for frame 0, but the preview decodes once per selection, so a GIF still appears frozen. Playback needs a repaint timer, frame-index-by-elapsed-ms, and cancellation -- a different concern from decoding, which is why it is not smuggled into 2026.",
       "progress": "OPEN. Blocked only on UI plumbing: preview_decode is called on selection change (explorer_preview.c:86) and caches pixels, so there is no tick to advance a frame. Deliberately NOT shipped as a dead helper (wubu_preview_gif_frames was written and deleted rather than left without a caller).",
       "gate": "test_wubu_gif_anim"
+    },
+    {
+      "n": 2039,
+      "id": "SLERM-2039",
+      "status": "OPEN",
+      "replaces": "a workspace that silently accumulates unknown artifacts",
+      "title": "Find the test that writes a 4x2 PPM named 'ab' into the repo root",
+      "module": "src/gui/explorer.c",
+      "oracle": "tools/workspace_clean.py reports the stray at the end of a suite run",
+      "criterion": "No test leaves an untracked file in the repo; the allowlist entry for 'ab' is deleted and the gate stays green with an empty allowlist.",
+      "why": "'ab' is a 35-byte, 4x2 P6 PPM (header 'P6\\n4 2\\n255\\n' + 24 bytes = 4*2*3) that appears in the repo root after a full suite. It is not reproducible from test_explorer, test_wubu_preview_decode, test_split_links or test_owned_surface, so the writer is still unknown. Ignoring it in .gitignore would hide a stray write inside the tree.",
+      "progress": "OPEN. A 4x2 canvas export is the shape (wubu_canvas_io_ppm.c writes exactly that header), but no caller with a 4x2 canvas and a relative filename has been found yet. The gate now names any NEW stray immediately, so the next occurrence reports itself at suite time rather than being found by hand.",
+      "gate": "test_workspace_clean"
     }
   ]
 }
