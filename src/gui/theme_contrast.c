@@ -4,7 +4,7 @@
 
 #include "wubu_theme.h"
 
-#define PAIR(lhs, rhs) printf("%d %s %06X %06X\n", (int)i, #lhs "/" #rhs, c->lhs & 0xFFFFFFu, c->rhs & 0xFFFFFFu)
+#define PAIR(lhs, rhs) printf("%d %s %06X %06X %s\n", (int)i, #lhs "/" #rhs, c->lhs & 0xFFFFFFu, c->rhs & 0xFFFFFFu, wubu_theme_name((WubuThemeId)i))
 
 int main(void)
 {
@@ -29,6 +29,9 @@ int main(void)
         PAIR(scroll_thumb, scroll_track);
         PAIR(icon_border, desktop_bg);
         PAIR(start_btn_face, taskbar_bg);
+        /* The Start mark itself: four accent panes on the taskbar, no tile and no border behind
+         * them, so the accent IS the control's visual. */
+        PAIR(start_mark, taskbar_bg);
     }
     return 0;
 }

@@ -684,7 +684,11 @@ static void draw_start_flag(int x, int y) {
      * Win95 flag is a different operating system's logo, and it was the loudest "this is
      * not Windows 11" element on the bar. Panes are separated by a 2px gutter rather than
      * outlined, which is how the modern mark reads at 14px. */
-    uint32_t accent = tc()->select_bg;
+    /* The mark is a graphical object ON the taskbar, so its colour must contrast with the BAR, not
+     * with a selection colour. In the Luna theme select_bg and taskbar_bg are the same blue (1.00:1)
+     * -- the mark was invisible. start_btn_text is the theme's "ink on the Start surface" role and is
+     * the right semantic choice; measured against taskbar_bg for every theme by test_theme_contrast. */
+    uint32_t accent = tc()->start_mark;
     vbe_fill_rect(x,     y,     6, 6, accent);
     vbe_fill_rect(x + 8, y,     6, 6, accent);
     vbe_fill_rect(x,     y + 8, 6, 6, accent);

@@ -36,6 +36,7 @@ PAIRS = {
     "scroll_thumb/scroll_track":            ("nontext", "scrollbar thumb is the only indicator"),
     "icon_border/desktop_bg":               ("nontext", "icon plate outline"),
     "start_btn_face/taskbar_bg":            ("nontext", "start button boundary"),
+    "start_mark/taskbar_bg":                ("nontext", "the Start mark panes drawn on the taskbar"),
 }
 
 THRESHOLD = {"normal": 4.5, "large": 3.0, "nontext": 3.0}   # WCAG 1.4.11
@@ -79,9 +80,9 @@ def main(argv):
     rows = []
     for ln in text.splitlines():
         parts = ln.split()
-        if len(parts) != 4:
+        if len(parts) < 4:
             continue
-        theme, pair, fg, bg = parts
+        theme, pair, fg, bg = parts[0], parts[1], parts[2], parts[3]   # a trailing theme name is allowed
         try:
             rows.append((int(theme), pair, int(fg, 16), int(bg, 16)))
         except ValueError:

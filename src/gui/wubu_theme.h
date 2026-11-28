@@ -68,6 +68,10 @@ typedef struct {
     uint32_t taskbar_border;
     uint32_t start_btn_face;
     uint32_t start_btn_text;
+    /* The Start MARK drawn on the taskbar. Its own role because the mark is a graphical object on
+     * the BAR: reusing select_bg made it invisible in the Luna theme (select_bg == taskbar_bg, 1.00:1)
+     * and reusing start_btn_text failed on dark themes (dark ink on a dark bar). Audited 1.4.11. */
+    uint32_t start_mark;
 
     /* Start menu */
     uint32_t startmenu_bg;
