@@ -1933,16 +1933,16 @@ test_cp_applets: $(GUI)/test_cp_applets.c $(GUI)/test_cp_pages.c $(GUI)/control_
                  $(GUI)/wubu_theme.c $(KERNEL)/vbe_font.c $(KERNEL)/vbe.c $(GUI)/cp_test_klog.c $(KERNEL)/vbe.h \
                  $(GUI)/control_panel.h $(GUI)/control_panel_text.h
 	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) -I$(KERNEL) -Iinclude \
-	  $(GUI)/test_cp_applets.c $(GUI)/test_cp_pages.c $(GUI)/control_panel.c $(GUI)/control_panel_text.c $(GUI)/gfx/wubu_scroll.c \
+	  $(GUI)/test_cp_applets.c $(GUI)/test_cp_pages.c $(GUI)/control_panel.c $(GUI)/control_panel_text.c $(GUI)/gfx/wubu_scroll.c $(SHELL_TEXT) \
 	  $(GUI)/control_panel_display.c $(GUI)/control_panel_network.c $(GUI)/control_panel_ai.c $(GUI)/control_panel_people.c $(GUI)/control_panel_programs.c $(GUI)/control_panel_theme.c \
 	  $(GUI)/control_panel_sound.c $(GUI)/control_panel_hardware.c $(GUI)/control_panel_firmware.c $(GUI)/control_panel_mirror.c $(GUI)/control_panel_account.c $(GUI)/control_panel_limits.c $(GUI)/control_panel_signin.c $(RT)/wubu_mirror.c $(RT)/wubu_ai_link.c $(RT)/wubu_people.c $(RT)/wubu_pkgx.c $(RT)/wubu_userinfo.c $(RT)/wubu_parental.c $(RT)/wubu_biometric.c $(GUI)/wubu_sound.c $(RT)/wubu_firmware.c \
 	  $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
-	  $(KERNEL)/vbe_font.c $(KERNEL)/vbe.c $(GUI)/cp_test_klog.c $(KERNEL)/wubu_math.c $(RT_ALWAYS) $(SHELL_TEXT) \
+	  $(KERNEL)/vbe_font.c $(KERNEL)/vbe.c $(GUI)/cp_test_klog.c $(KERNEL)/wubu_math.c $(RT_ALWAYS) \
 	  -o $(GUI)/test_cp_applets -lm
 	./$(GUI)/test_cp_applets
 
 test_cp_sound: $(GUI)/control_panel_sound.c $(GUI)/wubu_theme.c $(GUI)/control_panel_text.c $(KERNEL)/vbe_font.c $(KERNEL)/vbe.c $(GUI)/cp_test_klog.c $(GUI)/wubu_sound.c $(GUI)/control_panel.h $(GUI)/wubu_sound.h $(GUI)/control_panel_text.h
-	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) $(GUI)/test_control_panel_sound.c $(GUI)/control_panel_sound.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_math.c $(GUI)/control_panel_text.c $(KERNEL)/vbe_font.c $(KERNEL)/vbe.c $(GUI)/cp_test_klog.c $(GUI)/wubu_sound.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c -o $(GUI)/test_cp_sound -lm -lpulse-simple -lpulse -lasound -Iinclude $(RT_ALWAYS) 
+	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) $(GUI)/test_control_panel_sound.c $(GUI)/control_panel_sound.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_math.c $(GUI)/control_panel_text.c $(KERNEL)/vbe_font.c $(KERNEL)/vbe.c $(GUI)/cp_test_klog.c $(GUI)/wubu_sound.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c -o $(GUI)/test_cp_sound -lm -lpulse-simple -lpulse -lasound -Iinclude $(RT_ALWAYS)  $(SHELL_TEXT)
 	./$(GUI)/test_cp_sound
 
 test_apps_gap: $(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c $(APPS)/apps_gap_test_stub.c $(GUI)/wubu_sound.c
@@ -4101,7 +4101,7 @@ test_vbe_surface:
 test_applet_layout:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-Iinclude -I$(GUI) -I$(KERNEL) -I$(GUI)/shell -I$(RT) \
-		$(GUI)/test_applet_layout.c $(GUI)/control_panel.c $(GUI)/control_panel_text.c $(GUI)/gfx/wubu_scroll.c \
+		$(GUI)/test_applet_layout.c $(GUI)/control_panel.c $(GUI)/control_panel_text.c $(GUI)/gfx/wubu_scroll.c $(SHELL_TEXT) \
 		$(GUI)/control_panel_display.c $(GUI)/control_panel_network.c $(GUI)/control_panel_sound.c \
 		$(GUI)/control_panel_theme.c $(GUI)/control_panel_hardware.c $(GUI)/control_panel_firmware.c \
 		$(GUI)/control_panel_mirror.c $(GUI)/control_panel_account.c $(GUI)/control_panel_limits.c \
@@ -4111,7 +4111,7 @@ test_applet_layout:
 		$(RT)/wubu_firmware.c $(RT)/wubu_mirror.c $(RT)/wubu_userinfo.c $(RT)/wubu_parental.c \
 		$(RT)/wubu_biometric.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c \
 		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(RT)/wubu_palette.c \
-		$(GUI)/wubu_sound.c $(KERNEL)/wubu_math.c $(SHELL_TEXT) \
+		$(GUI)/wubu_sound.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c \
 		-o $(GUI)/test_applet_layout -lm
 	timeout 120 $(GUI)/test_applet_layout
