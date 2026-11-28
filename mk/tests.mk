@@ -3204,7 +3204,7 @@ test_wubu_preview_decode:
 
 test_wubu_jpeg:
 	@python3 -c 'import PIL' 2>/dev/null || { echo "test_wubu_jpeg needs Pillow (the oracle)"; exit 1; }
-	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_jpeg_test src/runtime/wubu_jpeg_test.c src/runtime/wubu_jpeg.c -lm
+	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_jpeg_test src/runtime/wubu_jpeg_test.c src/runtime/wubu_jpeg.c src/runtime/wubu_jpeg_core.c src/runtime/wubu_jpeg_prog.c -lm
 	@python3 tools/make_jpeg_fixtures.py $${TMPDIR:-/tmp}/wubu_jpeg_fx >/dev/null
 	$${TMPDIR:-/tmp}/wubu_jpeg_test $${TMPDIR:-/tmp}/wubu_jpeg_fx
 

@@ -60,7 +60,8 @@ three traps that cost the most time.
   per-draw-site audit, not a blanket reclassification.
 - The shell has never been looked at by a human since the type/theme changes. The contrast gate can
   prove a ratio; it cannot prove a theme still looks like itself.
-- Older, untouched: progressive JPEG/GIF animation, MP3/Vorbis, SLERM-2025 clipboard transport,
+- DONE since this handoff was written: progressive JPEG (SOF2) and GIF animation (SLERM-2026 closed).
+- Older, untouched: MP3/Vorbis, SLERM-2025 clipboard transport,
   `src/hosted/hosted_test.c` still has no target, namespace duplication in `styxfs_*`.
 
 ## The three traps that cost the most

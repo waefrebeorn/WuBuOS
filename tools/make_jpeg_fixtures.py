@@ -31,6 +31,12 @@ cases = [
     ("colour_420.jpg", gradient(64, 48), {"quality": 90, "subsampling": 2}),
     ("colour_444.jpg", gradient(56, 40), {"quality": 90, "subsampling": 0}),
     ("grey_400.jpg", gradient(48, 40, False).convert("L"), {"quality": 90}),
+    # Progressive (SOF2): multi-scan, spectral selection + successive approximation. Each
+    # subsampling and a grayscale case, so a decoder that only handles 3-component scans or
+    # only the luma band is caught.
+    ("prog_420.jpg", gradient(64, 48), {"quality": 90, "subsampling": 2, "progressive": True}),
+    ("prog_444.jpg", gradient(56, 40), {"quality": 90, "subsampling": 0, "progressive": True}),
+    ("prog_grey.jpg", gradient(48, 40, False).convert("L"), {"quality": 90, "progressive": True}),
 ]
 for name, im, kw in cases:
     path = os.path.join(out, name)
@@ -47,9 +53,15 @@ rows.save(os.path.join(out, "rows.bmp"), "BMP")
 Image.open(os.path.join(out, "rows.bmp")).convert("RGB").save(os.path.join(out, "rows.bmp.rgb"), "PPM")
 print("wrote rows.bmp (top green, bottom red)")
 
-# a progressive file: must be REFUSED, not mis-decoded
-gradient(40, 32).save(os.path.join(out, "progressive.jpg"), "JPEG", progressive=True)
-print("wrote progressive.jpg (must be refused)")
+# a progressive file whose scans are deliberately coarse, so Ah/Al refinement really runs
+# The same source at the same quality in BOTH modes: libjpeg quantises to identical
+# coefficients either way, so a correct progressive decoder must produce byte-identical
+# pixels to the baseline path. This catches refinement-bit errors that a mean tolerance hides.
+gradient(40, 32).save(os.path.join(out, "base_q40.jpg"), "JPEG", progressive=False, quality=40)
+p = os.path.join(out, "progressive.jpg")
+gradient(40, 32).save(p, "JPEG", progressive=True, quality=40)
+Image.open(p).convert("RGB").save(p + ".rgb", "PPM")
+print("wrote progressive.jpg (progressive, low quality: many refinement scans)")
 
 # a truncated file: the entropy-coded tail removed
 data = open(os.path.join(out, "colour_420.jpg"), "rb").read()

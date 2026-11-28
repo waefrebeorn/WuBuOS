@@ -60,6 +60,39 @@ static unsigned char *read_ppm(const char *path, int *w, int *h) {
     return px;
 }
 
+/* Progressive and baseline at the same quality quantise to the SAME coefficients, so the two
+ * decode paths must agree exactly. A mean-difference tolerance would hide a single wrong
+ * refinement bit; this cannot. */
+static void case_same_pixels(const char *dir, const char *a, const char *b) {
+    char pa[512], pb[512];
+    snprintf(pa, sizeof pa, "%s/%s", dir, a);
+    snprintf(pb, sizeof pb, "%s/%s", dir, b);
+    long na = 0, nb = 0;
+    unsigned char *ba = slurp(pa, &na), *bb = slurp(pb, &nb);
+    WubuJpegImage ia = {0}, ib = {0};
+    int ea = 0, eb = 0;
+    int ok = ba && bb
+          && wubu_jpeg_decode(ba, (size_t)na, &ia, 0, &ea) == WUBU_JPEG_OK
+          && wubu_jpeg_decode(bb, (size_t)nb, &ib, 0, &eb) == WUBU_JPEG_OK;
+    if (!ok) { printf("  [FAIL] %s vs %s: could not decode both\n", a, b); fail++; free(ba); free(bb); return; }
+    if (ia.w != ib.w || ia.h != ib.h) {
+        printf("  [FAIL] %s vs %s: %dx%d against %dx%d\n", a, b, ia.w, ia.h, ib.w, ib.h);
+        fail++;
+    } else {
+        long worst = 0, at = -1;
+        for (long i = 0; i < (long)ia.w * ia.h * 3; i++) {
+            long d = labs((long)ia.rgb[i] - (long)ib.rgb[i]);
+            if (d > worst) { worst = d; at = i; }
+        }
+        if (worst == 0) { printf("  %s == %s: identical (%dx%d)\n", a, b, ia.w, ia.h); pass++; }
+        else {
+            printf("  [FAIL] %s vs %s: differs by %ld at byte %ld\n", a, b, worst, at);
+            fail++;
+        }
+    }
+    wubu_jpeg_free(&ia); wubu_jpeg_free(&ib); free(ba); free(bb);
+}
+
 static void case_colour(const char *dir, const char *name, double mean_limit, int max_limit) {
     char jp[512], pp[512];
     snprintf(jp, sizeof jp, "%s/%s", dir, name);
@@ -142,7 +175,12 @@ int main(int argc, char **argv) {
     case_colour(dir, "colour_444.jpg", 2.0, 8);
     case_colour(dir, "grey_400.jpg", 2.0, 8);
 
-    case_refused(dir, "progressive.jpg", WUBU_JPEG_UNSUPPORTED, "it is progressive");
+    /* Progressive is no longer refused: it must DECODE, to the same tolerance as baseline. */
+    case_colour(dir, "prog_420.jpg", 2.0, 8);
+    case_colour(dir, "prog_444.jpg", 2.0, 8);
+    case_colour(dir, "prog_grey.jpg", 2.0, 8);
+    case_colour(dir, "progressive.jpg", 2.0, 8);
+    case_same_pixels(dir, "progressive.jpg", "base_q40.jpg");
     case_refused(dir, "truncated.jpg", WUBU_JPEG_SHORT, "the file is truncated");
     case_refused(dir, "notjpeg.jpg", WUBU_JPEG_NOT_JPEG, "it is not a JPEG");
 

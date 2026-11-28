@@ -402,7 +402,7 @@
     {
       "n": 2026,
       "id": "SLERM-2026",
-      "status": "OPEN",
+      "status": "DONE",
       "replaces": "SLERM-2024 stage B",
       "title": "JPEG progressive decode and GIF animation (image family stage B)",
       "module": "src/runtime/wubu_jpeg.c",
@@ -413,7 +413,7 @@
       "fills": [
         "image"
       ],
-      "progress": "GIF ANIMATION DONE: wubu_gif_frame_count/_frame_delay/_frame compositing with disposal 0/1/2/3, transparency, frame offsets and interlacing. Oracle is Pillow (independent, browsers agree): 5 real fixtures, per-frame FNV-1a digests, frame counts and delays -- 57 checks, 0 failed. Mutation-proven twice (ignore transparency -> 7 fail; ignore disposal 2 -> 2 fail). Three real defects found by the oracle: (1) lzw_decode stops at w*h pixels, usually BEFORE the end-of-information code, leaving the cursor inside compressed data so every frame after the first read 'damaged'; (2) disposal 2 is restore-to-BACKGROUND-COLOUR, which Pillow composites as (bg_r,bg_g,bg_b,0) -- not black; (3) the canvas starts at the background, not black, which is what disposal 3 restores to. Reachable: preview decodes frame 0 through the compositor and all three symbols are in the shipped binary. STILL OPEN: progressive JPEG (SOF2), still deliberately refused by design."
+      "progress": "GIF ANIMATION DONE: wubu_gif_frame_count/_frame_delay/_frame compositing with disposal 0/1/2/3, transparency, frame offsets and interlacing. Oracle is Pillow (independent, browsers agree): 5 real fixtures, per-frame FNV-1a digests, frame counts and delays -- 57 checks, 0 failed. Mutation-proven twice (ignore transparency -> 7 fail; ignore disposal 2 -> 2 fail). Three real defects found by the oracle: (1) lzw_decode stops at w*h pixels, usually BEFORE the end-of-information code, leaving the cursor inside compressed data so every frame after the first read 'damaged'; (2) disposal 2 is restore-to-BACKGROUND-COLOUR, which Pillow composites as (bg_r,bg_g,bg_b,0) -- not black; (3) the canvas starts at the background, not black, which is what disposal 3 restores to. Reachable: preview decodes frame 0 through the compositor and all three symbols are in the shipped binary. STILL OPEN: progressive JPEG (SOF2), still deliberately refused by design. PROGRESSIVE JPEG DONE: SOF2 decodes. Refactor first (bit reader/Huffman/IDCT/sampling moved to wubu_jpeg_core.c behind wubu_jpeg_internal.h) and verified PIXEL-IDENTICAL to the pre-refactor decoder (same 0.34/2, 0.04/2, 0.01/1). Then wubu_jpeg_prog.c implements the four entropy modes, transcribed from libjpeg jdphuff.c (DC_first, DC_refine, AC_first, AC_refine), with EOBRUN as decoder state and correction bits for already-nonzero coefficients. The driver keeps the parser and now continues reading markers after a scan instead of breaking at the first SOS. Oracle, twice over: Pillow pixels within tolerance (prog_420 0.34/2, prog_444 0.04/2, prog_grey 0.01/1, low-quality 40x32 0.35/8) AND byte-identical agreement with our own baseline path on the same source and quality (libjpeg quantises to the same coefficients either way) -- which a mean tolerance could never prove. 37 checks, 0 failed. Mutation-proven: EOBRUN ignored -> 5 fail; correction bits dropped -> 5 fail. Defect found: a non-interleaved AC scan encodes ceil(comp_width/8) blocks per row, NOT the padded mx*hs we walked, so one phantom block per row desynchronised the stream."
     },
     {
       "n": 2027,

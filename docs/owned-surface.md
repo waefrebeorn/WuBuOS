@@ -6,8 +6,8 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 4324
-- OWNED (appear in a test target recipe): 963
+- product source modules: 4326
+- OWNED (appear in a test target recipe): 965
 - VENDORED / unproven (no test-target recipe reference): 3361
 
 ## OWNED modules (tested)
@@ -629,6 +629,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_jackimpedance.c`  -- tests: test_hw_jackimpedance
 - `wubu_jackstate.c`  -- tests: test_hw_jackstate
 - `wubu_jpeg.c`  -- tests: test_explorer;test_wubu_preview_decode;test_wubu_jpeg
+- `wubu_jpeg_core.c`  -- tests: test_wubu_jpeg
+- `wubu_jpeg_prog.c`  -- tests: test_wubu_jpeg
 - `wubu_json.c`  -- tests: test_json_fuzz;test_mime;test_trash;test_gamelib
 - `wubu_kernel_xchg.c`  -- tests: test_kernel_xchg;test_ns_kernels
 - `wubu_kvfs.c`  -- tests: test_wubu;test_9psrv;test_syscall;test_launch
