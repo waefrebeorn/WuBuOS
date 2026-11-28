@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2038,
+  "next_n": 2039,
   "goals": [
     {
       "n": 2001,
@@ -412,12 +412,13 @@
       "licence": "n/a",
       "fills": [
         "image"
-      ]
+      ],
+      "progress": "GIF ANIMATION DONE: wubu_gif_frame_count/_frame_delay/_frame compositing with disposal 0/1/2/3, transparency, frame offsets and interlacing. Oracle is Pillow (independent, browsers agree): 5 real fixtures, per-frame FNV-1a digests, frame counts and delays -- 57 checks, 0 failed. Mutation-proven twice (ignore transparency -> 7 fail; ignore disposal 2 -> 2 fail). Three real defects found by the oracle: (1) lzw_decode stops at w*h pixels, usually BEFORE the end-of-information code, leaving the cursor inside compressed data so every frame after the first read 'damaged'; (2) disposal 2 is restore-to-BACKGROUND-COLOUR, which Pillow composites as (bg_r,bg_g,bg_b,0) -- not black; (3) the canvas starts at the background, not black, which is what disposal 3 restores to. Reachable: preview decodes frame 0 through the compositor and all three symbols are in the shipped binary. STILL OPEN: progressive JPEG (SOF2), still deliberately refused by design."
     },
     {
       "n": 2027,
       "id": "SLERM-2027",
-      "status": "OPEN",
+      "status": "DONE",
       "replaces": "stb_truetype.h",
       "title": "Slerm the TrueType glyph rasteriser: outlines, quadratic curves, hinting-free scanline fill",
       "module": "src/runtime/wubu_truetype.c",
@@ -427,7 +428,7 @@
         "Visual parity with Win11 is impossible with a 13 px bitmap cell; Selawik (SIL OFL 1.1) is the metric-compatible Segoe UI replacement but needs an outline rasteriser to be drawn.",
         "font_family in settings has no consumer today: a setting that changes nothing is the same defect class as a theme that claims a radius it does not draw."
       ],
-      "progress": "stages 1-2 DONE: sfnt/cmap/metrics; glyf simple+composite outlines; quadratic flattening; scanline coverage (test_wubu_truetype, 18 checks, mutation-proven). stage 3a DONE: Selawik 1.01 vendored digest-pinned with acceptance probe test_selawik_font (8 checks; found the short-hmtx defect). stage 3b DONE: glyph cache keyed (gid, ppem, subpixel quarter) over a shelf-packed atlas, hit byte-identical to a fresh raster, mutation-proven (test_wubu_text_cache, 27 checks). stage 3c OPEN: call the cache from the shell's text path with the Microsoft epx type ramp, replacing the 13px compiled cell.",
+      "progress": "stages 1-2 DONE: sfnt/cmap/metrics; glyf simple+composite outlines; quadratic flattening; scanline coverage (test_wubu_truetype, 18 checks, mutation-proven). stage 3a DONE: Selawik 1.01 vendored digest-pinned with acceptance probe test_selawik_font (8 checks; found the short-hmtx defect). stage 3b DONE: glyph cache keyed (gid, ppem, subpixel quarter) over a shelf-packed atlas, hit byte-identical to a fresh raster, mutation-proven (test_wubu_text_cache, 27 checks). stage 3c OPEN: call the cache from the shell's text path with the Microsoft epx type ramp, replacing the 13px compiled cell. stage 3c CLOSED with one clause DELIBERATELY DECLINED: the glyph cache IS called from the shell text path (shell_text_draw_heading at 20 epx, page titles at 28, both re-rasterised at any magnification via SLERM-2031), which is the reachability the criterion asks for. What was NOT done is replacing the 13px compiled cell at 1x: SLERM-2031 measured that re-rasterising at 13px moves every panel layout for no visual gain, and the cell is the bare-metal fallback where no filesystem exists to load a face from. The cell's PROVENANCE was fixed instead (SLERM-2028: Selawik, no Segoe). Recording the declined clause rather than quietly redefining the criterion.",
       "gate": "test_wubu_truetype"
     },
     {
@@ -560,6 +561,19 @@
       "why": "contrast_audit can prove btn_face measures 1.1:1 against win_face but cannot know whether that fill is the boundary the eye uses. Dialogs drew Cancel buttons as a bare rounded fill -- a button invisible against its own window.",
       "progress": "DONE: static scan of 9 control fills found 2 genuinely flat (choice_dialog.c:260, open_with_dialog.c:276) and 1 false positive of my own (startmenu_power.c uses vbe_3d_sunken_rounded_colors, which my regex did not know). Both Cancels now carry a border_darkest outline. Gate is both-directional: removing an outline FAILS, a baselined entry that becomes outlined FAILS as stale. choice_dialog 53/0. Also: the duplicate 88x22 geometry moved into WUBU_DIALOG_BTN_W/H, so the hardcode ratchet LOWERED 411 -> 407 -- a fix that reduces debt rather than trading it.",
       "gate": "test_flat_controls"
+    },
+    {
+      "n": 2038,
+      "id": "SLERM-2038",
+      "status": "OPEN",
+      "replaces": "animated GIFs that show one frame and never move",
+      "title": "Play animated GIFs in the preview, frame by frame on a timer",
+      "module": "src/runtime/wubu_gif.c",
+      "oracle": "frame boundaries observed in the running shell: N frames shown over one loop, each matching the Pillow digest",
+      "criterion": "An animated GIF in the preview advances through all frames, honouring per-frame delays and disposal, and the preview stops the timer when the file changes or the pane closes.",
+      "why": "SLERM-2026 made the compositor correct and reachable for frame 0, but the preview decodes once per selection, so a GIF still appears frozen. Playback needs a repaint timer, frame-index-by-elapsed-ms, and cancellation -- a different concern from decoding, which is why it is not smuggled into 2026.",
+      "progress": "OPEN. Blocked only on UI plumbing: preview_decode is called on selection change (explorer_preview.c:86) and caches pixels, so there is no tick to advance a frame. Deliberately NOT shipped as a dead helper (wubu_preview_gif_frames was written and deleted rather than left without a caller).",
+      "gate": "test_wubu_gif_anim"
     }
   ]
 }

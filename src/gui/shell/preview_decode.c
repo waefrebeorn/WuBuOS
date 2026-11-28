@@ -1,5 +1,6 @@
 /* preview_decode.c -- see preview_decode.h. */
 #include "preview_decode.h"
+#include <strings.h>
 #include "../../runtime/wubu_pixmap.h"
 #include "../../runtime/wubu_gif.h"
 #include "../../runtime/wubu_jpeg.h"
@@ -91,7 +92,11 @@ static int decode_bytes(const char *name, const unsigned char *file, size_t len,
             unsigned char *rgba = malloc(cap);
             if (!rgba) rc = WUBU_PREVIEW_NOMEM;
             else {
-                if (wubu_gif_decode(file, len, rgba, cap, &info, &err) == 0) {
+                /* Frame 0 through the COMPOSITOR, not the single-frame path: an animated GIF's
+                 * first frame is composited onto the background, and that is what the animation
+                 * shows. wubu_gif_frame is also the path that proves the animation decoder is
+                 * reachable from the shipped binary. */
+                if (wubu_gif_frame(file, len, 0, rgba, cap, &err) == 0) {
                     *out_px = pack(rgba, info.width, info.height, 4, max_pixels);
                     *w = info.width; *h = info.height;
                     rc = *out_px ? WUBU_PREVIEW_OK : WUBU_PREVIEW_NOMEM;
@@ -152,3 +157,4 @@ int wubu_preview_decode_file(const char *path, uint32_t **out_px, int *w, int *h
     free(file);
     return rc;
 }
+

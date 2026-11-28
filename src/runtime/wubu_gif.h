@@ -41,6 +41,13 @@ int wubu_gif_info(const void *data, size_t len, WubuGif *info, int *err);
 int wubu_gif_decode(const void *data, size_t len, uint8_t *out, size_t outcap,
                     WubuGif *info, int *err);
 
+/* Animation. wubu_gif_decode decodes frame 0; these walk the whole stream.
+ * wubu_gif_frame composites frames 0..index onto one canvas (frame offsets, transparency
+ * and disposal methods 0/1/2/3), giving the canvas as it is SHOWN when `index` appears. */
+int wubu_gif_frame_count(const void *data, size_t len, int *count, int *err);
+int wubu_gif_frame_delay(const void *data, size_t len, int index, int *err);   /* milliseconds */
+int wubu_gif_frame(const void *data, size_t len, int index, uint8_t *out, size_t outcap, int *err);
+
 const char *wubu_gif_reason(int err);
 
 #endif
