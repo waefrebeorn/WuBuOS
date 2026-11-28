@@ -9,7 +9,7 @@ Advance widths are compared in whole pixels with a 1 px tolerance: FreeType retu
 pen advances and rounds at draw time, so an exact match would be testing rounding policy rather
 than font parsing.
 
-usage: python3 tools/make_ttf_oracle.py > tests/fixtures/ttf_oracle.h
+usage: python3 tools/make_ttf_oracle.py [font.ttf [ppem,ppem,...]] > fixture.h
 """
 import sys
 
@@ -50,7 +50,16 @@ def emit_raster(out):
 
 
 def main():
+    global FONT, PPEMS
     from PIL import ImageFont
+
+    # Optional: font path, then comma-separated ppems. The default is DejaVu, so the original
+    # invocation keeps producing the same fixture; a vendored face gets its own oracle file.
+    args = sys.argv[1:]
+    if args:
+        FONT = args[0]
+    if len(args) > 1:
+        PPEMS = tuple(int(x) for x in args[1].split(","))
 
     fonts = {p: ImageFont.truetype(FONT, p) for p in PPEMS}
     rows = []

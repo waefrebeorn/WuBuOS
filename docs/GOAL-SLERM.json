@@ -427,7 +427,7 @@
         "Visual parity with Win11 is impossible with a 13 px bitmap cell; Selawik (SIL OFL 1.1) is the metric-compatible Segoe UI replacement but needs an outline rasteriser to be drawn.",
         "font_family in settings has no consumer today: a setting that changes nothing is the same defect class as a theme that claims a radius it does not draw."
       ],
-      "progress": "stage 1 DONE 2026-11-27: src/runtime/wubu_truetype.c (227 lines) parses the sfnt directory, head/maxp/hhea/hmtx/loca/glyf, and cmap formats 12 and 4 (32-bit preferred per the OpenType superset rule), exposing unitsPerEm, glyph count, glyph index and advance. Gate test_wubu_truetype: 11 checks, 0 failed; 111/111 oracle code points agree with FreeType within 1px; mutation (read lsb instead of advance) fails it 10/1. stage 2 OPEN: glyf outline decode, quadratic flattening, scanline coverage, then Selawik.",
+      "progress": "stage 1 DONE: sfnt/cmap/metrics reader, gate test_wubu_truetype. stage 2 DONE: glyf outlines (simple + composites, 2.14 transforms), quadratic flattening with implied midpoints, scanline coverage; 18 checks, mutation (drop the straight-line rule) fails it. stage 3a DONE: Selawik 1.01 vendored (44,224 bytes, digest-pinned) with its own acceptance probe test_selawik_font (8 checks: 300/300 advances within 1px, ink 0.93..1.06 of FreeType). That probe found the short-hmtx defect. stage 3b OPEN: glyph cache keyed by (gid, ppem, subpixel bucket) over an atlas, then wire the shell's text draw.",
       "gate": "test_wubu_truetype"
     }
   ]

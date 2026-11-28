@@ -73,3 +73,24 @@ Two properties are non-negotiable, both visible in shipping implementations:
   font-specific code, and the measured ink difference is recorded in the SLERM-2027 gate.
 - No subpixel (RGB) antialiasing yet. Coverage is grayscale; ClearType-style filtering changes the
   image and would need its own oracle.
+
+## 6. The vendored face, and the bug it found
+
+`third_party/fonts/selawik.ttf` (44,224 bytes, sha256
+`e9d98518…30ee1c`), fetched by `tools/fetch_selawik.py` from release 1.01 of
+<https://github.com/microsoft/Selawik> and pinned by the digest of both the release zip and the
+extracted face; `Selawik-OFL.txt` sits beside it because the OFL requires the licence to travel
+with the font, and "Selawik" is a Reserved Font Name (so a modified version must be renamed).
+
+It found a real defect on the first open: our reader refused it with `hmtx shorter than
+numberOfHMetrics`. The check demanded `numberOfHMetrics + 1` full 4-byte records, but the table is
+`numberOfHMetrics` records followed by a 2-byte left-side-bearing array for the remaining glyphs —
+so the short form (fewer metrics than glyphs) is legal, common, and was rejected. DejaVu carries a
+metric for every glyph, so no test we had could have found this. That is the whole argument for the
+vendored-fill rule: a real artifact from another producer tests the parser in ways a fixture
+written by the same hand cannot.
+
+Microsoft's own README notes Selawik is missing kerning against Segoe UI and needs improved
+hinting. Neither is implemented here, so the vendored face and our engine currently have the same
+limitations — which is the honest state, and the reason the gate compares ink mass within a
+measured band instead of pixel equality.

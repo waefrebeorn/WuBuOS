@@ -138,7 +138,12 @@ WubuTtf *wubu_ttf_open(const uint8_t *data, size_t len, const char **why)
     if (t.upem == 0) { if (why) *why = "unitsPerEm is zero"; return NULL; }
     if (t.num_glyphs == 0) { if (why) *why = "no glyphs"; return NULL; }
     if (t.num_hmetrics == 0) { if (why) *why = "numberOfHMetrics is zero"; return NULL; }
-    if (1u + (uint32_t)t.num_hmetrics > t.hmtx.len / 4) {
+    /* hmtx is numberOfHMetrics 4-byte records followed by a 2-byte left-side-bearing array for the
+     * remaining glyphs, so the SHORT form (fewer metrics than glyphs) is legal and common. Requiring
+     * "numberOfHMetrics + 1" full records -- as this check first did -- refuses every such font;
+     * Selawik was the one that found it, since DejaVu carries a metric for every glyph and passed. */
+    if (t.num_hmetrics > (int)t.num_glyphs) { if (why) *why = "numberOfHMetrics exceeds numGlyphs"; return NULL; }
+    if ((uint32_t)t.num_hmetrics > t.hmtx.len / 4) {
         if (why) *why = "hmtx shorter than numberOfHMetrics";
         return NULL;
     }
@@ -149,6 +154,8 @@ WubuTtf *wubu_ttf_open(const uint8_t *data, size_t len, const char **why)
 
     return &t;
 }
+
+int wubu_ttf_has_outlines(const WubuTtf *ttf) { return ttf ? (int)ttf->has_glyf : 0; }
 
 void wubu_ttf_close(WubuTtf *ttf) { (void)ttf; }
 

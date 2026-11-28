@@ -55,6 +55,11 @@ typedef struct { int32_t x, y; uint8_t on; } WubuTtfPoint;
 /* Decode a glyph's outline. Simple glyphs and composites with xy offsets and 2.14 transforms are
  * handled; composites anchored to another component's POINT NUMBERS are refused (return 0), because
  * a wrong guess produces a corrupt glyph rather than a visible error. */
+/* True when the face carries usable outlines (glyf + loca both present and in range). A face can
+ * legitimately be opened metrics-only -- measuring text needs advances, not shapes -- but the caller
+ * must be able to tell the difference instead of discovering it when a glyph draws nothing. */
+int wubu_ttf_has_outlines(const WubuTtf *ttf);
+
 int wubu_ttf_outline(const WubuTtf *ttf, uint32_t gid, WubuTtfPoint *pts, int max_pts, int *out_npts,
                      uint16_t *contour_end, int max_contours, int *out_ncontours);
 
