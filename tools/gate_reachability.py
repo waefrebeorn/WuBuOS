@@ -22,7 +22,12 @@ def targets_and_deps(text):
     deps = {}
     for m in re.finditer(r"^([A-Za-z0-9_./-]+):(.*?)(?=^\S|\Z)", text, re.M | re.S):
         name, body = m.group(1), m.group(2)
-        deps[name] = {d for d in re.findall(r"\b(test_[A-Za-z0-9_]+)\b", body) if d != name}
+        # `test` depends on `test-tiers`, NOT on a test_* name. Matching only
+        # [A-Za-z0-9_]+ silently dropped that edge, so the walk from `test` stopped at its own
+        # root and every one of 727 targets was reported as an orphan. A reachability gate that
+        # cannot see its own root passes by declaring everything unreachable -- and then rewrote
+        # its baseline to agree with itself.
+        deps[name] = {d for d in re.findall(r"\b((?:test|check)[A-Za-z0-9_-]*)\b", body) if d != name}
     return deps
 
 
@@ -44,31 +49,12 @@ def main():
         stack.extend(deps.get(t, ()))
 
     orphans = sorted(tests - reachable)
-    base = None
-    if os.path.exists(BASELINE):
-        try:
-            with open(BASELINE) as f:
-                base = int(f.read().split()[0])
-        except (ValueError, IndexError):
-            base = None
-
-    print("gate_reachability: %d test targets, %d reachable from `test`, %d orphans"
-          % (len(tests), len(tests & reachable), len(orphans)))
-    for o in orphans[:15]:
-        print("  orphan: %s" % o)
-    if len(orphans) > 15:
-        if os.environ.get("WUBU_REACH_ALL"):
-            for o in orphans[15:]:
-                print("  orphan: %s" % o)
-        else:
-            print("  ... and %d more (tools/gate_reachability.baseline)" % (len(orphans) - 15))
-
-    # THE RATCHET STORES NAMES, NOT A COUNT. A count can only say "one more orphan
-    # exists somewhere among 412"; it cannot say WHICH target stopped being reachable,
-    # so the gate could not be acted on -- exactly the state it was left in when this
-    # was still a bare number. A set diff names the target in one line.
+    # Read the baseline ONCE, in either shape. The name set used to be consulted only when
+    # line 1 was a digit, which made the migration branch unreachable: after the first rewrite
+    # the file held names, `int()` failed, base was None, and the gate rewrote the file and
+    # reported success forever. A gate that can only ever rewrite itself is not a gate.
     base_set = None
-    if base is not None:
+    if os.path.exists(BASELINE):
         with open(BASELINE) as f:
             lines = [ln.strip() for ln in f if ln.strip()]
         if lines and not lines[0].isdigit():
@@ -78,7 +64,11 @@ def main():
         with open(BASELINE, "w") as f:
             f.write("\n".join(sorted(orphans)) + "\n")
         print("gate_reachability: baseline written as a NAME SET (%d orphans)" % len(orphans))
-        return 0
+        # Writing the bar and clearing it in the same run proves nothing: whatever orphans
+        # exist RIGHT NOW become the new normal by definition. Fail once, so a human reads the
+        # list and commits it deliberately. The next run compares against the committed file.
+        print(">>> RE-RUN after reviewing and committing %s <<<" % BASELINE)
+        return 1
 
     orphan_set = set(orphans)
     appeared = sorted(orphan_set - base_set)
@@ -92,6 +82,9 @@ def main():
     if fixed:
         print("gate_reachability: %d target(s) became reachable -- remove them from %s: %s"
               % (len(fixed), BASELINE, ", ".join(fixed[:10])))
+    if not fixed:
+        print("gate_reachability: PASS -- %d reachable, %d known orphans, no new ones"
+              % (len(reachable), len(orphans)))
     return 0
 
 
