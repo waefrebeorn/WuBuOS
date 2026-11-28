@@ -519,7 +519,7 @@
       "oracle": "tools/contrast_audit.py nontext rows (WCAG 1.4.11, 3:1) over hex values from the theme API",
       "criterion": "Zero non-text entries in tools/contrast_baseline.txt.",
       "why": "Measured: 31 of 98 pairs are below 3:1 and every one is a control boundary. Scrollbar thumb vs track fails in all 7 themes, button face vs window face in all 7, and the classic themes identify buttons by 3D edges that are themselves only ~2.2:1.",
-      "progress": "Measured 2026-11-28. Fixing is a visible redesign (button faces, thumb/track, plate outlines) across 7 themes, so it is sequenced after the text-contrast work rather than bundled with it. Baseline holds the 31 with rationale; any NEW non-text violation already fails the gate.",
+      "progress": "Measured 2026-11-28: 31 of 98 pairs below 3:1, all non-text. 7 CLEARED (scroll_thumb/scroll_track, every theme): theme 0 had thumb == track (#C0C0C0, 1.00:1), i.e. the thumb was invisible -- the port kept Windows' scrollbar colours but dropped the 3D border that distinguished the thumb, so nothing was left. All seven now 3.12..3.46:1 at the MINIMAL passing value, keeping each theme's tint (green theme's thumb stays green: #467B60). Remaining 24: btn_face/win_face (7), border_dark (6), border_darkest (5), start_btn (4), icon_border (2). Caveat learned: a floor-only gate accepts over-fixes -- my first pass pushed three thumbs to #020202 (18:1), which passes and looks wrong; margins were reviewed by eye after, not just the ratio.",
       "gate": "test_theme_contrast"
     }
   ]
