@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2028,
+  "next_n": 2029,
   "goals": [
     {
       "n": 2001,
@@ -429,6 +429,16 @@
       ],
       "progress": "stages 1-2 DONE: sfnt/cmap/metrics; glyf simple+composite outlines; quadratic flattening; scanline coverage (test_wubu_truetype, 18 checks, mutation-proven). stage 3a DONE: Selawik 1.01 vendored digest-pinned with acceptance probe test_selawik_font (8 checks; found the short-hmtx defect). stage 3b DONE: glyph cache keyed (gid, ppem, subpixel quarter) over a shelf-packed atlas, hit byte-identical to a fresh raster, mutation-proven (test_wubu_text_cache, 27 checks). stage 3c OPEN: call the cache from the shell's text path with the Microsoft epx type ramp, replacing the 13px compiled cell.",
       "gate": "test_wubu_truetype"
+    },
+    {
+      "id": "SLERM-2028",
+      "title": "Flip the baked text cells to Selawik and adapt the control-panel layouts",
+      "status": "OPEN",
+      "module": "src/gui/fonts/wubu_font_text.h",
+      "oracle": "tools/font_bake.py (FreeType via Pillow) + test_applet_layout painted-bounds checks",
+      "criterion": "Both cells baked from Selawik (regular + bold, fallback DejaVu for uncovered codepoints), AND test_applet_layout green at 6px MIN_PAD on every panel at 1024x768/1366x768/1600x900. Measured blocker: with Selawik cells the panels shift down 4px and grow 3px (firmware y[12..893] -> y[16..896]), 5 panels clamp at H-4 and 15 layout checks fail; widths differ by 1px on 53 of 188 shared codepoints and ascent changes 15 -> 13.",
+      "gate": "test_applet_layout",
+      "next": "measure each failing panel's content height, take 6px out of padding/spacing, re-run."
     }
   ]
 }
