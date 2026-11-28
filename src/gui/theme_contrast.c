@@ -21,6 +21,14 @@ int main(void)
         PAIR(start_btn_text, start_btn_face);
         PAIR(startmenu_text, startmenu_bg);
         PAIR(icon_text, desktop_bg);
+        /* WCAG 1.4.11: a control's boundary needs 3:1 against adjacent colour. Each of these is a way
+         * the shell actually distinguishes a control from its surroundings. */
+        PAIR(btn_face, win_face);
+        PAIR(border_dark, win_face);
+        PAIR(border_darkest, win_face);
+        PAIR(scroll_thumb, scroll_track);
+        PAIR(icon_border, desktop_bg);
+        PAIR(start_btn_face, taskbar_bg);
     }
     return 0;
 }

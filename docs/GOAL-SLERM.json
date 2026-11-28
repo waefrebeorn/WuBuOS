@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2034,
+  "next_n": 2035,
   "goals": [
     {
       "n": 2001,
@@ -507,6 +507,19 @@
       "criterion": "Zero entries in tools/contrast_baseline.txt: every measured text/background pair meets 4.5:1 (normal) or 3:1 (large), with inactive-component pairs recorded as exempt rather than skipped.",
       "why": "Measured: themes 0 and 1 draw an unfocused window caption as white on #808080 = 3.95:1, below the 4.5:1 normal-text threshold. Every other pair passes; the worst margin is select_text/select_bg at 4.53:1 against a 3:1 large-text rule.",
       "progress": "DONE: themes 0 and 1 draw the unfocused caption as white on #6E6E6E = 5.10:1 (was white on #808080 = 3.95:1). All 56 measured pairs now pass; 7 exempt (inactive components); tools/contrast_baseline.txt is empty of violations. The gate demonstrated its two-way check on the way: after the colour change it reported both baseline entries as STALE and failed until they were removed. Note for the next session: wubu_theme.c already carried the comment 'WCAG darker for inactive-title text' above the unchanged value -- the intent was recorded, the measurement was not. Contrast is symmetric, so darkening the TEXT could not have fixed this; the bar itself had to change. test_settings 37/0, test_control_panel 276/0, test_gui_metrics ALL PASSED.",
+      "gate": "test_theme_contrast"
+    },
+    {
+      "n": 2034,
+      "id": "SLERM-2034",
+      "status": "OPEN",
+      "replaces": "control boundaries with sub-3:1 contrast (WCAG 1.4.11 / EN 301 549 11.1.4.11)",
+      "title": "Control boundaries meet 3:1 non-text contrast",
+      "module": "src/gui/theme_contrast.c",
+      "oracle": "tools/contrast_audit.py nontext rows (WCAG 1.4.11, 3:1) over hex values from the theme API",
+      "criterion": "Zero non-text entries in tools/contrast_baseline.txt.",
+      "why": "Measured: 31 of 98 pairs are below 3:1 and every one is a control boundary. Scrollbar thumb vs track fails in all 7 themes, button face vs window face in all 7, and the classic themes identify buttons by 3D edges that are themselves only ~2.2:1.",
+      "progress": "Measured 2026-11-28. Fixing is a visible redesign (button faces, thumb/track, plate outlines) across 7 themes, so it is sequenced after the text-contrast work rather than bundled with it. Baseline holds the 31 with rationale; any NEW non-text violation already fails the gate.",
       "gate": "test_theme_contrast"
     }
   ]

@@ -30,9 +30,15 @@ PAIRS = {
     "start_btn_text/start_btn_face":        ("normal", "start button"),
     "startmenu_text/startmenu_bg":          ("normal", "start menu item"),
     "icon_text/desktop_bg":                 ("normal", "desktop icon label"),
+    "btn_face/win_face":                    ("nontext", "button against window face"),
+    "border_dark/win_face":                 ("nontext", "3D shadow edge of a control"),
+    "border_darkest/win_face":              ("nontext", "outer control outline"),
+    "scroll_thumb/scroll_track":            ("nontext", "scrollbar thumb is the only indicator"),
+    "icon_border/desktop_bg":               ("nontext", "icon plate outline"),
+    "start_btn_face/taskbar_bg":            ("nontext", "start button boundary"),
 }
 
-THRESHOLD = {"normal": 4.5, "large": 3.0}
+THRESHOLD = {"normal": 4.5, "large": 3.0, "nontext": 3.0}   # WCAG 1.4.11
 
 
 def channel(v):
