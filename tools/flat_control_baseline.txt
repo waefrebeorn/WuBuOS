@@ -1,0 +1,5 @@
+# Controls drawn with a face role but NO outline within 10 lines. Every entry here is a debt: a
+# control whose only visual boundary is a fill that measures ~1.1:1 against the window.
+#
+# Format: path:line (the fill call). Both directions are enforced -- a new flat control FAILS, and a
+# listed one that gains an outline FAILS as STALE, so this list can only shrink.

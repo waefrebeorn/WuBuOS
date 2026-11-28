@@ -10,6 +10,7 @@
  */
 #include "open_with_dialog.h"
 #include "../wubu_theme.h"
+#include "../wubu_tokens.h"
 #include "../../kernel/vbe.h"
 #include "../wubu_mime.h"
 #include "wubu_gui_metrics.h"
@@ -271,8 +272,9 @@ void open_with_render(uint32_t *fb, int fb_w, int fb_h)
         vbe_fill_rect_rounded(cbx + 3, fy + 6, 6, 6, 1, c->select_bg);
     vbe_draw_text(cbx + 20, fy + 2, "Always use this app", c->body_text, 1);
 
-    vbe_fill_rect_rounded(okx, fy, 88, 22, WUBU_METRIC_RADIUS_CONTROL, c->select_bg);
+    vbe_fill_rect_rounded(okx, fy, WUBU_DIALOG_BTN_W, WUBU_DIALOG_BTN_H, WUBU_METRIC_RADIUS_CONTROL, c->select_bg);
     vbe_draw_text(okx + 8, fy + 6, "Open", c->select_text, 1);
-    vbe_fill_rect_rounded(cax, fy, 88, 22, WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
+    vbe_fill_rect_rounded(cax, fy, WUBU_DIALOG_BTN_W, WUBU_DIALOG_BTN_H, WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
+    vbe_rect_rounded(cax, fy, WUBU_DIALOG_BTN_W, WUBU_DIALOG_BTN_H, WUBU_METRIC_RADIUS_CONTROL, c->border_darkest);   /* 1.4.11 */
     vbe_draw_text(cax + 8, fy + 6, "Cancel", c->btn_text, 1);
 }

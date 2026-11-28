@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2037,
+  "next_n": 2038,
   "goals": [
     {
       "n": 2001,
@@ -547,6 +547,19 @@
       "why": "The details pane showed 'Modified: 1969-12-31 19:00' for a drive entry whose stat never ran. The formatter passed 0 to localtime, which is a valid time, so nothing flagged it.",
       "progress": "DONE: explorer_format_time returns 'Unknown' for t <= 0. The defect survived because the test asserted only strlen(buf) > 0 -- which an epoch string satisfies perfectly; the check now pins the contract (zero Unknown, negative Unknown, real timestamp shaped YYYY-MM-DD HH:MM). Mutation: restoring the guard failure gives 226 passed / 3 failed; fixed, 229/0.",
       "gate": "test_explorer"
+    },
+    {
+      "n": 2037,
+      "id": "SLERM-2037",
+      "status": "DONE",
+      "replaces": "theme-level contrast auditing, which cannot know whether a control is outlined",
+      "title": "Every control surface is outlined at the DRAW SITE, gated statically",
+      "module": "src/gui/shell/choice_dialog.c",
+      "oracle": "tools/flat_control_audit.py: a vbe_fill_rect_rounded using a face role must have an outline call within 10 lines",
+      "criterion": "No control is drawn with a face fill and no outline; the baseline can only shrink.",
+      "why": "contrast_audit can prove btn_face measures 1.1:1 against win_face but cannot know whether that fill is the boundary the eye uses. Dialogs drew Cancel buttons as a bare rounded fill -- a button invisible against its own window.",
+      "progress": "DONE: static scan of 9 control fills found 2 genuinely flat (choice_dialog.c:260, open_with_dialog.c:276) and 1 false positive of my own (startmenu_power.c uses vbe_3d_sunken_rounded_colors, which my regex did not know). Both Cancels now carry a border_darkest outline. Gate is both-directional: removing an outline FAILS, a baselined entry that becomes outlined FAILS as stale. choice_dialog 53/0. Also: the duplicate 88x22 geometry moved into WUBU_DIALOG_BTN_W/H, so the hardcode ratchet LOWERED 411 -> 407 -- a fix that reduces debt rather than trading it.",
+      "gate": "test_flat_controls"
     }
   ]
 }

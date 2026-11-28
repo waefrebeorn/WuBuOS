@@ -90,6 +90,8 @@
 #define WUBU_ICON_LG       32
 
 #define WUBU_TITLE_BAR_H   WUBU_METRIC_TITLEBAR_H /* window caption: canonical */
+#define WUBU_DIALOG_BTN_W  88   /* footer button width in choice / open-with dialogs */
+#define WUBU_DIALOG_BTN_H  22   /* footer button height (dialogs are shorter than 32px controls) */
 #define WUBU_TITLE_BTN_W   46   /* caption button width */
 #define WUBU_TITLE_BTN_H   32   /* flush with the caption bar */
 #define WUBU_TITLE_PAD     WUBU_SPACE_SM   /* icon and title inset */

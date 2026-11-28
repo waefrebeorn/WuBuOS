@@ -43,7 +43,7 @@
   "geometry": 5
  },
  "src/gui/shell/open_with_dialog.c": {
-  "geometry": 22
+  "geometry": 18
  },
  "src/gui/shell/open_with_dialog_test.c": {
   "geometry": 12

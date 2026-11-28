@@ -258,6 +258,9 @@ void cd_render(const ChoiceDialog *d, uint32_t *fb, int fb_w, int fb_h)
         }
         if (cd_cancel_rect(d, &bx, &by, &bw, &bh)) {
             vbe_fill_rect_rounded(bx, by, bw, bh, WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
+            /* WCAG 1.4.11: a secondary button's face is 1.1:1 against the window, so the BUTTON would be
+             * invisible without this outline. The outline is what the eye uses as the boundary. */
+            vbe_rect_rounded(bx, by, bw, bh, WUBU_METRIC_RADIUS_CONTROL, c->border_darkest);
             vbe_draw_text(bx + 8, by + 6, d->cancel_label, c->btn_text, 1);
         }
     }
