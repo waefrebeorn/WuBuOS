@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2029,
+  "next_n": 2030,
   "goals": [
     {
       "n": 2001,
@@ -443,6 +443,19 @@
       "replaces": "segoeuil.ttf / segoeuib.ttf baked coverage (Segoe-derived cells)",
       "why": "The shipped text cells are derived from Microsoft's Segoe UI, which is not redistributable; Selawik is the OFL metric-compatible substitute, but its metrics move every string, so the swap needs measured layout adaptation rather than a table swap.",
       "progress": "DONE: both cells baked from Selawik (regular + DejaVu fallback for the 12 codepoints Selawik lacks; bold vendored 44,068 B, digest-pinned). The blocker was not the face but a real padding defect it exposed: five control panels anchored their footer to h - line_h - WUBU_SPACE_XS, i.e. a 4px bottom pad against the 6px MIN_PAD rule, and Segoe's taller line height (19 vs 16) had been hiding the violation by lifting the footer 3px. Discriminated by experiment: anchoring firmware's footer 3px higher (literal 19) restored y[16..893] and passed; the pad, not the glyphs, was at fault. Fixed by using WUBU_SPACE_SM (8) at all five sites, which satisfies 6px for any face. test_applet_layout 276/0 with both the Selawik and the old cells, test_font_aa 0 failed, standards/ratchet/docs/owned-surface green."
+    },
+    {
+      "n": 2029,
+      "id": "SLERM-2029",
+      "status": "DONE",
+      "replaces": "per-size baked coverage (one 13px table was the only drawable size)",
+      "title": "Runtime text face: draw any ppem through our own engine",
+      "module": "src/runtime/wubu_text_face.c",
+      "oracle": "Pillow/FreeType whole-string composition: getlength for advance, L-mode mask sum for ink, 8 strings x 13/20/28 px",
+      "criterion": "A face opened from a path or from memory draws UTF-8 at any ppem into an ARGB8888 target, composed advance within 2px of FreeType's fractional sum, ink ratio 0.89..1.05, second pass rasterises nothing, malformed UTF-8 refused.",
+      "why": "The baked cell can only draw one size, so the shell cannot have a type ramp (Win11 uses 12/14/18/20/28/40 epx). The parser, outline decoder, rasteriser and cache existed but nothing composed a string.",
+      "progress": "DONE: wubu_text_face.{h,c} (open_file owns its bytes, open_memory borrows), pen accumulates in quarter pixels -- rounding each glyph to whole pixels drifts 5.5px over 20 glyphs and fails the gate (mutation recorded) -- glyph cache keyed by subpixel bucket, draw returns the advance (not the pen). Measured: worst advance delta 1.9px on a 20-glyph run, 0.9px on a 44-character line; ink 0.91..1.02 over 24 string/size rows; 99 checks pass. Wiring it into the shell's display sizes is SLERM-2030.",
+      "gate": "test_wubu_text_face"
     }
   ]
 }

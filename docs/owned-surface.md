@@ -6,9 +6,9 @@ basename is compiled by at least one `test_*:` target's recipe (so it is
 linked into a test binary and exercised); otherwise **VENDORED** (only in
 the kernel/driver build or nowhere in the test recipes).
 
-- product source modules: 4319
-- OWNED (appear in a test target recipe): 958
-- VENDORED / unproven (no test-target recipe reference): 3361
+- product source modules: 4320
+- OWNED (appear in a test target recipe): 961
+- VENDORED / unproven (no test-target recipe reference): 3359
 
 ## OWNED modules (tested)
 
@@ -865,6 +865,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_syscall_vbe.c`  -- tests: test_syscall
 - `wubu_system.c`  -- tests: test_system
 - `wubu_test_stubs.c`  -- tests: test_drv_pci_bus;test_drv_install;test_hw_pci;test_hw_pci
+- `wubu_text_cache.c`  -- tests: test_wubu_text_face
 - `wubu_theme.c`  -- tests: test_wm_shadow;test_screenshot;test_gui_screenshot;test_mime
 - `wubu_thermal.c`  -- tests: test_hw_thermal
 - `wubu_thermal_read.c`  -- tests: test_hosted_hw;test_wm;test_ui;test_thermal_read
@@ -876,6 +877,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_track.c`  -- tests: test_wubu_track
 - `wubu_trash.c`  -- tests: test_trash;test_wm;test_ui;test_calc
 - `wubu_trim.c`  -- tests: test_hw_trim
+- `wubu_truetype.c`  -- tests: test_wubu_text_face
+- `wubu_truetype_raster.c`  -- tests: test_wubu_text_face
 - `wubu_tutor.c`  -- tests: test_tutor
 - `wubu_tutorial.c`  -- tests: test_tutorial
 - `wubu_txn.c`  -- tests: test_txn
@@ -4193,7 +4196,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_tensor_store.c`
 - `wubu_tensorfold.c`
 - `wubu_ternary.c`
-- `wubu_text_cache.c`
+- `wubu_text_face.c`
 - `wubu_thread_spec.c`
 - `wubu_threshsig.c`
 - `wubu_timeseries.c`
@@ -4214,9 +4217,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_trajcell.c`
 - `wubu_tree_accept.c`
 - `wubu_tree_verify.c`
-- `wubu_truetype.c`
 - `wubu_truetype_outline.c`
-- `wubu_truetype_raster.c`
 - `wubu_tss.c`
 - `wubu_tst.c`
 - `wubu_ttc.c`
