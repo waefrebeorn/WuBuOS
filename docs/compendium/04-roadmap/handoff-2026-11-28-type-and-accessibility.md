@@ -28,6 +28,11 @@ three traps that cost the most time.
 | `cccc75f9` | SLERM-2034 part 1: scrollbar thumb visible in all 7 themes (theme 0 had thumb == track) |
 | `01a0b140` | SLERM-2034 part 2: 14 cleared, 6 reclassified with reasoning, 11 baselined |
 | `a1ac8e7b` | visual review of the dark-theme outline change |
+| `f8891e75` | handoff written |
+| `deb8d061` | SLERM-2035: `--screenshot x.png` was writing PPM bytes |
+| `7df43cb3` | SLERM-2036: unset timestamps read "Unknown", not 1969 |
+| `60a77178` | SLERM-2034: corrected my own "start button has no outline" claim |
+| `4afd1825` | Start mark invisible in Luna (1.00:1) -> own `start_mark` role |
 
 ## Verified numbers (do not re-derive; verify before quoting)
 
@@ -41,13 +46,18 @@ three traps that cost the most time.
   path 46%.
 - Layout: `test_control_panel` (formerly `test_applet_layout`) runs THREE configurations: face
   titles, `WUBU_LAYOUT_FACE=none`, and `WUBU_TEXT_SCALE=2`; 276 checks each.
-- Contrast: 56 text pairs, 0 fail after the fix; 91 pairs total including boundaries.
+- Contrast: 56 text pairs, 0 fail after the fix; 98 pairs total including boundaries. 20 non-text
+  violations cleared, 11 remain (baselined), 14 exempt/info.
+- Invisible-control defects found by measurement: 4 (scrollbar thumb, dark-theme outlines, icon plates,
+  Start mark). Every one was drawn and unseeable; none was visible to a screenshot review until measured.
 
 ## Open goals
 
 - SLERM-2034 (OPEN): 11 boundary violations remain -- `btn_face/win_face` (7) and
-  `start_btn_face/taskbar_bg` (4). Both are controls drawn FLAT, where the fill is the boundary
-  (`wm_taskbar.c:720` draws the start button as a fill-only rounded rect). This is design work.
+  `start_btn_face/taskbar_bg` (4). CORRECTION: the start button is NOT fill-only (that was my error,
+  from a grep that could only show the fill; `vbe_3d_raised_rounded_colors` outlines it). Real flat
+  sites are dialogs: `choice_dialog.c:260`, `print_dialog.c:209`, `wubu_lua_gui.c:145`. Needs a
+  per-draw-site audit, not a blanket reclassification.
 - The shell has never been looked at by a human since the type/theme changes. The contrast gate can
   prove a ratio; it cannot prove a theme still looks like itself.
 - Older, untouched: progressive JPEG/GIF animation, MP3/Vorbis, SLERM-2025 clipboard transport,
