@@ -1,5 +1,3 @@
 # Known contrast violations, "<theme> <pair>". The gate fails on any violation NOT listed here,
 # and also fails when a listed one starts passing: a baseline that cannot shrink is a lie.
 # SLERM-2033 tracks clearing these.
-0 win_title_text_ina/win_title_inactive
-1 win_title_text_ina/win_title_inactive

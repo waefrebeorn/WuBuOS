@@ -3097,7 +3097,7 @@ the kernel/driver build or nowhere in the test recipes).
 - `testharness.c`
 - `testquit.c`
 - `text.c`
-- `theme_contrast_dump.c`
+- `theme_contrast.c`
 - `thread_exec.c`
 - `thread_pool.c`
 - `threaded_guest.c`

@@ -499,15 +499,15 @@
     {
       "n": 2033,
       "id": "SLERM-2033",
-      "status": "OPEN",
+      "status": "DONE",
       "replaces": "unmeasured colour contrast (EN 301 549 / WCAG 1.4.3 never checked)",
       "title": "Clear the two legacy themes' caption contrast violation",
-      "module": "src/gui/theme_contrast_dump.c",
+      "module": "src/gui/theme_contrast.c",
       "oracle": "tools/contrast_audit.py -- WCAG relative-luminance formula implemented once, in Python, over hex values reported by the theme API",
       "criterion": "Zero entries in tools/contrast_baseline.txt: every measured text/background pair meets 4.5:1 (normal) or 3:1 (large), with inactive-component pairs recorded as exempt rather than skipped.",
       "why": "Measured: themes 0 and 1 draw an unfocused window caption as white on #808080 = 3.95:1, below the 4.5:1 normal-text threshold. Every other pair passes; the worst margin is select_text/select_bg at 4.53:1 against a 3:1 large-text rule.",
-      "progress": "Audit installed as test_wubu_contrast: 56 pairs, 2 fail, 7 exempt. Baseline holds the two known violations and the gate fails BOTH on a new violation and on a baseline entry that starts passing, so the debt can only shrink. Next: darken win_title_inactive in themes 0/1 (white on ~#6B6B6B is ~5.1:1) and check the pixel-golden gates, which is why this is separate from the audit commit.",
-      "gate": "test_wubu_contrast"
+      "progress": "DONE: themes 0 and 1 draw the unfocused caption as white on #6E6E6E = 5.10:1 (was white on #808080 = 3.95:1). All 56 measured pairs now pass; 7 exempt (inactive components); tools/contrast_baseline.txt is empty of violations. The gate demonstrated its two-way check on the way: after the colour change it reported both baseline entries as STALE and failed until they were removed. Note for the next session: wubu_theme.c already carried the comment 'WCAG darker for inactive-title text' above the unchanged value -- the intent was recorded, the measurement was not. Contrast is symmetric, so darkening the TEXT could not have fixed this; the bar itself had to change. test_settings 37/0, test_control_panel 276/0, test_gui_metrics ALL PASSED.",
+      "gate": "test_theme_contrast"
     }
   ]
 }

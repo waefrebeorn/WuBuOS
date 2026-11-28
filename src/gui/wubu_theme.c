@@ -28,7 +28,7 @@ static const WubuTheme g_themes[THEME_COUNT] = {
         .win_title_active  = RGB(0x00,0x00,0x80),   /* Navy */
         /* WAS MISSING: an unset field is 0, so every inactive Win98 window drew a BLACK
          * caption bar. The classic inactive caption is grey. */
-        .win_title_inactive= RGB(0x80,0x80,0x80),
+        .win_title_inactive= RGB(0x6E,0x6E,0x6E),
         .win_title_text    = RGB(0xFF,0xFF,0xFF),   /* white on navy: 15.9:1 */
         .win_title_text_ina= RGB(0xFF,0xFF,0xFF),   /* WCAG AA: white on gray title */
         .border_light      = RGB(0xFF,0xFF,0xFF),   /* White */
@@ -79,7 +79,7 @@ static const WubuTheme g_themes[THEME_COUNT] = {
         .desktop_bg        = RGB(0x00,0x52,0x8A),   /* XP Bliss blue */
         .win_face          = RGB(0xE8,0xE8,0xE8),   /* Lighter face */
         .win_title_active  = RGB(0x00,0x53,0x9E),   /* Luna blue */
-        .win_title_inactive= RGB(0x80,0x80,0x80),   /* WCAG darker for inactive-title text */
+        .win_title_inactive= RGB(0x6E,0x6E,0x6E),   /* WCAG darker for inactive-title text */
         .win_title_text    = RGB(0xFF,0xFF,0xFF),
         .win_title_text_ina= RGB(0xFF,0xFF,0xFF),   /* WCAG AA: white on gray */
         .border_light      = RGB(0xFF,0xFF,0xFF),
