@@ -289,31 +289,15 @@ void hosted_shutdown(hosted_state_t *state) {
      * thrown away on exit -- the single worst property this OS had. */
     hosted_fs_flush();
 
-    /* Save screenshot if requested */
+    /* Save screenshot if requested: the writer picks PNG or PPM from the extension. Naming a PPM
+     * ".png" (which this did) produces a file no viewer opens. */
     if (state->screenshot_path && state->framebuffer) {
-        FILE *f = fopen(state->screenshot_path, "wb");
-        if (f) {
-            /* Write simple PPM format */
-            fprintf(f, "P6\n%d %d\n255\n", state->width, state->height);
-    /* Screenshot: read from the live VBE framebuffer (which may be an
-     * SHM surface in hosted mode, or a malloc buffer in headless/test). */
-    uint32_t *fb_src = NULL;
-    VBEState *vs = vbe_state();
-    if (vs && vs->fb) fb_src = vs->fb;
-    if (!fb_src && state->framebuffer) fb_src = state->framebuffer;
-    if (fb_src) {
-        for (int y = 0; y < state->height; y++) {
-            for (int x = 0; x < state->width; x++) {
-                uint32_t c = fb_src[y * state->width + x];
-                fputc((c >> 16) & 0xFF, f);  /* R */
-                fputc((c >> 8) & 0xFF, f);   /* G */
-                fputc(c & 0xFF, f);          /* B */
-            }
-        }
-    }
-            fclose(f);
+        uint32_t *fb_src = NULL;
+        VBEState *vs = vbe_state();
+        if (vs && vs->fb) fb_src = vs->fb;
+        if (!fb_src) fb_src = state->framebuffer;
+        if (fb_src && hosted_screenshot_write(state->screenshot_path, fb_src, state->width, state->height))
             fprintf(stderr, "Screenshot saved to %s\n", state->screenshot_path);
-        }
     }
 
     wm_shutdown();
