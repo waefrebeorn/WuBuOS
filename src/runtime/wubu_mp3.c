@@ -95,6 +95,7 @@ int wubu_mp3_info(const void *data, size_t len, WubuMp3 *info, int *err) {
     }
     if (!found) { if (err) *err = WUBU_MP3_FORMAT; return WUBU_MP3_FORMAT; }
 
+    info->first_frame_offset = (int)start;
     Header h;
     if (parse_header(d, len, start, &h) != WUBU_MP3_OK) { if (err) *err = WUBU_MP3_FORMAT; return WUBU_MP3_FORMAT; }
     info->version = h.version;
@@ -134,5 +135,118 @@ int wubu_mp3_info(const void *data, size_t len, WubuMp3 *info, int *err) {
     info->avg_bitrate_kbps = (int)(total_kbps / frames);
     /* Duration from frames, not from the bitrate: a VBR stream's average says nothing per-frame. */
     info->duration_ms = (int)(((long long)info->audio_frames * info->samples_per_frame * 1000) / info->sample_rate);
+    return WUBU_MP3_OK;
+}
+
+int wubu_mp3_frame_header(const void *data, size_t len, size_t offset, int *frame_bytes,
+                          int *version, int *sample_rate, int *channels, int *err) {
+    if (err) *err = WUBU_MP3_OK;
+    Header h;
+    int rc = parse_header((const uint8_t *)data, len, offset, &h);
+    if (rc != WUBU_MP3_OK) { if (err) *err = rc; return rc; }
+    if (frame_bytes) *frame_bytes = h.length;
+    if (version) *version = h.version;
+    if (sample_rate) *sample_rate = h.sample_rate;
+    if (channels) *channels = h.channels;
+    return WUBU_MP3_OK;
+}
+
+/* ---- stage 2a: side information ------------------------------------------------------------ */
+
+/* MSB-first bit reader over a byte window. Deliberately tiny: side info is at most 32 bytes and
+ * the Huffman stage will get its own reader over the main-data area. */
+typedef struct { const uint8_t *p; size_t bits, pos; } SideBits;
+
+static int sb_get(SideBits *b, int n) {
+    int v = 0;
+    for (int i = 0; i < n; i++) {
+        if (b->pos >= b->bits) { b->pos++; continue; }        /* past the end reads as zero */
+        size_t byte = b->pos >> 3, off = 7 - (b->pos & 7);
+        v = (v << 1) | ((b->p[byte] >> off) & 1);
+        b->pos++;
+    }
+    return v;
+}
+
+int wubu_mp3_side_info(const void *data, size_t len, size_t offset, int frame_bytes,
+                       WubuMp3Side *side, int *err) {
+    if (err) *err = WUBU_MP3_OK;
+    if (!data || !side || offset + 4 > len || frame_bytes < 4) { if (err) *err = WUBU_MP3_ARGS; return WUBU_MP3_ARGS; }
+    const uint8_t *d = (const uint8_t *)data;
+    Header h;
+    int rc = parse_header(d, len, offset, &h);
+    if (rc != WUBU_MP3_OK) { if (err) *err = rc; return rc; }
+    if (offset + 4 + (size_t)frame_bytes > len) { if (err) *err = WUBU_MP3_TRUNCATED; return WUBU_MP3_TRUNCATED; }
+
+    int mpeg1 = (h.version == 1);
+    int mono = (h.channels == 1);
+    memset(side, 0, sizeof *side);
+    side->granules = mpeg1 ? 2 : 1;
+    /* The standard fixes these, and the walk below must land exactly on the declared size: 32/17
+     * bytes for MPEG-1 (stereo/mono), 17/9 for MPEG-2. Getting a field width wrong shifts every
+     * later field and the equality check catches it in the first frame. */
+    side->side_info_bytes = mpeg1 ? (mono ? 17 : 32) : (mono ? 9 : 17);
+    /* The exact bit count, derived from the layout: header + one granule's fields per channel. */
+    {
+        int nch = mono ? 1 : 2;
+        int header_bits = (mpeg1 ? 9 : 8) + (mpeg1 ? (mono ? 5 : 3) : (mono ? 1 : 2)) + (mpeg1 ? 4 * nch : nch);
+        int granule_bits = mpeg1 ? 59 : 63;
+        side->side_info_bits = header_bits + side->granules * nch * granule_bits;
+    }
+
+    const uint8_t *p = d + offset + 4;
+    size_t avail = (size_t)frame_bytes - 4;
+    if (avail * 8 < (size_t)side->side_info_bits) { if (err) *err = WUBU_MP3_TRUNCATED; return WUBU_MP3_TRUNCATED; }
+    SideBits b = { p, (size_t)side->side_info_bits, 0 };
+
+    side->main_data_begin = sb_get(&b, mpeg1 ? 9 : 8);
+    sb_get(&b, mpeg1 ? (mono ? 5 : 3) : (mono ? 1 : 2));      /* private bits */
+    if (mpeg1) {
+        for (int ch = 0; ch < (mono ? 1 : 2); ch++) {
+            int v = sb_get(&b, 4);
+            for (int band = 0; band < 4; band++) side->scfsi[ch][band] = (v >> (3 - band)) & 1;
+        }
+    } else {
+        for (int ch = 0; ch < (mono ? 1 : 2); ch++) side->scfsi[ch][0] = sb_get(&b, 1);
+    }
+
+    for (int gr = 0; gr < side->granules; gr++) {
+        for (int ch = 0; ch < (mono ? 1 : 2); ch++) {
+            WubuMp3Granule *g = &side->gr[gr][ch];
+            g->part2_3_length = sb_get(&b, 12);
+            g->big_values = sb_get(&b, 9);
+            if (g->big_values > 288) { if (err) *err = WUBU_MP3_UNSUPPORTED; return WUBU_MP3_UNSUPPORTED; }
+            g->global_gain = sb_get(&b, 8);
+            g->scalefac_compress = sb_get(&b, mpeg1 ? 4 : 9);
+            g->window_switching = sb_get(&b, 1);
+            if (g->window_switching) {
+                /* Order matters: block_type precedes mixed_block_flag, and a switched granule
+                 * carries NO region counts -- the regions are implied (8 and 36 for short blocks). */
+                g->block_type = sb_get(&b, 2);
+                if (g->block_type == 0) { if (err) *err = WUBU_MP3_UNSUPPORTED; return WUBU_MP3_UNSUPPORTED; }
+                g->mixed_block_flag = sb_get(&b, 1);
+                g->table_select[0] = sb_get(&b, 5);
+                g->table_select[1] = sb_get(&b, 5);
+                g->table_select[2] = 0;
+                g->subblock_gain[0] = sb_get(&b, 3);
+                g->subblock_gain[1] = sb_get(&b, 3);
+                g->subblock_gain[2] = sb_get(&b, 3);
+                g->region0_count = 8;
+                g->region1_count = 36;
+            } else {
+                g->block_type = 0;
+                g->table_select[0] = sb_get(&b, 5);
+                g->table_select[1] = sb_get(&b, 5);
+                g->table_select[2] = sb_get(&b, 5);
+                g->region0_count = sb_get(&b, 4);
+                g->region1_count = sb_get(&b, 3);
+            }
+            /* MPEG-1 writes preflag; MPEG-2 derives it from the scalefactor-compress value. */
+            g->preflag = mpeg1 ? sb_get(&b, 1) : (g->scalefac_compress >= 500);
+            g->scalefac_scale = sb_get(&b, 1);
+            g->count1table_select = sb_get(&b, 1);
+        }
+    }
+    side->bits_consumed = (int)b.pos;
     return WUBU_MP3_OK;
 }

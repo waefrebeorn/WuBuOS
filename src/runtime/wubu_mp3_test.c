@@ -67,6 +67,72 @@ int main(void) {
         free(data);
     }
 
+    /* ---- stage 2a: side information. The frame DECLARES how many bytes of side info it carries
+     * (17/32 MPEG-1 mono/stereo, 9/17 MPEG-2). If our field widths are right, the reader lands
+     * exactly on that byte; one wrong bit shifts every later field and shows up immediately. ---- */
+    {
+        int frames_checked = 0, bad_bits = 0, bad_fit = 0, bad_switch = 0, bad_mdb = 0;
+        long total_granule_bits = 0, total_main_bits = 0;
+        for (int i = 0; i < WUBU_MP3_CASES; i++) {
+            char path[512];
+            snprintf(path, sizeof path, "tests/fixtures/mp3/%s", WUBU_MP3_EXPECT[i].file);
+            long n = 0;
+            uint8_t *data = slurp(path, &n);
+            if (!data) continue;
+            WubuMp3 meta; int em = 0;
+            if (wubu_mp3_info(data, (size_t)n, &meta, &em) != WUBU_MP3_OK) { free(data); continue; }
+            size_t at = (size_t)meta.first_frame_offset;
+            for (int f = 0; f < 200 && at + 4 <= (size_t)n; f++) {
+                int flen = 0, ver = 0, rate = 0, chans = 0, e = 0;
+                if (wubu_mp3_frame_header(data, (size_t)n, at, &flen, &ver, &rate, &chans, &e) != WUBU_MP3_OK) break;
+                WubuMp3Side si; int e3 = 0;
+                if (wubu_mp3_side_info(data, (size_t)n, at, flen, &si, &e3) == WUBU_MP3_OK) {
+                    frames_checked++;
+                    if (si.bits_consumed != si.side_info_bits) bad_bits++;
+                    int sum = 0;
+                    for (int g = 0; g < si.granules; g++)
+                        for (int ch = 0; ch < chans; ch++) sum += si.gr[g][ch].part2_3_length;
+                    /* Two invariants, both real:
+                     *  - main_data_begin addresses the reservoir, so it cannot exceed 511 bytes
+                     *    (MPEG-1) or 255 (MPEG-2).
+                     *  - a frame's granule data may legitimately CONTINUE into following frames'
+                     *    main data (that is what the reservoir is for), so a per-frame "does it fit"
+                     *    test is not an invariant at all -- my first attempt asserted exactly that and
+                     *    flagged three healthy MPEG-2 frames. The honest bound is global: across the
+                     *    file, the granule bits cannot exceed the main-data bits the file contains. */
+                    int main_bytes = flen - 4 - (si.side_info_bits / 8);
+                    int max_mdb = (ver == 1) ? 511 : 255;
+                    if (si.main_data_begin > max_mdb) bad_mdb++;
+                    total_granule_bits += sum;
+                    total_main_bits += (long)main_bytes * 8;
+                    for (int g = 0; g < si.granules; g++)
+                        for (int ch = 0; ch < chans; ch++) {
+                            WubuMp3Granule *gr = &si.gr[g][ch];
+                            if (gr->window_switching && (gr->block_type < 1 || gr->block_type > 3)) bad_switch++;
+                            if (!gr->window_switching && gr->block_type != 0) bad_switch++;
+                        }
+                }
+                at += (size_t)flen;
+            }
+            free(data);
+        }
+        printf("  side info: %d frames parsed, %d wrong bit counts, %d over-supply, %d bad block types, %d bad mdb\n",
+               frames_checked, bad_bits, bad_fit, bad_switch, bad_mdb);
+        CHECK(frames_checked > 100, "side info: only %d frames parsed", frames_checked);
+        CHECK(bad_bits == 0, "side info: %d frames did not land on the declared size", bad_bits);
+        CHECK(bad_switch == 0, "side info: %d granules have an impossible block type", bad_switch);
+        printf("  side info: granule bits %ld vs main-data bits %ld (%.3f of the file)\n",
+               total_granule_bits, total_main_bits,
+               total_main_bits ? (double)total_granule_bits / (double)total_main_bits : 0.0);
+        CHECK(total_granule_bits <= total_main_bits,
+              "side info: the file claims %ld granule bits but holds only %ld main-data bits",
+              total_granule_bits, total_main_bits);
+        CHECK(total_granule_bits > total_main_bits / 2,
+              "side info: only %ld of %ld main-data bits are claimed -- the walk is probably incomplete",
+              total_granule_bits, total_main_bits);
+        CHECK(bad_mdb == 0, "side info: %d frames exceed the reservoir limit", bad_mdb);
+    }
+
     /* A file that is not MP3 at all must be refused BY NAME, not walked as zeros. */
     const uint8_t junk[64] = { 'N', 'O', 'T', 'M', 'P', '3' };
     WubuMp3 m; int err = 0;
