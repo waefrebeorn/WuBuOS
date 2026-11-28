@@ -19,6 +19,8 @@ int shell_text_init(const char *path)
     return g_face != NULL;
 }
 
+struct WubuTextFace *shell_text_face(void) { return g_face; }
+
 void shell_text_shutdown(void)
 {
     if (g_face) wubu_text_face_close(g_face);

@@ -487,6 +487,10 @@ void vbe_clear(uint32_t color) {
 
 /* Global UI text scale -- see vbe.h. 1 = native 8x8 glyphs. */
 static int g_text_scale = 1;
+static VbeFaceTextFn g_face_text;   /* see vbe.h: crisp renderer for magnified text */
+
+void vbe_set_face_text(VbeFaceTextFn fn) { g_face_text = fn; }
+VbeFaceTextFn vbe_get_face_text(void) { return g_face_text; }
 
 void vbe_set_text_scale(int scale) {
     g_text_scale = (scale >= 1) ? scale : 1;
@@ -590,6 +594,9 @@ static int aa_text_width(const char *s) {
  * one look at every scale, with the accents, and adds no table that can develop holes. */
 
 static void aa_draw_text_scaled(int x, int y, const char *s, uint32_t color, int scale) {
+    /* Re-rasterise at the magnified size when a face renderer is registered: resampling a 13px
+     * coverage cell keeps its soft edges at 2x, and stays soft at 3x. */
+    if (g_face_text && g_face_text(x, y, s, color, WUBU_FONT_TEXT_PX * scale) >= 0) return;
     /* the same optical offset as the 1x path, magnified: the glyph's yoff is negative, so a baseline of
      * plain y put the whole word ABOVE the origin and the clip erased it. */
     const int baseline = y + AA_BASELINE_OFF * scale;

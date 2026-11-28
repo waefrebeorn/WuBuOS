@@ -175,6 +175,8 @@ int main(void)
      * them. WUBU_LAYOUT_FACE=none runs the baked-cell fallback path instead; the recipe runs both,
      * because a layout that only fits when the font is missing is not a layout that fits. */
     {
+        const char *ts = getenv("WUBU_TEXT_SCALE");
+        if (ts && *ts) vbe_set_text_scale(atoi(ts));
         const char *face = getenv("WUBU_LAYOUT_FACE");
         if (!face || !*face) face = "third_party/fonts/selawik.ttf";
         if (strcmp(face, "none") != 0) shell_text_init(face);

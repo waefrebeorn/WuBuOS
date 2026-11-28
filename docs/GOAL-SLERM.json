@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2031,
+  "next_n": 2033,
   "goals": [
     {
       "n": 2001,
@@ -469,6 +469,32 @@
       "why": "Win11's caption step is 12 epx, so the 13px cell is right for captions and body text. The visual deficit is hierarchy: every heading in the shell was also 13px, so nothing read as a title.",
       "progress": "DONE: shell_text owns one face, draws 20 epx headings, returns -1 as the fallback signal (bare metal keeps the baked cell). Control Panel's 'Settings' is the first surface using it; hosted loads the vendored Selawik at startup with WUBU_FACE as an override. Centring uses the string's MEASURED ink box, not hhea extents: em-centring left 'Settings' 6px low (gap above 9, below 3), after the fix 6/6. Mutations: em-ish centring fails 2 checks; returning 0 instead of -1 fails 1. 14 checks pass. Extended to every settings page: thirteen applet pages each drew their own title by scaling the 13px baked cell 2x (antialiasing enlarged, not outlines), now one owner in cp_page_title() drawing at the Title step (28px) with the scaled cell as fallback. test_applet_layout runs all 117 panel/size checks twice -- with the face and with WUBU_LAYOUT_FACE=none -- so the layout is proven to fit with the taller titles, not only with them missing. shell_text 17 checks; mutation (Title step == heading step) fails 'the title is larger than the heading'.",
       "gate": "test_shell_text"
+    },
+    {
+      "n": 2031,
+      "id": "SLERM-2031",
+      "status": "DONE",
+      "replaces": "bilinear resample of the 13px cell for magnified (accessibility) text",
+      "title": "Magnified text re-rasterises outlines instead of upscaling a bitmap",
+      "module": "src/gui/shell/shell_text_vbe.c",
+      "oracle": "rendered pixels: soft-edge share of ink vs the bilinear upscale, plus the 26px Pillow row for the same word",
+      "criterion": "At text scale 2 the scaled path asks a registered face renderer for ppem 26 and draws from it; with no renderer registered the output is byte-identical to the previous bilinear resample.",
+      "why": "Microsoft's text-scaling guidance states DirectWrite/GDI do not natively scale text and apps must render at the larger size; resampling a 13px cell enlarges its antialiasing, so accessibility text was the blurriest text in the shell.",
+      "progress": "DONE: vbe holds an optional VbeFaceTextFn (kernel keeps no GUI/filesystem dependency); shell_text_vbe registers an adapter that converts box-top to baseline by the face's own ascent. Measured on 'Settings' at 200%: soft edge pixels are 368/753 (49%) crisp vs 931/1202 (78%) bilinear -- ink mass alone cannot tell them apart (1.01 ratio), which is why the gate measures the soft share. Mutations: an adapter that always declines fails 3 checks; detaching reproduces the old bytes exactly. 13 checks.",
+      "gate": "test_shell_text_vbe"
+    },
+    {
+      "n": 2032,
+      "id": "SLERM-2032",
+      "status": "OPEN",
+      "replaces": "fixed-geometry control panel layout that assumes 100% text scale",
+      "title": "Control panel layout survives the accessibility text scale",
+      "module": "src/gui/control_panel.c",
+      "oracle": "test_applet_layout painted-bounds checks run with vbe_set_text_scale(2)",
+      "criterion": "All 117 panel/size checks pass at text scale 2 as well as 1, with 6px MIN_PAD; no panel clips its content when text is doubled.",
+      "why": "Microsoft's text-scaling docs illustrate the failure mode as 'text scaling with text clipping'. Measured here: 20 of 276 checks fail at scale 2 -- the shell does not survive its own accessibility setting.",
+      "progress": "Measured 2026-11-28: WUBU_TEXT_SCALE=2 ./src/gui/test_applet_layout -> 256 passed, 20 failed. test_applet_layout accepts WUBU_TEXT_SCALE and WUBU_LAYOUT_FACE, so the failing set can be listed per panel and fixed one at a time.",
+      "gate": "test_applet_layout"
     }
   ]
 }

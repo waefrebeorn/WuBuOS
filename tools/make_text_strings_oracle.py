@@ -17,7 +17,7 @@ import sys
 from PIL import Image, ImageDraw, ImageFont
 
 FONT = sys.argv[1] if len(sys.argv) > 1 else "third_party/fonts/selawik.ttf"
-PPEMS = [int(x) for x in (sys.argv[2] if len(sys.argv) > 2 else "13,20,28").split(",")]
+PPEMS = [int(x) for x in (sys.argv[2] if len(sys.argv) > 2 else "13,20,26,28").split(",")]
 
 STRINGS = [
     "WubuOS",

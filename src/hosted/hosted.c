@@ -29,6 +29,7 @@
 
 #include "../egojar.h"
 #include "../gui/shell/shell_text.h"
+#include "../gui/shell/shell_text_vbe.h"
 #include "../egojar_net.h"
 #include "hosted.h"
 #include "../runtime/wubu_crashcap.h"
@@ -189,7 +190,10 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     {
         const char *face = getenv("WUBU_FACE");
         if (!face || !*face) face = "third_party/fonts/selawik.ttf";
-        shell_text_init(face);
+        if (shell_text_init(face)) {
+            /* Magnified text re-rasterises outlines instead of resampling the 13px cell. */
+            shell_text_vbe_attach();
+        }
     }
 
     /* The panel's world snapshot was never sampled in a hosted session -- only a hardware test ever called

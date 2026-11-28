@@ -133,6 +133,16 @@ uint32_t vbe_get_pixel(int x, int y);
 /* Scanline base for callers that already resolved their bounds. NULL when y
  * is off-surface. Lets a sprite/scanline loop write pixels inline instead of
  * paying the bounds+clip check per pixel through vbe_set_pixel. */
+/* Optional crisp text renderer, registered by the GUI layer.
+ *
+ * Magnified text used to be the 13px baked cell resampled bilinearly, which stays soft because it
+ * enlarges antialiasing instead of outlines. When this is set, the scaled text path asks it first
+ * with ppem = 13 * magnification; returning a negative value declines and the old path runs. The
+ * kernel keeps no dependency on the GUI or a filesystem -- it only holds a function pointer. */
+typedef int (*VbeFaceTextFn)(int x, int y, const char *s, uint32_t colour, int ppem);
+void vbe_set_face_text(VbeFaceTextFn fn);
+VbeFaceTextFn vbe_get_face_text(void);
+
 uint32_t *vbe_scanline(int y);
 int  vbe_surface_width(void);
 /* The buffer vbe_* writes, with its row stride in pixels (pitch/4) and the surface height. */

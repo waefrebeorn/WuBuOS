@@ -29,6 +29,10 @@ void shell_text_shutdown(void);
 
 int shell_text_heading_px(void);
 
+/* The loaded face, or NULL. Exposed so the vbe bridge can draw without shell_text depending on vbe. */
+struct WubuTextFace;
+struct WubuTextFace *shell_text_face(void);
+
 /* Advance of s at the heading size, or -1 when no face is loaded. */
 int shell_text_measure_heading(const char *s);
 
