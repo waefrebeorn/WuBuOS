@@ -9,7 +9,7 @@
 # 70% of the recipes.
 RT_ALWAYS := $(RT)/wubu_crc32.c $(RT)/wubu_str.c
 
-test_critical_runtime: test_wubu_truetype test_wubu_text_cache test_selawik_font test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: test_wubu_truetype test_wubu_text_cache test_selawik_font test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho test_wubu_font_text
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -1583,6 +1583,11 @@ test_gui_fluent:
 test_gui_blit:
 	$(CC) -O1 -g -std=c11 -Wall -Wextra -I$(GUI) $(GUI)/gui_blit.c $(GUI)/gui_blit_test.c -o build/gui_blit_test
 	timeout 300 build/gui_blit_test
+
+test_wubu_font_text:
+	$(CC) -O1 -g -std=c11 -Wall -Wextra -I$(GUI) \
+		$(GUI)/test_wubu_font_text.c -o build/font_text_test
+	timeout 300 build/font_text_test
 
 test_font_aa:
 	$(CC) -O1 -g -std=c11 -Wall -Wextra -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L \
