@@ -1,0 +1,13 @@
+{
+  "stride": 20,
+  "pass": 110,
+  "fail": 8,
+  "error": 19,
+  "skip": 85,
+  "total": 222,
+  "valid_total": 137,
+  "valid_pass_rate": 80.3,
+  "measured": "2026-11-27",
+  "method": "three isolated runs, all 13 corpora, 14 targets, deterministic to the digit; 3 s each",
+  "note": "This baseline may only be improved deliberately. A lower pass count, a higher fail count, or a changed corpus size is a regression until a human re-baselines in a commit."
+}

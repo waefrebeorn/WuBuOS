@@ -517,7 +517,14 @@ test_recovered2: test_fs_persist_fuzz test_game_launch test_game_session test_ga
 # Slow and EXCLUSIVE gates: they inject a regression into tracked source and restore it on
 # exit, so they cannot share a tree with -j24 compilation. They are reachable from
 # `make test_release`, which is what gate_reachability now walks alongside `test`.
+# The compiler gauntlet, sampled: 222 tests across all 13 corpora, deterministic, 3 s.
+# Full corpus is 4431 x 14 targets and cannot be a tier. This fails on regression
+# against tools/gauntlet_baseline.json.
+test_gauntlet_sample:
+	@bash tools/gauntlet_sample.sh
+
 test_release: test
+	$(MAKE) --no-print-directory test_gauntlet_sample
 	$(MAKE) --no-print-directory test_default_crypto_negative_control
 	$(MAKE) --no-print-directory test_ed25519_dudect
 	$(MAKE) --no-print-directory test_ed25519_timing
