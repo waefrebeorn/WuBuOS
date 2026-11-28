@@ -15,7 +15,7 @@ RT_ALWAYS := $(RT)/wubu_crc32.c $(RT)/wubu_str.c
 SHELL_TEXT := $(GUI)/shell/shell_text.c $(RT)/wubu_text_face.c $(RT)/wubu_text_cache.c \
               $(RT)/wubu_truetype.c $(RT)/wubu_truetype_raster.c $(RT)/wubu_utf8.c
 
-test_critical_runtime: test_wubu_gif_anim test_wubu_truetype test_hosted_screenshot test_flat_controls test_theme_contrast test_wubu_text_face test_shell_text test_shell_text_vbe test_wubu_text_cache test_selawik_font test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho test_wubu_font_text
+test_critical_runtime: test_split_links test_wubu_gif_anim test_wubu_truetype test_hosted_screenshot test_flat_controls test_theme_contrast test_wubu_text_face test_shell_text test_shell_text_vbe test_wubu_text_cache test_selawik_font test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho test_wubu_font_text
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -2097,6 +2097,11 @@ test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
 # the manifest from the Makefile recipes and FAILS if an OWNED module lost its
 # recipe or the committed manifest went stale.
 .PHONY: test_owned_surface
+# A split .c must be named wherever its parent is named. Declared in tools/split_links.json;
+# this caught nothing in production, it exists because the same link failure cost two suite runs.
+test_split_links:
+	python3 tools/check_split_links.py
+
 test_owned_surface:
 	python3 scripts/owned_surface.py --check
 
@@ -2836,7 +2841,7 @@ test_hosted_pe: $(HOSTED)/hosted_pe.c $(HOSTED)/hosted_pe_test.c $(GUI)/wubu_pro
 	flock $(CT_GATE_LOCK) $(HOSTED)/hosted_pe_test
 
 test_explorer:
-		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/explorer.c $(GUI)/explorer_input.c $(GUI)/gfx/wubu_scroll.c $(GUI)/explorer_ops.c $(GUI)/file_assoc.c $(GUI)/explorer_info.c $(GUI)/explorer_zip.c $(GUI)/explorer_format.c $(GUI)/explorer_drives.c $(GUI)/explorer_tree.c $(GUI)/explorer_preview.c $(GUI)/shell/preview_decode.c $(RT)/wubu_pixmap.c $(RT)/wubu_gif.c $(RT)/wubu_jpeg.c $(RT)/wubu_inflate.c $(RT)/wubu_utf8.c $(GUI)/explorer_render.c $(GUI)/shell/file_type_icons.c $(GUI)/explorer_tree_render.c $(GUI)/explorer_search.c $(GUI)/explorer_toolbar.c $(GUI)/explorer_library.c $(GUI)/explorer_fs.c $(GUI)/explorer_fsops.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/explorer_test_stub.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(RT)/wubu_libraries.c $(GUI)/explorer_test.c -lm -o $(GUI)/explorer_test -Iinclude $(RT_ALWAYS) 
+		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/explorer.c $(GUI)/explorer_input.c $(GUI)/gfx/wubu_scroll.c $(GUI)/explorer_ops.c $(GUI)/file_assoc.c $(GUI)/explorer_info.c $(GUI)/explorer_zip.c $(GUI)/explorer_format.c $(GUI)/explorer_drives.c $(GUI)/explorer_tree.c $(GUI)/explorer_preview.c $(GUI)/shell/preview_decode.c $(RT)/wubu_pixmap.c $(RT)/wubu_gif.c $(RT)/wubu_jpeg.c $(RT)/wubu_jpeg_core.c $(RT)/wubu_jpeg_prog.c $(RT)/wubu_inflate.c $(RT)/wubu_utf8.c $(GUI)/explorer_render.c $(GUI)/shell/file_type_icons.c $(GUI)/explorer_tree_render.c $(GUI)/explorer_search.c $(GUI)/explorer_toolbar.c $(GUI)/explorer_library.c $(GUI)/explorer_fs.c $(GUI)/explorer_fsops.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/explorer_test_stub.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(KERNEL)/vbe.c $(KERNEL)/vbe_font.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(RT)/wubu_libraries.c $(GUI)/explorer_test.c -lm -o $(GUI)/explorer_test -Iinclude $(RT_ALWAYS) 
 	$(GUI)/explorer_test
 # Arbitrary-program PTY spawn: an exec (not a shell) must run and produce output.
 test_pty_exec:
@@ -3198,7 +3203,7 @@ test_hosted_ns_read:
 
 test_wubu_preview_decode:
 	@python3 -c 'import PIL' 2>/dev/null || { echo "test_wubu_preview_decode needs Pillow (the oracle)"; exit 1; }
-	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_preview_decode_test tests/preview_decode_test.c src/gui/shell/preview_decode.c src/runtime/wubu_pixmap.c src/runtime/wubu_gif.c src/runtime/wubu_jpeg.c src/runtime/wubu_inflate.c src/runtime/wubu_utf8.c -lm
+	$(CC) $(CFLAGS) -o $${TMPDIR:-/tmp}/wubu_preview_decode_test tests/preview_decode_test.c src/gui/shell/preview_decode.c src/runtime/wubu_pixmap.c src/runtime/wubu_gif.c src/runtime/wubu_jpeg.c src/runtime/wubu_jpeg_core.c src/runtime/wubu_jpeg_prog.c src/runtime/wubu_inflate.c src/runtime/wubu_utf8.c -lm
 	@python3 tools/make_jpeg_fixtures.py $${TMPDIR:-/tmp}/wubu_jpeg_fx >/dev/null
 	$${TMPDIR:-/tmp}/wubu_preview_decode_test $${TMPDIR:-/tmp}/wubu_jpeg_fx
 

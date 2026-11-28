@@ -86,3 +86,7 @@ three traps that cost the most time.
   baseline `tools/contrast_baseline.txt` fails in both directions.
 - Pixels: ink rows / soft-edge share / painted bounds measured from renders, never from a vision
   model's opinion (it called a correctly-rendered `g` descender "clipped").
+
+## Open observation: a stray `ab` file at the repo root
+
+A 35-byte, 4x2 binary PPM named `ab` appears at the repo root after a full suite run. It is untracked and harmless, but it is NOT reproduction-clean: re-running test_explorer, test_wubu_preview_decode, test_split_links and test_owned_surface does not create it, so the writer is somewhere else in the suite. Do not .gitignore it -- that would hide a stray write. Find it by deleting the file, running `tools/suite.sh`, and checking `ls -l ab`; then bisect by tier. Evidence so far: `P6` magic, dimensions 4x2, 35 bytes, mtime follows suite runs.

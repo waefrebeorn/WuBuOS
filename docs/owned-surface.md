@@ -629,8 +629,8 @@ the kernel/driver build or nowhere in the test recipes).
 - `wubu_jackimpedance.c`  -- tests: test_hw_jackimpedance
 - `wubu_jackstate.c`  -- tests: test_hw_jackstate
 - `wubu_jpeg.c`  -- tests: test_explorer;test_wubu_preview_decode;test_wubu_jpeg
-- `wubu_jpeg_core.c`  -- tests: test_wubu_jpeg
-- `wubu_jpeg_prog.c`  -- tests: test_wubu_jpeg
+- `wubu_jpeg_core.c`  -- tests: test_explorer;test_wubu_preview_decode;test_wubu_jpeg
+- `wubu_jpeg_prog.c`  -- tests: test_explorer;test_wubu_preview_decode;test_wubu_jpeg
 - `wubu_json.c`  -- tests: test_json_fuzz;test_mime;test_trash;test_gamelib
 - `wubu_kernel_xchg.c`  -- tests: test_kernel_xchg;test_ns_kernels
 - `wubu_kvfs.c`  -- tests: test_wubu;test_9psrv;test_syscall;test_launch

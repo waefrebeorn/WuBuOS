@@ -1,0 +1,4 @@
+{
+  "_comment": "Files that were split, and the parts that must be named wherever the parent is. Adding an entry here makes tools/check_split_links.py catch the 'undefined reference' class BEFORE a suite run.",
+  "src/runtime/wubu_jpeg.c": ["src/runtime/wubu_jpeg_core.c", "src/runtime/wubu_jpeg_prog.c"]
+}
