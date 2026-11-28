@@ -198,6 +198,54 @@ int wubu_text_face_measure(WubuTextFace *f, const char *utf8, int ppem)
     return q4 / TF_SUBPP;
 }
 
+int wubu_text_face_ascent_px(const WubuTextFace *f, int ppem)
+{
+    if (!f || f->upem <= 0 || ppem <= 0) return 0;
+    return (int)(((long)wubu_ttf_ascender(f->ttf) * ppem + f->upem / 2) / f->upem);
+}
+
+int wubu_text_face_descent_px(const WubuTextFace *f, int ppem)
+{
+    if (!f || f->upem <= 0 || ppem <= 0) return 0;
+    return (int)(((long)wubu_ttf_descender(f->ttf) * ppem - f->upem / 2) / f->upem);
+}
+
+int wubu_text_face_ink_box(WubuTextFace *f, const char *utf8, int ppem,
+                           int *x0, int *y0, int *x1, int *y1)
+{
+    if (!f || !utf8 || ppem <= 0 || ppem > 512) return 0;
+    size_t len = strlen(utf8), i = 0;
+    int pen_q4 = 0, found = 0;
+    int bx0 = 0, by0 = 0, bx1 = 0, by1 = 0;
+    while (i < len) {
+        unsigned cp = 0;
+        size_t used = wubu_utf8_decode(utf8 + i, len - i, &cp);
+        if (used == 0) return 0;
+        i += used;
+        uint32_t gid = wubu_ttf_glyph_index(f->ttf, cp);
+        if (!gid) gid = f->gid_question;
+        if (gid) {
+            WubuGlyphBitmap b;
+            if (wubu_text_cache_get(f->cache, f->ttf, gid, ppem, pen_q4 & (TF_SUBPP - 1), &b)) {
+                int gx0 = pen_q4 / TF_SUBPP + b.bearing_x, gy0 = b.bearing_y;
+                int gx1 = gx0 + b.w - 1, gy1 = gy0 + b.h - 1;
+                if (!found) { bx0 = gx0; by0 = gy0; bx1 = gx1; by1 = gy1; found = 1; }
+                else {
+                    if (gx0 < bx0) bx0 = gx0;
+                    if (gy0 < by0) by0 = gy0;
+                    if (gx1 > bx1) bx1 = gx1;
+                    if (gy1 > by1) by1 = gy1;
+                }
+            }
+            pen_q4 += tf_advance_q4(f, gid, ppem);
+        } else {
+            pen_q4 += tf_advance_q4(f, 0, ppem);   /* same fallback advance as draw() */
+        }
+    }
+    if (found) { if (x0) *x0 = bx0; if (y0) *y0 = by0; if (x1) *x1 = bx1; if (y1) *y1 = by1; }
+    return found;
+}
+
 void wubu_text_face_stats(const WubuTextFace *f, unsigned *hits, unsigned *misses, unsigned *glyphs)
 {
     WubuTextCacheStats st;

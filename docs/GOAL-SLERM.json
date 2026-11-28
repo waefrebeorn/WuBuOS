@@ -1,7 +1,7 @@
 {
   "note": "Gap-slerm backlog. Kept OUT of wubuwizard/docs/GOALS-1000.json so the exactly-1000 / 16-domain invariant survives. Every vendored mechanism in third_party/tiny MUST have exactly one goal here, and a goal may only be marked DONE when its gate target exists and passes.",
   "policy": "Every small gap filled is a slerm goal. A vendored file is a SCAFFOLD and a test oracle; it never ships in the product. The end state is own C11 for every mechanism.",
-  "next_n": 2030,
+  "next_n": 2031,
   "goals": [
     {
       "n": 2001,
@@ -456,6 +456,19 @@
       "why": "The baked cell can only draw one size, so the shell cannot have a type ramp (Win11 uses 12/14/18/20/28/40 epx). The parser, outline decoder, rasteriser and cache existed but nothing composed a string.",
       "progress": "DONE: wubu_text_face.{h,c} (open_file owns its bytes, open_memory borrows), pen accumulates in quarter pixels -- rounding each glyph to whole pixels drifts 5.5px over 20 glyphs and fails the gate (mutation recorded) -- glyph cache keyed by subpixel bucket, draw returns the advance (not the pen). Measured: worst advance delta 1.9px on a 20-glyph run, 0.9px on a 44-character line; ink 0.91..1.02 over 24 string/size rows; 99 checks pass. Wiring it into the shell's display sizes is SLERM-2030.",
       "gate": "test_wubu_text_face"
+    },
+    {
+      "n": 2030,
+      "id": "SLERM-2030",
+      "status": "DONE",
+      "replaces": "13px-only headings (every title in the shell drawn at the caption step)",
+      "title": "Display-size headings through our own engine, with a baked fallback",
+      "module": "src/gui/shell/shell_text.c",
+      "oracle": "rendered pixels: ink rows measured from the draw output, plus the SLERM-2029 Pillow string oracle for advance",
+      "criterion": "A heading drawn at the ramp's 20 epx step sits inside its band and is centred within 2px, and returns -1 when no face is loaded so the caller falls back to the baked cell.",
+      "why": "Win11's caption step is 12 epx, so the 13px cell is right for captions and body text. The visual deficit is hierarchy: every heading in the shell was also 13px, so nothing read as a title.",
+      "progress": "DONE: shell_text owns one face, draws 20 epx headings, returns -1 as the fallback signal (bare metal keeps the baked cell). Control Panel's 'Settings' is the first surface using it; hosted loads the vendored Selawik at startup with WUBU_FACE as an override. Centring uses the string's MEASURED ink box, not hhea extents: em-centring left 'Settings' 6px low (gap above 9, below 3), after the fix 6/6. Mutations: em-ish centring fails 2 checks; returning 0 instead of -1 fails 1. 14 checks pass.",
+      "gate": "test_shell_text"
     }
   ]
 }

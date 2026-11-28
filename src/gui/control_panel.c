@@ -23,6 +23,7 @@
 #include "../kernel/vbe.h"
 #include "wubu_gui_metrics.h"
 #include "wm.h"   /* DosGuiWindow: the launcher creates one */
+#include "shell/shell_text.h"   /* display-size heading through our own engine */
 
 /* The panel's own chrome: a labelled sidebar and a page beside it. */
 #define CP_SIDEBAR_W   152
@@ -420,7 +421,13 @@ void controlpanel_render_at(uint32_t *fb, int fb_w, int fb_h,
     int sw = CP_SIDEBAR_W < ow ? CP_SIDEBAR_W : ow;
     cp_fill(fb, fb_w, fb_h, ox, oy, sw, oh, c->taskbar_bg);
     cp_fill(fb, fb_w, fb_h, ox + sw - 1, oy, 1, oh, c->border_dark);
-    cp_draw_text(fb, fb_w, fb_h, ox + CP_SIDE_PAD, oy + 10, "Settings", c->win_title_text, 1);
+    /* Settings is a display heading, not body text: the 13px cell is the caption step, and drawing the
+     * page title with it is why nothing in the shell reads as a title. Falls back to the baked cell when
+     * no face is loaded (bare metal before the filesystem is up) -- -1 is the fallback signal. */
+    if (shell_text_draw_heading(fb, fb_w, fb_h, ox + CP_SIDE_PAD, oy, CP_HEADER_H,
+                                "Settings", c->win_title_text) < 0) {
+        cp_draw_text(fb, fb_w, fb_h, ox + CP_SIDE_PAD, oy + 10, "Settings", c->win_title_text, 1);
+    }
 
     g_side_panel_h = oh;                       /* the scroll unit derives the viewport from this */
     cp_side_scroll_clamp(oh);

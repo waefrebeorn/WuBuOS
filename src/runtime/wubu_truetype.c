@@ -22,6 +22,8 @@ struct WubuTtf {
     uint16_t upem;
     uint16_t num_glyphs;
     uint16_t num_hmetrics;
+    int16_t  ascender;    /* hhea +4, font units */
+    int16_t  descender;   /* hhea +6, usually negative */
     uint16_t loca_long;
 
     struct Table head, maxp, hhea, hmtx, loca, glyf, cmap;
@@ -134,6 +136,8 @@ WubuTtf *wubu_ttf_open(const uint8_t *data, size_t len, const char **why)
     t.loca_long = be16(t.d + t.head.off + 50);
     t.num_glyphs = be16(t.d + t.maxp.off + 4);
     t.num_hmetrics = be16(t.d + t.hhea.off + 34);
+    t.ascender  = (int16_t)be16(t.d + t.hhea.off + 4);
+    t.descender = (int16_t)be16(t.d + t.hhea.off + 6);
 
     if (t.upem == 0) { if (why) *why = "unitsPerEm is zero"; return NULL; }
     if (t.num_glyphs == 0) { if (why) *why = "no glyphs"; return NULL; }
@@ -160,6 +164,9 @@ int wubu_ttf_has_outlines(const WubuTtf *ttf) { return ttf ? (int)ttf->has_glyf 
 void wubu_ttf_close(WubuTtf *ttf) { (void)ttf; }
 
 uint16_t wubu_ttf_units_per_em(const WubuTtf *ttf) { return ttf ? ttf->upem : 0; }
+
+int wubu_ttf_ascender(const WubuTtf *ttf) { return ttf ? (int)ttf->ascender : 0; }
+int wubu_ttf_descender(const WubuTtf *ttf) { return ttf ? (int)ttf->descender : 0; }
 uint16_t wubu_ttf_num_glyphs(const WubuTtf *ttf) { return ttf ? ttf->num_glyphs : 0; }
 int wubu_ttf_has_glyf(const WubuTtf *ttf) { return ttf ? ttf->has_glyf : 0; }
 

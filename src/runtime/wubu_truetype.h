@@ -27,6 +27,11 @@ WubuTtf *wubu_ttf_open(const uint8_t *data, size_t len, const char **why);
 void wubu_ttf_close(WubuTtf *ttf);
 
 uint16_t wubu_ttf_units_per_em(const WubuTtf *ttf);
+
+/* hhea vertical extents in font units; the descender is negative. Vertical centring needs these:
+ * a box centred on the ink is not the same as one centred on the em. */
+int wubu_ttf_ascender(const WubuTtf *ttf);
+int wubu_ttf_descender(const WubuTtf *ttf);
 uint16_t wubu_ttf_num_glyphs(const WubuTtf *ttf);
 
 /* Glyph index for a Unicode code point. Prefers the 32-bit cmap (format 12) when a font has

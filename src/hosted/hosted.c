@@ -28,6 +28,7 @@
  */
 
 #include "../egojar.h"
+#include "../gui/shell/shell_text.h"
 #include "../egojar_net.h"
 #include "hosted.h"
 #include "../runtime/wubu_crashcap.h"
@@ -181,6 +182,15 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
 
     mem_init(8 * 1024 * 1024);
     vbe_init(state->width, state->height);
+
+    /* Display text: headings are drawn by our own engine when the face is reachable. A hosted
+     * session has a filesystem, so it does; bare metal falls back to the baked cell until a blob is
+     * generated at build time. WUBU_FACE overrides the path for a test. */
+    {
+        const char *face = getenv("WUBU_FACE");
+        if (!face || !*face) face = "third_party/fonts/selawik.ttf";
+        shell_text_init(face);
+    }
 
     /* The panel's world snapshot was never sampled in a hosted session -- only a hardware test ever called
      * this -- so the Display page had no true values to show. Sample it, then publish the surface this

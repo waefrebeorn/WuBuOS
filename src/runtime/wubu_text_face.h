@@ -33,6 +33,17 @@ int wubu_text_face_draw(WubuTextFace *f, uint32_t *fb, int fb_w, int fb_h,
 /* Advance only, no drawing. Used by layout to measure before it decides where text goes. */
 int wubu_text_face_measure(WubuTextFace *f, const char *utf8, int ppem);
 
+/* Vertical extents at a ppem: ascent above the baseline, descent as a negative number. Needed to
+ * centre ink in a band -- a box centred on the em is visibly low. */
+int wubu_text_face_ascent_px(const WubuTextFace *f, int ppem);
+int wubu_text_face_descent_px(const WubuTextFace *f, int ppem);
+
+/* Ink box of a whole string at a ppem, relative to (pen 0, baseline 0), y down. Returns 1 when any
+ * glyph has ink. Centring a heading needs THIS, not the hhea extents: cap height is smaller than the
+ * ascender and a descender is deeper than most glyphs' ink, so em-centring leaves text visibly low. */
+int wubu_text_face_ink_box(WubuTextFace *f, const char *utf8, int ppem,
+                           int *x0, int *y0, int *x1, int *y1);
+
 /* Cached-glyph accounting, so a test can prove the cache is actually being used rather than every
  * draw rasterising from scratch. */
 void wubu_text_face_stats(const WubuTextFace *f, unsigned *hits, unsigned *misses, unsigned *glyphs);

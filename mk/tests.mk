@@ -9,7 +9,13 @@
 # 70% of the recipes.
 RT_ALWAYS := $(RT)/wubu_crc32.c $(RT)/wubu_str.c
 
-test_critical_runtime: test_wubu_truetype test_wubu_text_face test_wubu_text_cache test_selawik_font test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho test_wubu_font_text
+# Display text: control_panel.c draws its heading through shell_text, which needs our own engine.
+# Only the targets that link control_panel.c pull this in -- a layout test should not have to open a
+# font file to check where a panel's edges are, but it does have to LINK the code path that runs.
+SHELL_TEXT := $(GUI)/shell/shell_text.c $(RT)/wubu_text_face.c $(RT)/wubu_text_cache.c \
+              $(RT)/wubu_truetype.c $(RT)/wubu_truetype_raster.c $(RT)/wubu_utf8.c
+
+test_critical_runtime: test_wubu_truetype test_wubu_text_face test_shell_text test_wubu_text_cache test_selawik_font test_owned_coverage test_web test_hardcode_ratchet test_tiny_upstreams test_slerm_backlog test_wubu_expr test_wubu_inflate test_wubu_utf8 test_wubu_pixmap test_wubu_gif test_wubu_wav test_wubu_agent_log test_wubu_pwpolicy test_wubu_clip test_wubu_jpeg test_wubu_preview_decode test_hosted_ns_read test_wubu_json test_wubu_blake2b test_wubu_aead test_wubu_x25519 test_tiny_miniz check_parity check_vendor test_x11_fill test_x11_draw test_x11_windows test_x11_surface test_x11_requests test_x11_client test_x11_bridge test_gate_layer_gui test_gate_reachability test_no_ct_residue test_nt_ordinals test_cross_tree_overlap test_holyc_elf_in_wemu test_x86_decode_parity test_gate_scripts test_metal_model test_vmm_huge test_9psrv runtime test_network test_wifi test_timesync test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho test_wubu_font_text
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -1931,7 +1937,7 @@ test_cp_applets: $(GUI)/test_cp_applets.c $(GUI)/test_cp_pages.c $(GUI)/control_
 	  $(GUI)/control_panel_display.c $(GUI)/control_panel_network.c $(GUI)/control_panel_ai.c $(GUI)/control_panel_people.c $(GUI)/control_panel_programs.c $(GUI)/control_panel_theme.c \
 	  $(GUI)/control_panel_sound.c $(GUI)/control_panel_hardware.c $(GUI)/control_panel_firmware.c $(GUI)/control_panel_mirror.c $(GUI)/control_panel_account.c $(GUI)/control_panel_limits.c $(GUI)/control_panel_signin.c $(RT)/wubu_mirror.c $(RT)/wubu_ai_link.c $(RT)/wubu_people.c $(RT)/wubu_pkgx.c $(RT)/wubu_userinfo.c $(RT)/wubu_parental.c $(RT)/wubu_biometric.c $(GUI)/wubu_sound.c $(RT)/wubu_firmware.c \
 	  $(GUI)/wubu_theme.c $(RT)/wubu_palette.c \
-	  $(KERNEL)/vbe_font.c $(KERNEL)/vbe.c $(GUI)/cp_test_klog.c $(KERNEL)/wubu_math.c $(RT_ALWAYS) \
+	  $(KERNEL)/vbe_font.c $(KERNEL)/vbe.c $(GUI)/cp_test_klog.c $(KERNEL)/wubu_math.c $(RT_ALWAYS) $(SHELL_TEXT) \
 	  -o $(GUI)/test_cp_applets -lm
 	./$(GUI)/test_cp_applets
 
@@ -3135,6 +3141,12 @@ test_wubu_truetype: src/runtime/wubu_truetype_test.c src/runtime/wubu_truetype.c
 	$(CC) $(CFLAGS) -Itests -Isrc/runtime -o $${TMPDIR:-/tmp}/wubu_truetype_test $^
 	$${TMPDIR:-/tmp}/wubu_truetype_test
 
+test_shell_text: src/gui/shell/shell_text_test.c src/gui/shell/shell_text.c \
+		src/runtime/wubu_text_face.c src/runtime/wubu_text_cache.c \
+		src/runtime/wubu_truetype.c src/runtime/wubu_truetype_raster.c src/runtime/wubu_utf8.c
+	$(CC) $(CFLAGS) -Itests -Isrc/runtime -Isrc/gui -Isrc/gui/shell -o $${TMPDIR:-/tmp}/wubu_shell_text_test $^
+	$${TMPDIR:-/tmp}/wubu_shell_text_test
+
 test_wubu_text_face: src/runtime/wubu_text_face_test.c src/runtime/wubu_text_face.c \
 		src/runtime/wubu_text_cache.c src/runtime/wubu_truetype.c \
 		src/runtime/wubu_truetype_raster.c src/runtime/wubu_utf8.c
@@ -4098,8 +4110,8 @@ test_applet_layout:
 		$(RT)/wubu_ai_link.c $(RT)/wubu_people.c $(RT)/wubu_pkgx.c \
 		$(RT)/wubu_firmware.c $(RT)/wubu_mirror.c $(RT)/wubu_userinfo.c $(RT)/wubu_parental.c \
 		$(RT)/wubu_biometric.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c \
-		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(RT)/wubu_utf8.c $(RT)/wubu_palette.c \
-		$(GUI)/wubu_sound.c $(KERNEL)/wubu_math.c \
+		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(RT)/wubu_palette.c \
+		$(GUI)/wubu_sound.c $(KERNEL)/wubu_math.c $(SHELL_TEXT) \
 		$(KERNEL)/vbe.c $(KERNEL)/vbe_font.c \
 		-o $(GUI)/test_applet_layout -lm
 	timeout 120 $(GUI)/test_applet_layout
