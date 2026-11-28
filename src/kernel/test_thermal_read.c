@@ -125,20 +125,45 @@ int main(void)
     if (wubu_thermal_have_gpu()) TEST(gpu > -1 && gpu < 130, "GPU temperature is physically plausible");
 
     /* ---- the oracle: our number must sit inside the sysfs bracket ---- */
+    /* Under a full -j24 suite the package temperature can climb faster than one bracketed
+     * sample can describe: gate71 saw our 52 against a [49,49] bracket that was taken either
+     * side of a rising ramp. Widening the slack would also excuse a mis-scaled or wrong-source
+     * reader, so instead the comparison is RETRIED: a live sensor settles into a matching
+     * bracket within a few attempts, while a reader pointed at the wrong sensor never does.
+     * The slack stays at 2 C -- tight enough that GPU-vs-CPU (~20 C apart) and a 0-by-default
+     * reader still fail every attempt. */
     int pkg_a = oracle_x86_pkg_temp();
-    wubu_thermal_refresh();           /* compared values taken at the same instant */
-    int cpu_now = wubu_thermal_read_temp(WUBU_THERMAL_CPU);
     if (pkg_a > -900) {
-        int pkg_b = oracle_x86_pkg_temp();
         TEST(wubu_thermal_have_cpu(), "package sensor exists, so CPU must be reported");
-        check_bracket("CPU", cpu_now, pkg_a, pkg_b, 2);
+        int matched = 0, attempts = 0;
+        for (; attempts < 4 && !matched; attempts++) {
+            int a = oracle_x86_pkg_temp();
+            wubu_thermal_refresh();       /* compared values taken at the same instant */
+            int mine = wubu_thermal_read_temp(WUBU_THERMAL_CPU);
+            int bq = oracle_x86_pkg_temp();
+            int lo = a < bq ? a : bq, hi = a > bq ? a : bq;
+            if (mine >= lo - 2 && mine <= hi + 2) matched = 1;
+            else if (attempts == 3)
+                printf("  CPU: reported %d, sysfs bracket [%d,%d] after %d attempts\n", mine, lo, hi, attempts + 1);
+        }
+        g_checks++;
+        if (!matched) {
+            g_fails++;
+            printf("FAIL %s:%d: CPU does not track sysfs\n", __FILE__, __LINE__);
+        } else if (attempts > 1) {
+            printf("  CPU tracked sysfs on attempt %d (the package was moving)\n", attempts);
+        }
     }
 
     int ct = oracle_hwmon("coretemp");
     if (ct > -900 && pkg_a < -900) {
         /* Only assert this when the package zone is absent, otherwise the
          * reader is correctly preferring x86_pkg_temp. */
-        check_bracket("CPU(coretemp)", cpu_now, ct, oracle_hwmon("coretemp"), 2);
+        /* This path only runs when the package zone is absent, so there is no ramp to race:
+         * a single bracket is enough here. */
+        wubu_thermal_refresh();
+        check_bracket("CPU(coretemp)", wubu_thermal_read_temp(WUBU_THERMAL_CPU),
+                      ct, oracle_hwmon("coretemp"), 2);
     }
 
     /* ---- NVMe is its own thing, not disguised as skin -------------- */
